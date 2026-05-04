@@ -328,7 +328,7 @@ class MemoryRuntimeActivationTests(unittest.TestCase):
             self.assertIn("## Memory Context", plan_text)
             self.assertIn("Cognee relation:", plan_text)
 
-    def test_runtime_hard_fails_when_workspace_broker_cannot_run(self) -> None:
+    def test_runtime_records_backend_failures_when_workspace_broker_cannot_run(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             temp_root = Path(tempdir)
             payload, run_id = run_governed_runtime_with_metadata(
@@ -348,7 +348,7 @@ class MemoryRuntimeActivationTests(unittest.TestCase):
                 / "memory-activation-report.json"
             )
 
-            self.assertNotEqual(0, payload["returncode"])
+            self.assertEqual("phase_cleanup", payload["summary"]["terminal_stage"])
             self.assertTrue(report_path.exists())
 
             report = json.loads(report_path.read_text(encoding="utf-8"))
@@ -379,7 +379,7 @@ class MemoryRuntimeActivationTests(unittest.TestCase):
                 Path(payload["summary"]["artifacts"]["execution_proof_manifest"]).read_text(encoding="utf-8")
             )
             self.assertEqual(
-                "explicitly_degraded",
+                "direct_current_session_routed",
                 execution_manifest["specialist_accounting"]["effective_execution_status"],
             )
 
@@ -388,7 +388,7 @@ class MemoryRuntimeActivationTests(unittest.TestCase):
                 if result.get("kind") != "specialist_dispatch":
                     continue
                 self.assertFalse(bool(result["live_native_execution"]))
-                self.assertNotEqual("codex_exec_native_specialist", result["execution_driver"])
+                self.assertEqual("direct_current_session_route", result["execution_driver"])
 
 
 if __name__ == "__main__":

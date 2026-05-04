@@ -3,7 +3,8 @@
     "updated_at":  "2026-04-01",
     "shared_repo_ignores":  [
                                 ".serena/",
-                                ".tmp/"
+                                ".tmp/",
+                                ".vibeskills/"
                             ],
     "local_worktree_excludes":  [
                                     "task_plan.md",
@@ -13,6 +14,7 @@
     "local_noise_paths":  [
                               ".serena/",
                               ".tmp/",
+                              ".vibeskills/",
                               "task_plan.md",
                               "findings.md",
                               "progress.md"

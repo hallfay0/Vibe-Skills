@@ -14,6 +14,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RUNTIME_SCRIPT = REPO_ROOT / "scripts" / "runtime" / "invoke-vibe-runtime.ps1"
 RUNTIME_COMMON = REPO_ROOT / "scripts" / "runtime" / "VibeRuntime.Common.ps1"
+RETIRED_CONSULTATION_COMMON = REPO_ROOT / "scripts" / "runtime" / "legacy" / "VibeRetiredConsultation.Common.ps1"
 
 CURRENT_TASK = (
     "Build a scikit-learn classification baseline, include a result figure, "
@@ -163,6 +164,7 @@ class CurrentRoutingContractCleanupTests(unittest.TestCase):
         script = (
             "& { "
             f". {ps_quote(str(RUNTIME_COMMON))}; "
+            f". {ps_quote(str(RETIRED_CONSULTATION_COMMON))}; "
             "$receipt = [pscustomobject]@{ "
             "enabled = $true; "
             "window_id = 'discussion'; "
@@ -182,7 +184,7 @@ class CurrentRoutingContractCleanupTests(unittest.TestCase):
             "summary = [pscustomobject]@{ consulted_unit_count = 0; routed_unit_count = 1 }; "
             "freeze_gate = [pscustomobject]@{ passed = $true; errors = @() } "
             "}; "
-            "$layer = New-VibeSpecialistConsultationLifecycleLayerProjection -ConsultationReceipt $receipt; "
+            "$layer = New-VibeRetiredSpecialistConsultationLifecycleLayerProjection -ConsultationReceipt $receipt; "
             "$lifecycle = New-VibeSpecialistLifecycleDisclosureProjection -RuntimeInputPacket $null -DiscussionConsultationReceipt $receipt; "
             "$markdown = Get-VibeSpecialistLifecycleDisclosureMarkdownLines -LifecycleDisclosure $lifecycle; "
             "[pscustomobject]@{ "
@@ -213,7 +215,10 @@ class CurrentRoutingContractCleanupTests(unittest.TestCase):
         path = REPO_ROOT / "docs" / "governance" / "current-routing-contract.md"
         text = path.read_text(encoding="utf-8")
 
-        self.assertIn("skill_candidates -> skill_routing.selected -> skill_usage.used / skill_usage.unused", text)
+        self.assertIn(
+            "skill_candidates -> skill_routing.selected -> selected_skill_execution -> skill_usage.used / skill_usage.unused",
+            text,
+        )
         for required in [
             "`candidate`",
             "`selected`",
@@ -237,3 +242,20 @@ class CurrentRoutingContractCleanupTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_retired_consultation_field_reads_live_outside_current_runtime_common() -> None:
+    current_text = RUNTIME_COMMON.read_text(encoding="utf-8")
+    legacy_text = RETIRED_CONSULTATION_COMMON.read_text(encoding="utf-8")
+
+    for retired_field in [
+        "consulted_units",
+        "routed_units",
+        "discussion_consultation",
+        "planning_consultation",
+    ]:
+        assert retired_field not in current_text
+        assert retired_field in legacy_text
+
+    assert "New-VibeRetiredSpecialistConsultationLifecycleLayerProjection" in legacy_text
+    assert "New-VibeSpecialistConsultationLifecycleLayerProjection" not in current_text

@@ -76,7 +76,13 @@ def resolve_default_target_root(host_id: str) -> Path:
     repo_root, module = _installer_registry_module()
     requested_host = str(host_id or os.environ.get('VCO_HOST_ID') or '').strip()
     try:
-        return Path(module.resolve_default_target_root(repo_root, requested_host, env=dict(os.environ), home=Path.home()))
+        target_root_text = module.resolve_default_target_root_text(
+            repo_root,
+            requested_host,
+            env=dict(os.environ),
+            home=str(Path.home()),
+        )
+        return Path(str(target_root_text)).expanduser()
     except SystemExit as exc:
         _raise_host_error(host_id, exc)
 

@@ -94,17 +94,13 @@ approved_consultation
 consulted_units
 discussion_consultation
 planning_consultation
-primary skill
-secondary skill
-route owner
 consultation expert
 auxiliary expert
-stage assistant
 ```
 
-These may appear only in retired-behavior tests, historical fixtures, archived
-historical docs, or narrow execution-internal allowlists with an explicit scan
-reason.
+Older human-role labels are also retired. They may appear only in
+retired-behavior tests, historical fixtures, archived historical docs, or
+narrow execution-internal allowlists with an explicit scan reason.
 
 ## Current Behavior Rule
 

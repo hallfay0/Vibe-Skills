@@ -128,6 +128,60 @@
       "destination": "references/fixtures/verify/routing-stability/vibe-routing-stability-gate.md",
       "stage2_mirrored": true,
       "classification": "baseline_fixture"
+    },
+    {
+      "source": "outputs/runtime/vibe-sessions/20260413T131910Z-pr153-rabbit-review-fix/cleanup-receipt.json",
+      "destination": "references/fixtures/runtime/vibe-sessions/20260413T131910Z-pr153-rabbit-review-fix/cleanup-receipt.json",
+      "stage2_mirrored": true,
+      "classification": "runtime_session_fixture"
+    },
+    {
+      "source": "outputs/runtime/vibe-sessions/20260413T131910Z-pr153-rabbit-review-fix/governance-capsule.json",
+      "destination": "references/fixtures/runtime/vibe-sessions/20260413T131910Z-pr153-rabbit-review-fix/governance-capsule.json",
+      "stage2_mirrored": true,
+      "classification": "runtime_session_fixture"
+    },
+    {
+      "source": "outputs/runtime/vibe-sessions/20260413T131910Z-pr153-rabbit-review-fix/intent-contract.json",
+      "destination": "references/fixtures/runtime/vibe-sessions/20260413T131910Z-pr153-rabbit-review-fix/intent-contract.json",
+      "stage2_mirrored": true,
+      "classification": "runtime_session_fixture"
+    },
+    {
+      "source": "outputs/runtime/vibe-sessions/20260413T131910Z-pr153-rabbit-review-fix/phase-plan-execute.json",
+      "destination": "references/fixtures/runtime/vibe-sessions/20260413T131910Z-pr153-rabbit-review-fix/phase-plan-execute.json",
+      "stage2_mirrored": true,
+      "classification": "runtime_session_fixture"
+    },
+    {
+      "source": "outputs/runtime/vibe-sessions/20260413T131910Z-pr153-rabbit-review-fix/skeleton-receipt.json",
+      "destination": "references/fixtures/runtime/vibe-sessions/20260413T131910Z-pr153-rabbit-review-fix/skeleton-receipt.json",
+      "stage2_mirrored": true,
+      "classification": "runtime_session_fixture"
+    },
+    {
+      "source": "outputs/runtime/vibe-sessions/20260413T131910Z-pr153-rabbit-review-fix/stage-lineage.json",
+      "destination": "references/fixtures/runtime/vibe-sessions/20260413T131910Z-pr153-rabbit-review-fix/stage-lineage.json",
+      "stage2_mirrored": true,
+      "classification": "runtime_session_fixture"
+    },
+    {
+      "source": "outputs/skills-audit/bio-science-problem-consolidation.md",
+      "destination": "references/fixtures/skills-audit/bio-science-problem/bio-science-problem-consolidation.md",
+      "stage2_mirrored": true,
+      "classification": "skills_audit_fixture"
+    },
+    {
+      "source": "outputs/skills-audit/bio-science-problem-map.csv",
+      "destination": "references/fixtures/skills-audit/bio-science-problem/bio-science-problem-map.csv",
+      "stage2_mirrored": true,
+      "classification": "skills_audit_fixture"
+    },
+    {
+      "source": "outputs/skills-audit/bio-science-problem-map.json",
+      "destination": "references/fixtures/skills-audit/bio-science-problem/bio-science-problem-map.json",
+      "stage2_mirrored": true,
+      "classification": "skills_audit_fixture"
     }
   ]
 }

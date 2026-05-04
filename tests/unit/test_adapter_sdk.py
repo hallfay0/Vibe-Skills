@@ -1,6 +1,7 @@
 from pathlib import Path
 import json
 import sys
+from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[2]
 ADAPTER_SDK_SRC = ROOT / 'packages' / 'adapter-sdk' / 'src'
@@ -37,6 +38,25 @@ def test_target_root_resolver_uses_env_when_available() -> None:
     descriptor = load_descriptor('codex')
     resolved = resolve_default_target_root(descriptor, env={'CODEX_HOME': '/tmp/codex-home'}, home='/home/tester')
     assert resolved == '/tmp/codex-home'
+
+
+def test_target_root_resolver_preserves_windows_home_separators() -> None:
+    descriptor = load_descriptor('codex')
+    resolved = resolve_default_target_root(descriptor, env={}, home=r'C:\Users\tester')
+    assert resolved == r'C:\Users\tester\.codex'
+
+
+def test_target_root_resolver_returns_absolute_default_exactly() -> None:
+    descriptor = SimpleNamespace(
+        id='demo',
+        default_target_root='/opt/vgo-demo',
+        default_target_root_env='',
+        default_target_root_kind='fixed',
+    )
+
+    resolved = resolve_default_target_root(descriptor, env={}, home=r'C:\Users\tester')
+
+    assert resolved == '/opt/vgo-demo'
 
 
 def test_target_root_resolver_defaults_codex_to_real_home_root() -> None:

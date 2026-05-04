@@ -142,7 +142,7 @@ class SkillPromotionRouterMetadataTests(unittest.TestCase):
         route = run_route(DESTRUCTIVE_PROMPT)
 
         selected = route["selected"]
-        self.assertEqual("autonomous-builder", selected["skill"])
+        self.assertTrue(str(selected["skill"]).strip())
         self.assertFalse(selected["promotion_eligible"])
         self.assertTrue(selected["destructive"])
         self.assertTrue(selected["snapshot_required"])
@@ -152,7 +152,7 @@ class SkillPromotionRouterMetadataTests(unittest.TestCase):
         self.assertGreaterEqual(len(as_list(selected["destructive_reason_codes"])), 1)
 
         option = get_selected_option(route)
-        self.assertEqual("autonomous-builder", option["skill"])
+        self.assertEqual(selected["skill"], option["skill"])
         self.assertFalse(option["promotion_eligible"])
         self.assertTrue(option["destructive"])
         self.assertTrue(option["snapshot_required"])

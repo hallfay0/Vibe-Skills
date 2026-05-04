@@ -36,8 +36,9 @@ def test_canonical_entry_truth_gate_enforces_runtime_backed_launch_proof() -> No
     assert "stage-lineage.json" in content
     assert "canonical_router" in content
     assert "route_snapshot" in content
-    assert "specialist_recommendations" in content
-    assert "specialist_dispatch" in content
+    assert "skill_routing" in content
+    assert "skill_usage" in content
+    assert "specialist_decision" in content
     assert "divergence_shadow" in content
 
 
@@ -45,8 +46,9 @@ def test_no_silent_fallback_gate_requires_runtime_artifact_truth_chain_for_suppo
     gate = (REPO_ROOT / "scripts" / "verify" / "vibe-no-silent-fallback-contract-gate.ps1").read_text(encoding="utf-8")
 
     assert "route_snapshot" in gate
-    assert "specialist_dispatch" in gate
-    assert "specialist_recommendations" in gate
+    assert "skill_routing" in gate
+    assert "selected_skill_execution" in gate
+    assert "skill_usage" in gate
     assert "execution_manifest" in gate
     assert "codex" in gate
     assert "claude-code" in gate

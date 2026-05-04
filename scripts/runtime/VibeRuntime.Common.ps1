@@ -1,7 +1,36 @@
-﻿Set-StrictMode -Off
+Set-StrictMode -Off
 $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot '..\common\vibe-governance-helpers.ps1')
+
+$retiredConsultationHelper = Join-Path $PSScriptRoot 'legacy\VibeRetiredConsultation.Common.ps1'
+if (Test-Path -LiteralPath $retiredConsultationHelper -PathType Leaf) {
+    . $retiredConsultationHelper
+}
+if (-not (Get-Command -Name New-VibeRetiredSpecialistConsultationLifecycleLayerProjection -CommandType Function -ErrorAction SilentlyContinue)) {
+    function New-VibeRetiredSpecialistConsultationLifecycleLayerProjection {
+        param([AllowNull()] [object]$ConsultationReceipt)
+        return $null
+    }
+}
+if (-not (Get-Command -Name New-VibeRetiredHostUserBriefingSegmentProjection -CommandType Function -ErrorAction SilentlyContinue)) {
+    function New-VibeRetiredHostUserBriefingSegmentProjection {
+        param(
+            [AllowNull()] [object]$LifecycleLayer = $null,
+            [AllowNull()] [object]$ConsultationReceipt = $null
+        )
+        return $null
+    }
+}
+if (-not (Get-Command -Name Get-VibeRetiredHostStageDisclosureEventId -CommandType Function -ErrorAction SilentlyContinue)) {
+    function Get-VibeRetiredHostStageDisclosureEventId {
+        param(
+            [Parameter(Mandatory)] [string]$SegmentId,
+            [AllowNull()] [object[]]$Skills = @()
+        )
+        return $null
+    }
+}
 
 # Alias for compatibility with VibeExecution.Common.ps1 which calls Get-VibeHostAdapterIdentityProjection
 function global:Get-VibeHostAdapterIdentityProjection {
@@ -3175,125 +3204,6 @@ function New-VibeSpecialistRoutingLifecycleLayerProjection {
     }
 }
 
-function New-VibeSpecialistConsultationLifecycleLayerProjection {
-    param(
-        [AllowNull()] [object]$ConsultationReceipt
-    )
-
-    if ($null -eq $ConsultationReceipt -or -not [bool]$ConsultationReceipt.enabled) {
-        return $null
-    }
-
-    $windowId = if ((Test-VibeObjectHasProperty -InputObject $ConsultationReceipt -PropertyName 'window_id') -and -not [string]::IsNullOrWhiteSpace([string]$ConsultationReceipt.window_id)) {
-        [string]$ConsultationReceipt.window_id
-    } else {
-        $null
-    }
-    if ($windowId -notin @('discussion', 'planning')) {
-        throw 'Enabled specialist consultation receipts must declare window_id as discussion or planning.'
-    }
-    $consultedUnits = if (
-        (Test-VibeObjectHasProperty -InputObject $ConsultationReceipt -PropertyName 'consulted_units') -and
-        $null -ne $ConsultationReceipt.consulted_units
-    ) {
-        @($ConsultationReceipt.consulted_units)
-    } else {
-        @()
-    }
-    $routedUnits = if (
-        (Test-VibeObjectHasProperty -InputObject $ConsultationReceipt -PropertyName 'routed_units') -and
-        $null -ne $ConsultationReceipt.routed_units
-    ) {
-        @($ConsultationReceipt.routed_units)
-    } else {
-        @()
-    }
-    $consultedCount = if (
-        (Test-VibeObjectHasProperty -InputObject $ConsultationReceipt -PropertyName 'summary') -and
-        $null -ne $ConsultationReceipt.summary -and
-        (Test-VibeObjectHasProperty -InputObject $ConsultationReceipt.summary -PropertyName 'consulted_unit_count')
-    ) {
-        [int]$ConsultationReceipt.summary.consulted_unit_count
-    } else {
-        @($consultedUnits).Count
-    }
-    $routedCount = if (
-        (Test-VibeObjectHasProperty -InputObject $ConsultationReceipt -PropertyName 'summary') -and
-        $null -ne $ConsultationReceipt.summary -and
-        (Test-VibeObjectHasProperty -InputObject $ConsultationReceipt.summary -PropertyName 'routed_unit_count')
-    ) {
-        [int]$ConsultationReceipt.summary.routed_unit_count
-    } else {
-        @($routedUnits).Count
-    }
-
-    $skills = New-Object System.Collections.Generic.List[object]
-    $renderedLines = @(if ($routedCount -gt 0 -and $consultedCount -eq 0) {
-        ('Specialist consultation routing during {0}:' -f $windowId)
-    } elseif ($consultedCount -gt 0 -and $routedCount -eq 0) {
-        ('Specialist consultation during {0}:' -f $windowId)
-    } else {
-        ('Recorded specialist consultation chain during {0}:' -f $windowId)
-    })
-    foreach ($disclosure in @($ConsultationReceipt.user_disclosures)) {
-        if ($null -eq $disclosure) {
-            continue
-        }
-
-        $consultedUnit = $null
-        foreach ($candidate in @($consultedUnits)) {
-            if ($null -ne $candidate -and [string]$candidate.skill_id -eq [string]$disclosure.skill_id) {
-                $consultedUnit = $candidate
-                break
-            }
-        }
-        $routedUnit = $null
-        foreach ($candidate in @($routedUnits)) {
-            if ($null -ne $candidate -and [string]$candidate.skill_id -eq [string]$disclosure.skill_id) {
-                $routedUnit = $candidate
-                break
-            }
-        }
-
-        $skills.Add(
-            [pscustomobject]@{
-                skill_id = [string]$disclosure.skill_id
-                why_now = if ((Test-VibeObjectHasProperty -InputObject $disclosure -PropertyName 'why_now') -and -not [string]::IsNullOrWhiteSpace([string]$disclosure.why_now)) { [string]$disclosure.why_now } else { $null }
-                native_skill_entrypoint = if ((Test-VibeObjectHasProperty -InputObject $disclosure -PropertyName 'native_skill_entrypoint') -and -not [string]::IsNullOrWhiteSpace([string]$disclosure.native_skill_entrypoint)) { [string]$disclosure.native_skill_entrypoint } else { $null }
-                native_skill_description = if ((Test-VibeObjectHasProperty -InputObject $disclosure -PropertyName 'native_skill_description') -and -not [string]::IsNullOrWhiteSpace([string]$disclosure.native_skill_description)) { [string]$disclosure.native_skill_description } else { $null }
-                state = if ($consultedUnit -and (Test-VibeObjectHasProperty -InputObject $consultedUnit -PropertyName 'status')) {
-                    [string]$consultedUnit.status
-                } elseif ($routedUnit -and (Test-VibeObjectHasProperty -InputObject $routedUnit -PropertyName 'status')) {
-                    [string]$routedUnit.status
-                } else {
-                    'consultation_disclosed'
-                }
-                summary = if ($consultedUnit -and (Test-VibeObjectHasProperty -InputObject $consultedUnit -PropertyName 'summary')) {
-                    [string]$consultedUnit.summary
-                } elseif ($routedUnit -and (Test-VibeObjectHasProperty -InputObject $routedUnit -PropertyName 'summary')) {
-                    [string]$routedUnit.summary
-                } else {
-                    $null
-                }
-            }
-        ) | Out-Null
-        $renderedLines += ('- {0}: {1} ({2})' -f [string]$disclosure.skill_id, [string]$disclosure.why_now, (Get-VibeSpecialistEntrypointDisplayText -SkillRecord $disclosure))
-    }
-
-    if ($skills.Count -eq 0) {
-        return $null
-    }
-
-    return [pscustomobject]@{
-        layer_id = ('{0}_consultation' -f $windowId)
-        truth_layer = 'consultation'
-        stage = if ((Test-VibeObjectHasProperty -InputObject $ConsultationReceipt -PropertyName 'stage') -and -not [string]::IsNullOrWhiteSpace([string]$ConsultationReceipt.stage)) { [string]$ConsultationReceipt.stage } else { $windowId }
-        skill_count = [int]$skills.Count
-        skills = [object[]]$skills.ToArray()
-        rendered_text = ($renderedLines -join "`n")
-    }
-}
-
 function New-VibeSpecialistExecutionLifecycleLayerProjection {
     param(
         [AllowNull()] [object]$SpecialistUserDisclosure = $null,
@@ -3372,8 +3282,8 @@ function New-VibeSpecialistLifecycleDisclosureProjection {
     $layers = New-Object System.Collections.Generic.List[object]
     foreach ($candidate in @(
         (New-VibeSpecialistRoutingLifecycleLayerProjection -RuntimeInputPacket $RuntimeInputPacket),
-        (New-VibeSpecialistConsultationLifecycleLayerProjection -ConsultationReceipt $DiscussionConsultationReceipt),
-        (New-VibeSpecialistConsultationLifecycleLayerProjection -ConsultationReceipt $PlanningConsultationReceipt),
+        (New-VibeRetiredSpecialistConsultationLifecycleLayerProjection -ConsultationReceipt $DiscussionConsultationReceipt),
+        (New-VibeRetiredSpecialistConsultationLifecycleLayerProjection -ConsultationReceipt $PlanningConsultationReceipt),
         (New-VibeSpecialistExecutionLifecycleLayerProjection -SpecialistUserDisclosure $SpecialistUserDisclosure -ExecutionManifest $ExecutionManifest)
     )) {
         if ($null -ne $candidate) {
@@ -3518,48 +3428,11 @@ function New-VibeHostUserBriefingSegmentProjection {
             $segmentLines += 'Selected skills are available for execution. This is not a `used` claim; final use must come from `skill_usage.used` and evidence.'
         }
         default {
-            if ($segmentId -match '^(discussion|planning)_consultation$') {
-                $windowId = [string]$Matches[1]
-                $freezeGate = Get-VibePropertySafe -InputObject $ConsultationReceipt -PropertyName 'freeze_gate'
-                if ($freezeGate) {
-                    $gateStatus = if ([bool]$freezeGate.passed) { 'passed' } else { 'failed' }
-                    $status = if ([bool]$freezeGate.passed) { 'gate_passed' } else { 'gate_failed' }
-                } else {
-                    $gateStatus = 'not_applicable'
-                    $status = 'gate_unknown'
-                }
-                $category = 'consultation'
-                $consultedUnits = if (
-                    $ConsultationReceipt -and
-                    (Test-VibeObjectHasProperty -InputObject $ConsultationReceipt -PropertyName 'consulted_units') -and
-                    $null -ne $ConsultationReceipt.consulted_units
-                ) {
-                    @($ConsultationReceipt.consulted_units)
-                } else {
-                    @()
-                }
-                $routedUnits = if (
-                    $ConsultationReceipt -and
-                    (Test-VibeObjectHasProperty -InputObject $ConsultationReceipt -PropertyName 'routed_units') -and
-                    $null -ne $ConsultationReceipt.routed_units
-                ) {
-                    @($ConsultationReceipt.routed_units)
-                } else {
-                    @()
-                }
-                $summary = Get-VibePropertySafe -InputObject $ConsultationReceipt -PropertyName 'summary'
-                $consultedCount = Get-VibeNestedPropertySafe -InputObject $summary -PropertyPath @('consulted_unit_count') -DefaultValue @($consultedUnits).Count
-                $routedCount = Get-VibeNestedPropertySafe -InputObject $summary -PropertyPath @('routed_unit_count') -DefaultValue @($routedUnits).Count
-                if ($routedCount -gt 0 -and $consultedCount -eq 0) {
-                    $segmentLines += ('Vibe routed these Skills for legacy consultation disclosure during {0}; freeze gate: {1}. Usage claims still require `skill_usage` evidence.' -f $windowId, $gateStatus)
-                } elseif ($consultedCount -gt 0 -and $routedCount -eq 0) {
-                    $segmentLines += ('Vibe recorded these Skills in the {0} consultation audit chain; freeze gate: {1}. Usage claims still require `skill_usage` evidence.' -f $windowId, $gateStatus)
-                } else {
-                    $segmentLines += ('Vibe recorded these Skills in the {0} consultation chain; freeze gate: {1}.' -f $windowId, $gateStatus)
-                }
-            } else {
-                $segmentLines += ('Vibe reported specialist activity for {0}:' -f $segmentId)
+            $retiredSegment = New-VibeRetiredHostUserBriefingSegmentProjection -LifecycleLayer $LifecycleLayer -ConsultationReceipt $ConsultationReceipt
+            if ($null -ne $retiredSegment) {
+                return $retiredSegment
             }
+            $segmentLines += ('Vibe reported specialist activity for {0}:' -f $segmentId)
         }
     }
 
@@ -3611,43 +3484,15 @@ function New-VibeHostStageDisclosureEventProjection {
         return $null
     }
 
-    $hasRoutedConsultation = $false
-    $hasCompletedConsultation = $false
-    foreach ($skill in @($Segment.skills)) {
-        if ($null -eq $skill -or -not (Test-VibeObjectHasProperty -InputObject $skill -PropertyName 'state')) {
-            continue
+    $retiredEventId = Get-VibeRetiredHostStageDisclosureEventId -SegmentId $segmentId -Skills @($Segment.skills)
+    $eventId = if ($null -ne $retiredEventId) {
+        $retiredEventId
+    } else {
+        switch ($segmentId) {
+            'discussion_routing' { 'discussion_routing_frozen' }
+            'execution_dispatch' { 'execution_dispatch_confirmed' }
+            default { ('{0}_reported' -f $segmentId) }
         }
-        $state = [string]$skill.state
-        if ($state -match '(^|_)routed($|_)') {
-            $hasRoutedConsultation = $true
-        }
-        if ($state -in @('completed', 'completed_with_notes', 'consulted')) {
-            $hasCompletedConsultation = $true
-        }
-    }
-
-    $eventId = switch ($segmentId) {
-        'discussion_routing' { 'discussion_routing_frozen' }
-        'discussion_consultation' {
-            if ($hasCompletedConsultation -and -not $hasRoutedConsultation) {
-                'discussion_consultation_completed'
-            } elseif ($hasRoutedConsultation -and -not $hasCompletedConsultation) {
-                'discussion_consultation_routed'
-            } else {
-                'discussion_consultation_reported'
-            }
-        }
-        'planning_consultation' {
-            if ($hasCompletedConsultation -and -not $hasRoutedConsultation) {
-                'planning_consultation_completed'
-            } elseif ($hasRoutedConsultation -and -not $hasCompletedConsultation) {
-                'planning_consultation_routed'
-            } else {
-                'planning_consultation_reported'
-            }
-        }
-        'execution_dispatch' { 'execution_dispatch_confirmed' }
-        default { ('{0}_reported' -f $segmentId) }
     }
 
     return [pscustomobject]@{

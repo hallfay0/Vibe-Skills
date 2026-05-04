@@ -7,7 +7,7 @@
 ## 不可违反的硬规则
 
 1. 只有一个 runtime：`vibe`
-2. 只有一个 route authority：canonical router
+2. 只有一个 canonical routing controller：canonical router
 3. 自定义内容必须 manifest 声明后才可参与路由
 4. 禁止目录存在即自动生效
 5. 禁止把外部仓库直接变成 live route source

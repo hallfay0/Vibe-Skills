@@ -68,23 +68,100 @@ def test_invoke_python_core_captures_output_and_exit_code(capsys: pytest.Capture
 
 def test_run_powershell_file_composes_no_profile_command(monkeypatch: pytest.MonkeyPatch) -> None:
     recorded: dict[str, object] = {}
+    script_path = Path('/tmp/test.ps1')
 
     def fake_run_subprocess(command: list[str], *, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
         recorded['command'] = list(command)
         recorded['cwd'] = cwd
         return subprocess.CompletedProcess(args=list(command), returncode=0, stdout='', stderr='')
 
-    monkeypatch.setattr(cli_process, 'choose_powershell', lambda: '/usr/bin/pwsh')
+    def fake_choose_powershell(*, return_diagnostics: bool = False) -> dict[str, object] | str:
+        assert return_diagnostics is True
+        return {
+            'host_path': '/usr/bin/pwsh',
+            'host_kind': 'pwsh',
+            'fallback_used': False,
+            'candidates_checked': [],
+            'policy': {},
+        }
+
+    monkeypatch.setattr(cli_process, 'choose_powershell', fake_choose_powershell)
     monkeypatch.setattr(cli_process, 'run_subprocess', fake_run_subprocess)
 
-    result = run_powershell_file(Path('/tmp/test.ps1'), '-TargetRoot', '/tmp/out')
+    result = run_powershell_file(script_path, '-TargetRoot', '/tmp/out')
 
     assert result.returncode == 0
     assert recorded['command'] == [
         '/usr/bin/pwsh',
         '-NoProfile',
         '-File',
-        '/tmp/test.ps1',
+        str(script_path),
         '-TargetRoot',
         '/tmp/out',
     ]
+
+
+def test_run_powershell_file_adds_execution_policy_for_windows_powershell(monkeypatch: pytest.MonkeyPatch) -> None:
+    recorded: dict[str, object] = {}
+    script_path = Path('/tmp/test.ps1')
+
+    def fake_run_subprocess(command: list[str], *, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+        recorded['command'] = list(command)
+        recorded['cwd'] = cwd
+        return subprocess.CompletedProcess(args=list(command), returncode=0, stdout='', stderr='')
+
+    def fake_choose_powershell(*, return_diagnostics: bool = False) -> dict[str, object]:
+        assert return_diagnostics is True
+        return {
+            'host_path': 'powershell.exe',
+            'host_kind': 'windows-powershell',
+            'fallback_used': True,
+            'candidates_checked': [],
+            'policy': {},
+        }
+
+    monkeypatch.setattr(cli_process, 'choose_powershell', fake_choose_powershell)
+    monkeypatch.setattr(cli_process, 'run_subprocess', fake_run_subprocess)
+
+    result = run_powershell_file(script_path, '-TargetRoot', '/tmp/out')
+
+    assert result.returncode == 0
+    assert recorded['command'] == [
+        'powershell.exe',
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        str(script_path),
+        '-TargetRoot',
+        '/tmp/out',
+    ]
+
+
+def test_run_powershell_file_error_includes_script_and_resolution_details(monkeypatch: pytest.MonkeyPatch) -> None:
+    script_path = Path('/tmp/test.ps1')
+
+    def fake_choose_powershell(*, return_diagnostics: bool = False) -> dict[str, object]:
+        assert return_diagnostics is True
+        return {
+            'host_path': None,
+            'host_kind': None,
+            'fallback_used': False,
+            'candidates_checked': [
+                {'candidate_name': 'path-pwsh', 'candidate_path': None},
+                {'candidate_name': 'default-pwsh', 'candidate_path': r'C:\Program Files\PowerShell\7\pwsh.exe'},
+            ],
+            'policy': {},
+            'error': 'pwsh is required on non-Windows hosts',
+        }
+
+    monkeypatch.setattr(cli_process, 'choose_powershell', fake_choose_powershell)
+
+    with pytest.raises(CliError) as excinfo:
+        run_powershell_file(script_path, '-TargetRoot', '/tmp/out')
+
+    message = str(excinfo.value)
+    assert str(script_path) in message
+    assert 'pwsh is required on non-Windows hosts' in message
+    assert 'path-pwsh' in message
+    assert r'C:\Program Files\PowerShell\7\pwsh.exe' in message

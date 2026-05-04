@@ -14,9 +14,6 @@ from typing import Any
 CSV_FIELDS = [
     "pack_id",
     "skill_candidate_count",
-    "route_authority_count",
-    "stage_assistant_count",
-    "has_explicit_role_split",
     "default_task_count",
     "missing_default_skill_count",
     "suspected_overlap_count",
@@ -113,9 +110,6 @@ TOOL_MARKERS = {
 class PackAuditRow:
     pack_id: str
     skill_candidate_count: int
-    route_authority_count: int
-    stage_assistant_count: int
-    has_explicit_role_split: bool
     default_task_count: int
     missing_default_skill_count: int
     suspected_overlap_count: int
@@ -163,14 +157,6 @@ def _skill_candidates(pack: dict[str, Any]) -> list[str]:
             seen.add(skill)
             skills.append(skill)
     return skills
-
-
-def _role_candidates(pack: dict[str, Any], key: str) -> list[str]:
-    return [str(item).strip() for item in _as_list(pack.get(key)) if str(item).strip()]
-
-
-def _has_explicit_role_split(pack: dict[str, Any]) -> bool:
-    return "route_authority_candidates" in pack or "stage_assistant_candidates" in pack
 
 
 def _defaults(pack: dict[str, Any]) -> dict[str, str]:
@@ -279,11 +265,7 @@ def _tool_like(skill_id: str, description: str) -> bool:
 
 
 def _tool_primary_risk_count(repo_root: Path, pack: dict[str, Any], skill_ids: list[str]) -> int:
-    explicit = _has_explicit_role_split(pack)
-    route_authority = _role_candidates(pack, "route_authority_candidates")
-    default_skills = list(_defaults(pack).values())
-    primary = route_authority if explicit and route_authority else skill_ids
-    primary_set = set(primary) | set(default_skills)
+    primary_set = set(skill_ids) | set(_defaults(pack).values())
     count = 0
     for skill in sorted(primary_set):
         description = _frontmatter_description(_skill_text(repo_root, skill))
@@ -302,9 +284,9 @@ def _priority_for_rank(score: float, rank: int) -> str:
 
 def _recommended_next_action(row: PackAuditRow) -> str:
     if row.priority == "P0":
-        return "write a pack-specific problem map before changing routing"
-    if not row.has_explicit_role_split and row.skill_candidate_count >= 5:
-        return "add explicit route authority and stage assistant roles after content review"
+        return "write a pack-specific problem map before changing skill routing"
+    if row.skill_candidate_count >= 5:
+        return "define explicit skill-routing boundaries after content review"
     if row.suspected_overlap_count > 0:
         return "review suspected duplicate skills and add route regression probes"
     return "observe; no immediate consolidation pass recommended"
@@ -313,23 +295,17 @@ def _recommended_next_action(row: PackAuditRow) -> str:
 def _rationale(
     *,
     skill_count: int,
-    route_count: int,
-    stage_count: int,
-    explicit_roles: bool,
     missing_defaults: int,
     overlaps: int,
     broad_keywords: int,
     tool_primary_risk: int,
     asset_heavy: int,
 ) -> str:
-    del stage_count
     reasons: list[str] = []
     if skill_count >= 12:
         reasons.append(f"{skill_count} skill candidates")
-    if route_count >= 5:
-        reasons.append(f"{route_count} route authorities")
-    if not explicit_roles and skill_count >= 5:
-        reasons.append("no explicit role split")
+    elif skill_count >= 5:
+        reasons.append(f"{skill_count} skill candidates need explicit boundaries")
     if missing_defaults:
         reasons.append(f"{missing_defaults} defaults point outside candidates")
     if overlaps:
@@ -346,8 +322,6 @@ def _rationale(
 def _risk_score(
     *,
     skill_count: int,
-    route_count: int,
-    explicit_roles: bool,
     missing_defaults: int,
     overlaps: int,
     broad_keywords: int,
@@ -356,9 +330,7 @@ def _risk_score(
 ) -> float:
     score = 0.0
     score += min(skill_count * 0.9, 24.0)
-    if explicit_roles:
-        score += min(route_count * 2.2, 22.0)
-    elif skill_count >= 5:
+    if skill_count >= 5:
         score += 18.0
     score += missing_defaults * 5.0
     score += min(overlaps * 2.2, 22.0)
@@ -381,9 +353,6 @@ def audit_repository(repo_root: Path) -> GlobalPackAuditArtifact:
         if not pack_id:
             continue
         skills = _skill_candidates(pack)
-        route_authority = _role_candidates(pack, "route_authority_candidates")
-        stage_assistant = _role_candidates(pack, "stage_assistant_candidates")
-        explicit_roles = _has_explicit_role_split(pack)
         defaults = _defaults(pack)
         missing_defaults = sum(1 for skill in defaults.values() if skill not in skills)
         overlaps = _suspected_overlap_count(skills)
@@ -392,8 +361,6 @@ def audit_repository(repo_root: Path) -> GlobalPackAuditArtifact:
         asset_heavy = sum(1 for skill in skills if _asset_file_count(repo_root, skill) > 0)
         score = _risk_score(
             skill_count=len(skills),
-            route_count=len(route_authority),
-            explicit_roles=explicit_roles,
             missing_defaults=missing_defaults,
             overlaps=overlaps,
             broad_keywords=broad_keywords,
@@ -402,9 +369,6 @@ def audit_repository(repo_root: Path) -> GlobalPackAuditArtifact:
         )
         rationale = _rationale(
             skill_count=len(skills),
-            route_count=len(route_authority),
-            stage_count=len(stage_assistant),
-            explicit_roles=explicit_roles,
             missing_defaults=missing_defaults,
             overlaps=overlaps,
             broad_keywords=broad_keywords,
@@ -414,9 +378,6 @@ def audit_repository(repo_root: Path) -> GlobalPackAuditArtifact:
         provisional = PackAuditRow(
             pack_id=pack_id,
             skill_candidate_count=len(skills),
-            route_authority_count=len(route_authority),
-            stage_assistant_count=len(stage_assistant),
-            has_explicit_role_split=explicit_roles,
             default_task_count=len(defaults),
             missing_default_skill_count=missing_defaults,
             suspected_overlap_count=overlaps,
@@ -461,18 +422,17 @@ def audit_repository(repo_root: Path) -> GlobalPackAuditArtifact:
 
 def _markdown_table(rows: list[PackAuditRow]) -> list[str]:
     lines = [
-        "| priority | pack | score | skills | route authority | stage assistant | rationale |",
-        "|---|---|---:|---:|---:|---:|---|",
+        "| priority | pack | score | skills | defaults | rationale |",
+        "|---|---|---:|---:|---:|---|",
     ]
     for row in rows:
         lines.append(
-            "| {priority} | `{pack}` | {score:.2f} | {skills} | {route} | {stage} | {rationale} |".format(
+            "| {priority} | `{pack}` | {score:.2f} | {skills} | {defaults} | {rationale} |".format(
                 priority=row.priority,
                 pack=row.pack_id,
                 score=row.risk_score,
                 skills=row.skill_candidate_count,
-                route=row.route_authority_count,
-                stage=row.stage_assistant_count,
+                defaults=row.default_task_count,
                 rationale=row.rationale.replace("|", "/"),
             )
         )
@@ -481,7 +441,7 @@ def _markdown_table(rows: list[PackAuditRow]) -> list[str]:
 
 def _markdown_report(artifact: GlobalPackAuditArtifact) -> str:
     lines: list[str] = [
-        "# Global Pack Consolidation Audit",
+        "# Global Pack Routing Audit",
         "",
         "日期：2026-04-27",
         "",

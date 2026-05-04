@@ -73,7 +73,7 @@ function Set-QualityDebtOverlayStage {
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 $policyPath = Join-Path $repoRoot "config\quality-debt-overlay.json"
-$originalRaw = Get-Content -LiteralPath $policyPath -Raw -Encoding UTF8
+$originalBytes = [System.IO.File]::ReadAllBytes($policyPath)
 $results = @()
 
 $highRiskPrompt = "code review lint test debug fix maintainability complexity technical debt duplicate logic security risk"
@@ -125,8 +125,8 @@ try {
     $results += Assert-True -Condition ($routeOff.selected.pack_id -eq $shadowPack) -Message "[off] selected pack unchanged"
     $results += Assert-True -Condition ($routeOff.selected.skill -eq $shadowSkill) -Message "[off] selected skill unchanged"
 } finally {
-    Set-Content -LiteralPath $policyPath -Value $originalRaw -Encoding UTF8
-    Write-Host "Restored quality-debt-overlay policy to original content."
+    [System.IO.File]::WriteAllBytes($policyPath, $originalBytes)
+    Write-Host "Restored quality-debt-overlay policy to original bytes."
 }
 
 $passCount = ($results | Where-Object { $_ }).Count

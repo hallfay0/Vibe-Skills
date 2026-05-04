@@ -1,4 +1,4 @@
-﻿# Auto-extracted router module. Keep function bodies behavior-identical.
+# Auto-extracted router module. Keep function bodies behavior-identical.
 
 function Get-PackSkillCandidates {
     param(
@@ -7,22 +7,12 @@ function Get-PackSkillCandidates {
 
     if (-not $Pack) { return @() }
 
-    $directCandidates = @()
-    if ($Pack.PSObject.Properties.Name -contains 'skill_candidates') {
-        $directCandidates = @($Pack.skill_candidates | ForEach-Object { ([string]$_).Trim() } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-    }
-    if ($directCandidates.Count -gt 0) {
-        return @($directCandidates | Select-Object -Unique)
+    if (-not ($Pack.PSObject.Properties.Name -contains 'skill_candidates')) {
+        return @()
     }
 
-    $legacyCandidates = @()
-    foreach ($propertyName in @('route_authority_candidates', 'stage_assistant_candidates')) {
-        if ($Pack.PSObject.Properties.Name -contains $propertyName) {
-            $legacyCandidates += @($Pack.$propertyName | ForEach-Object { ([string]$_).Trim() } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-        }
-    }
-
-    return @($legacyCandidates | Select-Object -Unique)
+    $directCandidates = @($Pack.skill_candidates | ForEach-Object { ([string]$_).Trim() } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    return @($directCandidates | Select-Object -Unique)
 }
 
 function ConvertTo-PublicCandidateRanking {
@@ -35,7 +25,7 @@ function ConvertTo-PublicCandidateRanking {
         }
         $public = [ordered]@{}
         foreach ($property in @($row.PSObject.Properties)) {
-            if ($property.Name -in @('_candidate_usable', '_legacy_role', 'route_authority_eligible', 'legacy_role')) {
+            if ($property.Name -in @('_candidate_usable')) {
                 continue
             }
             $public[$property.Name] = $property.Value
@@ -54,31 +44,12 @@ function Test-CandidateUsable {
     if ($Row.PSObject.Properties.Name -contains '_candidate_usable') {
         return [bool]$Row._candidate_usable
     }
-    if ($Row.PSObject.Properties.Name -contains 'route_authority_eligible') {
-        return [bool]$Row.route_authority_eligible
-    }
     return $true
-}
-
-function Get-CandidateLegacyRole {
-    param([AllowNull()] [object]$Row)
-
-    if ($null -eq $Row) {
-        return 'skill_candidate'
-    }
-    if ($Row.PSObject.Properties.Name -contains '_legacy_role') {
-        return [string]$Row._legacy_role
-    }
-    if ($Row.PSObject.Properties.Name -contains 'legacy_role') {
-        return [string]$Row.legacy_role
-    }
-    return 'skill_candidate'
 }
 
 function New-RequestedSkillSelection {
     param(
         [string]$RequestedCandidate,
-        [object[]]$StageAssistantCandidates,
         [object[]]$BlockedByTask
     )
 
@@ -96,14 +67,12 @@ function New-RequestedSkillSelection {
                 negative_score = 0.0
                 canonical_for_task_hit = 1.0
                 _candidate_usable = $true
-                _legacy_role = "explicit_request"
             }
         ))
         top1_top2_gap = 1.0
         filtered_out_by_task = @($BlockedByTask)
         _selection_usable = $true
         relevance_score = 1.0
-        _legacy_stage_assistant_candidates = @(ConvertTo-PublicCandidateRanking -Rows @($StageAssistantCandidates))
     }
 }
 
@@ -177,7 +146,7 @@ function Select-PackCandidate {
 
     if ($filteredCandidates.Count -eq 0) {
         if ($requestedCandidate) {
-            return New-RequestedSkillSelection -RequestedCandidate $requestedCandidate -StageAssistantCandidates @() -BlockedByTask @($blockedByTask)
+            return New-RequestedSkillSelection -RequestedCandidate $requestedCandidate -BlockedByTask @($blockedByTask)
         }
         if ($defaultCandidate) {
             return [pscustomobject]@{
@@ -189,7 +158,6 @@ function Select-PackCandidate {
                 filtered_out_by_task = @($blockedByTask)
                 _selection_usable = $true
                 relevance_score = 0.0
-                _legacy_stage_assistant_candidates = @()
             }
         }
 
@@ -202,18 +170,9 @@ function Select-PackCandidate {
             filtered_out_by_task = @($blockedByTask)
             _selection_usable = $true
             relevance_score = 0.0
-            _legacy_stage_assistant_candidates = @()
         }
     }
 
-    $authorityAllowlist = @()
-    if ($Pack.PSObject.Properties.Name -contains 'route_authority_candidates') {
-        $authorityAllowlist = @($Pack.route_authority_candidates | ForEach-Object { ([string]$_).Trim().ToLowerInvariant() } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-    }
-    $stageAssistantAllowlist = @()
-    if ($Pack.PSObject.Properties.Name -contains 'stage_assistant_candidates') {
-        $stageAssistantAllowlist = @($Pack.stage_assistant_candidates | ForEach-Object { ([string]$_).Trim().ToLowerInvariant() } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-    }
     $defaultCandidate = Get-PackDefaultCandidate -Pack $Pack -TaskType $TaskType -PreferredCandidates $filteredCandidates -AllCandidates $Candidates
 
     $scored = @()
@@ -236,7 +195,6 @@ function Select-PackCandidate {
         }
 
         $canonicalHit = Get-CanonicalForTaskHit -Rule $rule -TaskType $TaskType
-        $candidateKey = ([string]$candidate).Trim().ToLowerInvariant()
         $useEligible = $true
         $requiresPositiveKeywordMatch = $false
         if ($rule -and ($rule.PSObject.Properties.Name -contains 'requires_positive_keyword_match')) {
@@ -245,7 +203,6 @@ function Select-PackCandidate {
         if ($useEligible -and $requiresPositiveKeywordMatch -and ([double]$positiveScore -le 0.0)) {
             $useEligible = $false
         }
-        $legacyRole = if ($authorityAllowlist -contains $candidateKey) { "route_authority" } elseif ($stageAssistantAllowlist -contains $candidateKey) { "stage_assistant" } else { "skill_candidate" }
 
         $score =
             ($weightKeyword * $keywordScore) +
@@ -265,7 +222,6 @@ function Select-PackCandidate {
             negative_score = [Math]::Round($negativeScore, 4)
             canonical_for_task_hit = [Math]::Round($canonicalHit, 4)
             _candidate_usable = [bool]$useEligible
-            _legacy_role = $legacyRole
             requires_positive_keyword_match = [bool]$requiresPositiveKeywordMatch
             equivalent_group = $equivalentGroup
             ordinal = $i
@@ -280,10 +236,9 @@ function Select-PackCandidate {
     )
     $overallTop = $ranked | Select-Object -First 1
     $usableRanked = @($ranked | Where-Object { Test-CandidateUsable -Row $_ })
-    $stageAssistantRanked = @($ranked | Where-Object { [string](Get-CandidateLegacyRole -Row $_) -eq 'stage_assistant' })
 
     if ($requestedCandidate) {
-        return New-RequestedSkillSelection -RequestedCandidate $requestedCandidate -StageAssistantCandidates @($stageAssistantRanked | Where-Object { [string]$_.skill -ne [string]$requestedCandidate } | Select-Object -First 4) -BlockedByTask @($blockedByTask)
+        return New-RequestedSkillSelection -RequestedCandidate $requestedCandidate -BlockedByTask @($blockedByTask)
     }
 
     $top = $usableRanked | Select-Object -First 1
@@ -297,7 +252,6 @@ function Select-PackCandidate {
             filtered_out_by_task = @($blockedByTask)
             _selection_usable = $false
             relevance_score = if ($overallTop) { [double]$overallTop.score } else { 0.0 }
-            _legacy_stage_assistant_candidates = @(ConvertTo-PublicCandidateRanking -Rows @($stageAssistantRanked | Select-Object -First 4))
         }
     }
 
@@ -318,7 +272,6 @@ function Select-PackCandidate {
             filtered_out_by_task = @($blockedByTask)
             _selection_usable = $true
             relevance_score = if ($overallTop) { [double]$overallTop.score } else { 0.0 }
-            _legacy_stage_assistant_candidates = @(ConvertTo-PublicCandidateRanking -Rows @($stageAssistantRanked | Where-Object { [string]$_.skill -ne [string]$fallback } | Select-Object -First 4))
         }
     }
 
@@ -331,6 +284,5 @@ function Select-PackCandidate {
         filtered_out_by_task = @($blockedByTask)
         _selection_usable = $true
         relevance_score = if ($overallTop) { [double]$overallTop.score } else { 0.0 }
-        _legacy_stage_assistant_candidates = @(ConvertTo-PublicCandidateRanking -Rows @($stageAssistantRanked | Where-Object { [string]$_.skill -ne [string]$top.skill } | Select-Object -First 4))
     }
 }

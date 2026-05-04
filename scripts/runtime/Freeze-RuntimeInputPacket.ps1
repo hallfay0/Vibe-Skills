@@ -1,4 +1,4 @@
-﻿param(
+param(
     [Parameter(Mandatory)] [string]$Task,
     [string]$Mode = 'interactive_governed',
     [string]$RunId = '',
@@ -510,7 +510,7 @@ function Get-VibeStageAssistantHints {
         policy = $Policy
     }
 
-    # Current route output no longer writes stage_assistant_candidates. Old runtime
+    # Current route output omits retired sibling-role candidate lists. Old runtime
     # packets remain readable through VibeRuntime.Common.ps1 compatibility helpers.
     return @()
 }
@@ -646,10 +646,6 @@ function Get-VibeSpecialistRecommendations {
             if ($seen.ContainsKey($siblingSkillId)) {
                 continue
             }
-            $siblingRouteAuthorityEligible = if ($sibling.PSObject.Properties.Name -contains 'route_authority_eligible') { [bool]$sibling.route_authority_eligible } else { $false }
-            if (-not $siblingRouteAuthorityEligible) {
-                continue
-            }
             $siblingScore = if ($sibling.PSObject.Properties.Name -contains 'score') { [double]$sibling.score } else { 0.0 }
             if ($siblingScore -lt 0.2) {
                 continue
@@ -659,7 +655,7 @@ function Get-VibeSpecialistRecommendations {
             }
 
             $customMetadata = if ($customAdmissionIndex.ContainsKey($siblingSkillId)) { $customAdmissionIndex[$siblingSkillId] } else { $null }
-            $reason = "additional XL route-authority specialist candidate from pack '{0}'" -f ([string]$ranked.pack_id)
+            $reason = "additional XL ranked specialist candidate from pack '{0}'" -f ([string]$ranked.pack_id)
             $recommendations += (New-VibeSpecialistRecommendation `
                 -RepoRoot $RepoRoot `
                 -Task $Task `

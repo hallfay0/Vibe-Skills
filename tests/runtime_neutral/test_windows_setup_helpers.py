@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -20,7 +21,7 @@ class WindowsSetupHelpersTests(unittest.TestCase):
     def test_send_qmp_text_rejects_unsupported_character_cleanly(self) -> None:
         script = REPO_ROOT / "scripts" / "setup" / "send-qmp-text.py"
         completed = subprocess.run(
-            ["python3", str(script), str(self.root / "missing.sock"), "A"],
+            [sys.executable, str(script), str(self.root / "missing.sock"), "A"],
             capture_output=True,
             text=True,
         )
@@ -32,7 +33,7 @@ class WindowsSetupHelpersTests(unittest.TestCase):
     def test_send_qmp_boot_keys_rejects_negative_rounds(self) -> None:
         script = REPO_ROOT / "scripts" / "setup" / "send-qmp-boot-keys.py"
         completed = subprocess.run(
-            ["python3", str(script), str(self.root / "missing.sock"), "esc", "-1", "50"],
+            [sys.executable, str(script), str(self.root / "missing.sock"), "esc", "-1", "50"],
             capture_output=True,
             text=True,
         )

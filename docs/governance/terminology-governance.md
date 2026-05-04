@@ -13,16 +13,17 @@ Current readers should use:
 Use current names in active docs, runtime output, tests, and user-visible
 messages:
 
-- `skill_candidates`
-- `skill_routing.selected`
-- `selected_skill_execution`
-- `skill_usage.used`
-- `skill_usage.unused`
-- `skill_usage.evidence`
+| Current term | Meaning |
+| --- | --- |
+| `skill_candidates` | Candidate skills available to a pack or route decision. |
+| `skill_routing.selected` | The selected skill decisions produced by routing. |
+| `selected_skill_execution` | The current execution-intent projection shown to users and hosts. |
+| `skill_usage.used` | Skills materially used in the run. |
+| `skill_usage.unused` | Candidate or selected skills that were not materially used. |
+| `skill_usage.evidence` | Evidence tying usage claims to concrete artifacts, files, or receipts. |
 
 ## Retired Context
 
-Older wording such as `route owner`, `primary skill`, `secondary skill`,
-`stage assistant`, `consultation`, `specialist_recommendations`, and
-`legacy_skill_routing` is historical only. Do not copy it into current surfaces
-as active design language.
+Older terms are retired vocabulary. They can appear in historical records,
+compatibility readers, and negative tests, but active docs and reports must not
+use them as current architecture names.

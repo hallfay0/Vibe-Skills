@@ -64,6 +64,7 @@ class DiscoverableWrapperHostVisibilityTests(unittest.TestCase):
                 with tempfile.TemporaryDirectory() as tempdir:
                     target_root = Path(tempdir) / f"{host_id}-root"
                     _install_host(target_root, host_id)
+                    closure = json.loads((target_root / ".vibeskills" / "host-closure.json").read_text(encoding="utf-8"))
 
                     result = subprocess.run(
                         [
@@ -81,8 +82,18 @@ class DiscoverableWrapperHostVisibilityTests(unittest.TestCase):
                     )
 
                     self.assertEqual(0, result.returncode, result.stdout + result.stderr)
-                    self.assertIn("[OK] specialist wrapper launcher", result.stdout)
                     self.assertNotIn("[FAIL] specialist wrapper launcher", result.stdout)
+                    specialist_wrapper = closure.get("specialist_wrapper") or {}
+                    if specialist_wrapper.get("removed"):
+                        self.assertEqual("same_session_path_only", specialist_wrapper.get("removal_reason"), host_id)
+                        self.assertEqual(
+                            "same_session_path_only",
+                            (closure.get("specialist_execution") or {}).get("mode"),
+                            host_id,
+                        )
+                        self.assertNotIn("[OK] specialist wrapper launcher", result.stdout)
+                    else:
+                        self.assertIn("[OK] specialist wrapper launcher", result.stdout)
 
     def test_install_prunes_retired_discoverable_wrapper_files_from_host_surfaces(self) -> None:
         self._require_bash()

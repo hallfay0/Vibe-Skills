@@ -263,7 +263,12 @@ def materialize_generated_nested_compatibility(
     nested_skills_root = nested_root.parent
     effective_source_skills_root = source_skills_root or installed_root.parent
 
-    if nested_skills_root.exists():
+    source_is_nested_skills_root = same_path(effective_source_skills_root, nested_skills_root)
+
+    if source_is_nested_skills_root:
+        if nested_root.exists():
+            shutil.rmtree(nested_root)
+    elif nested_skills_root.exists():
         shutil.rmtree(nested_skills_root)
 
     if not effective_source_skills_root.exists():
@@ -275,8 +280,9 @@ def materialize_generated_nested_compatibility(
         if managed_skill_names is not None and skill_dir.name not in managed_skill_names:
             continue
         destination = nested_skills_root / skill_dir.name
-        copy_dir_replace_fn(skill_dir, destination)
-        sanitize_skill_entrypoint_for_runtime_mirror(destination)
+        if not same_path(skill_dir, destination):
+            copy_dir_replace_fn(skill_dir, destination)
+            sanitize_skill_entrypoint_for_runtime_mirror(destination)
 
     packaging = resolve_packaging_contract(governance, installed_root)
     for rel in packaging["mirror"]["files"]:

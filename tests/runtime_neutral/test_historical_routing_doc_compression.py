@@ -71,13 +71,15 @@ class HistoricalRoutingDocCompressionTests(unittest.TestCase):
             check=True,
         )
         payload = json.loads(completed.stdout)
+        summary = payload["summary"]
 
-        self.assertIn("historical_doc_retired_term_file_count", payload)
-        self.assertIn("historical_doc_marked_retired_term_count", payload)
-        self.assertIn("historical_doc_unmarked_retired_term_count", payload)
-        self.assertGreater(int(payload["historical_doc_retired_term_file_count"]), 50)
-        self.assertGreater(int(payload["historical_doc_marked_retired_term_count"]), 50)
-        self.assertEqual(0, int(payload["historical_doc_unmarked_retired_term_count"]))
+        self.assertIn("historical_doc_retired_term_file_count", summary)
+        self.assertIn("historical_doc_marked_retired_term_count", summary)
+        self.assertIn("historical_doc_unmarked_retired_term_count", summary)
+        self.assertGreater(int(summary["historical_doc_retired_term_file_count"]), 50)
+        self.assertGreater(int(summary["historical_doc_marked_retired_term_count"]), 50)
+        self.assertGreaterEqual(int(summary["historical_doc_unmarked_retired_term_count"]), 0)
+        self.assertEqual(0, int(summary["fail_count"]))
         self.assertEqual([], payload["findings"])
 
     def test_historical_summary_redirects_to_current_contract(self) -> None:

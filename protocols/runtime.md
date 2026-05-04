@@ -230,7 +230,7 @@ Layer ownership is:
 Explicitly forbidden:
 
 - a second visible runtime entry ritual
-- a second route authority
+- a second routing authority layer
 - a second requirement truth surface
 - a second plan truth surface
 

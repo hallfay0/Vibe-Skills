@@ -82,25 +82,26 @@ def test_requested_subagent_bypasses_guard() -> None:
 
     assert selection["selected"] == "subagent-driven-development"
     assert selection["reason"] == "requested_skill"
+    assert "_legacy_stage_assistant_candidates" not in selection
 
 
 def test_pack_skill_candidates_prefer_unified_field_over_legacy_roles() -> None:
     pack = {
         "skill_candidates": ["primary", "assistant"],
-        "route_authority_candidates": ["legacy-only-primary"],
-        "stage_assistant_candidates": ["legacy-only-assistant"],
+        "route_authority_candidates": ["legacy-only-primary"],  # retired fixture field
+        "stage_assistant_candidates": ["legacy-only-assistant"],  # retired fixture field
     }
 
     assert get_pack_skill_candidates(pack) == ["primary", "assistant"]
 
 
-def test_pack_skill_candidates_fall_back_to_legacy_role_union_for_old_fixtures() -> None:
+def test_pack_skill_candidates_ignore_retired_role_fields_for_old_fixtures() -> None:
     pack = {
-        "route_authority_candidates": ["primary", "shared"],
-        "stage_assistant_candidates": ["assistant", "shared"],
+        "route_authority_candidates": ["primary", "shared"],  # retired fixture field
+        "stage_assistant_candidates": ["assistant", "shared"],  # retired fixture field
     }
 
-    assert get_pack_skill_candidates(pack) == ["primary", "shared", "assistant"]
+    assert get_pack_skill_candidates(pack) == []
 
 
 def test_active_skill_candidates_do_not_need_legacy_role_fields() -> None:
@@ -134,6 +135,7 @@ def test_active_skill_candidates_do_not_need_legacy_role_fields() -> None:
 
     assert selection["selected"] == "helper"
     assert "legacy_role" not in selection["ranking"][0]
+    assert "_legacy_role" not in selection["ranking"][0]
     assert "route_authority_eligible" not in selection["ranking"][0]
-    assert selection["_legacy_stage_assistant_candidates"] == []
+    assert "_legacy_stage_assistant_candidates" not in selection
     assert "routing_role" not in selection["ranking"][0]

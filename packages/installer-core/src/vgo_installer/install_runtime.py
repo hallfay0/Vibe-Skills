@@ -41,6 +41,7 @@ from .materializer import (
     install_codex_payload,
     install_opencode_guidance_payload,
     install_runtime_core_mode_payload,
+    materialize_generated_nested_compatibility,
     materialize_allowlisted_skills,
     materialize_host_visible_wrappers,
     materialize_internal_skill_corpus,
@@ -785,6 +786,22 @@ def install_runtime_core(repo_root: Path, target_root: Path, profile: str, allow
         )
     if missing:
         raise SystemExit("Missing required vendored skills: " + ", ".join(sorted(missing)))
+
+    governance = load_json(repo_root / "config" / "version-governance.json")
+    compatibility_source_root = corpus_target if corpus_target.exists() else target_root / "skills"
+    materialize_generated_nested_compatibility(
+        governance,
+        target_root / target_rel,
+        set(current_managed_skill_names),
+        compatibility_source_root,
+        copy_file_fn=lambda src, dst: copy_file(src, dst, track_created_path=track_created_path),
+        copy_dir_replace_fn=lambda src, dst: copy_dir_replace(
+            src,
+            dst,
+            track_created_path=track_created_path,
+            record_owned_tree_root=record_owned_tree_root,
+        ),
+    )
 
     managed_skill_names = sorted(
         name for name in current_managed_skill_names

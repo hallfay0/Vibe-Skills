@@ -14,6 +14,43 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
+def _is_wsl_bash_path(path: str) -> bool:
+    normalized = path.replace("/", "\\").lower()
+    return normalized.endswith("\\windows\\system32\\bash.exe") or normalized.endswith(
+        "\\appdata\\local\\microsoft\\windowsapps\\bash.exe"
+    )
+
+
+def resolve_bash() -> str | None:
+    candidates: list[str] = []
+    first = shutil.which("bash")
+    if first:
+        candidates.append(first)
+    if os.name == "nt":
+        for entry in os.environ.get("PATH", "").split(os.pathsep):
+            if not entry:
+                continue
+            for leaf in ("bash.exe", "bash"):
+                candidate = Path(entry) / leaf
+                if candidate.exists():
+                    candidates.append(str(candidate))
+
+    seen: set[str] = set()
+    unique: list[str] = []
+    for candidate in candidates:
+        normalized = str(Path(candidate)).casefold()
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        unique.append(candidate)
+
+    if os.name == "nt":
+        for candidate in unique:
+            if not _is_wsl_bash_path(candidate):
+                return candidate
+    return unique[0] if unique else None
+
+
 def resolve_powershell() -> str | None:
     candidates = [
         shutil.which("pwsh"),
@@ -49,20 +86,19 @@ def _run_path_tool(tool_name: str, flag: str, path: Path) -> str | None:
     return value or None
 
 
-def _bash_looks_like_wsl() -> bool:
-    bash = shutil.which("bash")
+def _bash_looks_like_wsl(bash: str | None = None) -> bool:
+    bash = bash or resolve_bash()
     if not bash:
         return False
 
-    normalized = bash.replace("/", "\\").lower()
-    return normalized.endswith("\\windows\\system32\\bash.exe")
+    return _is_wsl_bash_path(bash)
 
 
-def _to_bash_path(path: Path) -> str:
+def _to_bash_path(path: Path, bash: str | None = None) -> str:
     resolved_path = path.resolve()
     resolved = str(resolved_path).replace("\\", "/")
     if len(resolved) >= 3 and resolved[1:3] == ':/':
-        if not _bash_looks_like_wsl():
+        if not _bash_looks_like_wsl(bash):
             converted = _run_path_tool("cygpath", "-u", resolved_path) or _run_path_tool("wslpath", "-u", resolved_path)
             if converted:
                 return converted
@@ -160,13 +196,34 @@ def test_to_bash_path_prefers_cygpath_for_non_wsl_bash(monkeypatch: pytest.Monke
     monkeypatch.setattr(subprocess, "run", fake_run)
     monkeypatch.setattr(Path, "resolve", fake_resolve)
 
-    assert _to_bash_path(windows_path) == "/f/test/example"
+    assert _to_bash_path(windows_path, r"D:\tool\Git\bin\bash.exe") == "/f/test/example"
+
+
+def test_resolve_bash_prefers_non_wsl_bash_on_windows(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    wsl_dir = tmp_path / "Windows" / "System32"
+    git_dir = tmp_path / "Git" / "bin"
+    wsl_dir.mkdir(parents=True)
+    git_dir.mkdir(parents=True)
+    wsl_bash = wsl_dir / "bash.exe"
+    git_bash = git_dir / "bash.exe"
+    wsl_bash.write_text("", encoding="utf-8")
+    git_bash.write_text("", encoding="utf-8")
+
+    monkeypatch.setattr(os, "name", "nt", raising=False)
+    monkeypatch.setenv("PATH", os.pathsep.join([str(wsl_dir), str(git_dir)]))
+    monkeypatch.setattr(shutil, "which", lambda name: str(wsl_bash) if name == "bash" else None)
+
+    assert resolve_bash() == str(git_bash)
 
 
 def install_minimal_codex_runtime(target_root: Path) -> None:
+    bash = resolve_bash()
+    if bash is None:
+        raise unittest.SkipTest("bash executable not available")
+
     result = subprocess.run(
         [
-            "bash",
+            bash,
             "install.sh",
             "--host",
             "codex",
@@ -174,7 +231,7 @@ def install_minimal_codex_runtime(target_root: Path) -> None:
             "minimal",
             "--skip-runtime-freshness-gate",
             "--target-root",
-            _to_bash_path(target_root),
+            _to_bash_path(target_root, bash),
         ],
         cwd=REPO_ROOT,
         **_capture_text_kwargs(),
@@ -207,11 +264,14 @@ class CheckInstalledRuntimeRootTests(unittest.TestCase):
         return target_root, target_root / "skills" / "vibe"
 
     def test_check_sh_accepts_installed_runtime_root(self) -> None:
+        bash = resolve_bash()
+        if bash is None:
+            self.skipTest("bash executable not available")
         target_root, installed_root = self._fresh_installed_runtime()
 
         result = subprocess.run(
             [
-                "bash",
+                bash,
                 "check.sh",
                 "--host",
                 "codex",
@@ -219,7 +279,7 @@ class CheckInstalledRuntimeRootTests(unittest.TestCase):
                 "minimal",
                 "--skip-runtime-freshness-gate",
                 "--target-root",
-                _to_bash_path(installed_root),
+                _to_bash_path(installed_root, bash),
             ],
             cwd=REPO_ROOT,
             **_capture_text_kwargs(),
@@ -229,6 +289,9 @@ class CheckInstalledRuntimeRootTests(unittest.TestCase):
         self.assertNotIn("skills/vibe/skills/vibe", result.stdout)
 
     def test_check_sh_fails_closed_when_projection_manifest_is_missing(self) -> None:
+        bash = resolve_bash()
+        if bash is None:
+            self.skipTest("bash executable not available")
         target_root, installed_root = self._fresh_installed_runtime()
         for manifest_path in (
             installed_root / "config" / "runtime-core-packaging.minimal.json",
@@ -239,7 +302,7 @@ class CheckInstalledRuntimeRootTests(unittest.TestCase):
 
         result = subprocess.run(
             [
-                "bash",
+                bash,
                 "check.sh",
                 "--host",
                 "codex",
@@ -247,7 +310,7 @@ class CheckInstalledRuntimeRootTests(unittest.TestCase):
                 "minimal",
                 "--skip-runtime-freshness-gate",
                 "--target-root",
-                _to_bash_path(installed_root),
+                _to_bash_path(installed_root, bash),
             ],
             cwd=REPO_ROOT,
             **_capture_text_kwargs(),

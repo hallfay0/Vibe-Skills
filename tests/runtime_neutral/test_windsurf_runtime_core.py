@@ -130,7 +130,8 @@ class WindsurfRuntimeCoreTests(unittest.TestCase):
             )
             self.assertIn("Host: windsurf", check_result.stdout)
             self.assertIn("[OK] host closure manifest", check_result.stdout)
-            self.assertIn("[OK] host-visible discoverable entries", check_result.stdout)
+            closure = json.loads((target_root / ".vibeskills" / "host-closure.json").read_text(encoding="utf-8"))
+            self.assertEqual("closed_ready", closure["host_closure_state"])
             self.assertNotIn("[FAIL] settings.json", check_result.stdout)
             self.assertNotIn("[FAIL] mcp_config.json", check_result.stdout)
 

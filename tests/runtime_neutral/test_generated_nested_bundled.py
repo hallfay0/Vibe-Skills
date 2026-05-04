@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -299,9 +300,27 @@ class InstallTimeGeneratedNestedBundledTests(unittest.TestCase):
                     "schema_version": 1,
                     "package_id": "runtime-core",
                     "directories": ["skills", "config"],
-                    "copy_directories": [{"source": "bundled/skills", "target": "skills"}],
+                    "copy_directories": [],
                     "copy_files": [{"source": "config/upstream-lock.json", "target": "config/upstream-lock.json", "optional": False}],
-                    "canonical_vibe_mirror": {"enabled": True, "target_relpath": "skills/vibe"},
+                    "bundled_skills_source": "bundled/skills",
+                    "exclude_bundled_skill_names": ["vibe"],
+                    "canonical_vibe_payload": {"enabled": True, "target_relpath": "skills/vibe"},
+                    "copy_bundled_skills": False,
+                    "skills_allowlist": list(INSTALL_REQUIRED_SKILLS),
+                    "internal_skill_corpus": {
+                        "enabled": True,
+                        "source": "bundled/skills",
+                        "target_relpath": "skills/vibe/bundled/skills",
+                        "entrypoint_filename": "SKILL.runtime-mirror.md",
+                        "sanitize_entrypoints": True,
+                        "resolver_roots": ["skills/vibe/bundled/skills"],
+                    },
+                    "compatibility_skill_projections": {
+                        "mode": "explicit_projection_only",
+                        "target_root": "skills",
+                        "projected_skill_names": [],
+                        "resolver_roots": ["skills"],
+                    },
                     "managed_skill_inventory": {
                         "required_runtime_skills": ["vibe", "dialectic", "local-vco-roles", "spec-kit-vibe-compat", "superclaude-framework-compat", "ralph-loop", "cancel-ralph", "tdd-guide", "think-harder"],
                         "required_workflow_skills": ["brainstorming", "writing-plans", "subagent-driven-development", "systematic-debugging"],
@@ -386,6 +405,7 @@ class InstallTimeGeneratedNestedBundledTests(unittest.TestCase):
         installed_root = self.target_root / "skills" / "vibe"
         nested_root = installed_root / "bundled" / "skills" / "vibe"
         self.assertTrue((installed_root / "SKILL.md").exists())
+        self.assertTrue((installed_root / "bundled" / "skills" / "brainstorming" / "SKILL.runtime-mirror.md").exists())
         self.assertFalse((nested_root / "SKILL.md").exists())
         self.assertTrue((nested_root / "SKILL.runtime-mirror.md").exists())
         self.assertEqual(
@@ -397,6 +417,20 @@ class InstallTimeGeneratedNestedBundledTests(unittest.TestCase):
             (nested_root / "scripts" / "runtime" / "sample.ps1").read_text(encoding="utf-8"),
         )
 
+    def python_shim_env(self) -> dict[str, str]:
+        env = os.environ.copy()
+        shim_dir = self.root / "python-shim"
+        shim_dir.mkdir(parents=True, exist_ok=True)
+        if os.name == "nt":
+            shim = shim_dir / "python.cmd"
+            shim.write_text(f'@"{sys.executable}" %*\n', encoding="utf-8", newline="\r\n")
+        else:
+            shim = shim_dir / "python"
+            shim.write_text(f'#!/usr/bin/env sh\nexec "{sys.executable}" "$@"\n', encoding="utf-8", newline="\n")
+            shim.chmod(shim.stat().st_mode | 0o755)
+        env["PATH"] = str(shim_dir) + os.pathsep + env.get("PATH", "")
+        return env
+
     def test_vgo_cli_installer_materializes_generated_nested_compatibility_root(self) -> None:
         env = os.environ.copy()
         python_path_entries = [str(self.repo_root / "apps" / "vgo-cli" / "src")]
@@ -406,7 +440,7 @@ class InstallTimeGeneratedNestedBundledTests(unittest.TestCase):
 
         subprocess.run(
             [
-                "python3",
+                sys.executable,
                 "-m",
                 "vgo_cli.main",
                 "install",
@@ -453,6 +487,7 @@ class InstallTimeGeneratedNestedBundledTests(unittest.TestCase):
             capture_output=True,
             text=True,
             check=True,
+            env=self.python_shim_env(),
         )
         self.assert_generated_nested_installed()
 

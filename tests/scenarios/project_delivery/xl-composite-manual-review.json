@@ -19,6 +19,18 @@
         "specialist outputs are structurally valid"
       ]
     },
+    "specialist_disclosure_truth": {
+      "state": "passing",
+      "evidence": [
+        "approved specialist units were disclosed before execution"
+      ]
+    },
+    "specialist_decision_truth": {
+      "state": "passing",
+      "evidence": [
+        "root-owned specialist decision evidence was retained"
+      ]
+    },
     "workflow_completion_truth": {
       "state": "passing",
       "evidence": [

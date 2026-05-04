@@ -1,4 +1,4 @@
-﻿# Auto-extracted router module. Keep function bodies behavior-identical.
+# Auto-extracted router module. Keep function bodies behavior-identical.
 
 $customAdmissionHelperPath = Join-Path (Split-Path $PSScriptRoot -Parent) '..\common\vibe-governance-helpers.ps1'
 if (-not (Get-Command Resolve-VgoTargetRoot -ErrorAction SilentlyContinue) -and (Test-Path -LiteralPath $customAdmissionHelperPath)) {
@@ -166,7 +166,7 @@ function Get-CustomAdmissionDispatchPhase {
     return 'in_execution'
 }
 
-function Test-CustomAdmissionRouteAuthorityEligible {
+function Test-CustomAdmissionRouteUsable {
     param(
         [Parameter(Mandatory)] [string]$TriggerMode,
         [AllowEmptyString()] [string]$RequestedCanonical = '',
@@ -279,7 +279,7 @@ function ConvertTo-CustomAdmissionCandidate {
     $taskAllow = Get-CustomAdmissionTaskAllow -Entry $Entry
     $dispatchPhase = Get-CustomAdmissionDispatchPhase -PreferredStages @($preferredStages)
     $description = Get-CustomAdmissionDescription -SkillMdPath $skillMdPath
-    $routeAuthorityEligible = Test-CustomAdmissionRouteAuthorityEligible -TriggerMode $triggerMode -RequestedCanonical $RequestedCanonical -SkillId $skillId
+    $routeUsable = Test-CustomAdmissionRouteUsable -TriggerMode $triggerMode -RequestedCanonical $RequestedCanonical -SkillId $skillId
 
     $customSummary = [pscustomobject]@{
         skill_id = $skillId
@@ -292,7 +292,7 @@ function ConvertTo-CustomAdmissionCandidate {
         parallelizable_in_root_xl = [bool]($Entry.PSObject.Properties.Name -contains 'parallelizable_in_root_xl' -and $Entry.parallelizable_in_root_xl)
         native_usage_required = $true
         must_preserve_workflow = $true
-        route_authority_eligible = [bool]$routeAuthorityEligible
+        _route_usable = [bool]$routeUsable
         skill_md_path = $skillMdPath
         description = $description
     }
@@ -319,7 +319,7 @@ function ConvertTo-CustomAdmissionCandidate {
         parallelizable_in_root_xl = [bool]($Entry.PSObject.Properties.Name -contains 'parallelizable_in_root_xl' -and $Entry.parallelizable_in_root_xl)
         native_usage_required = $true
         must_preserve_workflow = $true
-        route_authority_eligible = [bool]$routeAuthorityEligible
+        _route_usable = [bool]$routeUsable
         pack = [pscustomobject]@{
             id = "custom-$ManifestKind-$skillId"
             priority = $priority

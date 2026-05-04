@@ -1,4 +1,4 @@
-﻿Set-StrictMode -Off
+Set-StrictMode -Off
 
 $script:VgoGovernanceHelpersRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 
@@ -1377,7 +1377,7 @@ function Get-VgoInstalledRuntimeDefaultsFromContracts {
     if ($null -ne $python.prefix_arguments) {
         $args += @($python.prefix_arguments)
     }
-    $args += @($helperPath, 'installed-runtime-config', '--mode', 'installed')
+    $args += @('-B', $helperPath, 'installed-runtime-config', '--mode', 'installed')
 
     $raw = & $python.host_path @args
     if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace(($raw | Out-String))) {

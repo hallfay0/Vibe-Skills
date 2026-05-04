@@ -377,15 +377,12 @@ def _public_custom_metadata(value: object) -> object:
         return value
     public = dict(value)
     public.pop(INTERNAL_ROUTE_USABLE, None)
-    public.pop("route_authority_eligible", None)
     return public
 
 
 def _public_pack_row(row: dict[str, object]) -> dict[str, object]:
     public = dict(row)
     public.pop(INTERNAL_ROUTE_USABLE, None)
-    public.pop("route_authority_eligible", None)
-    public.pop("stage_assistant_candidates", None)
     public["candidate_ranking"] = public_candidate_rows(list(public.get("candidate_ranking") or []))
     public["custom_admission"] = _public_custom_metadata(public.get("custom_admission"))
     return public
@@ -397,7 +394,7 @@ def _public_admitted_candidates(rows: object) -> list[dict[str, object]]:
         if not isinstance(row, dict):
             continue
         public_row = dict(row)
-        public_row.pop("route_authority_eligible", None)
+        public_row.pop(INTERNAL_ROUTE_USABLE, None)
         public_rows.append(public_row)
     return public_rows
 
@@ -563,9 +560,7 @@ def route_prompt(
         custom_metadata = pack.get("custom_admission")
         route_usable = bool(selection.get(INTERNAL_SELECTION_USABLE, selection.get("selected") is not None))
         if isinstance(custom_metadata, dict):
-            route_usable = route_usable and bool(
-                custom_metadata.get(INTERNAL_ROUTE_USABLE, custom_metadata.get("route_authority_eligible", False))
-            )
+            route_usable = route_usable and bool(custom_metadata.get(INTERNAL_ROUTE_USABLE, False))
         if weak_fallback:
             route_usable = False
         pack_results.append(

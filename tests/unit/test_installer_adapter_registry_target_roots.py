@@ -17,6 +17,7 @@ import vgo_installer.adapter_registry as adapter_registry_module
 from vgo_installer.adapter_registry import (
     resolve_canonical_vibe_contract,
     resolve_default_target_root,
+    resolve_default_target_root_text,
     resolve_matching_target_root_hosts,
     resolve_target_root_owner,
     resolve_target_root_spec,
@@ -132,6 +133,28 @@ def test_resolve_canonical_vibe_contract_preserves_host_defaults_when_adapter_ov
 
     assert contract["bootstrap_mode"] == "managed_bootstrap"
     assert contract["discoverable_entries"] == {"vibe": {"requested_stage_stop": "phase_cleanup"}}
+
+
+def test_resolve_default_target_root_text_preserves_env_projection() -> None:
+    resolved = resolve_default_target_root_text(
+        REPO_ROOT,
+        'windsurf',
+        env={'WINDSURF_HOME': '/tmp/windsurf-home'},
+        home='/home/tester',
+    )
+
+    assert resolved == '/tmp/windsurf-home'
+
+
+def test_resolve_default_target_root_text_preserves_posix_home_projection() -> None:
+    resolved = resolve_default_target_root_text(
+        REPO_ROOT,
+        'opencode',
+        env={},
+        home='/home/tester',
+    )
+
+    assert resolved == '/home/tester/.config/opencode'
 
 
 def test_resolve_default_target_root_uses_env_projection() -> None:

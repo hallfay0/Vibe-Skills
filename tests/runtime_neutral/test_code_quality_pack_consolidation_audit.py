@@ -12,6 +12,29 @@ VERIFICATION_CORE_SRC = REPO_ROOT / "packages" / "verification-core" / "src"
 if str(VERIFICATION_CORE_SRC) not in sys.path:
     sys.path.insert(0, str(VERIFICATION_CORE_SRC))
 
+RETIRED_POSITIVE_OUTPUT_TERMS = [
+    "route_authority_count",
+    "stage_assistant_count",
+    "target_route_authority_count",
+    "target_stage_assistant_count",
+    "target_route_authority_candidates",
+    "target_stage_assistant_candidates",
+    "keep-route-authority",
+    "Route Authorities",
+    "Stage Assistants",
+    "Target Route Authorities",
+    "Target Stage Assistants",
+    "route authority",
+    "stage assistant",
+]
+
+
+def assert_no_retired_positive_output_terms(text: str) -> None:
+    lower = text.lower()
+    for term in RETIRED_POSITIVE_OUTPUT_TERMS:
+        assert term.lower() not in lower, term
+
+
 from vgo_verify.code_quality_pack_consolidation_audit import (
     audit_code_quality_problem_map,
     write_code_quality_problem_artifacts,
@@ -112,13 +135,13 @@ class CodeQualityPackConsolidationAuditTests(unittest.TestCase):
         artifact = audit_code_quality_problem_map(self.root)
         rows = {row.skill_id: row for row in artifact.rows}
 
-        self.assertEqual("keep-route-authority", rows["code-reviewer"].target_role)
+        self.assertEqual("keep-routing-skill", rows["code-reviewer"].target_role)
         self.assertEqual("code_review_general", rows["code-reviewer"].primary_problem_id)
-        self.assertEqual("keep-route-authority", rows["systematic-debugging"].target_role)
+        self.assertEqual("keep-routing-skill", rows["systematic-debugging"].target_role)
         self.assertEqual("debug_root_cause", rows["systematic-debugging"].primary_problem_id)
-        self.assertEqual("keep-route-authority", rows["receiving-code-review"].target_role)
+        self.assertEqual("keep-routing-skill", rows["receiving-code-review"].target_role)
         self.assertEqual("review_feedback_handling", rows["receiving-code-review"].primary_problem_id)
-        self.assertEqual("keep-route-authority", rows["requesting-code-review"].target_role)
+        self.assertEqual("keep-routing-skill", rows["requesting-code-review"].target_role)
         self.assertEqual("review_request_preparation", rows["requesting-code-review"].primary_problem_id)
 
     def test_problem_map_marks_safe_delete_and_move_out(self) -> None:
@@ -157,8 +180,6 @@ class CodeQualityPackConsolidationAuditTests(unittest.TestCase):
                     {
                         "id": "code-quality",
                         "skill_candidates": target_candidates,
-                        "route_authority_candidates": target_candidates,
-                        "stage_assistant_candidates": [],
                         "defaults_by_task": {
                             "debug": "systematic-debugging",
                             "coding": "tdd-guide",
@@ -178,9 +199,55 @@ class CodeQualityPackConsolidationAuditTests(unittest.TestCase):
         self.assertEqual("removed_from_pack", rows["build-error-resolver"].current_role)
         self.assertEqual("merge-delete-after-migration", rows["code-review"].target_role)
 
+    def test_retired_candidate_fields_do_not_restore_removed_code_quality_roles(self) -> None:
+        target_candidates = [
+            "code-reviewer",
+            "deslop",
+            "generating-test-reports",
+            "receiving-code-review",
+            "requesting-code-review",
+            "security-reviewer",
+            "systematic-debugging",
+            "tdd-guide",
+            "verification-before-completion",
+            "windows-hook-debugging",
+        ]
+        self._write_json(
+            "config/pack-manifest.json",
+            {
+                "packs": [
+                    {
+                        "id": "code-quality",
+                        "skill_candidates": target_candidates,
+                        "route_authority_candidates": ["reviewing-code", "retired-only-code-direct"],
+                        "stage_assistant_candidates": ["build-error-resolver", "retired-only-code-stage"],
+                        "defaults_by_task": {
+                            "debug": "systematic-debugging",
+                            "coding": "tdd-guide",
+                            "review": "code-reviewer",
+                        },
+                    }
+                ]
+            },
+        )
+
+        artifact = audit_code_quality_problem_map(self.root)
+        rows = {row.skill_id: row for row in artifact.rows}
+        artifact_text = json.dumps(artifact.to_dict(), ensure_ascii=False)
+
+        self.assertEqual("removed_from_pack", rows["reviewing-code"].current_role)
+        self.assertEqual("removed_from_pack", rows["build-error-resolver"].current_role)
+        self.assertNotIn("retired-only-code-direct", rows)
+        self.assertNotIn("retired-only-code-stage", rows)
+        self.assertNotIn("compat_direct_candidate", artifact_text)
+        self.assertNotIn("compat_stage_candidate", artifact_text)
+        self.assertNotIn("retired-only-code-direct", artifact_text)
+        self.assertNotIn("retired-only-code-stage", artifact_text)
+
     def test_artifact_writer_outputs_json_csv_and_markdown(self) -> None:
         artifact = audit_code_quality_problem_map(self.root)
-        self.assertEqual(0, artifact.to_dict()["summary"]["target_stage_assistant_count"])
+        self.assertEqual(0, artifact.to_dict()["summary"]["target_retired_stage_candidate_count"])
+        self.assertEqual(10, artifact.to_dict()["summary"]["target_routing_skill_count"])
         written = write_code_quality_problem_artifacts(self.root, artifact, self.root / "outputs" / "skills-audit")
 
         self.assertTrue(written["json"].exists())
@@ -193,8 +260,11 @@ class CodeQualityPackConsolidationAuditTests(unittest.TestCase):
 
         markdown_text = written["markdown"].read_text(encoding="utf-8")
         self.assertIn("# Code-Quality Problem-First Consolidation", markdown_text)
-        self.assertIn("## 保留直接路由", markdown_text)
+        self.assertIn("## 保留路由技能", markdown_text)
         self.assertIn("## 删除候选", markdown_text)
+        assert_no_retired_positive_output_terms(json.dumps(artifact.to_dict(), ensure_ascii=False))
+        assert_no_retired_positive_output_terms(csv_text)
+        assert_no_retired_positive_output_terms(markdown_text)
 
     def test_second_pass_marks_legacy_directories_for_pruning_or_deferral(self) -> None:
         artifact = audit_code_quality_problem_map(self.root)
@@ -232,7 +302,7 @@ class CodeQualityPackConsolidationAuditTests(unittest.TestCase):
 
         self.assertTrue((REPO_ROOT / "bundled" / "skills" / "error-resolver").exists())
 
-    def test_problem_artifact_does_not_describe_live_stage_assistants(self) -> None:
+    def test_problem_artifact_uses_current_routing_skill_language(self) -> None:
         artifact = audit_code_quality_problem_map(self.root)
         written = write_code_quality_problem_artifacts(
             self.root,
@@ -241,10 +311,10 @@ class CodeQualityPackConsolidationAuditTests(unittest.TestCase):
         )
 
         markdown_text = written["markdown"].read_text(encoding="utf-8")
-        self.assertNotIn("## 阶段助手", markdown_text)
-        self.assertIn("## 保留直接路由", markdown_text)
+        self.assertIn("## 保留路由技能", markdown_text)
         self.assertIn("## 迁移后删除", markdown_text)
         self.assertIn("## 推迟迁移", markdown_text)
+        assert_no_retired_positive_output_terms(markdown_text)
 
     def test_audit_and_writer_do_not_modify_live_config(self) -> None:
         config_paths = [

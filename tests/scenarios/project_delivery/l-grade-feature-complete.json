@@ -21,6 +21,18 @@
         "integration smoke passes"
       ]
     },
+    "specialist_disclosure_truth": {
+      "state": "not_applicable",
+      "evidence": [
+        "serial L-grade delivery did not require selected specialist execution disclosure"
+      ]
+    },
+    "specialist_decision_truth": {
+      "state": "not_applicable",
+      "evidence": [
+        "serial L-grade delivery did not require specialist decision evidence"
+      ]
+    },
     "workflow_completion_truth": {
       "state": "passing",
       "evidence": [

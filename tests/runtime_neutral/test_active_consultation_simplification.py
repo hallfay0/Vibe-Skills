@@ -144,7 +144,7 @@ class ActiveConsultationSimplificationTests(unittest.TestCase):
             "summary = [pscustomobject]@{ consulted_unit_count = 0; routed_unit_count = 1 }; "
             "freeze_gate = [pscustomobject]@{ passed = $true; errors = @() } "
             "}; "
-            "$layer = New-VibeSpecialistConsultationLifecycleLayerProjection -ConsultationReceipt $receipt; "
+            "$layer = New-VibeRetiredSpecialistConsultationLifecycleLayerProjection -ConsultationReceipt $receipt; "
             "$segment = New-VibeHostUserBriefingSegmentProjection -LifecycleLayer $layer -ConsultationReceipt $receipt; "
             "[pscustomobject]@{ "
             "layer_id = $layer.layer_id; "

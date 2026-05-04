@@ -6,6 +6,7 @@ from .adapter_registry_support import (
     resolve_adapter_entry,
     resolve_adapter_registry_path,
 )
+from .target_root_contract import resolve_target_root_text
 from .canonical_vibe_contract import (
     DEFAULT_CANONICAL_VIBE_ENTRY_MODE,
     DEFAULT_CANONICAL_VIBE_FALLBACK_POLICY,
@@ -72,6 +73,7 @@ __all__ = [
     'normalize_adapter_host_id',
     'resolve_adapter_entry',
     'resolve_adapter_registry_path',
+    'resolve_target_root_text',
     'DEFAULT_CANONICAL_VIBE_ENTRY_MODE',
     'DEFAULT_CANONICAL_VIBE_FALLBACK_POLICY',
     'DEFAULT_CANONICAL_VIBE_LAUNCHER_KIND',

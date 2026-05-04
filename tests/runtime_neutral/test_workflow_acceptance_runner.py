@@ -86,6 +86,8 @@ class WorkflowAcceptanceRunnerTests(unittest.TestCase):
                         "truths": {
                             "governance_truth": {"state": "passing"},
                             "engineering_verification_truth": {"state": "passing"},
+                            "specialist_disclosure_truth": {"state": "not_applicable"},
+                            "specialist_decision_truth": {"state": "not_applicable"},
                             "workflow_completion_truth": {"state": "passing"},
                             "code_task_tdd_evidence_truth": {"state": "not_applicable"},
                             "artifact_review_truth": {"state": "passing"},

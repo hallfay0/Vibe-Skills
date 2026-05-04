@@ -37,6 +37,7 @@ from vgo_contracts.adapter_registry_support import (
     resolve_adapter_registry_path,
 )
 from vgo_contracts.canonical_vibe_contract import resolve_canonical_vibe_contract as resolve_host_canonical_vibe_contract
+from vgo_contracts.target_root_contract import resolve_target_root_text
 
 
 def resolve_registry_path(repo_root: Path) -> tuple[Path, Path]:
@@ -138,6 +139,23 @@ def resolve_canonical_vibe_contract(repo_root: Path, host_id: str | None) -> dic
     }
 
 
+def resolve_default_target_root_text(
+    repo_root: Path,
+    host_id: str,
+    *,
+    env: dict[str, str] | None = None,
+    home: str | Path | None = None,
+) -> str:
+    normalized, spec = resolve_target_root_spec(repo_root, host_id)
+    return resolve_target_root_text(
+        default_target_root=spec["rel"],
+        default_target_root_env=spec["env"],
+        env=env or dict(os.environ),
+        home=home if home is not None else Path.home(),
+        descriptor_id=normalized,
+    )
+
+
 def resolve_default_target_root(
     repo_root: Path,
     host_id: str,
@@ -145,17 +163,8 @@ def resolve_default_target_root(
     env: dict[str, str] | None = None,
     home: str | Path | None = None,
 ) -> Path:
-    _normalized, spec = resolve_target_root_spec(repo_root, host_id)
-    env_map = env or dict(os.environ)
-    home_path = Path(home).expanduser() if home is not None else Path.home()
-    env_name = spec['env']
-    env_value = str(env_map.get(env_name, '')).strip() if env_name else ''
-    if env_value:
-        return Path(env_value).expanduser().resolve()
-    rel = spec['rel']
-    if Path(rel).is_absolute():
-        return Path(rel).resolve()
-    return (home_path / rel).expanduser().resolve()
+    target_root = resolve_default_target_root_text(repo_root, host_id, env=env, home=home)
+    return Path(target_root).expanduser().resolve()
 
 
 def path_matches_relative_signature(target_root: str, signature: str) -> bool:

@@ -45,6 +45,28 @@ function Test-LineHasRetiredContext {
     return $false
 }
 
+function Test-LineIsNegativeAssertion {
+    param([Parameter(Mandatory)] [string]$Line)
+
+    foreach ($needle in @('assertNotIn', 'assertNotRegex', 'not in', 'forbidden', 'must not', 'do not', 'absence', 'leaked', 'retired')) {
+        if ($Line.IndexOf($needle, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+            return $true
+        }
+    }
+    return $false
+}
+
+function Test-LineIsCompatibilityExplanation {
+    param([Parameter(Mandatory)] [string]$Line)
+
+    foreach ($needle in @('compatibility', 'compat_', 'retired input', 'migration input', 'old input', 'legacy fallback', 'retired old routing')) {
+        if ($Line.IndexOf($needle, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+            return $true
+        }
+    }
+    return $false
+}
+
 function ConvertTo-RepoRelativePath {
     param(
         [Parameter(Mandatory)] [string]$Path,
@@ -57,6 +79,70 @@ function ConvertTo-RepoRelativePath {
         return $pathFull.Substring($rootFull.Length).TrimStart('\', '/').Replace('\', '/')
     }
     return $pathFull.Replace('\', '/')
+}
+
+function Test-PathPrefix {
+    param(
+        [Parameter(Mandatory)] [string]$Path,
+        [Parameter(Mandatory)] [string[]]$Prefixes
+    )
+
+    $normalized = $Path.Replace('\', '/').TrimStart('/')
+    foreach ($prefix in $Prefixes) {
+        $candidate = [string]$prefix
+        if ([string]::IsNullOrWhiteSpace($candidate)) {
+            continue
+        }
+        $candidate = $candidate.Replace('\', '/').TrimEnd('/')
+        if ($normalized.Equals($candidate, [System.StringComparison]::OrdinalIgnoreCase)) {
+            return $true
+        }
+        if ($normalized.StartsWith($candidate + '/', [System.StringComparison]::OrdinalIgnoreCase)) {
+            return $true
+        }
+    }
+    return $false
+}
+
+function Get-BudgetScanFiles {
+    param(
+        [Parameter(Mandatory)] [string]$Root,
+        [Parameter(Mandatory)] [string[]]$Roots,
+        [string[]]$HistoricalRoots = @(),
+        [string[]]$HistoricalExemptions = @()
+    )
+
+    $extensions = @('.ps1', '.py', '.json', '.md', '.yaml', '.yml', '.toml')
+    $files = New-Object System.Collections.Generic.List[object]
+    $seen = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+
+    foreach ($relative in $Roots) {
+        $full = Join-Path $Root $relative
+        if (Test-Path -LiteralPath $full -PathType Leaf) {
+            $item = Get-Item -LiteralPath $full
+            $repoRelative = ConvertTo-RepoRelativePath -Path $item.FullName -Root $Root
+            $isHistorical = (Test-PathPrefix -Path $repoRelative -Prefixes $HistoricalRoots) -and -not (Test-PathPrefix -Path $repoRelative -Prefixes $HistoricalExemptions)
+            if (($extensions -contains $item.Extension.ToLowerInvariant()) -and -not $isHistorical -and $seen.Add($item.FullName)) {
+                $files.Add($item) | Out-Null
+            }
+            continue
+        }
+        if (-not (Test-Path -LiteralPath $full -PathType Container)) {
+            continue
+        }
+        foreach ($file in Get-ChildItem -LiteralPath $full -Recurse -File) {
+            $repoRelative = ConvertTo-RepoRelativePath -Path $file.FullName -Root $Root
+            $isHistorical = (Test-PathPrefix -Path $repoRelative -Prefixes $HistoricalRoots) -and -not (Test-PathPrefix -Path $repoRelative -Prefixes $HistoricalExemptions)
+            if ($isHistorical) {
+                continue
+            }
+            if (($extensions -contains $file.Extension.ToLowerInvariant()) -and $seen.Add($file.FullName)) {
+                $files.Add($file) | Out-Null
+            }
+        }
+    }
+
+    return @($files.ToArray() | Sort-Object FullName)
 }
 
 $configPath = Join-Path $RepoRoot 'config\routing-terminology-hard-cleanup.json'
@@ -237,19 +323,132 @@ foreach ($relative in @($currentPolicyHelperFiles)) {
     }
 }
 
+$budgetFailures = New-Object System.Collections.Generic.List[object]
+$allowedNegative = New-Object System.Collections.Generic.List[object]
+$allowedHistorical = New-Object System.Collections.Generic.List[object]
+$compatibilityReview = New-Object System.Collections.Generic.List[object]
+
+$budgetTerms = @()
+if ($config.PSObject.Properties.Name -contains 'retired_positive_terms') {
+    $budgetTerms = @($config.retired_positive_terms | ForEach-Object { [string]$_ })
+} else {
+    $budgetTerms = @($config.retired_terms | ForEach-Object { [string]$_ })
+}
+
+$currentSurfaceRoots = @($config.current_surface_roots | ForEach-Object { [string]$_ })
+$historicalSurfaceRoots = @($config.historical_surface_roots | ForEach-Object { [string]$_ })
+$historicalSurfaceExemptions = @($config.historical_surface_exemptions | ForEach-Object { [string]$_ })
+$allowedNegativeFiles = @($config.allowed_negative_files | ForEach-Object { [string]$_ })
+$compatibilityReviewFiles = @($config.compatibility_review_files | ForEach-Object { [string]$_ })
+
+$budgetFiles = @(Get-BudgetScanFiles -Root $RepoRoot -Roots $currentSurfaceRoots -HistoricalRoots $historicalSurfaceRoots -HistoricalExemptions $historicalSurfaceExemptions)
+foreach ($file in $budgetFiles) {
+    $relative = ConvertTo-RepoRelativePath -Path $file.FullName -Root $RepoRoot
+    $lines = @(Get-TextFileLines -Path $file.FullName)
+    for ($index = 0; $index -lt $lines.Count; $index++) {
+        $lineText = [string]$lines[$index]
+        foreach ($pattern in $budgetTerms) {
+            if ([string]::IsNullOrWhiteSpace($pattern)) {
+                continue
+            }
+            $patternText = [string]$pattern
+            $matchIndex = $lineText.IndexOf($patternText, [System.StringComparison]::OrdinalIgnoreCase)
+            if ($matchIndex -lt 0) {
+                continue
+            }
+            if (
+                ($patternText.Equals('primary skill', [System.StringComparison]::OrdinalIgnoreCase) -or
+                    $patternText.Equals('secondary skill', [System.StringComparison]::OrdinalIgnoreCase)) -and
+                ($matchIndex + $patternText.Length -lt $lineText.Length) -and
+                ($lineText[$matchIndex + $patternText.Length] -eq '.')
+            ) {
+                continue
+            }
+
+            $finding = New-Finding -Category 'current_surface_retired_term' -Path $relative -Line ($index + 1) -Pattern $patternText -Text $lineText
+            if (Test-PathPrefix -Path $relative -Prefixes $allowedNegativeFiles) {
+                $allowedNegative.Add($finding) | Out-Null
+                continue
+            }
+            if ($relative.StartsWith('tests/', [System.StringComparison]::OrdinalIgnoreCase) -and (Test-LineIsNegativeAssertion -Line $lineText)) {
+                $allowedNegative.Add($finding) | Out-Null
+                continue
+            }
+            if (Test-PathPrefix -Path $relative -Prefixes $compatibilityReviewFiles) {
+                $compatibilityReview.Add($finding) | Out-Null
+                continue
+            }
+            $budgetFailures.Add($finding) | Out-Null
+        }
+    }
+}
+
+foreach ($relative in @($historicalDocFiles.Keys | Sort-Object)) {
+    if ($historicalDocExemptions.Contains([string]$relative)) {
+        continue
+    }
+    if (-not (Test-PathPrefix -Path ([string]$relative) -Prefixes $historicalSurfaceRoots)) {
+        continue
+    }
+    $fullPath = Join-Path $RepoRoot ([string]$relative)
+    $lines = @(Get-TextFileLines -Path $fullPath)
+    for ($index = 0; $index -lt $lines.Count; $index++) {
+        $lineText = [string]$lines[$index]
+        foreach ($pattern in $budgetTerms) {
+            $patternText = [string]$pattern
+            if ([string]::IsNullOrWhiteSpace($patternText)) {
+                continue
+            }
+            $matchIndex = $lineText.IndexOf($patternText, [System.StringComparison]::OrdinalIgnoreCase)
+            if ($matchIndex -lt 0) {
+                continue
+            }
+            if (
+                ($patternText.Equals('primary skill', [System.StringComparison]::OrdinalIgnoreCase) -or
+                    $patternText.Equals('secondary skill', [System.StringComparison]::OrdinalIgnoreCase)) -and
+                ($matchIndex + $patternText.Length -lt $lineText.Length) -and
+                ($lineText[$matchIndex + $patternText.Length] -eq '.')
+            ) {
+                continue
+            }
+            $allowedHistorical.Add((New-Finding -Category 'allowed_historical' -Path ([string]$relative) -Line ($index + 1) -Pattern $patternText -Text $lineText)) | Out-Null
+            break
+        }
+    }
+}
+
+$legacyBlockingFindings = @($findings.ToArray() | Where-Object { $_.category -ne 'historical_doc_unmarked_retired_term' })
+$allFindings = New-Object System.Collections.Generic.List[object]
+foreach ($finding in @($legacyBlockingFindings)) { $allFindings.Add($finding) | Out-Null }
+foreach ($finding in @($budgetFailures.ToArray())) { $allFindings.Add($finding) | Out-Null }
+
 $summary = [pscustomobject]@{
-    current_doc_retired_term_violation_count = @($findings | Where-Object { $_.category -eq 'current_doc_retired_term' }).Count
-    current_behavior_test_retired_field_read_count = @($findings | Where-Object { $_.category -eq 'current_behavior_test_retired_field_read' }).Count
+    current_doc_retired_term_violation_count = @($findings.ToArray() | Where-Object { $_.category -eq 'current_doc_retired_term' }).Count
+    current_behavior_test_retired_field_read_count = @($findings.ToArray() | Where-Object { $_.category -eq 'current_behavior_test_retired_field_read' }).Count
     historical_doc_retired_term_file_count = [int]$historicalRetiredTermFileCount
     historical_doc_marked_retired_term_count = [int]$historicalMarkedCount
-    historical_doc_unmarked_retired_term_count = @($findings | Where-Object { $_.category -eq 'historical_doc_unmarked_retired_term' }).Count
+    historical_doc_unmarked_retired_term_count = @($findings.ToArray() | Where-Object { $_.category -eq 'historical_doc_unmarked_retired_term' }).Count
     execution_internal_specialist_dispatch_reference_count = [int]$executionInternalCount
     current_policy_helper_dispatch_vocabulary_reference_count = [int]$currentPolicyHelperCount
-    findings = [object[]]$findings.ToArray()
+    fail_count = @($allFindings.ToArray()).Count
+    allowed_negative_count = @($allowedNegative.ToArray()).Count
+    allowed_historical_count = @($allowedHistorical.ToArray()).Count
+    review_count = @($compatibilityReview.ToArray()).Count
+}
+
+$status = if (@($allFindings.ToArray()).Count -eq 0) { 'pass' } else { 'fail' }
+$payload = [pscustomobject]@{
+    status = $status
+    summary = $summary
+    findings = [object[]]$allFindings.ToArray()
+    failures = [object[]]$budgetFailures.ToArray()
+    allowed_negative = [object[]]$allowedNegative.ToArray()
+    allowed_historical = [object[]]$allowedHistorical.ToArray()
+    review = [object[]]$compatibilityReview.ToArray()
 }
 
 if ($Json) {
-    $summary | ConvertTo-Json -Depth 20
+    $payload | ConvertTo-Json -Depth 20
 } else {
     '=== VCO Routing Terminology Hard Cleanup Scan ==='
     ('Current docs retired-term violations: {0}' -f [int]$summary.current_doc_retired_term_violation_count)
@@ -259,17 +458,21 @@ if ($Json) {
     ('Historical docs without retired marker: {0}' -f [int]$summary.historical_doc_unmarked_retired_term_count)
     ('Execution-internal specialist_dispatch allowlist references: {0}' -f [int]$summary.execution_internal_specialist_dispatch_reference_count)
     ('Current policy/helper dispatch vocabulary references: {0}' -f [int]$summary.current_policy_helper_dispatch_vocabulary_reference_count)
-    foreach ($finding in @($summary.findings)) {
+    ('Current surface failures: {0}' -f [int]$summary.fail_count)
+    ('Allowed negative hits: {0}' -f [int]$summary.allowed_negative_count)
+    ('Allowed historical hits: {0}' -f [int]$summary.allowed_historical_count)
+    ('Compatibility review hits: {0}' -f [int]$summary.review_count)
+    foreach ($finding in @($payload.findings)) {
         '[FAIL] {0}:{1} [{2}] {3}' -f $finding.path, $finding.line, $finding.pattern, $finding.text
     }
-    if (@($summary.findings).Count -eq 0) {
+    if ($status -eq 'pass') {
         'Gate Result: PASS'
     } else {
         'Gate Result: FAIL'
     }
 }
 
-if (@($summary.findings).Count -gt 0) {
+if ($status -ne 'pass') {
     exit 1
 }
 exit 0

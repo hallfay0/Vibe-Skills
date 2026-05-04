@@ -24,6 +24,8 @@
   "fixture_roots": [
     "references/fixtures/external-corpus/",
     "references/fixtures/retro-compare/",
-    "references/fixtures/verify/routing-stability/"
+    "references/fixtures/verify/routing-stability/",
+    "references/fixtures/runtime/",
+    "references/fixtures/skills-audit/"
   ]
 }

@@ -18,8 +18,7 @@ if str(RUNTIME_SRC) not in sys.path:
 from vgo_runtime.router_contract_runtime import route_prompt  # noqa: E402
 
 
-LEGACY_PACK_ROW_FIELDS = {"stage_assistant_candidates", "route_authority_eligible"}
-LEGACY_CANDIDATE_ROW_FIELDS = {"legacy_role", "route_authority_eligible"}
+POLICY = REPO_ROOT / "config" / "current-routing-debt-erasure.json"
 
 
 ROUTE_CASES = [
@@ -69,24 +68,68 @@ def resolve_powershell() -> str | None:
 
 
 def assert_public_route_output_shape(testcase: unittest.TestCase, result: dict[str, Any]) -> None:
+    retired_fields = set(json.loads(POLICY.read_text(encoding="utf-8"))["high_risk_retired_fields"])
     testcase.assertIn("ranked", result)
     testcase.assertIsInstance(result["ranked"], list)
     for pack_row in result["ranked"]:
         testcase.assertIsInstance(pack_row, dict)
-        for field in LEGACY_PACK_ROW_FIELDS:
+        for field in retired_fields:
             testcase.assertNotIn(field, pack_row, pack_row.get("pack_id"))
         custom_admission = pack_row.get("custom_admission")
         if isinstance(custom_admission, dict):
-            testcase.assertNotIn("route_authority_eligible", custom_admission, pack_row.get("pack_id"))
+            for field in retired_fields:
+                testcase.assertNotIn(field, custom_admission, pack_row.get("pack_id"))
         ranking = pack_row.get("candidate_ranking") or []
         testcase.assertIsInstance(ranking, list)
         for candidate_row in ranking:
             testcase.assertIsInstance(candidate_row, dict)
-            for field in LEGACY_CANDIDATE_ROW_FIELDS:
+            for field in retired_fields:
                 testcase.assertNotIn(field, candidate_row, candidate_row.get("skill"))
 
 
+def run_powershell_old_manifest_candidate_probe(testcase: unittest.TestCase) -> list[str]:
+    shell = resolve_powershell()
+    if shell is None:
+        testcase.skipTest("PowerShell executable not available")
+
+    module_path = REPO_ROOT / "scripts" / "router" / "modules" / "41-candidate-selection.ps1"
+    retired_candidate_fields = [
+        field
+        for field in json.loads(POLICY.read_text(encoding="utf-8"))["high_risk_retired_fields"]
+        if field.endswith("_candidates")
+    ]
+    retired_member_writes = " ".join(
+        "$pack | Add-Member -NotePropertyName '{field}' -NotePropertyValue @('primary','shared'); ".format(
+            field=field.replace("'", "''"),
+        )
+        for field in retired_candidate_fields
+    )
+    script = (
+        f". '{module_path}'; "
+        "$pack = [pscustomobject]@{}; "
+        f"{retired_member_writes}"
+        "$result = @(Get-PackSkillCandidates -Pack $pack); "
+        "$result | ConvertTo-Json -Depth 5"
+    )
+    completed = subprocess.run(
+        [shell, "-NoLogo", "-NoProfile", "-Command", script],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=True,
+    )
+    output = completed.stdout.strip()
+    if not output:
+        return []
+    payload = json.loads(output)
+    return payload if isinstance(payload, list) else [payload]
+
+
 class RuntimeRouteOutputShapeTests(unittest.TestCase):
+    def test_powershell_pack_skill_candidates_ignore_retired_role_fields(self) -> None:
+        self.assertEqual([], run_powershell_old_manifest_candidate_probe(self))
+
     def test_python_route_output_has_no_legacy_role_fields(self) -> None:
         for prompt, grade, task_type, expected_pack, expected_skill in ROUTE_CASES:
             with self.subTest(expected_pack=expected_pack, expected_skill=expected_skill):

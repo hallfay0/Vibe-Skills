@@ -187,8 +187,9 @@ class FrontmatterGateScopeActivationTests(unittest.TestCase):
 
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertIn("[PASS] installed", result.stdout)
-        self.assertIn("custom/vibe-runtime/SKILL.md", result.stdout)
-        self.assertIn("custom-installed-runtime-freshness-gate.ps1", result.stdout)
+        normalized_stdout = result.stdout.replace("\\", "/")
+        self.assertIn("custom/vibe-runtime/SKILL.md", normalized_stdout)
+        self.assertIn("custom-installed-runtime-freshness-gate.ps1", normalized_stdout)
 
 
 if __name__ == "__main__":

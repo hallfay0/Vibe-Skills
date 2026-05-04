@@ -101,7 +101,7 @@ def _derive_dispatch_phase(preferred_stages: list[str]) -> str:
     return "in_execution"
 
 
-def _route_authority_eligible(trigger_mode: str, requested_canonical: str | None, skill_id: str) -> bool:
+def _route_usable(trigger_mode: str, requested_canonical: str | None, skill_id: str) -> bool:
     if trigger_mode == "auto":
         return True
     if requested_canonical and _normalize_text(requested_canonical) == _normalize_text(skill_id):
@@ -208,7 +208,7 @@ def _build_admitted_candidate(
         "parallelizable_in_root_xl": bool(entry.get("parallelizable_in_root_xl", False)),
         "native_usage_required": True,
         "must_preserve_workflow": True,
-        "route_authority_eligible": _route_authority_eligible(trigger_mode, requested_canonical, skill_id),
+        "_route_usable": _route_usable(trigger_mode, requested_canonical, skill_id),
     }
     custom_summary = {
         "skill_id": admitted["skill_id"],
@@ -221,7 +221,7 @@ def _build_admitted_candidate(
         "parallelizable_in_root_xl": admitted["parallelizable_in_root_xl"],
         "native_usage_required": admitted["native_usage_required"],
         "must_preserve_workflow": admitted["must_preserve_workflow"],
-        "_route_usable": admitted["route_authority_eligible"],
+        "_route_usable": admitted["_route_usable"],
         "skill_md_path": admitted["skill_md_path"],
         "description": admitted["description"],
     }

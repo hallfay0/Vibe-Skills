@@ -38,7 +38,7 @@ TARGET_SKILL_CANDIDATES = [
     "windows-hook-debugging",
 ]
 
-TARGET_ROUTE_AUTHORITIES = [
+TARGET_ROUTING_SKILLS = [
     "code-reviewer",
     "deslop",
     "generating-test-reports",
@@ -51,16 +51,16 @@ TARGET_ROUTE_AUTHORITIES = [
     "windows-hook-debugging",
 ]
 
-TARGET_STAGE_ASSISTANTS: list[str] = []
+TARGET_RETIRED_STAGE_CANDIDATES: list[str] = []
 
 CODE_QUALITY_DECISIONS: dict[str, dict[str, Any]] = {
     "code-reviewer": {
         "problem_ids": ["code_review_general"],
         "primary_problem_id": "code_review_general",
-        "target_role": "keep-route-authority",
+        "target_role": "keep-routing-skill",
         "target_owner": "",
         "overlap_with": "code-review; reviewing-code; code-review-excellence",
-        "routing_change": "keep as default code review route authority",
+        "routing_change": "keep as default code review routing skill",
         "delete_allowed_now": False,
         "risk_level": "low",
         "rationale": "普通代码审查、PR review、质量检查需要一个默认主入口。",
@@ -68,10 +68,10 @@ CODE_QUALITY_DECISIONS: dict[str, dict[str, Any]] = {
     "systematic-debugging": {
         "problem_ids": ["debug_root_cause"],
         "primary_problem_id": "debug_root_cause",
-        "target_role": "keep-route-authority",
+        "target_role": "keep-routing-skill",
         "target_owner": "",
         "overlap_with": "debugging-strategies; error-resolver; build-error-resolver",
-        "routing_change": "keep as default debug/root-cause route authority",
+        "routing_change": "keep as default debug/root-cause routing skill",
         "delete_allowed_now": False,
         "risk_level": "low",
         "rationale": "失败测试、bug、异常行为和根因定位应集中到系统化调试入口。",
@@ -79,10 +79,10 @@ CODE_QUALITY_DECISIONS: dict[str, dict[str, Any]] = {
     "security-reviewer": {
         "problem_ids": ["security_review"],
         "primary_problem_id": "security_review",
-        "target_role": "keep-route-authority",
+        "target_role": "keep-routing-skill",
         "target_owner": "",
         "overlap_with": "code-reviewer",
-        "routing_change": "keep as narrow security review route authority",
+        "routing_change": "keep as narrow security review routing skill",
         "delete_allowed_now": False,
         "risk_level": "low",
         "rationale": "OWASP、secret、auth、权限和输入校验风险是独立高风险场景。",
@@ -90,10 +90,10 @@ CODE_QUALITY_DECISIONS: dict[str, dict[str, Any]] = {
     "tdd-guide": {
         "problem_ids": ["tdd_flow"],
         "primary_problem_id": "tdd_flow",
-        "target_role": "keep-route-authority",
+        "target_role": "keep-routing-skill",
         "target_owner": "",
         "overlap_with": "verification-before-completion",
-        "routing_change": "keep as TDD route authority",
+        "routing_change": "keep as TDD routing skill",
         "delete_allowed_now": False,
         "risk_level": "low",
         "rationale": "TDD、先写失败测试、红绿重构有清楚触发边界。",
@@ -101,10 +101,10 @@ CODE_QUALITY_DECISIONS: dict[str, dict[str, Any]] = {
     "generating-test-reports": {
         "problem_ids": ["test_report_packaging"],
         "primary_problem_id": "test_report_packaging",
-        "target_role": "keep-route-authority",
+        "target_role": "keep-routing-skill",
         "target_owner": "",
         "overlap_with": "verification-before-completion; systematic-debugging",
-        "routing_change": "keep as test report packaging route authority",
+        "routing_change": "keep as test report packaging routing skill",
         "delete_allowed_now": False,
         "risk_level": "low",
         "rationale": "测试报告和 coverage 汇总是交付包装问题，不是修 bug。",
@@ -112,10 +112,10 @@ CODE_QUALITY_DECISIONS: dict[str, dict[str, Any]] = {
     "windows-hook-debugging": {
         "problem_ids": ["windows_hook_debug"],
         "primary_problem_id": "windows_hook_debug",
-        "target_role": "keep-route-authority",
+        "target_role": "keep-routing-skill",
         "target_owner": "",
         "overlap_with": "systematic-debugging",
-        "routing_change": "keep as narrow Windows hook route authority",
+        "routing_change": "keep as narrow Windows hook routing skill",
         "delete_allowed_now": False,
         "risk_level": "low",
         "rationale": "Windows hook、Git Bash、WSL 和 cannot execute binary file 是明确窄场景。",
@@ -123,10 +123,10 @@ CODE_QUALITY_DECISIONS: dict[str, dict[str, Any]] = {
     "deslop": {
         "problem_ids": ["ai_code_cleanup"],
         "primary_problem_id": "ai_code_cleanup",
-        "target_role": "keep-route-authority",
+        "target_role": "keep-routing-skill",
         "target_owner": "",
         "overlap_with": "code-reviewer",
-        "routing_change": "keep as AI-code-cleanup route authority",
+        "routing_change": "keep as AI-code-cleanup routing skill",
         "delete_allowed_now": False,
         "risk_level": "low",
         "rationale": "清理 AI 生成代码废话、冗余注释和多余防御式检查是明确问题。",
@@ -134,10 +134,10 @@ CODE_QUALITY_DECISIONS: dict[str, dict[str, Any]] = {
     "receiving-code-review": {
         "problem_ids": ["review_feedback_handling"],
         "primary_problem_id": "review_feedback_handling",
-        "target_role": "keep-route-authority",
+        "target_role": "keep-routing-skill",
         "target_owner": "",
         "overlap_with": "code-reviewer",
-        "routing_change": "keep as narrow review-feedback route authority",
+        "routing_change": "keep as narrow review-feedback routing skill",
         "delete_allowed_now": False,
         "risk_level": "low",
         "rationale": "用户会直接要求处理 CodeRabbit 或人工 review feedback，需要可直接命中。",
@@ -145,10 +145,10 @@ CODE_QUALITY_DECISIONS: dict[str, dict[str, Any]] = {
     "verification-before-completion": {
         "problem_ids": ["completion_verification"],
         "primary_problem_id": "completion_verification",
-        "target_role": "keep-route-authority",
+        "target_role": "keep-routing-skill",
         "target_owner": "",
         "overlap_with": "generating-test-reports; tdd-guide",
-        "routing_change": "keep as narrow completion-evidence route authority",
+        "routing_change": "keep as narrow completion-evidence routing skill",
         "delete_allowed_now": False,
         "risk_level": "low",
         "rationale": "收尾前确认测试和验收证据是完成声明前的独立质量门。",
@@ -156,13 +156,13 @@ CODE_QUALITY_DECISIONS: dict[str, dict[str, Any]] = {
     "requesting-code-review": {
         "problem_ids": ["review_request_preparation"],
         "primary_problem_id": "review_request_preparation",
-        "target_role": "keep-route-authority",
+        "target_role": "keep-routing-skill",
         "target_owner": "",
         "overlap_with": "code-reviewer; receiving-code-review",
-        "routing_change": "keep as direct route authority for preparing review requests",
+        "routing_change": "keep as direct routing skill for preparing review requests",
         "delete_allowed_now": False,
         "risk_level": "low",
-        "rationale": "准备发起 code review、整理 review 请求材料是明确任务，不再作为阶段助手表达。",
+        "rationale": "准备发起 code review、整理 review 请求材料是明确任务，应作为当前路由技能表达。",
     },
     "reviewing-code": {
         "problem_ids": ["code_review_general"],
@@ -261,8 +261,8 @@ class ProblemMapArtifact:
             "repo_root": self.repo_root,
             "summary": {
                 "code_quality_skill_count": len(self.rows),
-                "target_route_authority_count": len(TARGET_ROUTE_AUTHORITIES),
-                "target_stage_assistant_count": len(TARGET_STAGE_ASSISTANTS),
+                "target_routing_skill_count": len(TARGET_ROUTING_SKILLS),
+                "target_retired_stage_candidate_count": len(TARGET_RETIRED_STAGE_CANDIDATES),
                 "delete_now_count": sum(1 for row in self.rows if row.target_role == "delete"),
                 "move_out_count": sum(1 for row in self.rows if row.target_role == "move-out"),
                 "merge_delete_after_migration_count": sum(
@@ -271,8 +271,8 @@ class ProblemMapArtifact:
                 "defer_migration_count": sum(1 for row in self.rows if row.target_role == "defer-migration"),
             },
             "target_skill_candidates": TARGET_SKILL_CANDIDATES,
-            "target_route_authorities": TARGET_ROUTE_AUTHORITIES,
-            "target_stage_assistants": TARGET_STAGE_ASSISTANTS,
+            "target_routing_skills": TARGET_ROUTING_SKILLS,
+            "target_retired_stage_candidates": TARGET_RETIRED_STAGE_CANDIDATES,
             "rows": [asdict(row) for row in self.rows],
         }
 
@@ -303,12 +303,6 @@ def _find_pack(repo_root: Path, pack_id: str) -> dict[str, Any]:
 
 def _current_role(skill_id: str, pack: dict[str, Any]) -> str:
     skill_candidates = {str(item) for item in _as_list(pack.get("skill_candidates"))}
-    route_authorities = {str(item) for item in _as_list(pack.get("route_authority_candidates"))}
-    stage_assistants = {str(item) for item in _as_list(pack.get("stage_assistant_candidates"))}
-    if skill_id in route_authorities:
-        return "route_authority"
-    if skill_id in stage_assistants:
-        return "stage_assistant"
     if skill_id not in skill_candidates:
         return "removed_from_pack"
     return "candidate"
@@ -395,7 +389,7 @@ def _markdown_table(rows: list[ProblemMapRow]) -> str:
 
 def _write_markdown(path: Path, artifact: ProblemMapArtifact) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    keep_rows = [row for row in artifact.rows if row.target_role == "keep-route-authority"]
+    keep_rows = [row for row in artifact.rows if row.target_role == "keep-routing-skill"]
     delete_rows = [row for row in artifact.rows if row.target_role == "delete"]
     merge_delete_rows = [
         row for row in artifact.rows if row.target_role == "merge-delete-after-migration"
@@ -410,7 +404,7 @@ def _write_markdown(path: Path, artifact: ProblemMapArtifact) -> None:
             "",
             "Current routing model: `candidate skill -> selected skill -> used / unused`.",
             "",
-            "## 保留直接路由",
+            "## 保留路由技能",
             "",
             _markdown_table(keep_rows),
             "",

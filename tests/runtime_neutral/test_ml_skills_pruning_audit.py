@@ -12,6 +12,29 @@ VERIFICATION_CORE_SRC = REPO_ROOT / "packages" / "verification-core" / "src"
 if str(VERIFICATION_CORE_SRC) not in sys.path:
     sys.path.insert(0, str(VERIFICATION_CORE_SRC))
 
+RETIRED_POSITIVE_OUTPUT_TERMS = [
+    "route_authority_count",
+    "stage_assistant_count",
+    "target_route_authority_count",
+    "target_stage_assistant_count",
+    "target_route_authority_candidates",
+    "target_stage_assistant_candidates",
+    "keep-route-authority",
+    "Route Authorities",
+    "Stage Assistants",
+    "Target Route Authorities",
+    "Target Stage Assistants",
+    "route authority",
+    "stage assistant",
+]
+
+
+def assert_no_retired_positive_output_terms(text: str) -> None:
+    lower = text.lower()
+    for term in RETIRED_POSITIVE_OUTPUT_TERMS:
+        assert term.lower() not in lower, term
+
+
 from vgo_verify.ml_skills_pruning_audit import (
     audit_data_ml_problem_map,
     audit_repository,
@@ -80,13 +103,6 @@ class MlSkillsPruningAuditTests(unittest.TestCase):
                             "anomaly-detector",
                             "training-machine-learning-models",
                             "shap",
-                        ],
-                        "route_authority_candidates": [
-                            "scikit-learn",
-                            "training-machine-learning-models",
-                        ],
-                        "stage_assistant_candidates": [
-                            "anomaly-detector",
                         ],
                         "defaults_by_task": {
                             "planning": "scikit-learn",
@@ -218,6 +234,29 @@ class MlSkillsPruningAuditTests(unittest.TestCase):
         self.assertEqual("工具型", rows["transformers"].category)
         self.assertTrue(rows["transformers"].has_scripts)
 
+    def test_retired_candidate_fields_do_not_seed_ml_audit_rows(self) -> None:
+        manifest_path = self.root / "config" / "pack-manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        data_ml_pack = next(pack for pack in manifest["packs"] if pack["id"] == "data-ml")
+        data_ml_pack["route_authority_candidates"] = ["retired-only-direct-ml"]
+        data_ml_pack["stage_assistant_candidates"] = [
+            "training-machine-learning-models",
+            "retired-only-stage-ml",
+        ]
+        manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+        artifact = audit_repository(self.root)
+        rows = {row.skill_id: row for row in artifact.rows}
+        artifact_text = json.dumps(artifact.to_dict(), ensure_ascii=False)
+
+        self.assertNotIn("retired-only-direct-ml", rows)
+        self.assertNotIn("retired-only-stage-ml", rows)
+        self.assertEqual("candidate", rows["training-machine-learning-models"].current_role)
+        self.assertNotIn("compat_direct_candidate", artifact_text)
+        self.assertNotIn("compat_stage_candidate", artifact_text)
+        self.assertNotIn("retired-only-direct-ml", artifact_text)
+        self.assertNotIn("retired-only-stage-ml", artifact_text)
+
     def test_artifact_writer_outputs_json_csv_and_markdown(self) -> None:
         artifact = audit_repository(self.root)
         output_dir = self.root / "outputs" / "skills-audit"
@@ -254,9 +293,45 @@ class MlSkillsPruningAuditTests(unittest.TestCase):
         self.assertEqual("scikit-learn", rows["training-machine-learning-models"].target_owner)
         self.assertTrue(rows["training-machine-learning-models"].delete_allowed_after_migration)
 
+    def test_retired_candidate_fields_do_not_restore_data_ml_problem_roles(self) -> None:
+        self._write_json(
+            "config/pack-manifest.json",
+            {
+                "packs": [
+                    {
+                        "id": "data-ml",
+                        "skill_candidates": [
+                            "scikit-learn",
+                            "shap",
+                        ],
+                        "route_authority_candidates": ["training-machine-learning-models"],
+                        "stage_assistant_candidates": [
+                            "preprocessing-data-with-automated-pipelines",
+                            "retired-only-data-ml-stage",
+                        ],
+                        "defaults_by_task": {
+                            "planning": "scikit-learn",
+                            "coding": "scikit-learn",
+                        },
+                    }
+                ]
+            },
+        )
+
+        artifact = audit_data_ml_problem_map(self.root)
+        rows = {row.skill_id: row for row in artifact.rows}
+        artifact_text = json.dumps(artifact.to_dict(), ensure_ascii=False)
+
+        self.assertEqual("removed_from_pack", rows["training-machine-learning-models"].current_role)
+        self.assertEqual("removed_from_pack", rows["preprocessing-data-with-automated-pipelines"].current_role)
+        self.assertNotIn("retired-only-data-ml-stage", rows)
+        self.assertNotIn("compat_direct_candidate", artifact_text)
+        self.assertNotIn("compat_stage_candidate", artifact_text)
+        self.assertNotIn("retired-only-data-ml-stage", artifact_text)
+
     def test_problem_artifact_writer_outputs_json_csv_and_markdown(self) -> None:
         artifact = audit_data_ml_problem_map(self.root)
-        self.assertEqual(0, artifact.to_dict()["summary"]["target_stage_assistant_count"])
+        self.assertEqual(0, artifact.to_dict()["summary"]["target_retired_stage_candidate_count"])
         output_dir = self.root / "outputs" / "skills-audit"
         written = write_data_ml_problem_artifacts(self.root, artifact, output_dir)
 
@@ -272,6 +347,9 @@ class MlSkillsPruningAuditTests(unittest.TestCase):
         markdown_text = written["markdown"].read_text(encoding="utf-8")
         self.assertIn("# Data-ML Problem-First Consolidation", markdown_text)
         self.assertIn("## 目标保留", markdown_text)
+        assert_no_retired_positive_output_terms(json.dumps(artifact.to_dict(), ensure_ascii=False))
+        assert_no_retired_positive_output_terms(csv_text)
+        assert_no_retired_positive_output_terms(markdown_text)
 
     def test_runtime_neutral_wrapper_exposes_main(self) -> None:
         wrapper = REPO_ROOT / "scripts" / "verify" / "runtime_neutral" / "ml_skills_pruning_audit.py"
