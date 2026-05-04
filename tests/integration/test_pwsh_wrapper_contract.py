@@ -34,6 +34,7 @@ def test_powershell_install_wrapper_searches_static_windows_python_312_and_313_f
 
     assert 'C:\\Python313\\python.exe' in static_block
     assert 'C:\\Python312\\python.exe' in static_block
+    assert 'C:\\Python311\\python.exe' in static_block
     assert static_block.index('C:\\Python313\\python.exe') < static_block.index('C:\\Python312\\python.exe')
     assert static_block.index('C:\\Python312\\python.exe') < static_block.index('C:\\Python311\\python.exe')
 
@@ -42,10 +43,13 @@ def test_powershell_install_wrapper_searches_user_local_python_312_and_313() -> 
     install_content = (REPO_ROOT / 'install.ps1').read_text(encoding='utf-8')
     localappdata_index = install_content.find("if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA))")
     assert localappdata_index != -1
-    localappdata_block = install_content[localappdata_index:]
+    localappdata_end = install_content.find('foreach ($candidatePath in $absoluteCandidates)', localappdata_index)
+    assert localappdata_end != -1
+    localappdata_block = install_content[localappdata_index:localappdata_end]
 
     assert "Programs\\Python\\Python313\\python.exe" in localappdata_block
     assert "Programs\\Python\\Python312\\python.exe" in localappdata_block
+    assert "Programs\\Python\\Python311\\python.exe" in localappdata_block
     assert localappdata_block.index("Programs\\Python\\Python313\\python.exe") < localappdata_block.index(
         "Programs\\Python\\Python312\\python.exe"
     )

@@ -25,7 +25,7 @@ function ConvertTo-RepoRelativePath {
 function Test-PathPrefix {
     param(
         [Parameter(Mandatory)] [string]$Path,
-        [Parameter(Mandatory)] [string[]]$Prefixes
+        [Parameter(Mandatory)] [AllowEmptyCollection()] [string[]]$Prefixes
     )
 
     $normalized = $Path.Replace('\', '/').TrimStart('/')
@@ -59,6 +59,10 @@ function Get-TextFiles {
 
     foreach ($relative in $currentPaths) {
         $full = Join-Path $Root $relative
+        if (-not (Test-Path -LiteralPath $full)) {
+            throw "Configured current_paths entry not found: $relative ($full)"
+        }
+
         if (Test-Path -LiteralPath $full -PathType Leaf) {
             $item = Get-Item -LiteralPath $full
             $repoRelative = ConvertTo-RepoRelativePath -Path $item.FullName -Root $Root
@@ -68,7 +72,7 @@ function Get-TextFiles {
             continue
         }
         if (-not (Test-Path -LiteralPath $full -PathType Container)) {
-            continue
+            throw "Configured current_paths entry is neither a file nor a directory: $relative ($full)"
         }
         foreach ($file in Get-ChildItem -LiteralPath $full -Recurse -File) {
             $repoRelative = ConvertTo-RepoRelativePath -Path $file.FullName -Root $Root
@@ -364,7 +368,9 @@ if ($WriteArtifacts) {
             $mdLines += ('- `{0}:{1}` [{2}] `{3}` -> {4}' -f $finding.path, $finding.line, $finding.category, $finding.term, $finding.decision)
         }
     }
-    Write-VgoUtf8NoBomText -Path (Join-Path $auditDir '2026-05-02-current-routing-debt-audit.md') -Content ($mdLines -join "`r`n")
+    $auditStamp = ([string]$report.generated_at).Substring(0, 10)
+    $auditFileName = '{0}-current-routing-debt-audit.md' -f $auditStamp
+    Write-VgoUtf8NoBomText -Path (Join-Path $auditDir $auditFileName) -Content ($mdLines -join "`r`n")
 }
 
 if ($Json) {

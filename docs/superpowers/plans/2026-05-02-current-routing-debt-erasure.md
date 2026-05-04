@@ -342,14 +342,15 @@ def test_gate_writes_audit_artifacts() -> None:
 
     json_path = REPO_ROOT / "outputs" / "verify" / "current-routing-debt-gate.json"
     audit_json_path = REPO_ROOT / "outputs" / "verify" / "current-routing-debt-audit.json"
-    audit_md_path = REPO_ROOT / "docs" / "audits" / "2026-05-02-current-routing-debt-audit.md"
 
     assert json_path.exists()
     assert audit_json_path.exists()
-    assert audit_md_path.exists()
 
     gate_payload = json.loads(json_path.read_text(encoding="utf-8"))
     audit_payload = json.loads(audit_json_path.read_text(encoding="utf-8"))
+    expected_audit_name = f"{gate_payload['generated_at'][:10]}-current-routing-debt-audit.md"
+    audit_md_path = REPO_ROOT / "docs" / "audits" / expected_audit_name
+    assert audit_md_path.exists()
     audit_markdown = audit_md_path.read_text(encoding="utf-8")
 
     assert gate_payload["status"] == "pass"
@@ -390,7 +391,7 @@ git commit -m "test: require current routing debt gate"
 - Uses: `config/current-routing-debt-erasure.json`
 - Produces: `outputs/verify/current-routing-debt-gate.json`
 - Produces: `outputs/verify/current-routing-debt-audit.json`
-- Produces: `docs/audits/2026-05-02-current-routing-debt-audit.md`
+- Produces: `docs/audits/<run-date>-current-routing-debt-audit.md`
 
 - [ ] **Step 1: Add the gate implementation**
 
@@ -453,6 +454,9 @@ function Get-TextFiles {
 
     foreach ($relative in $currentPaths) {
         $full = Join-Path $Root $relative
+        if (-not (Test-Path -LiteralPath $full)) {
+            throw "Configured current_paths entry not found: $relative ($full)"
+        }
         if (Test-Path -LiteralPath $full -PathType Leaf) {
             $item = Get-Item -LiteralPath $full
             if ($extensions -contains $item.Extension.ToLowerInvariant()) {
@@ -461,7 +465,7 @@ function Get-TextFiles {
             continue
         }
         if (-not (Test-Path -LiteralPath $full -PathType Container)) {
-            continue
+            throw "Configured current_paths entry is neither a file nor a directory: $relative ($full)"
         }
         foreach ($file in Get-ChildItem -LiteralPath $full -Recurse -File) {
             $repoRelative = ConvertTo-RepoRelativePath -Path $file.FullName -Root $Root
@@ -705,7 +709,9 @@ if ($WriteArtifacts) {
             $mdLines += ('- `{0}:{1}` [{2}] `{3}` -> {4}' -f $finding.path, $finding.line, $finding.category, $finding.term, $finding.decision)
         }
     }
-    Write-VgoUtf8NoBomText -Path (Join-Path $auditDir '2026-05-02-current-routing-debt-audit.md') -Content ($mdLines -join "`r`n")
+    $auditStamp = ([string]$report.generated_at).Substring(0, 10)
+    $auditFileName = '{0}-current-routing-debt-audit.md' -f $auditStamp
+    Write-VgoUtf8NoBomText -Path (Join-Path $auditDir $auditFileName) -Content ($mdLines -join "`r`n")
 }
 
 if ($Json) {
@@ -1152,7 +1158,7 @@ git commit -m "docs: add current routing debt gate to verify flow"
 
 **Files:**
 - Produces untracked or modified generated outputs under `outputs/verify/`
-- Produces: `docs/audits/2026-05-02-current-routing-debt-audit.md`
+- Produces: `docs/audits/<run-date>-current-routing-debt-audit.md`
 - Do not commit generated `outputs/verify/*` unless repo policy already tracks this exact class of verify output.
 
 - [ ] **Step 1: Run the gate with artifacts**
@@ -1192,7 +1198,8 @@ summary: @{P0=0; P1=0; P2=0; ...}
 Run:
 
 ```powershell
-Get-Content -Path .\docs\audits\2026-05-02-current-routing-debt-audit.md -TotalCount 40
+$latestAudit = Get-ChildItem .\docs\audits\*-current-routing-debt-audit.md | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+Get-Content -Path $latestAudit.FullName -TotalCount 40
 ```
 
 Expected to include:
@@ -1212,7 +1219,7 @@ Run:
 git status --short -- docs/audits outputs/verify
 ```
 
-Expected: `docs/audits/2026-05-02-current-routing-debt-audit.md` may be untracked; `outputs/verify/*` may be generated evidence.
+Expected: `docs/audits/<run-date>-current-routing-debt-audit.md` may be untracked; `outputs/verify/*` may be generated evidence.
 
 Commit only the Markdown audit if the repo already tracks comparable `docs/audits/*.md` files:
 
@@ -1223,7 +1230,8 @@ git ls-files docs/audits
 If `docs/audits` has tracked audit reports, commit the new Markdown audit:
 
 ```powershell
-git add docs/audits/2026-05-02-current-routing-debt-audit.md
+$latestAudit = Get-ChildItem .\docs\audits\*-current-routing-debt-audit.md | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+git add $latestAudit.FullName
 git commit -m "docs: add current routing debt audit"
 ```
 

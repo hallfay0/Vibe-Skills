@@ -85,6 +85,7 @@ def run_runtime(task: str, artifact_root: Path) -> dict[str, object]:
         text=True,
         encoding="utf-8",
         check=True,
+        timeout=180,
         env={
             **os.environ,
             "VGO_DISABLE_NATIVE_SPECIALIST_EXECUTION": "1",
@@ -202,6 +203,7 @@ class CurrentRoutingContractCleanupTests(unittest.TestCase):
             text=True,
             encoding="utf-8",
             check=True,
+            timeout=60,
         )
         payload = json.loads(completed.stdout)
 
@@ -333,23 +335,22 @@ class CurrentRoutingContractCleanupTests(unittest.TestCase):
         ]:
             self.assertNotIn(forbidden, active_section.lower())
 
+    def test_retired_consultation_field_reads_live_outside_current_runtime_common(self) -> None:
+        current_text = RUNTIME_COMMON.read_text(encoding="utf-8")
+        legacy_text = RETIRED_CONSULTATION_COMMON.read_text(encoding="utf-8")
+
+        for retired_field in [
+            "consulted_units",
+            "routed_units",
+            "discussion_consultation",
+            "planning_consultation",
+        ]:
+            self.assertNotIn(retired_field, current_text)
+            self.assertIn(retired_field, legacy_text)
+
+        self.assertIn("New-VibeRetiredSpecialistConsultationLifecycleLayerProjection", legacy_text)
+        self.assertNotIn("New-VibeSpecialistConsultationLifecycleLayerProjection", current_text)
+
 
 if __name__ == "__main__":
     unittest.main()
-
-
-def test_retired_consultation_field_reads_live_outside_current_runtime_common() -> None:
-    current_text = RUNTIME_COMMON.read_text(encoding="utf-8")
-    legacy_text = RETIRED_CONSULTATION_COMMON.read_text(encoding="utf-8")
-
-    for retired_field in [
-        "consulted_units",
-        "routed_units",
-        "discussion_consultation",
-        "planning_consultation",
-    ]:
-        assert retired_field not in current_text
-        assert retired_field in legacy_text
-
-    assert "New-VibeRetiredSpecialistConsultationLifecycleLayerProjection" in legacy_text
-    assert "New-VibeSpecialistConsultationLifecycleLayerProjection" not in current_text

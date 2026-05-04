@@ -53,7 +53,7 @@ def run_gate(*args: str, env: dict[str, str] | None = None) -> subprocess.Comple
     )
 
 
-def copy_debt_gate_fixture(tmp_path: Path) -> Path:
+def copy_debt_gate_fixture(tmp_path: Path, *, current_paths: list[str]) -> Path:
     verify_dir = tmp_path / "scripts" / "verify"
     common_dir = tmp_path / "scripts" / "common"
     config_dir = tmp_path / "config"
@@ -64,7 +64,10 @@ def copy_debt_gate_fixture(tmp_path: Path) -> Path:
 
     shutil.copy2(GATE, verify_dir / GATE.name)
     shutil.copy2(REPO_ROOT / "scripts" / "common" / "vibe-governance-helpers.ps1", common_dir / "vibe-governance-helpers.ps1")
-    shutil.copy2(POLICY, config_dir / POLICY.name)
+    policy_payload = json.loads(POLICY.read_text(encoding="utf-8"))
+    policy_payload["scan_scopes"]["current_paths"] = current_paths
+    policy_payload["scan_scopes"]["legacy_allowed_paths"] = []
+    (config_dir / POLICY.name).write_text(json.dumps(policy_payload, indent=2) + "\n", encoding="utf-8")
     shutil.copy2(REPO_ROOT / "config" / "version-governance.json", config_dir / "version-governance.json")
     shutil.copy2(REPO_ROOT / "config" / "runtime-script-manifest.json", config_dir / "runtime-script-manifest.json")
     shutil.copy2(REPO_ROOT / "config" / "runtime-config-manifest.json", config_dir / "runtime-config-manifest.json")
@@ -123,16 +126,18 @@ def test_gate_writes_audit_artifacts(tmp_path: Path) -> None:
 
     json_path = tmp_path / "outputs" / "verify" / "current-routing-debt-gate.json"
     audit_json_path = tmp_path / "outputs" / "verify" / "current-routing-debt-audit.json"
-    audit_md_path = tmp_path / "docs" / "audits" / "2026-05-02-current-routing-debt-audit.md"
-    repo_audit_md_path = REPO_ROOT / "docs" / "audits" / "2026-05-02-current-routing-debt-audit.md"
 
     assert json_path.exists()
     assert audit_json_path.exists()
-    assert audit_md_path.exists()
-    assert not repo_audit_md_path.exists()
 
     gate_payload = json.loads(json_path.read_text(encoding="utf-8"))
     audit_payload = json.loads(audit_json_path.read_text(encoding="utf-8"))
+    expected_audit_name = f"{gate_payload['generated_at'][:10]}-current-routing-debt-audit.md"
+    audit_md_path = tmp_path / "docs" / "audits" / expected_audit_name
+    repo_audit_md_path = REPO_ROOT / "docs" / "audits" / expected_audit_name
+
+    assert audit_md_path.exists()
+    assert not repo_audit_md_path.exists()
     audit_markdown = audit_md_path.read_text(encoding="utf-8")
 
     assert gate_payload["status"] == "pass"
@@ -171,7 +176,7 @@ def test_gate_scopes_retired_explanation_and_not_in_allowance_to_comments_or_str
 
 
 def test_gate_does_not_treat_legacy_identifier_as_retired_explanation(tmp_path: Path) -> None:
-    gate = copy_debt_gate_fixture(tmp_path)
+    gate = copy_debt_gate_fixture(tmp_path, current_paths=["scripts/runtime"])
     runtime_dir = tmp_path / "scripts" / "runtime"
     runtime_dir.mkdir(parents=True, exist_ok=True)
     (runtime_dir / "example.ps1").write_text("$legacyObj = @{ stage_assistant_hints = $val }\n", encoding="utf-8")
@@ -186,7 +191,7 @@ def test_gate_does_not_treat_legacy_identifier_as_retired_explanation(tmp_path: 
 
 
 def test_gate_does_not_treat_non_assert_not_in_code_as_guard_assertion(tmp_path: Path) -> None:
-    gate = copy_debt_gate_fixture(tmp_path)
+    gate = copy_debt_gate_fixture(tmp_path, current_paths=["tests/runtime_neutral"])
     test_dir = tmp_path / "tests" / "runtime_neutral"
     test_dir.mkdir(parents=True, exist_ok=True)
     (test_dir / "test_example.py").write_text('if "legacy_skill_routing" not in payload:\n    pass\n', encoding="utf-8")
@@ -198,6 +203,15 @@ def test_gate_does_not_treat_non_assert_not_in_code_as_guard_assertion(tmp_path:
     assert payload["status"] == "fail"
     assert payload["summary"]["P1"] == 1
     assert payload["findings"][0]["term"] == "legacy_skill_routing"
+
+
+def test_gate_fails_when_configured_current_path_is_missing(tmp_path: Path) -> None:
+    gate = copy_debt_gate_fixture(tmp_path, current_paths=["scripts/runtime/missing.ps1"])
+
+    result = run_fixture_gate(gate)
+
+    assert result.returncode != 0
+    assert "Configured current_paths entry not found" in result.stdout + result.stderr
 
 
 def test_immediate_technical_debt_register_uses_portable_scope() -> None:
