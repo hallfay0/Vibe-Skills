@@ -85,7 +85,7 @@ def test_requested_subagent_bypasses_guard() -> None:
     assert "_legacy_stage_assistant_candidates" not in selection
 
 
-def test_pack_skill_candidates_prefer_unified_field_over_legacy_roles() -> None:
+def test_pack_skill_candidates_prefer_unified_field_over_old_role_fixture_fields() -> None:
     pack = {
         "skill_candidates": ["primary", "assistant"],
         "route_authority_candidates": ["legacy-only-primary"],  # retired fixture field
@@ -104,7 +104,7 @@ def test_pack_skill_candidates_ignore_retired_role_fields_for_old_fixtures() -> 
     assert get_pack_skill_candidates(pack) == []
 
 
-def test_active_skill_candidates_do_not_need_legacy_role_fields() -> None:
+def test_active_skill_candidates_use_current_fields_only() -> None:
     selection = select_pack_candidate(
         prompt_lower="use helper for specialized cleanup",
         candidates=["primary", "helper"],

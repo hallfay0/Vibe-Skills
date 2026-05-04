@@ -258,6 +258,53 @@ class CurrentRoutingContractCleanupTests(unittest.TestCase):
             self.assertIn("Missing retired consultation helper", payload["message"])
             self.assertIn("VibeRetiredConsultation.Common.ps1", payload["message"])
 
+    def test_retired_stage_event_fallback_returns_null_for_non_consultation_segment_when_helper_missing(self) -> None:
+        shell = resolve_powershell()
+        if shell is None:
+            self.skipTest("PowerShell executable not available in PATH")
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_root = Path(tempdir)
+            runtime_dir = temp_root / "scripts" / "runtime"
+            common_dir = temp_root / "scripts" / "common"
+            runtime_dir.mkdir(parents=True, exist_ok=True)
+            common_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(RUNTIME_COMMON, runtime_dir / "VibeRuntime.Common.ps1")
+            shutil.copy2(
+                REPO_ROOT / "scripts" / "common" / "vibe-governance-helpers.ps1",
+                common_dir / "vibe-governance-helpers.ps1",
+            )
+
+            copied_runtime = runtime_dir / "VibeRuntime.Common.ps1"
+            script = (
+                "& { "
+                "$ErrorActionPreference = 'Stop'; "
+                f". {ps_quote(str(copied_runtime))}; "
+                "$payload = try { "
+                "  $eventId = Get-VibeRetiredHostStageDisclosureEventId "
+                "    -SegmentId 'discussion_routing' "
+                "    -Skills @([pscustomobject]@{ skill_id = 'x'; state = 'selected' }); "
+                "  [pscustomobject]@{ failed = $false; is_null = ($null -eq $eventId); message = '' } "
+                "} catch { "
+                "  [pscustomobject]@{ failed = $true; is_null = $false; message = $_.Exception.Message } "
+                "}; "
+                "$payload | ConvertTo-Json -Depth 5 "
+                "}"
+            )
+            completed = subprocess.run(
+                [shell, "-NoLogo", "-NoProfile", "-Command", script],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                check=True,
+                timeout=60,
+            )
+            payload = json.loads(completed.stdout)
+
+            self.assertFalse(payload["failed"], payload["message"])
+            self.assertTrue(payload["is_null"])
+
     def test_current_routing_governance_doc_defines_only_current_terms(self) -> None:
         path = REPO_ROOT / "docs" / "governance" / "current-routing-contract.md"
         text = path.read_text(encoding="utf-8")

@@ -22,6 +22,14 @@ OLD_ROLE_TERMS = [
 ]
 
 
+def function_body(text: str, name: str) -> str:
+    start = text.index(f"function {name}")
+    next_start = text.find("\nfunction ", start + 1)
+    if next_start == -1:
+        return text[start:]
+    return text[start:next_start]
+
+
 def powershell() -> str:
     shell = (
         shutil.which("pwsh")
@@ -42,6 +50,34 @@ def run_gate(*args: str, env: dict[str, str] | None = None) -> subprocess.Comple
         text=True,
         encoding="utf-8",
         env=env,
+    )
+
+
+def copy_debt_gate_fixture(tmp_path: Path) -> Path:
+    verify_dir = tmp_path / "scripts" / "verify"
+    common_dir = tmp_path / "scripts" / "common"
+    config_dir = tmp_path / "config"
+    verify_dir.mkdir(parents=True, exist_ok=True)
+    common_dir.mkdir(parents=True, exist_ok=True)
+    config_dir.mkdir(parents=True, exist_ok=True)
+    (tmp_path / ".git").mkdir()
+
+    shutil.copy2(GATE, verify_dir / GATE.name)
+    shutil.copy2(REPO_ROOT / "scripts" / "common" / "vibe-governance-helpers.ps1", common_dir / "vibe-governance-helpers.ps1")
+    shutil.copy2(POLICY, config_dir / POLICY.name)
+    shutil.copy2(REPO_ROOT / "config" / "version-governance.json", config_dir / "version-governance.json")
+    shutil.copy2(REPO_ROOT / "config" / "runtime-script-manifest.json", config_dir / "runtime-script-manifest.json")
+    shutil.copy2(REPO_ROOT / "config" / "runtime-config-manifest.json", config_dir / "runtime-config-manifest.json")
+    return verify_dir / GATE.name
+
+
+def run_fixture_gate(gate: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [powershell(), "-NoLogo", "-NoProfile", "-File", str(gate), "-Json"],
+        cwd=gate.parents[2],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
     )
 
 
@@ -111,6 +147,66 @@ def test_gate_policy_file_exists_and_is_valid_json() -> None:
     payload = json.loads(POLICY.read_text(encoding="utf-8"))
     assert payload["schema_version"] == 1
     assert payload["success_thresholds"] == {"P0": 0, "P1": 0, "P2": 0}
+
+
+def test_gate_uses_thresholds_as_maximum_allowed_counts() -> None:
+    text = GATE.read_text(encoding="utf-8")
+
+    for priority in ("P0", "P1", "P2"):
+        assert f"[int]$summary.{priority} -le [int]$policy.success_thresholds.{priority}" in text
+        assert f"[int]$summary.{priority} -eq [int]$policy.success_thresholds.{priority}" not in text
+
+
+def test_gate_scopes_retired_explanation_and_not_in_allowance_to_comments_or_strings() -> None:
+    text = GATE.read_text(encoding="utf-8")
+
+    assert "function Get-LineCommentAndStringFragments" in text
+    retired_body = function_body(text, "Test-LineIsRetiredExplanation")
+    guard_body = function_body(text, "Test-LineIsGuardAssertion")
+
+    assert "Get-LineCommentAndStringFragments -Line $Line" in retired_body
+    assert "$Line.IndexOf($needle" not in retired_body
+    assert "Get-LineCommentAndStringFragments -Line $Line" in guard_body
+    assert "foreach ($needle in @('assertNotIn', 'self.assertNotIn', 'assertNotRegex', 'assert \"not in\"', ' not in ', 'NotIn'))" not in guard_body
+
+
+def test_gate_does_not_treat_legacy_identifier_as_retired_explanation(tmp_path: Path) -> None:
+    gate = copy_debt_gate_fixture(tmp_path)
+    runtime_dir = tmp_path / "scripts" / "runtime"
+    runtime_dir.mkdir(parents=True, exist_ok=True)
+    (runtime_dir / "example.ps1").write_text("$legacyObj = @{ stage_assistant_hints = $val }\n", encoding="utf-8")
+
+    result = run_fixture_gate(gate)
+    payload = json.loads(result.stdout)
+
+    assert result.returncode == 1
+    assert payload["status"] == "fail"
+    assert payload["summary"]["P1"] == 1
+    assert payload["findings"][0]["term"] == "stage_assistant_hints"
+
+
+def test_gate_does_not_treat_non_assert_not_in_code_as_guard_assertion(tmp_path: Path) -> None:
+    gate = copy_debt_gate_fixture(tmp_path)
+    test_dir = tmp_path / "tests" / "runtime_neutral"
+    test_dir.mkdir(parents=True, exist_ok=True)
+    (test_dir / "test_example.py").write_text('if "legacy_skill_routing" not in payload:\n    pass\n', encoding="utf-8")
+
+    result = run_fixture_gate(gate)
+    payload = json.loads(result.stdout)
+
+    assert result.returncode == 1
+    assert payload["status"] == "fail"
+    assert payload["summary"]["P1"] == 1
+    assert payload["findings"][0]["term"] == "legacy_skill_routing"
+
+
+def test_immediate_technical_debt_register_uses_portable_scope() -> None:
+    text = (REPO_ROOT / "docs" / "status" / "2026-05-03-immediate-technical-debt-register.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "F:\\vibe" not in text
+    assert "Scope: `Vibe-Skills`" in text
 
 
 def test_gate_policy_scans_retired_old_role_fields() -> None:

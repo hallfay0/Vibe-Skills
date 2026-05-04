@@ -2,7 +2,7 @@
 
 Generated: 2026-05-03
 
-Scope: `F:\vibe\Vibe-Skills`
+Scope: `Vibe-Skills`
 
 This register records the immediate-fixable debt items from the approved
 technical debt audit design. It separates fixed blocking debt from retained

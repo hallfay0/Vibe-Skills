@@ -24,9 +24,24 @@ def test_powershell_install_wrapper_keeps_codex_payload_contract_anchor() -> Non
     assert 'plugins-manifest.codex.json' in install_content
 
 
+def test_powershell_install_wrapper_searches_static_windows_python_312_and_313_first() -> None:
+    install_content = (REPO_ROOT / 'install.ps1').read_text(encoding='utf-8')
+    static_start = install_content.find('$absoluteCandidates = @(')
+    assert static_start != -1
+    static_end = install_content.find('foreach ($programFilesRoot', static_start)
+    assert static_end != -1
+    static_block = install_content[static_start:static_end]
+
+    assert 'C:\\Python313\\python.exe' in static_block
+    assert 'C:\\Python312\\python.exe' in static_block
+    assert static_block.index('C:\\Python313\\python.exe') < static_block.index('C:\\Python312\\python.exe')
+    assert static_block.index('C:\\Python312\\python.exe') < static_block.index('C:\\Python311\\python.exe')
+
+
 def test_powershell_install_wrapper_searches_user_local_python_312_and_313() -> None:
     install_content = (REPO_ROOT / 'install.ps1').read_text(encoding='utf-8')
-    localappdata_index = install_content.index("if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA))")
+    localappdata_index = install_content.find("if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA))")
+    assert localappdata_index != -1
     localappdata_block = install_content[localappdata_index:]
 
     assert "Programs\\Python\\Python313\\python.exe" in localappdata_block

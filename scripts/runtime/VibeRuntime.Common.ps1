@@ -35,7 +35,7 @@ if (-not (Get-Command -Name Get-VibeRetiredHostStageDisclosureEventId -CommandTy
             [Parameter(Mandatory)] [string]$SegmentId,
             [AllowNull()] [object[]]$Skills = @()
         )
-        if (-not [string]::IsNullOrWhiteSpace($SegmentId) -and @($Skills).Count -gt 0) {
+        if ($SegmentId.IndexOf('consultation', [System.StringComparison]::OrdinalIgnoreCase) -ge 0 -and @($Skills).Count -gt 0) {
             throw $script:VibeRetiredConsultationHelperMissingMessage
         }
         return $null

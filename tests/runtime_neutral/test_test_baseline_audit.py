@@ -51,6 +51,16 @@ class TestBaselineAuditPolicyTests(unittest.TestCase):
         self.assertEqual("file_serial", layers["runtime_neutral_heavy"]["run_strategy"])
         self.assertGreaterEqual(layers["runtime_neutral_heavy"]["per_file_timeout_seconds"], 300)
 
+    def test_heavy_sublayer_include_patterns_are_parent_heavy_classification_patterns(self) -> None:
+        policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
+        heavy_patterns = set(policy["classification"]["heavy_file_patterns"])
+
+        for layer in policy["layers"]:
+            if layer.get("source_layer_id") != "runtime_neutral_heavy":
+                continue
+            missing = [pattern for pattern in layer.get("include_file_patterns", []) if pattern not in heavy_patterns]
+            self.assertEqual([], missing, f"{layer['id']} patterns must classify into runtime_neutral_heavy first")
+
     def test_policy_load_rejects_duplicate_layer_ids(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             path = Path(tempdir) / "policy.json"
@@ -171,11 +181,11 @@ class TestBaselineAuditPolicyTests(unittest.TestCase):
         policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
         with tempfile.TemporaryDirectory() as tempdir:
             root = Path(tempdir)
-            path = root / "tests" / "runtime_neutral" / "test_bootstrap_doctor.py"
+            path = root / "tests" / "runtime_neutral" / "test_host_state_keyword.py"
             path.parent.mkdir(parents=True)
             path.write_text("def test_host_state():\n    assert '.vibeskills'\n", encoding="utf-8")
 
-            item = audit.classify_node("tests/runtime_neutral/test_bootstrap_doctor.py::test_host_state", root, policy)
+            item = audit.classify_node("tests/runtime_neutral/test_host_state_keyword.py::test_host_state", root, policy)
 
         self.assertEqual("runtime_neutral_heavy", item["layer_id"])
         self.assertIn("host_install", item["risk_tags"])
@@ -185,11 +195,11 @@ class TestBaselineAuditPolicyTests(unittest.TestCase):
         policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
         with tempfile.TemporaryDirectory() as tempdir:
             root = Path(tempdir)
-            path = root / "tests" / "runtime_neutral" / "test_powershell_entrypoint_help.py"
+            path = root / "tests" / "runtime_neutral" / "test_canonical_entry_contract.py"
             path.parent.mkdir(parents=True)
             path.write_text("def test_help():\n    assert True\n", encoding="utf-8")
 
-            item = audit.classify_node("tests/runtime_neutral/test_powershell_entrypoint_help.py::test_help", root, policy)
+            item = audit.classify_node("tests/runtime_neutral/test_canonical_entry_contract.py::test_help", root, policy)
 
         self.assertEqual("integration_host_boundary", item["layer_id"])
         self.assertIn("host_boundary", item["risk_tags"])

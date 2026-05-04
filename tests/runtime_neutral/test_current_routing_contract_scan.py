@@ -27,6 +27,14 @@ def resolve_powershell() -> str | None:
 
 
 class CurrentRoutingContractScanTests(unittest.TestCase):
+    def test_scan_script_powershell_subprocess_calls_have_timeouts(self) -> None:
+        text = Path(__file__).read_text(encoding="utf-8")
+        run_call = "subprocess" + ".run("
+        timeout_kwarg = "timeout" + "=60"
+
+        self.assertEqual(3, text.count(run_call))
+        self.assertEqual(3, text.count(timeout_kwarg))
+
     def test_scan_script_reports_json_and_no_current_surface_violations(self) -> None:
         shell = resolve_powershell()
         if shell is None:
@@ -38,6 +46,7 @@ class CurrentRoutingContractScanTests(unittest.TestCase):
             capture_output=True,
             text=True,
             encoding="utf-8",
+            timeout=60,
             check=True,
         )
         payload = json.loads(completed.stdout)
@@ -77,6 +86,7 @@ class CurrentRoutingContractScanTests(unittest.TestCase):
             capture_output=True,
             text=True,
             encoding="utf-8",
+            timeout=60,
             check=True,
         )
 

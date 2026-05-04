@@ -477,11 +477,56 @@ function Get-TextFiles {
     return @($files.ToArray() | Sort-Object FullName -Unique)
 }
 
+function Get-LineCommentAndStringFragments {
+    param([Parameter(Mandatory)] [string]$Line)
+    $fragments = New-Object System.Collections.Generic.List[object]
+    $buffer = [System.Text.StringBuilder]::new()
+    $singleQuote = [char]39
+    $doubleQuote = [char]34
+    $hash = [char]35
+    $inString = $false
+    $quoteChar = [char]0
+    for ($i = 0; $i -lt $Line.Length; $i++) {
+        $character = $Line[$i]
+        if ($inString) {
+            if ($character -eq $quoteChar) {
+                $fragments.Add([pscustomobject]@{ kind = 'string'; text = $buffer.ToString() }) | Out-Null
+                $buffer.Clear() | Out-Null
+                $inString = $false
+                continue
+            }
+            [void]$buffer.Append($character)
+            continue
+        }
+        if ($character -eq $hash) {
+            $fragments.Add([pscustomobject]@{ kind = 'comment'; text = $Line.Substring($i) }) | Out-Null
+            break
+        }
+        if ($character -eq $singleQuote -or $character -eq $doubleQuote) {
+            $inString = $true
+            $quoteChar = $character
+        }
+    }
+    return @($fragments.ToArray())
+}
+
 function Test-LineIsGuardAssertion {
     param([Parameter(Mandatory)] [string]$Line)
-    foreach ($needle in @('assertNotIn', 'self.assertNotIn', 'assertNotRegex', 'not in', 'NotIn')) {
+    $trimmed = $Line.TrimStart()
+    if ($trimmed.StartsWith('assert ', [System.StringComparison]::OrdinalIgnoreCase) -and $Line.IndexOf(' not in ', [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+        return $true
+    }
+    foreach ($needle in @('assertNotIn', 'self.assertNotIn', 'assertNotRegex')) {
         if ($Line.IndexOf($needle, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
             return $true
+        }
+    }
+    foreach ($fragment in @(Get-LineCommentAndStringFragments -Line $Line)) {
+        $fragmentText = [string]$fragment.text
+        foreach ($needle in @('assert "not in"', ' not in ', 'NotIn')) {
+            if ($fragmentText.IndexOf($needle, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+                return $true
+            }
         }
     }
     return $false
@@ -489,9 +534,15 @@ function Test-LineIsGuardAssertion {
 
 function Test-LineIsRetiredExplanation {
     param([Parameter(Mandatory)] [string]$Line)
-    foreach ($needle in @('retired', 'historical', 'legacy', 'old terms', 'old fields', 'not current', 'cleanup target', 'debt target')) {
-        if ($Line.IndexOf($needle, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
-            return $true
+    $commentNeedles = @('retired', 'historical', 'legacy', 'old terms', 'old fields', 'not current', 'cleanup target', 'debt target')
+    $stringNeedles = @('retired', 'historical', 'legacy compatibility', 'legacy field', 'legacy terms', 'old terms', 'old fields', 'not current', 'cleanup target', 'debt target')
+    foreach ($fragment in @(Get-LineCommentAndStringFragments -Line $Line)) {
+        $fragmentText = [string]$fragment.text
+        $needles = if ([string]$fragment.kind -eq 'comment') { $commentNeedles } else { $stringNeedles }
+        foreach ($needle in $needles) {
+            if ($fragmentText.IndexOf($needle, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+                return $true
+            }
         }
     }
     return $false
@@ -605,9 +656,9 @@ $summary = [ordered]@{
 }
 
 $status = if (
-    [int]$summary.P0 -eq [int]$policy.success_thresholds.P0 -and
-    [int]$summary.P1 -eq [int]$policy.success_thresholds.P1 -and
-    [int]$summary.P2 -eq [int]$policy.success_thresholds.P2
+    [int]$summary.P0 -le [int]$policy.success_thresholds.P0 -and
+    [int]$summary.P1 -le [int]$policy.success_thresholds.P1 -and
+    [int]$summary.P2 -le [int]$policy.success_thresholds.P2
 ) { 'pass' } else { 'fail' }
 
 $report = [pscustomobject]@{

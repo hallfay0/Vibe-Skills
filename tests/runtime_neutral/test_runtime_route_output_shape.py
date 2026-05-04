@@ -130,7 +130,7 @@ class RuntimeRouteOutputShapeTests(unittest.TestCase):
     def test_powershell_pack_skill_candidates_ignore_retired_role_fields(self) -> None:
         self.assertEqual([], run_powershell_old_manifest_candidate_probe(self))
 
-    def test_python_route_output_has_no_legacy_role_fields(self) -> None:
+    def test_python_route_output_has_only_current_skill_ranking_fields(self) -> None:
         for prompt, grade, task_type, expected_pack, expected_skill in ROUTE_CASES:
             with self.subTest(expected_pack=expected_pack, expected_skill=expected_skill):
                 result = route_prompt(prompt=prompt, grade=grade, task_type=task_type, repo_root=REPO_ROOT)
@@ -139,7 +139,7 @@ class RuntimeRouteOutputShapeTests(unittest.TestCase):
                 self.assertEqual(expected_skill, result["selected"]["skill"])
                 assert_public_route_output_shape(self, result)
 
-    def test_powershell_route_output_has_no_legacy_role_fields(self) -> None:
+    def test_powershell_route_output_has_only_current_skill_ranking_fields(self) -> None:
         shell = resolve_powershell()
         if shell is None:
             self.skipTest("PowerShell executable not available")

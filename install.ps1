@@ -48,6 +48,8 @@ function Get-PreferredPythonInvocation {
     '/usr/local/bin/python3',
     '/opt/homebrew/bin/python3',
     '/opt/local/bin/python3',
+    'C:\Python313\python.exe',
+    'C:\Python312\python.exe',
     'C:\Python311\python.exe',
     'C:\Python310\python.exe'
   )
