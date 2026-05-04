@@ -388,6 +388,15 @@ def _public_pack_row(row: dict[str, object]) -> dict[str, object]:
     return public
 
 
+def _public_nested_pack_metadata(value: object) -> object:
+    if not isinstance(value, dict):
+        return value
+    public = dict(value)
+    public.pop(INTERNAL_ROUTE_USABLE, None)
+    public["custom_admission"] = _public_custom_metadata(public.get("custom_admission"))
+    return public
+
+
 def _public_admitted_candidates(rows: object) -> list[dict[str, object]]:
     public_rows: list[dict[str, object]] = []
     for row in rows or []:
@@ -395,6 +404,9 @@ def _public_admitted_candidates(rows: object) -> list[dict[str, object]]:
             continue
         public_row = dict(row)
         public_row.pop(INTERNAL_ROUTE_USABLE, None)
+        pack = public_row.get("pack")
+        if isinstance(pack, dict):
+            public_row["pack"] = _public_nested_pack_metadata(pack)
         public_rows.append(public_row)
     return public_rows
 

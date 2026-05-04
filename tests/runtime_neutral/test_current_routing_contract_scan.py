@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -87,3 +88,38 @@ class CurrentRoutingContractScanTests(unittest.TestCase):
         self.assertIn("Hard cleanup current policy/helper dispatch vocabulary references: 0", completed.stdout)
         self.assertIn("Hard cleanup blocking failures: 0", completed.stdout)
         self.assertIn("Gate Result: PASS", completed.stdout)
+
+    def test_scan_script_json_reports_fallback_hard_cleanup_fail_count(self) -> None:
+        shell = resolve_powershell()
+        if shell is None:
+            self.skipTest("PowerShell executable not available")
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            repo_root = Path(tempdir)
+            verify_dir = repo_root / "scripts" / "verify"
+            verify_dir.mkdir(parents=True, exist_ok=True)
+            hard_cleanup = verify_dir / "vibe-routing-terminology-hard-cleanup-scan.ps1"
+            hard_cleanup.write_text(
+                "param([string]$RepoRoot, [switch]$Json)\n"
+                "[pscustomobject]@{ summary = [pscustomobject]@{ "
+                "current_doc_retired_term_violation_count = 1; "
+                "current_behavior_test_retired_field_read_count = 2; "
+                "current_policy_helper_dispatch_vocabulary_reference_count = 3; "
+                "review_count = 0 "
+                "} } | ConvertTo-Json -Depth 10\n",
+                encoding="utf-8",
+            )
+
+            completed = subprocess.run(
+                [shell, "-NoLogo", "-NoProfile", "-File", str(SCAN_SCRIPT), "-RepoRoot", str(repo_root), "-Json"],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                check=False,
+                timeout=60,
+            )
+            payload = json.loads(completed.stdout)
+
+            self.assertNotEqual(0, completed.returncode)
+            self.assertEqual(6, int(payload["hard_cleanup_fail_count"]))

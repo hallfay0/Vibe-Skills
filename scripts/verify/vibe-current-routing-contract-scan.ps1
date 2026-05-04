@@ -202,6 +202,7 @@ if ($hardCleanupBlockingViolationCount -eq 0) {
         [int]$summary.hard_cleanup_current_behavior_test_retired_field_read_count +
         [int]$summary.hard_cleanup_current_policy_helper_dispatch_vocabulary_reference_count
     )
+    $summary.hard_cleanup_fail_count = $hardCleanupBlockingViolationCount
 }
 
 if ($Json) {
@@ -219,7 +220,7 @@ if ($Json) {
     ('Hard cleanup historical docs without retired marker: {0}' -f [int]$summary.hard_cleanup_historical_doc_unmarked_retired_term_count)
     ('Hard cleanup execution-internal specialist_dispatch references: {0}' -f [int]$summary.hard_cleanup_execution_internal_specialist_dispatch_reference_count)
     ('Hard cleanup current policy/helper dispatch vocabulary references: {0}' -f [int]$summary.hard_cleanup_current_policy_helper_dispatch_vocabulary_reference_count)
-    ('Hard cleanup blocking failures: {0}' -f [int]$summary.hard_cleanup_fail_count)
+    ('Hard cleanup blocking failures: {0}' -f [int]$hardCleanupBlockingViolationCount)
     ('Hard cleanup compatibility review hits: {0}' -f [int]$summary.hard_cleanup_review_count)
     foreach ($finding in @($summary.findings)) {
         '[FAIL] {0}:{1} [{2}] {3}' -f $finding.path, $finding.line, $finding.pattern, $finding.text

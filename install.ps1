@@ -63,6 +63,8 @@ function Get-PreferredPythonInvocation {
   }
   if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
     $absoluteCandidates += @(
+      (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python313\python.exe'),
+      (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python312\python.exe'),
       (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python311\python.exe'),
       (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python310\python.exe')
     )

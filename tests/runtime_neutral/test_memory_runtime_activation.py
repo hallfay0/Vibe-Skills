@@ -335,7 +335,6 @@ class MemoryRuntimeActivationTests(unittest.TestCase):
                 "XL follow-up api worker continuity review with decision reuse and graph dependency recall.",
                 artifact_root=temp_root,
                 env={"VIBE_MEMORY_BACKEND_DRIVER_MODE": "legacy"},
-                check=False,
             )
 
             report_path = (

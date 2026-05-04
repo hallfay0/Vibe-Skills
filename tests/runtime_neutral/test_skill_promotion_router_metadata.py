@@ -7,6 +7,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import pytest
+
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ROUTE_SCRIPT = REPO_ROOT / "scripts" / "router" / "resolve-pack-route.ps1"
@@ -22,6 +24,7 @@ DESTRUCTIVE_PROMPT = (
     "and overwrite the install settings to reset the environment."
 )
 WINDOWS_DESTRUCTIVE_PROMPT = r"delete C:\tmp\build"
+POWERSHELL_SUBPROCESS_TIMEOUT_SECONDS = 120
 
 
 def resolve_powershell() -> str | None:
@@ -63,6 +66,7 @@ def run_route(prompt: str, *, repo_root: Path = REPO_ROOT) -> dict[str, object]:
         capture_output=True,
         text=True,
         encoding="utf-8",
+        timeout=POWERSHELL_SUBPROCESS_TIMEOUT_SECONDS,
         check=True,
     )
     return json.loads(completed.stdout)
@@ -85,6 +89,7 @@ def run_helper_json(script_body: str) -> dict[str, object]:
         capture_output=True,
         text=True,
         encoding="utf-8",
+        timeout=POWERSHELL_SUBPROCESS_TIMEOUT_SECONDS,
         check=True,
     )
     return json.loads(completed.stdout)
@@ -103,7 +108,23 @@ def get_selected_option(route: dict[str, object]) -> dict[str, object]:
     selected_skill = confirm_ui.get("selected_skill")
     if not selected_skill and confirm_ui.get("selected"):
         selected_skill = confirm_ui["selected"].get("skill")
-    return next(item for item in confirm_ui["options"] if item["skill"] == selected_skill)
+    match = next((item for item in confirm_ui["options"] if item["skill"] == selected_skill), None)
+    if match is None:
+        available = [item.get("skill") for item in confirm_ui["options"]]
+        raise AssertionError(f"No option with skill={selected_skill!r} found in confirm_ui options: {available!r}")
+    return match
+
+
+def test_get_selected_option_fails_clearly_when_selected_skill_is_missing() -> None:
+    route = {
+        "confirm_ui": {
+            "selected_skill": "missing-skill",
+            "options": [{"skill": "available-skill"}],
+        }
+    }
+
+    with pytest.raises(AssertionError, match="No option with skill='missing-skill'"):
+        get_selected_option(route)
 
 
 def copy_repo_fixture(target_root: Path) -> Path:
@@ -142,7 +163,8 @@ class SkillPromotionRouterMetadataTests(unittest.TestCase):
         route = run_route(DESTRUCTIVE_PROMPT)
 
         selected = route["selected"]
-        self.assertTrue(str(selected["skill"]).strip())
+        self.assertIsInstance(selected["skill"], str)
+        self.assertTrue(selected["skill"].strip())
         self.assertFalse(selected["promotion_eligible"])
         self.assertTrue(selected["destructive"])
         self.assertTrue(selected["snapshot_required"])

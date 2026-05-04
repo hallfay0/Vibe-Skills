@@ -24,6 +24,21 @@ def test_powershell_install_wrapper_keeps_codex_payload_contract_anchor() -> Non
     assert 'plugins-manifest.codex.json' in install_content
 
 
+def test_powershell_install_wrapper_searches_user_local_python_312_and_313() -> None:
+    install_content = (REPO_ROOT / 'install.ps1').read_text(encoding='utf-8')
+    localappdata_index = install_content.index("if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA))")
+    localappdata_block = install_content[localappdata_index:]
+
+    assert "Programs\\Python\\Python313\\python.exe" in localappdata_block
+    assert "Programs\\Python\\Python312\\python.exe" in localappdata_block
+    assert localappdata_block.index("Programs\\Python\\Python313\\python.exe") < localappdata_block.index(
+        "Programs\\Python\\Python312\\python.exe"
+    )
+    assert localappdata_block.index("Programs\\Python\\Python312\\python.exe") < localappdata_block.index(
+        "Programs\\Python\\Python311\\python.exe"
+    )
+
+
 def test_powershell_install_and_check_wrappers_define_explicit_help_path() -> None:
     install_content = (REPO_ROOT / 'install.ps1').read_text(encoding='utf-8')
     check_content = (REPO_ROOT / 'check.ps1').read_text(encoding='utf-8')

@@ -268,6 +268,11 @@ class CustomAdmissionBridgeTests(unittest.TestCase):
             for admitted in result["custom_admission"]["admitted_candidates"]:
                 self.assertNotIn("route_authority_eligible", admitted)
                 self.assertNotIn("_route_usable", admitted)
+                pack = admitted.get("pack")
+                self.assertIsInstance(pack, dict)
+                custom_metadata = pack.get("custom_admission")
+                self.assertIsInstance(custom_metadata, dict)
+                self.assertNotIn("_route_usable", custom_metadata)
 
             custom_ranked = next(
                 (row for row in result["ranked"] if row["pack_id"] == "custom-workflow-genomics-qc-flow"),

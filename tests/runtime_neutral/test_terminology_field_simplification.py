@@ -74,6 +74,7 @@ def test_terminology_governance_doc_exists_and_defines_active_model() -> None:
     assert "`selected_skill_execution`" in text
     assert "`skill_usage.used`" in text
     assert "`skill_usage.unused`" in text
+    assert "`skill_usage.evidence`" in text
     assert "Retired Context" in text
 
 

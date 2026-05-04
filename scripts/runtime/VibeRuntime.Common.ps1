@@ -1,15 +1,19 @@
-Set-StrictMode -Off
+﻿Set-StrictMode -Off
 $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot '..\common\vibe-governance-helpers.ps1')
 
 $retiredConsultationHelper = Join-Path $PSScriptRoot 'legacy\VibeRetiredConsultation.Common.ps1'
+$script:VibeRetiredConsultationHelperMissingMessage = "Missing retired consultation helper: $retiredConsultationHelper"
 if (Test-Path -LiteralPath $retiredConsultationHelper -PathType Leaf) {
     . $retiredConsultationHelper
 }
 if (-not (Get-Command -Name New-VibeRetiredSpecialistConsultationLifecycleLayerProjection -CommandType Function -ErrorAction SilentlyContinue)) {
     function New-VibeRetiredSpecialistConsultationLifecycleLayerProjection {
         param([AllowNull()] [object]$ConsultationReceipt)
+        if ($null -ne $ConsultationReceipt) {
+            throw $script:VibeRetiredConsultationHelperMissingMessage
+        }
         return $null
     }
 }
@@ -19,6 +23,9 @@ if (-not (Get-Command -Name New-VibeRetiredHostUserBriefingSegmentProjection -Co
             [AllowNull()] [object]$LifecycleLayer = $null,
             [AllowNull()] [object]$ConsultationReceipt = $null
         )
+        if ($null -ne $LifecycleLayer -or $null -ne $ConsultationReceipt) {
+            throw $script:VibeRetiredConsultationHelperMissingMessage
+        }
         return $null
     }
 }
@@ -28,6 +35,9 @@ if (-not (Get-Command -Name Get-VibeRetiredHostStageDisclosureEventId -CommandTy
             [Parameter(Mandatory)] [string]$SegmentId,
             [AllowNull()] [object[]]$Skills = @()
         )
+        if (-not [string]::IsNullOrWhiteSpace($SegmentId) -and @($Skills).Count -gt 0) {
+            throw $script:VibeRetiredConsultationHelperMissingMessage
+        }
         return $null
     }
 }

@@ -13,6 +13,14 @@ def _load_manifest() -> dict:
     return json.loads((REPO_ROOT / "config" / "runtime-script-manifest.json").read_text(encoding="utf-8"))
 
 
+def _expected_governed_runtime_support_files() -> set[str]:
+    return {
+        path.as_posix().replace(str(REPO_ROOT.as_posix()) + "/", "")
+        for path in sorted(RUNTIME_SCRIPT_DIR.glob("*"))
+        if path.is_file()
+    } | {"scripts/runtime/legacy/VibeRetiredConsultation.Common.ps1"}
+
+
 def test_runtime_script_manifest_role_groups_cover_flat_projection() -> None:
     manifest = _load_manifest()
     role_groups = manifest["role_groups"]
@@ -91,11 +99,7 @@ def test_runtime_script_manifest_separates_semantic_owners_from_compatibility_sh
     }
 
     governed_runtime_support_files = set(manifest["role_groups"]["files"]["governed_runtime_support_files"])
-    expected_governed_runtime_support_files = {
-        path.as_posix().replace(str(REPO_ROOT.as_posix()) + "/", "")
-        for path in sorted(RUNTIME_SCRIPT_DIR.glob("*"))
-        if path.is_file()
-    }
+    expected_governed_runtime_support_files = _expected_governed_runtime_support_files()
     assert governed_runtime_support_files == expected_governed_runtime_support_files
 
     assert all(path.startswith(("packages/", "apps/")) for path in semantic_owners)
@@ -174,8 +178,4 @@ def test_runtime_script_manifest_avoids_broad_governed_runtime_directory_project
 
     assert "scripts/runtime" not in manifest["directories"]
     assert "scripts/runtime" not in manifest["role_groups"]["directories"]["runtime_support"]
-    assert set(file_groups["governed_runtime_support_files"]) == {
-        path.as_posix().replace(str(REPO_ROOT.as_posix()) + "/", "")
-        for path in sorted(RUNTIME_SCRIPT_DIR.glob("*"))
-        if path.is_file()
-    }
+    assert set(file_groups["governed_runtime_support_files"]) == _expected_governed_runtime_support_files()

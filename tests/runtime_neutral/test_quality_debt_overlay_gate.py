@@ -9,16 +9,33 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
+def resolve_powershell() -> str | None:
+    candidates = [
+        shutil.which("pwsh"),
+        shutil.which("pwsh.exe"),
+        r"C:\Program Files\PowerShell\7\pwsh.exe",
+        r"C:\Program Files\PowerShell\7-preview\pwsh.exe",
+        shutil.which("powershell"),
+        shutil.which("powershell.exe"),
+    ]
+    for candidate in candidates:
+        if candidate and Path(candidate).exists():
+            return str(Path(candidate))
+    return None
+
+
 class QualityDebtOverlayGateTests(unittest.TestCase):
-    @unittest.skipIf(shutil.which("powershell") is None, "PowerShell executable not available in PATH")
     def test_quality_debt_overlay_gate_restores_policy_bytes(self) -> None:
+        powershell = resolve_powershell()
+        if powershell is None:
+            self.skipTest("PowerShell executable not available in PATH")
         policy_path = REPO_ROOT / "config" / "quality-debt-overlay.json"
         script_path = REPO_ROOT / "scripts" / "verify" / "vibe-quality-debt-overlay-gate.ps1"
         original_bytes = policy_path.read_bytes()
 
         try:
             completed = subprocess.run(
-                ["powershell", "-NoLogo", "-NoProfile", "-File", str(script_path)],
+                [powershell, "-NoLogo", "-NoProfile", "-File", str(script_path)],
                 cwd=REPO_ROOT,
                 capture_output=True,
                 text=True,
