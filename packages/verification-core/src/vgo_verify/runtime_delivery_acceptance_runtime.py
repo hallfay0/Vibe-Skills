@@ -248,6 +248,48 @@ def _evaluate_specialist_lock_resolution(
     return "passing", ["All locked specialist execution obligations were resolved."], lock_lists
 
 
+def _evaluate_selected_lock_reconciliation(
+    runtime_input_packet: dict[str, Any],
+    skill_execution_lock: dict[str, Any],
+) -> tuple[str, list[str], dict[str, list[str]]]:
+    skill_routing = runtime_input_packet.get("skill_routing")
+    if not isinstance(skill_routing, dict):
+        skill_routing = {}
+    specialist_decision = runtime_input_packet.get("specialist_decision")
+    if not isinstance(specialist_decision, dict):
+        specialist_decision = {}
+
+    selected_skill_ids = _normalize_skill_id_list(skill_routing.get("selected") or [])
+    approved_skill_ids = _normalize_unique_string_list(
+        specialist_decision.get("approved_dispatch_skill_ids") or []
+    )
+    required_skill_ids = _normalize_unique_string_list([*selected_skill_ids, *approved_skill_ids])
+    locked_skill_ids = _normalize_unique_string_list(skill_execution_lock.get("locked_skill_ids") or [])
+    locked_set = set(locked_skill_ids)
+    missing_skill_ids = [skill_id for skill_id in required_skill_ids if skill_id not in locked_set]
+    lists = {
+        "required": required_skill_ids,
+        "selected": selected_skill_ids,
+        "approved": approved_skill_ids,
+        "locked": locked_skill_ids,
+        "missing": missing_skill_ids,
+    }
+
+    if not required_skill_ids:
+        return "passing", ["No selected/approved specialist execution obligations were present."], lists
+    if missing_skill_ids:
+        return (
+            "manual_review_required",
+            [
+                "Selected/approved specialist execution obligations were not locked for execution: "
+                + ", ".join(missing_skill_ids)
+                + "."
+            ],
+            lists,
+        )
+    return "passing", ["Selected/approved specialist execution obligations are locked."], lists
+
+
 def evaluate_delivery_acceptance(repo_root: Path, session_root: Path) -> dict[str, Any]:
     contract = load_json(repo_root / "config" / "project-delivery-acceptance-contract.json")
     execute_receipt_path = session_root / "phase-execute.json"
@@ -273,6 +315,10 @@ def evaluate_delivery_acceptance(repo_root: Path, session_root: Path) -> dict[st
     specialist_lock_state, specialist_lock_notes, specialist_lock_lists = _evaluate_specialist_lock_resolution(
         skill_execution_lock,
         specialist_lock_resolution,
+    )
+    selected_lock_state, selected_lock_notes, selected_lock_lists = _evaluate_selected_lock_reconciliation(
+        runtime_input_packet,
+        skill_execution_lock,
     )
 
     product_acceptance_criteria = _extract_bullets(requirement_text, "Product Acceptance Criteria")
@@ -1088,6 +1134,16 @@ def evaluate_delivery_acceptance(repo_root: Path, session_root: Path) -> dict[st
             "evidence": specialist_decision_evidence,
             "notes": " ".join(specialist_decision_notes).strip(),
         },
+        "selected_lock_reconciliation_truth": {
+            "state": _normalize_truth_state(selected_lock_state),
+            "evidence": [
+                str(path)
+                for path in (runtime_input_packet_path, execution_manifest_path)
+                if path.exists()
+            ],
+            "notes": " ".join(selected_lock_notes).strip(),
+            "details": {"selected_lock_reconciliation": selected_lock_lists},
+        },
         "specialist_lock_resolution_truth": {
             "state": _normalize_truth_state(specialist_lock_state),
             "evidence": [
@@ -1245,10 +1301,12 @@ def evaluate_delivery_acceptance(repo_root: Path, session_root: Path) -> dict[st
                 "completion_language_allowed": _truth_completion_allowed(contract, info["state"]),
                 "evidence": info["evidence"],
                 "notes": info["notes"],
+                "details": info.get("details") or {},
             }
             for layer, info in truth_layers.items()
         },
         "skill_usage_truth": skill_usage_truth,
+        "selected_lock_reconciliation": selected_lock_lists,
         "artifact_review_coverage": {
             "covered_baseline_document_quality_dimensions": covered_baseline_document_quality_dimensions,
             "missing_baseline_document_quality_dimensions": missing_baseline_document_quality_dimensions,
@@ -1300,6 +1358,7 @@ def evaluate_delivery_acceptance(repo_root: Path, session_root: Path) -> dict[st
             "specialist_execution_source_path": specialist_execution_source_path,
             "specialist_execution_sidecar_path": str(session_root / "specialist-execution.json"),
             "approved_dispatch_skill_ids": approved_dispatch_skill_ids,
+            "selected_lock_reconciliation": selected_lock_lists,
             "selected_skill_execution_skill_ids": selected_skill_execution_skill_ids,
             "selected_skill_execution_count": selected_skill_execution_count,
             "selected_skill_ids": selected_skill_ids,

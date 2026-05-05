@@ -950,7 +950,8 @@ function New-VibeSkillExecutionLockProjection {
     $rows = New-Object System.Collections.Generic.List[object]
     $seen = @{}
     $currentRecords = @(Get-VibeSkillExecutionLockCandidateRecords -SkillRouting $CurrentSkillRouting)
-    $currentSkillIds = @($currentRecords | ForEach-Object {
+    $currentSelectedRecords = @(Get-VibeSkillRoutingSelected -SkillRouting $CurrentSkillRouting)
+    $currentSelectedSkillIds = @($currentSelectedRecords | ForEach-Object {
         if (Test-VibeObjectHasProperty -InputObject $_ -PropertyName 'skill_id') { [string]$_.skill_id } else { '' }
     } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
 
@@ -960,39 +961,36 @@ function New-VibeSkillExecutionLockProjection {
         @()
     }
 
-    if (@($hostApproved).Count -gt 0) {
-        foreach ($skillId in @($hostApproved)) {
-            $sourceRecord = @($currentRecords | Where-Object {
-                (Test-VibeObjectHasProperty -InputObject $_ -PropertyName 'skill_id') -and
-                [string]::Equals([string]$_.skill_id, [string]$skillId, [System.StringComparison]::OrdinalIgnoreCase)
-            } | Select-Object -First 1)
-            $record = if (@($sourceRecord).Count -gt 0) {
-                Copy-VibeSkillExecutionLockDispatchRecord -Record $sourceRecord[0] -LockSource 'host_decision' -ReconciliationState 'current_surfaced'
-            } else {
-                New-VibeMinimalSkillExecutionLockDispatchRecord -SkillId $skillId -LockSource 'host_decision' -ReconciliationState 'host_approved_not_currently_surfaced'
-            }
-            Add-VibeSkillExecutionLockRecord -Rows $rows -Seen $seen -Record $record
-        }
-    } else {
-        $previousLock = Get-VibeSkillExecutionLockFromRuntimeInputPacket -RuntimeInputPacket $PreviousRuntimeInputPacket
-        if (Test-VibeSkillExecutionLockActive -SkillExecutionLock $previousLock) {
-            foreach ($entry in @($previousLock.locked_dispatch)) {
-                $skillId = if (Test-VibeObjectHasProperty -InputObject $entry -PropertyName 'skill_id') { [string]$entry.skill_id } else { '' }
-                $state = if ($skillId -in @($currentSkillIds)) { 'current_surfaced' } else { 'inherited_not_currently_surfaced' }
-                Add-VibeSkillExecutionLockRecord -Rows $rows -Seen $seen -Record (Copy-VibeSkillExecutionLockDispatchRecord -Record $entry -LockSource 'previous_skill_execution_lock' -ReconciliationState $state)
-            }
-        } elseif ($null -ne $PreviousRuntimeInputPacket -and (Test-VibeObjectHasProperty -InputObject $PreviousRuntimeInputPacket -PropertyName 'skill_routing') -and $null -ne $PreviousRuntimeInputPacket.skill_routing) {
-            foreach ($entry in @(Get-VibeSkillRoutingSelected -RuntimeInputPacket $PreviousRuntimeInputPacket)) {
-                $skillId = if (Test-VibeObjectHasProperty -InputObject $entry -PropertyName 'skill_id') { [string]$entry.skill_id } else { '' }
-                $state = if ($skillId -in @($currentSkillIds)) { 'current_surfaced' } else { 'inherited_not_currently_surfaced' }
-                Add-VibeSkillExecutionLockRecord -Rows $rows -Seen $seen -Record (Copy-VibeSkillExecutionLockDispatchRecord -Record $entry -LockSource 'previous_skill_routing_selected' -ReconciliationState $state)
-            }
-        }
+    foreach ($entry in @($currentSelectedRecords)) {
+        $record = Copy-VibeSkillExecutionLockDispatchRecord -Record $entry -LockSource 'current_skill_routing_selected' -ReconciliationState 'current_surfaced'
+        Add-VibeSkillExecutionLockRecord -Rows $rows -Seen $seen -Record $record
+    }
 
-        if (@($rows.ToArray()).Count -eq 0 -and $null -ne $CurrentSkillRouting) {
-            foreach ($entry in @(Get-VibeSkillRoutingSelected -SkillRouting $CurrentSkillRouting)) {
-                Add-VibeSkillExecutionLockRecord -Rows $rows -Seen $seen -Record (Copy-VibeSkillExecutionLockDispatchRecord -Record $entry -LockSource 'current_skill_routing_selected' -ReconciliationState 'current_surfaced')
-            }
+    foreach ($skillId in @($hostApproved)) {
+        $sourceRecord = @($currentRecords | Where-Object {
+            (Test-VibeObjectHasProperty -InputObject $_ -PropertyName 'skill_id') -and
+            [string]::Equals([string]$_.skill_id, [string]$skillId, [System.StringComparison]::OrdinalIgnoreCase)
+        } | Select-Object -First 1)
+        $record = if (@($sourceRecord).Count -gt 0) {
+            Copy-VibeSkillExecutionLockDispatchRecord -Record $sourceRecord[0] -LockSource 'host_decision' -ReconciliationState 'host_approved_added_to_lock'
+        } else {
+            New-VibeMinimalSkillExecutionLockDispatchRecord -SkillId $skillId -LockSource 'host_decision' -ReconciliationState 'host_approved_not_currently_surfaced'
+        }
+        Add-VibeSkillExecutionLockRecord -Rows $rows -Seen $seen -Record $record
+    }
+
+    $previousLock = Get-VibeSkillExecutionLockFromRuntimeInputPacket -RuntimeInputPacket $PreviousRuntimeInputPacket
+    if (Test-VibeSkillExecutionLockActive -SkillExecutionLock $previousLock) {
+        foreach ($entry in @($previousLock.locked_dispatch)) {
+            $skillId = if (Test-VibeObjectHasProperty -InputObject $entry -PropertyName 'skill_id') { [string]$entry.skill_id } else { '' }
+            $state = if ($skillId -in @($currentSelectedSkillIds)) { 'current_surfaced' } else { 'inherited_not_currently_surfaced' }
+            Add-VibeSkillExecutionLockRecord -Rows $rows -Seen $seen -Record (Copy-VibeSkillExecutionLockDispatchRecord -Record $entry -LockSource 'previous_skill_execution_lock' -ReconciliationState $state)
+        }
+    } elseif (@($rows.ToArray()).Count -eq 0 -and $null -ne $PreviousRuntimeInputPacket -and (Test-VibeObjectHasProperty -InputObject $PreviousRuntimeInputPacket -PropertyName 'skill_routing') -and $null -ne $PreviousRuntimeInputPacket.skill_routing) {
+        foreach ($entry in @(Get-VibeSkillRoutingSelected -RuntimeInputPacket $PreviousRuntimeInputPacket)) {
+            $skillId = if (Test-VibeObjectHasProperty -InputObject $entry -PropertyName 'skill_id') { [string]$entry.skill_id } else { '' }
+            $state = if ($skillId -in @($currentSelectedSkillIds)) { 'current_surfaced' } else { 'inherited_not_currently_surfaced' }
+            Add-VibeSkillExecutionLockRecord -Rows $rows -Seen $seen -Record (Copy-VibeSkillExecutionLockDispatchRecord -Record $entry -LockSource 'previous_skill_routing_selected' -ReconciliationState $state)
         }
     }
 
