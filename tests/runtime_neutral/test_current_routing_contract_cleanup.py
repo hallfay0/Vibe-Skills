@@ -307,6 +307,40 @@ class CurrentRoutingContractCleanupTests(unittest.TestCase):
             self.assertFalse(payload["failed"], payload["message"])
             self.assertTrue(payload["is_null"])
 
+    def test_retired_stage_event_prefers_completed_when_routed_and_completed_are_mixed(self) -> None:
+        shell = resolve_powershell()
+        if shell is None:
+            self.skipTest("PowerShell executable not available in PATH")
+
+        script = (
+            "& { "
+            "$ErrorActionPreference = 'Stop'; "
+            f". {ps_quote(str(RUNTIME_COMMON))}; "
+            f". {ps_quote(str(RETIRED_CONSULTATION_COMMON))}; "
+            "$skills = @( "
+            "  [pscustomobject]@{ skill_id = 'routed'; state = 'discussion_routed' }, "
+            "  [pscustomobject]@{ skill_id = 'done'; state = 'completed' } "
+            "); "
+            "[pscustomobject]@{ "
+            "  discussion = Get-VibeRetiredHostStageDisclosureEventId -SegmentId 'discussion_consultation' -Skills $skills; "
+            "  planning = Get-VibeRetiredHostStageDisclosureEventId -SegmentId 'planning_consultation' -Skills $skills "
+            "} | ConvertTo-Json -Depth 5 "
+            "}"
+        )
+        completed = subprocess.run(
+            [shell, "-NoLogo", "-NoProfile", "-Command", script],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=True,
+            timeout=60,
+        )
+        payload = json.loads(completed.stdout)
+
+        self.assertEqual("discussion_consultation_completed", payload["discussion"])
+        self.assertEqual("planning_consultation_completed", payload["planning"])
+
     def test_current_routing_governance_doc_defines_only_current_terms(self) -> None:
         path = REPO_ROOT / "docs" / "governance" / "current-routing-contract.md"
         text = path.read_text(encoding="utf-8")

@@ -3,8 +3,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from vgo_verify.runtime_delivery_acceptance_runtime import evaluate_delivery_acceptance
-from vgo_verify.runtime_delivery_acceptance_runtime import _evaluate_selected_lock_reconciliation
+from vgo_verify.runtime_delivery_acceptance_runtime import (
+    _evaluate_selected_lock_reconciliation,
+    _evaluate_specialist_lock_resolution,
+    evaluate_delivery_acceptance,
+)
 
 
 def test_selected_lock_reconciliation_passes_when_selected_and_approved_are_locked():
@@ -114,6 +117,32 @@ def test_selected_lock_reconciliation_does_not_require_candidates_or_advice():
     assert "ml-pipeline-workflow" not in lists["required"]
     assert "literature-review" not in lists["required"]
     assert "rejected-only" not in lists["required"]
+
+
+def test_specialist_lock_resolution_ignores_stale_resolution_buckets():
+    skill_execution_lock = {
+        "state": "active",
+        "locked_skill_ids": ["literature-review"],
+    }
+    specialist_lock_resolution = {
+        "executed_skill_ids": ["literature-review"],
+        "not_applicable_skill_ids": [],
+        "deferred_skill_ids": ["old-deferred-skill"],
+        "failed_skill_ids": ["old-failed-skill"],
+        "unresolved_skill_ids": ["old-unresolved-skill"],
+    }
+
+    state, notes, lists = _evaluate_specialist_lock_resolution(
+        skill_execution_lock,
+        specialist_lock_resolution,
+    )
+
+    assert state == "passing"
+    assert notes == ["All locked specialist execution obligations were resolved."]
+    assert lists["executed"] == ["literature-review"]
+    assert lists["deferred"] == []
+    assert lists["failed"] == []
+    assert lists["unresolved"] == []
 
 
 def _write_json(path: Path, payload: dict) -> None:

@@ -128,6 +128,7 @@ def test_gate_reports_json_and_clean_current_surfaces() -> None:
     assert payload["current_model"] == [
         "skill_candidates",
         "skill_routing.selected",
+        "skill_execution_lock",
         "selected_skill_execution",
         "skill_usage.used",
         "skill_usage.unused",
@@ -203,6 +204,7 @@ def test_gate_scopes_retired_explanation_and_not_in_allowance_to_comments_or_str
     assert "foreach ($needle in @('assertNotIn', 'self.assertNotIn', 'assertNotRegex', 'assert \"not in\"', ' not in ', 'NotIn'))" not in guard_body
     assert "StartsWith('assert '" not in guard_body
     assert "$Line.IndexOf(' not in '" not in guard_body
+    assert "assert\\s+.+\\s+not\\s+in\\s+" in guard_body
 
 
 def test_gate_does_not_treat_legacy_identifier_as_retired_explanation(tmp_path: Path) -> None:
@@ -216,7 +218,7 @@ def test_gate_does_not_treat_legacy_identifier_as_retired_explanation(tmp_path: 
 
     assert result.returncode == 1
     assert payload["status"] == "fail"
-    assert payload["summary"]["P1"] == 1
+    assert payload["summary"]["P0"] == 1
     assert payload["findings"][0]["term"] == "stage_assistant_hints"
 
 
@@ -235,7 +237,7 @@ def test_gate_does_not_treat_non_assert_not_in_code_as_guard_assertion(tmp_path:
     assert payload["findings"][0]["term"] == "legacy_skill_routing"
 
 
-def test_gate_treats_assert_not_in_retired_string_as_current_test_dependency(tmp_path: Path) -> None:
+def test_gate_treats_assert_not_in_retired_string_as_guard_assertion(tmp_path: Path) -> None:
     gate = copy_debt_gate_fixture(tmp_path, current_paths=["tests/runtime_neutral"])
     test_dir = tmp_path / "tests" / "runtime_neutral"
     test_dir.mkdir(parents=True, exist_ok=True)
@@ -244,10 +246,9 @@ def test_gate_treats_assert_not_in_retired_string_as_current_test_dependency(tmp
     result = run_fixture_gate(gate)
     payload = json.loads(result.stdout)
 
-    assert result.returncode == 1
-    assert payload["status"] == "fail"
-    assert payload["summary"]["P1"] == 1
-    assert payload["findings"][0]["term"] == "stage_assistant_hints"
+    assert result.returncode == 0
+    assert payload["status"] == "pass"
+    assert payload["summary"]["P1"] == 0
 
 
 def test_gate_does_not_treat_generic_notin_text_as_guard_assertion(tmp_path: Path) -> None:
@@ -312,7 +313,7 @@ def test_gate_honors_explicit_repo_root_when_script_lives_elsewhere(tmp_path: Pa
     assert result.returncode == 1
     assert payload["status"] == "fail"
     assert payload["repo_root"].replace("\\", "/") == scan_root.as_posix()
-    assert payload["summary"]["P1"] == 1
+    assert payload["summary"]["P0"] == 1
     assert payload["findings"][0]["path"] == "scripts/runtime/example.ps1"
     assert payload["findings"][0]["term"] == "stage_assistant_hints"
 

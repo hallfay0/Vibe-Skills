@@ -90,6 +90,7 @@ class TestBaselineAuditPolicyTests(unittest.TestCase):
                 "tests/unit/test_alpha.py::test_one",
                 "tests/unit/test_alpha.py::test_param[value]",
                 "tests/runtime_neutral/test_beta.py::BetaTests::test_two",
+                "packages/runtime-core/src/vgo_runtime/test_lock.py::test_package_node",
                 "3 tests collected",
             ]
         )
@@ -99,6 +100,7 @@ class TestBaselineAuditPolicyTests(unittest.TestCase):
                 "tests/unit/test_alpha.py::test_one",
                 "tests/unit/test_alpha.py::test_param[value]",
                 "tests/runtime_neutral/test_beta.py::BetaTests::test_two",
+                "packages/runtime-core/src/vgo_runtime/test_lock.py::test_package_node",
             ],
             audit.parse_collect_output(output),
         )
@@ -296,6 +298,10 @@ class TestBaselineAuditPolicyTests(unittest.TestCase):
 
     def test_write_artifacts_emits_json_and_markdown(self) -> None:
         policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
+        policy["artifact_names"] = {
+            "json": "custom-test-baseline.json",
+            "markdown": "custom-test-baseline.md",
+        }
         artifact = audit.build_artifact(
             repo_root=REPO_ROOT,
             policy_path=REPO_ROOT / "config" / "test-baseline-policy.json",
@@ -305,12 +311,14 @@ class TestBaselineAuditPolicyTests(unittest.TestCase):
             run_result=None,
         )
         with tempfile.TemporaryDirectory() as tempdir:
-            written = audit.write_artifacts(REPO_ROOT, artifact, tempdir)
+            written = audit.write_artifacts(REPO_ROOT, artifact, tempdir, policy=policy)
             json_path = Path(written["json"])
             md_path = Path(written["markdown"])
 
             self.assertTrue(json_path.exists())
             self.assertTrue(md_path.exists())
+            self.assertEqual("custom-test-baseline.json", json_path.name)
+            self.assertEqual("custom-test-baseline.md", md_path.name)
             self.assertEqual(1, json.loads(json_path.read_text(encoding="utf-8"))["summary"]["total_nodes"])
             self.assertIn("Test Baseline Audit", md_path.read_text(encoding="utf-8"))
 
@@ -356,6 +364,14 @@ class TestBaselineAuditCliTests(unittest.TestCase):
             self.assertEqual("1", env["VIBESKILLS_TEST_DISABLE_NETWORK"])
             self.assertEqual("1", env["PYTHONDONTWRITEBYTECODE"])
             self.assertEqual(str(REPO_ROOT / ".tmp" / "pycache"), env["PYTHONPYCACHEPREFIX"])
+
+    def test_collect_only_overrides_run_layer(self) -> None:
+        runner = FakeRunner()
+        exit_code = audit.main(["--collect-only", "--run-layer", "contract_unit"], runner=runner)
+
+        self.assertEqual(0, exit_code)
+        self.assertEqual(3, len(runner.calls))
+        self.assertTrue(all("--collect-only" in call["command"] for call in runner.calls))
 
     def test_run_layer_sets_disable_network_env(self) -> None:
         runner = FakeRunner()

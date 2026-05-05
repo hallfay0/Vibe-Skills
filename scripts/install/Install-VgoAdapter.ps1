@@ -996,7 +996,12 @@ function Sync-VgoInternalSkillCorpus {
     )
 
     $corpus = if ($Packaging.PSObject.Properties.Name -contains 'internal_skill_corpus') { $Packaging.internal_skill_corpus } else { $null }
-    if ($null -eq $corpus -or -not [bool]$corpus.enabled) {
+    $corpusEnabled = (
+        $null -ne $corpus -and
+        $corpus.PSObject.Properties.Name -contains 'enabled' -and
+        [bool]$corpus.enabled
+    )
+    if (-not $corpusEnabled) {
         return $null
     }
 
@@ -1011,11 +1016,18 @@ function Sync-VgoInternalSkillCorpus {
         throw "Bundled skills source missing for internal corpus packaging: $bundledRoot"
     }
 
-    if (Test-Path -LiteralPath $destinationRoot) {
+    $trimSeparators = [char[]]@([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+    $destinationFullName = [System.IO.Path]::GetFullPath($destinationRoot).TrimEnd($trimSeparators)
+    $bundledFullName = [System.IO.Path]::GetFullPath($bundledRoot).TrimEnd($trimSeparators)
+    $sourceEqualsDestination = ($destinationFullName -eq $bundledFullName)
+    if ((Test-Path -LiteralPath $destinationRoot) -and $destinationFullName -ne $bundledFullName) {
         Remove-Item -LiteralPath $destinationRoot -Recurse -Force
     }
     New-Item -ItemType Directory -Force -Path $destinationRoot | Out-Null
     Add-VgoCreatedPath -Path $destinationRoot
+    if ($sourceEqualsDestination) {
+        return $destinationRoot
+    }
 
     $excluded = New-Object System.Collections.Generic.HashSet[string]([System.StringComparer]::OrdinalIgnoreCase)
     if ($Packaging.PSObject.Properties.Name -contains 'exclude_bundled_skill_names' -and $null -ne $Packaging.exclude_bundled_skill_names) {

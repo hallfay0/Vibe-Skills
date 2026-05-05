@@ -651,7 +651,7 @@ Expected: commit succeeds with one gate change and one regression test.
 
 Create `docs/status/2026-05-03-immediate-technical-debt-register.md` with this content:
 
-```markdown
+````markdown
 # Immediate Technical Debt Register
 
 Generated: 2026-05-03
@@ -695,7 +695,7 @@ powershell -NoLogo -NoProfile -File scripts\verify\vibe-current-routing-debt-gat
 powershell -NoLogo -NoProfile -File scripts\verify\vibe-routing-terminology-hard-cleanup-scan.ps1 -Json
 git status --short --branch
 ```
-```
+````
 
 - [ ] **Step 2: Scan register for placeholders**
 

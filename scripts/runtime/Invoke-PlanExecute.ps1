@@ -1960,15 +1960,19 @@ $lockedSkillIds = if ($hasActiveSkillExecutionLock -and $skillExecutionLock.PSOb
 $executedLockedSkillIds = @($verifiedSpecialistUnits | ForEach-Object {
     if ($_.PSObject.Properties.Name -contains 'skill_id') { [string]$_.skill_id } else { '' }
 } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) -and $_ -in @($lockedSkillIds) } | Select-Object -Unique)
+$directRoutedLockedSkillIds = @($directRoutedSpecialistUnits | ForEach-Object {
+    if ($_.PSObject.Properties.Name -contains 'skill_id') { [string]$_.skill_id } else { '' }
+} | Where-Object { -not [string]::IsNullOrWhiteSpace($_) -and $_ -in @($lockedSkillIds) } | Select-Object -Unique)
 $failedLockedSkillIds = @($failedLiveSpecialistUnits | ForEach-Object {
     if ($_.PSObject.Properties.Name -contains 'skill_id') { [string]$_.skill_id } else { '' }
 } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) -and $_ -in @($lockedSkillIds) } | Select-Object -Unique)
-$resolvedLockedSkillIds = @(@($executedLockedSkillIds) + @($failedLockedSkillIds) | Select-Object -Unique)
+$executedOrDirectRoutedLockedSkillIds = @((@($executedLockedSkillIds) + @($directRoutedLockedSkillIds)) | Select-Object -Unique)
+$resolvedLockedSkillIds = @((@($executedLockedSkillIds) + @($directRoutedLockedSkillIds) + @($failedLockedSkillIds)) | Select-Object -Unique)
 $unresolvedLockedSkillIds = @($lockedSkillIds | Where-Object { $_ -notin @($resolvedLockedSkillIds) })
 $specialistLockResolution = [pscustomobject]@{
     active = [bool]$hasActiveSkillExecutionLock
     locked_skill_ids = @($lockedSkillIds)
-    executed_skill_ids = @($executedLockedSkillIds)
+    executed_skill_ids = @($executedOrDirectRoutedLockedSkillIds)
     not_applicable_skill_ids = @()
     deferred_skill_ids = @()
     failed_skill_ids = @($failedLockedSkillIds)

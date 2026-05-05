@@ -101,9 +101,8 @@ class SkillExecutionLockContractTests(unittest.TestCase):
         self.assertEqual("approved_plan_reentry", payload["source"])
         self.assertEqual("pytest-plan-run", payload["source_run_id"])
         self.assertIn("scientific-reporting", as_list(payload["locked_skill_ids"]))
-        locked_dispatch = as_list(payload["locked_dispatch"])
-        self.assertEqual("scientific-reporting", locked_dispatch[0]["skill_id"])
-        self.assertEqual("inherited_not_currently_surfaced", locked_dispatch[0]["reconciliation_state"])
+        dispatch_by_id = {item["skill_id"]: item for item in as_list(payload["locked_dispatch"])}
+        self.assertEqual("inherited_not_currently_surfaced", dispatch_by_id["scientific-reporting"]["reconciliation_state"])
         self.assertTrue(payload["resolution_required"])
 
     def test_lock_projection_prefers_explicit_host_decision(self) -> None:
@@ -132,11 +131,23 @@ class SkillExecutionLockContractTests(unittest.TestCase):
             "}"
         )
 
-        self.assertEqual(["designing-experiments"], as_list(payload["locked_skill_ids"]))
-        dispatch = as_list(payload["locked_dispatch"])[0]
-        self.assertEqual("designing-experiments", dispatch["skill_id"])
-        self.assertEqual("host_decision", dispatch["lock_source"])
-        self.assertEqual("current_surfaced", dispatch["reconciliation_state"])
+        self.assertEqual(
+            ["latex-submission-pipeline", "designing-experiments", "scientific-reporting"],
+            as_list(payload["locked_skill_ids"]),
+        )
+        dispatch_by_id = {item["skill_id"]: item for item in as_list(payload["locked_dispatch"])}
+        self.assertEqual("current_skill_routing_selected", dispatch_by_id["latex-submission-pipeline"]["lock_source"])
+        self.assertEqual("current_surfaced", dispatch_by_id["latex-submission-pipeline"]["reconciliation_state"])
+        self.assertEqual("host_decision", dispatch_by_id["designing-experiments"]["lock_source"])
+        self.assertEqual("host_approved_added_to_lock", dispatch_by_id["designing-experiments"]["reconciliation_state"])
+        self.assertEqual("previous_skill_routing_selected", dispatch_by_id["scientific-reporting"]["lock_source"])
+        self.assertEqual("inherited_not_currently_surfaced", dispatch_by_id["scientific-reporting"]["reconciliation_state"])
+
+    def test_plan_execute_counts_direct_routed_locked_specialists_as_resolved(self) -> None:
+        text = (REPO_ROOT / "scripts" / "runtime" / "Invoke-PlanExecute.ps1").read_text(encoding="utf-8")
+
+        self.assertIn("$directRoutedLockedSkillIds", text)
+        self.assertIn("@($executedLockedSkillIds) + @($directRoutedLockedSkillIds)", text)
 
     def test_convert_lock_to_dispatch_preserves_dispatch_fields(self) -> None:
         payload = run_ps_json(

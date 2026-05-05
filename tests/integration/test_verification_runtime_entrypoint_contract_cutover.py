@@ -47,6 +47,7 @@ def test_no_silent_fallback_gate_requires_runtime_artifact_truth_chain_for_suppo
 
     assert "route_snapshot" in gate
     assert "skill_routing" in gate
+    assert "$runtimeInput.skill_routing.PSObject.Properties.Name -contains 'selected'" in gate
     assert "selected_skill_execution" in gate
     assert "skill_usage" in gate
     assert "execution_manifest" in gate

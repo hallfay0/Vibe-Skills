@@ -27,6 +27,7 @@ def test_policy_defines_current_field_chain_and_retired_terms() -> None:
     assert policy["current_model"] == [
         "skill_candidates",
         "skill_routing.selected",
+        "skill_execution_lock",
         "selected_skill_execution",
         "skill_usage.used",
         "skill_usage.unused",
@@ -40,6 +41,7 @@ def test_policy_defines_current_field_chain_and_retired_terms() -> None:
         "skill_routing.candidates",
         "skill_routing.selected",
         "skill_routing.rejected",
+        "skill_execution_lock",
         "selected_skill_execution",
         "skill_execution_units",
         "approved_skill_execution",

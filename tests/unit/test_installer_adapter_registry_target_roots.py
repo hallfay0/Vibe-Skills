@@ -146,6 +146,19 @@ def test_resolve_default_target_root_text_preserves_env_projection() -> None:
     assert resolved == '/tmp/windsurf-home'
 
 
+def test_resolve_default_target_root_text_honors_explicit_empty_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv('WINDSURF_HOME', '/tmp/process-windsurf-home')
+
+    resolved = resolve_default_target_root_text(
+        REPO_ROOT,
+        'windsurf',
+        env={},
+        home='/home/tester',
+    )
+
+    assert resolved == '/home/tester/.codeium/windsurf'
+
+
 def test_resolve_default_target_root_text_preserves_posix_home_projection() -> None:
     resolved = resolve_default_target_root_text(
         REPO_ROOT,

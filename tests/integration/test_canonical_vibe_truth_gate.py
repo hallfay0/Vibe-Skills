@@ -320,6 +320,25 @@ def test_truth_gate_accepts_current_skill_routing_without_legacy_fields(tmp_path
     assert "[PASS] runtime packet exposes canonical skill_routing.selected" in result.stdout
 
 
+def test_truth_gate_accepts_fallback_skill_usage_shape(tmp_path: Path) -> None:
+    session_root = tmp_path / "session"
+    _write_valid_canonical_entry_artifacts(session_root)
+    runtime_packet_path = session_root / "runtime-input-packet.json"
+    runtime_packet = json.loads(runtime_packet_path.read_text(encoding="utf-8"))
+    runtime_packet["skill_usage"] = {
+        "state_model": "binary_used_unused",
+        "used_skills": [],
+        "unused_skills": [{"skill_id": "systematic-debugging"}],
+        "evidence": [],
+    }
+    _write_json(runtime_packet_path, runtime_packet)
+
+    result = _run_truth_gate(session_root)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "[PASS] runtime packet skill_usage includes used/unused or used_skills/unused_skills" in result.stdout
+
+
 def test_truth_gate_accepts_presentational_entry_intent_with_canonical_authority(tmp_path: Path) -> None:
     session_root = tmp_path / "session"
     _write_valid_canonical_entry_artifacts(

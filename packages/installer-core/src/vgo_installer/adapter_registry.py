@@ -150,7 +150,7 @@ def resolve_default_target_root_text(
     return resolve_target_root_text(
         default_target_root=spec["rel"],
         default_target_root_env=spec["env"],
-        env=env or dict(os.environ),
+        env=env if env is not None else dict(os.environ),
         home=home if home is not None else Path.home(),
         descriptor_id=normalized,
     )

@@ -55,7 +55,7 @@ def parse_collect_output(stdout: str) -> list[str]:
         line = raw_line.strip()
         if not line or line.startswith("<") or line.startswith("="):
             continue
-        if "::" in line and (line.startswith("tests/") or line.startswith("tests\\")):
+        if "::" in line:
             nodes.append(line.replace("\\", "/"))
     return nodes
 
@@ -337,12 +337,29 @@ def render_markdown(artifact: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def write_artifacts(repo_root: Path, artifact: dict[str, Any], output_directory: str | None = None) -> dict[str, str]:
-    output_root = Path(output_directory) if output_directory else repo_root / "outputs" / "verify"
+def _artifact_names_from_policy(policy: dict[str, Any] | None = None) -> dict[str, str]:
+    configured = (policy or {}).get("artifact_names") or {}
     names = {
         "json": "test-baseline-audit.json",
         "markdown": "test-baseline-audit.md",
     }
+    if isinstance(configured, dict):
+        for key in names:
+            value = configured.get(key)
+            if isinstance(value, str) and value.strip():
+                names[key] = value.strip()
+    return names
+
+
+def write_artifacts(
+    repo_root: Path,
+    artifact: dict[str, Any],
+    output_directory: str | None = None,
+    *,
+    policy: dict[str, Any] | None = None,
+) -> dict[str, str]:
+    output_root = Path(output_directory) if output_directory else repo_root / "outputs" / "verify"
+    names = _artifact_names_from_policy(policy)
     json_path = output_root / names["json"]
     md_path = output_root / names["markdown"]
     write_text(json_path, json.dumps(artifact, ensure_ascii=False, indent=2) + "\n")
@@ -596,7 +613,7 @@ def main(argv: list[str] | None = None, runner=subprocess.run) -> int:
     policy = load_policy(policy_path)
     collected_nodes, collection_results = run_collect_commands(repo_root, policy, runner=runner)
     run_result = None
-    if args.run_layer:
+    if args.run_layer and not args.collect_only:
         def print_progress(message: str) -> None:
             print(message, flush=True)
 
@@ -617,7 +634,7 @@ def main(argv: list[str] | None = None, runner=subprocess.run) -> int:
         run_result=run_result,
     )
     if args.write_artifacts:
-        write_artifacts(repo_root, artifact, args.output_directory)
+        write_artifacts(repo_root, artifact, args.output_directory, policy=policy)
     print(
         f"[INFO] total_nodes={artifact['summary']['total_nodes']} "
         f"layers={artifact['summary']['layer_count']} "

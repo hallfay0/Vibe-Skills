@@ -45,7 +45,7 @@ git branch --show-current
 Expected:
 
 ```text
-pr226-followup-review-fixes
+review/pr226-pr227-combined
 ```
 
 `git status --short` may show this plan file or task files created by the current implementation. Do not revert unrelated user changes.

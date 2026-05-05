@@ -220,11 +220,16 @@ def _evaluate_specialist_lock_resolution(
     if not active:
         return "passing", ["No active specialist execution lock was present."], empty_lists
 
-    executed = _normalize_unique_string_list(specialist_lock_resolution.get("executed_skill_ids"))
-    not_applicable = _normalize_unique_string_list(specialist_lock_resolution.get("not_applicable_skill_ids"))
-    deferred = _normalize_unique_string_list(specialist_lock_resolution.get("deferred_skill_ids"))
-    failed = _normalize_unique_string_list(specialist_lock_resolution.get("failed_skill_ids"))
-    explicitly_unresolved = _normalize_unique_string_list(specialist_lock_resolution.get("unresolved_skill_ids"))
+    locked_set = set(locked_skill_ids)
+
+    def locked_only(value: Any) -> list[str]:
+        return [skill_id for skill_id in _normalize_unique_string_list(value) if skill_id in locked_set]
+
+    executed = locked_only(specialist_lock_resolution.get("executed_skill_ids"))
+    not_applicable = locked_only(specialist_lock_resolution.get("not_applicable_skill_ids"))
+    deferred = locked_only(specialist_lock_resolution.get("deferred_skill_ids"))
+    failed = locked_only(specialist_lock_resolution.get("failed_skill_ids"))
+    explicitly_unresolved = locked_only(specialist_lock_resolution.get("unresolved_skill_ids"))
     resolved = set(executed) | set(not_applicable) | set(deferred) | set(failed)
     unresolved = [skill_id for skill_id in locked_skill_ids if skill_id not in resolved]
     for skill_id in explicitly_unresolved:
