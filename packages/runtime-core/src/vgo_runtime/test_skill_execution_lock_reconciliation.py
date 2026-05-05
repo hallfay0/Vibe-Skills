@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import pytest
 import shutil
 import subprocess
 import tempfile
@@ -16,7 +17,7 @@ def _powershell_executable() -> str:
         resolved = shutil.which(name)
         if resolved:
             return resolved
-    raise AssertionError("PowerShell executable was not found on PATH.")
+    pytest.skip("PowerShell executable was not found on PATH.")
 
 
 def _run_projection(script_body: str) -> dict:

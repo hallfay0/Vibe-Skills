@@ -233,7 +233,7 @@ def _evaluate_specialist_lock_resolution(
     resolved = set(executed) | set(not_applicable) | set(deferred) | set(failed)
     unresolved = [skill_id for skill_id in locked_skill_ids if skill_id not in resolved]
     for skill_id in explicitly_unresolved:
-        if skill_id not in unresolved:
+        if skill_id in locked_set and skill_id not in resolved and skill_id not in unresolved:
             unresolved.append(skill_id)
 
     lock_lists = {

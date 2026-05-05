@@ -886,7 +886,13 @@ function Ensure-SkillPresent {
     )
 
     $targetSkillRoot = Join-Path $DestinationRoot $Name
-    if (Test-VgoSkillEntryPoint -SkillRoot $targetSkillRoot) { return }
+    if ($HiddenEntryPoints) {
+        if (Test-Path -LiteralPath (Join-Path $targetSkillRoot 'SKILL.runtime-mirror.md') -PathType Leaf) { return }
+    } else {
+        if (Test-Path -LiteralPath (Join-Path $targetSkillRoot 'SKILL.md') -PathType Leaf) { return }
+        Restore-SkillEntryPointIfNeeded -SkillRoot $targetSkillRoot
+        if (Test-Path -LiteralPath (Join-Path $targetSkillRoot 'SKILL.md') -PathType Leaf) { return }
+    }
     if ($AllowExternalSkillFallback) {
         foreach ($src in $FallbackSources) {
             if ([string]::IsNullOrWhiteSpace($src)) { continue }
@@ -903,7 +909,12 @@ function Ensure-SkillPresent {
             }
         }
     }
-    if (-not (Test-VgoSkillEntryPoint -SkillRoot $targetSkillRoot)) {
+    $skillPresent = if ($HiddenEntryPoints) {
+        Test-Path -LiteralPath (Join-Path $targetSkillRoot 'SKILL.runtime-mirror.md') -PathType Leaf
+    } else {
+        Test-Path -LiteralPath (Join-Path $targetSkillRoot 'SKILL.md') -PathType Leaf
+    }
+    if (-not $skillPresent) {
         if ($Required) {
             $MissingRequiredSkills.Add($Name) | Out-Null
         }
@@ -980,11 +991,19 @@ function Get-VgoBundledSkillsRoot {
     }
 
     foreach ($candidate in @($candidates | Select-Object -Unique)) {
-        if (-not [string]::IsNullOrWhiteSpace($candidate) -and (Test-Path -LiteralPath $candidate -PathType Container)) {
-            return $candidate
+        if ([string]::IsNullOrWhiteSpace($candidate)) {
+            continue
+        }
+        $resolvedCandidate = if ([System.IO.Path]::IsPathRooted($candidate)) {
+            [System.IO.Path]::GetFullPath($candidate)
+        } else {
+            [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $candidate))
+        }
+        if (Test-Path -LiteralPath $resolvedCandidate -PathType Container) {
+            return $resolvedCandidate
         }
     }
-    return (Join-Path $RepoRoot $sourceRel)
+    return [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $sourceRel))
 }
 
 function Sync-VgoInternalSkillCorpus {

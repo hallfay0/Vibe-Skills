@@ -322,7 +322,15 @@ class SkillExecutionLockContractTests(unittest.TestCase):
                 check=True,
             )
             self.assertIn("packet_path", completed.stdout)
-            packet_path = next((artifact_root / "outputs" / "runtime" / "vibe-sessions" / "pytest-execute-run").rglob("runtime-input-packet.json"))
+            packet_search_root = artifact_root / "outputs" / "runtime" / "vibe-sessions" / "pytest-execute-run"
+            packet_path = next(
+                packet_search_root.rglob("runtime-input-packet.json"),
+                None,
+            )
+            self.assertIsNotNone(
+                packet_path,
+                f"Freeze script did not produce runtime-input-packet.json under {packet_search_root}",
+            )
             packet = json.loads(packet_path.read_text(encoding="utf-8"))
 
         lock = packet["skill_execution_lock"]
@@ -1262,6 +1270,7 @@ def _evaluate_specialist_lock_resolution(
             "unresolved": [],
         }
 
+    locked_set = set(locked_skill_ids)
     executed = _normalize_string_list(specialist_lock_resolution.get("executed_skill_ids"))
     not_applicable = _normalize_string_list(specialist_lock_resolution.get("not_applicable_skill_ids"))
     deferred = _normalize_string_list(specialist_lock_resolution.get("deferred_skill_ids"))
@@ -1270,7 +1279,7 @@ def _evaluate_specialist_lock_resolution(
     resolved = set(executed) | set(not_applicable) | set(deferred) | set(failed)
     unresolved = [skill_id for skill_id in locked_skill_ids if skill_id not in resolved]
     for skill_id in explicitly_unresolved:
-        if skill_id not in unresolved:
+        if skill_id in locked_set and skill_id not in resolved and skill_id not in unresolved:
             unresolved.append(skill_id)
 
     if failed:
@@ -1606,7 +1615,7 @@ Verification:
 - powershell -ExecutionPolicy Bypass -File .\check.ps1
 ```
 
-Do not claim the installed Codex runtime has changed unless a separate deployment step explicitly installs this branch into `C:\Users\羽裳\.codex`.
+Do not claim the installed Codex runtime has changed unless a separate deployment step explicitly installs this branch into the local Codex root.
 
 ---
 

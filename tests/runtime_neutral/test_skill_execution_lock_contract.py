@@ -143,6 +143,40 @@ class SkillExecutionLockContractTests(unittest.TestCase):
         self.assertEqual("previous_skill_routing_selected", dispatch_by_id["scientific-reporting"]["lock_source"])
         self.assertEqual("inherited_not_currently_surfaced", dispatch_by_id["scientific-reporting"]["reconciliation_state"])
 
+    def test_lock_projection_curated_only_limits_lock_to_host_approved_skills(self) -> None:
+        payload = run_ps_json(
+            "& { "
+            f". {ps_quote(str(RUNTIME_COMMON))}; "
+            f". {ps_quote(str(SKILL_ROUTING_COMMON))}; "
+            "$previous = [pscustomobject]@{ "
+            "  skill_execution_lock = [pscustomobject]@{ "
+            "    schema_version = 'v1'; state = 'active'; resolution_required = $true; "
+            "    locked_skill_ids = @('prior-reporting'); "
+            "    locked_dispatch = @([pscustomobject]@{ skill_id = 'prior-reporting'; task_slice = 'prior report' }) "
+            "  } "
+            "}; "
+            "$current = [pscustomobject]@{ "
+            "  selected = @([pscustomobject]@{ skill_id = 'latex-submission-pipeline'; task_slice = 'current pdf'; dispatch_phase = 'post_execution' }); "
+            "  candidates = @([pscustomobject]@{ skill_id = 'scientific-writing'; task_slice = 'explicit writing'; dispatch_phase = 'post_execution' }); "
+            "  rejected = @() "
+            "}; "
+            "$decision = [pscustomobject]@{ selection_mode = 'curated_only'; approved_skill_ids = @('scientific-writing') }; "
+            "$lock = New-VibeSkillExecutionLockProjection "
+            "-PreviousRuntimeInputPacket $previous "
+            "-CurrentSkillRouting $current "
+            "-HostSpecialistDispatchDecision $decision "
+            "-SourceRunId 'pytest-plan-run' "
+            "-Source 'approved_plan_reentry'; "
+            "$lock | ConvertTo-Json -Depth 20 "
+            "}"
+        )
+
+        self.assertEqual(["scientific-writing"], as_list(payload["locked_skill_ids"]))
+        dispatch_by_id = {item["skill_id"]: item for item in as_list(payload["locked_dispatch"])}
+        self.assertEqual("host_decision", dispatch_by_id["scientific-writing"]["lock_source"])
+        self.assertNotIn("latex-submission-pipeline", dispatch_by_id)
+        self.assertNotIn("prior-reporting", dispatch_by_id)
+
     def test_plan_execute_counts_direct_routed_locked_specialists_as_resolved(self) -> None:
         text = (REPO_ROOT / "scripts" / "runtime" / "Invoke-PlanExecute.ps1").read_text(encoding="utf-8")
 
@@ -251,10 +285,14 @@ class SkillExecutionLockContractTests(unittest.TestCase):
                 check=True,
             )
             self.assertIn("packet_path", completed.stdout)
+            packet_search_root = artifact_root / "outputs" / "runtime" / "vibe-sessions" / "pytest-execute-run"
             packet_path = next(
-                (artifact_root / "outputs" / "runtime" / "vibe-sessions" / "pytest-execute-run").rglob(
-                    "runtime-input-packet.json"
-                )
+                packet_search_root.rglob("runtime-input-packet.json"),
+                None,
+            )
+            self.assertIsNotNone(
+                packet_path,
+                f"Freeze script did not produce runtime-input-packet.json under {packet_search_root}",
             )
             packet = json.loads(packet_path.read_text(encoding="utf-8"))
 

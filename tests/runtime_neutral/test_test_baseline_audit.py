@@ -322,6 +322,22 @@ class TestBaselineAuditPolicyTests(unittest.TestCase):
             self.assertEqual(1, json.loads(json_path.read_text(encoding="utf-8"))["summary"]["total_nodes"])
             self.assertIn("Test Baseline Audit", md_path.read_text(encoding="utf-8"))
 
+    def test_resolve_repo_root_uses_vco_marker_not_generic_ancestor_config(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            outer = Path(tempdir) / "outer"
+            inner = Path(tempdir) / "outer" / "tools" / "Vibe-Skills"
+            script_path = inner / "packages" / "verification-core" / "src" / "vgo_verify" / "test_baseline_audit.py"
+            (outer / ".git").mkdir(parents=True)
+            (outer / "config").mkdir()
+            (inner / "config").mkdir(parents=True)
+            (inner / "config" / "version-governance.json").write_text("{}\n", encoding="utf-8")
+            script_path.parent.mkdir(parents=True)
+            script_path.write_text("# fixture\n", encoding="utf-8")
+
+            resolved = audit.resolve_repo_root(script_path)
+
+        self.assertEqual(inner.resolve(), resolved)
+
 
 class FakeCompletedProcess:
     def __init__(self, args: list[str], returncode: int = 0, stdout: str = "", stderr: str = "") -> None:

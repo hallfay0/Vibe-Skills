@@ -3,7 +3,7 @@
 ## Summary
 
 This design defines a narrow, evidence-first technical-debt audit for
-`F:\vibe\Vibe-Skills`.
+`<repo-root>`.
 
 The user selected the immediate-fixable debt path. The audit should therefore
 prioritize debt that can be fixed inside the current repository with bounded
@@ -186,7 +186,7 @@ strict_requires_zero_tracked_outputs = true
 - Do not perform the debt fixes in this design step.
 - Do not push local commits to `origin`.
 - Do not deploy or install into Codex or any host root.
-- Do not write to `C:\Users\羽裳\.codex`.
+- Do not write to the local Codex root.
 - Do not run broad, unbounded test sweeps as part of the design.
 - Do not reopen current routing terminology cleanup unless a gate fails.
 - Do not remove tracked outputs without a follow-up implementation plan.

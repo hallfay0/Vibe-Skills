@@ -12,6 +12,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+try:
+    from ._repo import resolve_repo_root as resolve_vco_repo_root
+except ImportError:  # pragma: no cover - exercised by direct script invocation.
+    from _repo import resolve_repo_root as resolve_vco_repo_root
+
 
 class PolicyError(ValueError):
     """Raised when the test baseline policy is malformed."""
@@ -368,11 +373,7 @@ def write_artifacts(
 
 
 def resolve_repo_root(start: Path) -> Path:
-    current = start.resolve()
-    for candidate in [current, *current.parents]:
-        if (candidate / ".git").exists() and (candidate / "config").exists():
-            return candidate
-    raise RuntimeError(f"Unable to resolve repository root from {start}")
+    return resolve_vco_repo_root(start)
 
 
 def run_collect_commands(

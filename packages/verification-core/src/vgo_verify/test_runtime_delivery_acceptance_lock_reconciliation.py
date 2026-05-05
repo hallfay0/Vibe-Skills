@@ -145,6 +145,29 @@ def test_specialist_lock_resolution_ignores_stale_resolution_buckets():
     assert lists["unresolved"] == []
 
 
+def test_specialist_lock_resolution_does_not_readd_deferred_or_phantom_unresolved_skills():
+    skill_execution_lock = {
+        "state": "active",
+        "locked_skill_ids": ["literature-review", "scientific-writing"],
+    }
+    specialist_lock_resolution = {
+        "executed_skill_ids": ["scientific-writing"],
+        "not_applicable_skill_ids": [],
+        "deferred_skill_ids": ["literature-review"],
+        "failed_skill_ids": [],
+        "unresolved_skill_ids": ["literature-review", "phantom-skill"],
+    }
+
+    state, notes, lists = _evaluate_specialist_lock_resolution(
+        skill_execution_lock,
+        specialist_lock_resolution,
+    )
+
+    assert state == "manual_review_required"
+    assert notes == ["Locked specialist execution was deferred for: literature-review."]
+    assert lists["deferred"] == ["literature-review"]
+    assert lists["unresolved"] == []
+
 def _write_json(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")

@@ -2,7 +2,7 @@
 
 ## Summary
 
-This design targets the next layer of technical debt in `F:\vibe\Vibe-Skills`:
+This design targets the next layer of technical debt in `<repo-root>`:
 the repository has many tests, but no explicit, repeatable, risk-aware baseline
 surface for running them as a full validation set.
 
@@ -154,7 +154,7 @@ No unified baseline policy or full-test risk manifest exists yet.
 - Do not fix every possible current or future test failure in this pass.
 - Do not introduce real network tests into the local baseline.
 - Do not install or deploy to Codex or any host root.
-- Do not write to `C:\Users\羽裳\.codex`.
+- Do not write to the local Codex root.
 - Do not change routing, runtime, installer, or host behavior.
 - Do not commit generated `outputs/verify` artifacts.
 - Do not remove existing tests or hide failures with broad skips.

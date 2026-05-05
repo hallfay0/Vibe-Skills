@@ -980,17 +980,25 @@ function New-VibeSkillExecutionLockProjection {
         if (Test-VibeObjectHasProperty -InputObject $_ -PropertyName 'skill_id') { [string]$_.skill_id } else { '' }
     } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
 
+    $hostSelectionMode = if ($null -ne $HostSpecialistDispatchDecision -and (Test-VibeObjectHasProperty -InputObject $HostSpecialistDispatchDecision -PropertyName 'selection_mode')) {
+        [string]$HostSpecialistDispatchDecision.selection_mode
+    } else {
+        ''
+    }
+    $curatedOnly = [string]::Equals($hostSelectionMode, 'curated_only', [System.StringComparison]::OrdinalIgnoreCase)
     $hostDecisionHasApprovedSkillIds = $null -ne $HostSpecialistDispatchDecision -and (Test-VibeObjectHasProperty -InputObject $HostSpecialistDispatchDecision -PropertyName 'approved_skill_ids')
     $hostApproved = if ($hostDecisionHasApprovedSkillIds) {
         @(Get-VibeNormalizedStringList -Values $HostSpecialistDispatchDecision.approved_skill_ids)
     } else {
         @()
     }
-    $explicitZeroHostApproval = [bool]($hostDecisionHasApprovedSkillIds -and @($hostApproved).Count -eq 0)
+    $explicitZeroHostApproval = [bool](($curatedOnly -or $hostDecisionHasApprovedSkillIds) -and @($hostApproved).Count -eq 0)
 
-    foreach ($entry in @($currentSelectedRecords)) {
-        $record = Copy-VibeSkillExecutionLockDispatchRecord -Record $entry -LockSource 'current_skill_routing_selected' -ReconciliationState 'current_surfaced'
-        Add-VibeSkillExecutionLockRecord -Rows $rows -Seen $seen -Record $record
+    if (-not $curatedOnly) {
+        foreach ($entry in @($currentSelectedRecords)) {
+            $record = Copy-VibeSkillExecutionLockDispatchRecord -Record $entry -LockSource 'current_skill_routing_selected' -ReconciliationState 'current_surfaced'
+            Add-VibeSkillExecutionLockRecord -Rows $rows -Seen $seen -Record $record
+        }
     }
 
     foreach ($skillId in @($hostApproved)) {
@@ -1007,7 +1015,7 @@ function New-VibeSkillExecutionLockProjection {
     }
 
     $previousLock = Get-VibeSkillExecutionLockFromRuntimeInputPacket -RuntimeInputPacket $PreviousRuntimeInputPacket
-    if ((Test-VibeSkillExecutionLockActive -SkillExecutionLock $previousLock) -and -not $explicitZeroHostApproval) {
+    if ((Test-VibeSkillExecutionLockActive -SkillExecutionLock $previousLock) -and -not $curatedOnly -and -not $explicitZeroHostApproval) {
         $previousDispatch = if (Test-VibeObjectHasProperty -InputObject $previousLock -PropertyName 'locked_dispatch') { @($previousLock.locked_dispatch) } else { @() }
         foreach ($entry in @($previousDispatch)) {
             $skillId = if (Test-VibeObjectHasProperty -InputObject $entry -PropertyName 'skill_id') { [string]$entry.skill_id } else { '' }
@@ -1021,7 +1029,7 @@ function New-VibeSkillExecutionLockProjection {
             $state = if ($skillId -in @($currentSelectedSkillIds)) { 'current_surfaced' } else { 'inherited_not_currently_surfaced' }
             Add-VibeSkillExecutionLockRecord -Rows $rows -Seen $seen -Record (New-VibeMinimalSkillExecutionLockDispatchRecord -SkillId $skillId -LockSource 'previous_skill_execution_lock' -ReconciliationState $state)
         }
-    } elseif (-not $explicitZeroHostApproval -and $null -ne $PreviousRuntimeInputPacket -and (Test-VibeObjectHasProperty -InputObject $PreviousRuntimeInputPacket -PropertyName 'skill_routing') -and $null -ne $PreviousRuntimeInputPacket.skill_routing) {
+    } elseif (-not $curatedOnly -and -not $explicitZeroHostApproval -and $null -ne $PreviousRuntimeInputPacket -and (Test-VibeObjectHasProperty -InputObject $PreviousRuntimeInputPacket -PropertyName 'skill_routing') -and $null -ne $PreviousRuntimeInputPacket.skill_routing) {
         foreach ($entry in @(Get-VibeSkillRoutingSelected -RuntimeInputPacket $PreviousRuntimeInputPacket)) {
             $skillId = if (Test-VibeObjectHasProperty -InputObject $entry -PropertyName 'skill_id') { [string]$entry.skill_id } else { '' }
             $state = if ($skillId -in @($currentSelectedSkillIds)) { 'current_surfaced' } else { 'inherited_not_currently_surfaced' }
