@@ -19,13 +19,12 @@ nitpick cleanup.
 is valid because the phrase acts as a compound modifier. The correction is
 `host-approved additions`.
 
-### Unused Installer Helper
+### Installer Helper Finding No Longer Applies
 
-`scripts/install/Install-VgoAdapter.ps1` defines `Test-VgoSkillEntryPoint`.
-Repository search shows only the function definition and no call sites. The
-function is not established as an exported public helper in this script surface.
-Removing the unused helper is lower risk than documenting it as a public API
-without an actual consumer.
+`scripts/install/Install-VgoAdapter.ps1` does not currently define
+`Test-VgoSkillEntryPoint`. Repository search finds that symbol only in prior
+spec and plan documents, not in installer code. The original remove-helper
+finding no longer matches the current repository state.
 
 ## Design
 
@@ -33,11 +32,11 @@ Use the minimal-fix path:
 
 1. Replace `host approved additions` with `host-approved additions` in the
    follow-up plan checklist.
-2. Remove the unused `Test-VgoSkillEntryPoint` function block from
-   `scripts/install/Install-VgoAdapter.ps1`.
+2. Record that the `Test-VgoSkillEntryPoint` removal is no longer applicable
+   because current installer code does not contain that function.
 
-No behavior should change for installed runtime payloads because the removed
-function has no repository call sites.
+No installer behavior should change because this item requires only a design
+document correction against current repository state.
 
 ## Validation
 

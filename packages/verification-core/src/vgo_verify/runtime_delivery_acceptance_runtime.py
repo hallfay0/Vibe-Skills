@@ -1272,6 +1272,12 @@ def evaluate_delivery_acceptance(repo_root: Path, session_root: Path) -> dict[st
         residual_risks.append("Locked specialist execution remains unresolved for: " + ", ".join(specialist_lock_lists["unresolved"]) + ".")
     if specialist_lock_lists["deferred"]:
         residual_risks.append("Locked specialist execution was deferred for: " + ", ".join(specialist_lock_lists["deferred"]) + ".")
+    if selected_lock_lists["missing"]:
+        residual_risks.append(
+            "Selected/approved specialist execution was not locked for: "
+            + ", ".join(selected_lock_lists["missing"])
+            + "."
+        )
     if str(skill_usage_truth.get("state") or "") == "FAIL":
         residual_risks.append("Binary skill usage truth is missing full-load or artifact-impact evidence.")
     if specialist_host_continuation_pending:

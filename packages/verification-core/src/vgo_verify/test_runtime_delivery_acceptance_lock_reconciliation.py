@@ -437,3 +437,7 @@ def test_delivery_acceptance_manual_review_when_selected_skill_missing_from_lock
     assert report["summary"]["completion_language_allowed"] is False
     assert report["truth_results"]["selected_lock_reconciliation_truth"]["state"] == "manual_review_required"
     assert report["selected_lock_reconciliation"]["missing"] == ["literature-review"]
+    assert (
+        "Selected/approved specialist execution was not locked for: literature-review."
+        in report["residual_risks"]
+    )

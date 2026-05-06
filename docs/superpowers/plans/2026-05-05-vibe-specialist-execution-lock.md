@@ -1228,27 +1228,27 @@ def _normalize_string_list(value: object) -> list[str]:
 
 def _load_skill_execution_lock(runtime_packet: dict[str, object], execution_manifest: dict[str, object]) -> dict[str, object]:
     manifest_lock = execution_manifest.get("skill_execution_lock")
-    if isinstance(manifest_lock, dict):
+    if isinstance(manifest_lock, dict) and manifest_lock:
         return manifest_lock
     accounting = execution_manifest.get("specialist_accounting")
     if isinstance(accounting, dict):
         accounting_lock = accounting.get("skill_execution_lock")
-        if isinstance(accounting_lock, dict):
+        if isinstance(accounting_lock, dict) and accounting_lock:
             return accounting_lock
     packet_lock = runtime_packet.get("skill_execution_lock")
-    if isinstance(packet_lock, dict):
+    if isinstance(packet_lock, dict) and packet_lock:
         return packet_lock
     return {}
 
 
 def _load_specialist_lock_resolution(execution_manifest: dict[str, object]) -> dict[str, object]:
     manifest_resolution = execution_manifest.get("specialist_lock_resolution")
-    if isinstance(manifest_resolution, dict):
+    if isinstance(manifest_resolution, dict) and manifest_resolution:
         return manifest_resolution
     accounting = execution_manifest.get("specialist_accounting")
     if isinstance(accounting, dict):
         accounting_resolution = accounting.get("specialist_lock_resolution")
-        if isinstance(accounting_resolution, dict):
+        if isinstance(accounting_resolution, dict) and accounting_resolution:
             return accounting_resolution
     return {}
 
