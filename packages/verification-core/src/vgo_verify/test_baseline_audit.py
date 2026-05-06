@@ -505,10 +505,14 @@ def run_layer(
     runner=subprocess.run,
     progress: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
+    layers = layer_by_id(policy)
+    if layer_id not in layers:
+        raise PolicyError(f"Unknown layer id: {layer_id}")
+
     selected_files: list[str] = []
     if collected_nodes is not None:
         selected_files = select_layer_files(collected_nodes, repo_root, policy, layer_id)
-    layer = layer_by_id(policy)[layer_id]
+    layer = layers[layer_id]
     if selected_files and str(layer.get("run_strategy") or "") == "file_serial":
         return run_layer_file_serial(repo_root, policy, layer_id, selected_files, runner=runner, progress=progress)
     command = build_run_layer_command(policy, layer_id, repo_root=repo_root, collected_nodes=collected_nodes)
