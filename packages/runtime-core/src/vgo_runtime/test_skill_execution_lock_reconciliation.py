@@ -139,6 +139,51 @@ def test_host_approved_skills_do_not_replace_previous_or_current_obligations():
     ]
 
 
+def test_host_deferred_and_rejected_skills_are_excluded_from_execution_lock():
+    result = _run_projection(
+        r"""
+        $previous = [pscustomobject]@{
+            skill_execution_lock = [pscustomobject]@{
+                schema_version = 'v1'
+                state = 'active'
+                locked_skill_ids = @('prior-reporting', 'rejected-prior')
+                locked_dispatch = @(
+                    [pscustomobject]@{ skill_id = 'prior-reporting'; task_slice = 'prior report' },
+                    [pscustomobject]@{ skill_id = 'rejected-prior'; task_slice = 'rejected prior' }
+                )
+                resolution_required = $true
+            }
+        }
+        $current = [pscustomobject]@{
+            selected = @(
+                [pscustomobject]@{ skill_id = 'keep-current'; task_slice = 'current selected' },
+                [pscustomobject]@{ skill_id = 'deferred-current'; task_slice = 'deferred selected' }
+            )
+            candidates = @()
+            rejected = @()
+        }
+        $hostDecision = [pscustomobject]@{
+            approved_skill_ids = @('keep-approved', 'rejected-approved')
+            deferred_skill_ids = @('deferred-current')
+            rejected_skill_ids = @('rejected-prior', 'rejected-approved')
+        }
+        $lock = New-VibeSkillExecutionLockProjection `
+            -PreviousRuntimeInputPacket $previous `
+            -CurrentSkillRouting $current `
+            -HostSpecialistDispatchDecision $hostDecision `
+            -SourceRunId 'previous-run' `
+            -Source 'approved_plan_reentry'
+        $lock | ConvertTo-Json -Depth 20
+        """
+    )
+
+    assert result["locked_skill_ids"] == [
+        "keep-current",
+        "keep-approved",
+        "prior-reporting",
+    ]
+
+
 def test_explicit_zero_host_approval_does_not_rehydrate_previous_lock_without_current_selection():
     result = _run_projection(
         r"""

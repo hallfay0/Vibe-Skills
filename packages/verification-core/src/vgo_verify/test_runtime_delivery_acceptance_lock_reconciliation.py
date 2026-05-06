@@ -168,6 +168,61 @@ def test_specialist_lock_resolution_does_not_readd_deferred_or_phantom_unresolve
     assert lists["deferred"] == ["literature-review"]
     assert lists["unresolved"] == []
 
+
+def test_specialist_lock_resolution_uses_locked_dispatch_when_id_list_missing():
+    skill_execution_lock = {
+        "state": "active",
+        "locked_dispatch": [
+            {"skill_id": "literature-review"},
+        ],
+    }
+    specialist_lock_resolution = {
+        "executed_skill_ids": [],
+        "not_applicable_skill_ids": [],
+        "deferred_skill_ids": [],
+        "failed_skill_ids": [],
+        "unresolved_skill_ids": [],
+    }
+
+    state, notes, lists = _evaluate_specialist_lock_resolution(
+        skill_execution_lock,
+        specialist_lock_resolution,
+    )
+
+    assert state == "failing"
+    assert lists["locked"] == ["literature-review"]
+    assert lists["unresolved"] == ["literature-review"]
+    assert "literature-review" in notes[0]
+
+
+def test_selected_lock_reconciliation_uses_locked_dispatch_when_id_list_missing():
+    runtime_packet = {
+        "skill_routing": {
+            "selected": [
+                {"skill_id": "latex-submission-pipeline"},
+            ],
+        },
+        "specialist_decision": {
+            "approved_dispatch_skill_ids": [
+                "latex-submission-pipeline",
+            ]
+        },
+    }
+    lock = {
+        "state": "active",
+        "locked_dispatch": [
+            {"skill_id": "latex-submission-pipeline"},
+        ],
+    }
+
+    state, notes, lists = _evaluate_selected_lock_reconciliation(runtime_packet, lock)
+
+    assert state == "passing"
+    assert notes == ["Selected/approved specialist execution obligations are locked."]
+    assert lists["locked"] == ["latex-submission-pipeline"]
+    assert lists["missing"] == []
+
+
 def _write_json(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")

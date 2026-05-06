@@ -252,6 +252,37 @@ class TestBaselineAuditPolicyTests(unittest.TestCase):
         self.assertGreater(len(heavy_selected), 0)
         self.assertEqual(heavy_selected, sublayer_selected)
 
+    def test_run_collect_commands_reports_layer_context_on_timeout(self) -> None:
+        policy = {
+            "defaults": {"pytest_quiet_arg": "-q", "collect_timeout_seconds": 7},
+            "layers": [
+                {
+                    "id": "slow_layer",
+                    "pytest_args": ["tests/runtime_neutral/test_runtime_contracts.py"],
+                    "timeout_seconds": 7,
+                }
+            ],
+        }
+
+        def timeout_runner(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+            raise subprocess.TimeoutExpired(
+                command,
+                kwargs["timeout"],
+                output="partial stdout",
+                stderr="partial stderr",
+            )
+
+        with self.assertRaises(RuntimeError) as raised:
+            audit.run_collect_commands(REPO_ROOT, policy, runner=timeout_runner)
+
+        message = str(raised.exception)
+        self.assertIn("pytest collection timed out", message)
+        self.assertIn("tests/runtime_neutral/test_runtime_contracts.py", message)
+        self.assertIn("slow_layer", message)
+        self.assertIn("7s", message)
+        self.assertIn("partial stdout", message)
+        self.assertIn("partial stderr", message)
+
     def test_build_run_layer_command_uses_classified_files_when_nodes_are_available(self) -> None:
         policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
         nodes = [

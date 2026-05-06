@@ -172,6 +172,19 @@ def _normalize_unique_string_list(value: object) -> list[str]:
     return result
 
 
+def _locked_skill_ids(skill_execution_lock: dict[str, Any]) -> list[str]:
+    locked_skill_ids = _normalize_unique_string_list(skill_execution_lock.get("locked_skill_ids"))
+    if locked_skill_ids:
+        return locked_skill_ids
+    return _normalize_unique_string_list(
+        [
+            entry.get("skill_id")
+            for entry in list(skill_execution_lock.get("locked_dispatch") or [])
+            if isinstance(entry, dict)
+        ]
+    )
+
+
 def _load_skill_execution_lock(
     runtime_packet: dict[str, Any],
     execution_manifest: dict[str, Any],
@@ -207,7 +220,7 @@ def _evaluate_specialist_lock_resolution(
     specialist_lock_resolution: dict[str, Any],
 ) -> tuple[str, list[str], dict[str, list[str]]]:
     state = str(skill_execution_lock.get("state") or "").strip().lower()
-    locked_skill_ids = _normalize_unique_string_list(skill_execution_lock.get("locked_skill_ids"))
+    locked_skill_ids = _locked_skill_ids(skill_execution_lock)
     active = state == "active" and bool(locked_skill_ids)
     empty_lists = {
         "locked": [],
@@ -269,7 +282,7 @@ def _evaluate_selected_lock_reconciliation(
         specialist_decision.get("approved_dispatch_skill_ids") or []
     )
     required_skill_ids = _normalize_unique_string_list([*selected_skill_ids, *approved_skill_ids])
-    locked_skill_ids = _normalize_unique_string_list(skill_execution_lock.get("locked_skill_ids") or [])
+    locked_skill_ids = _locked_skill_ids(skill_execution_lock)
     locked_set = set(locked_skill_ids)
     missing_skill_ids = [skill_id for skill_id in required_skill_ids if skill_id not in locked_set]
     lists = {

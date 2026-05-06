@@ -213,7 +213,7 @@ class CurrentRoutingContractCleanupTests(unittest.TestCase):
         self.assertIn("## Legacy Specialist Lifecycle Disclosure", payload["markdown"])
         self.assertIn("Usage claims still require `skill_usage.used` evidence", payload["markdown"])
 
-    def test_retired_consultation_fallback_fails_when_helper_missing_for_non_null_receipt(self) -> None:
+    def test_retired_consultation_fallback_noops_when_helper_missing_for_non_null_receipt(self) -> None:
         shell = resolve_powershell()
         if shell is None:
             self.skipTest("PowerShell executable not available in PATH")
@@ -236,11 +236,31 @@ class CurrentRoutingContractCleanupTests(unittest.TestCase):
                 "$ErrorActionPreference = 'Stop'; "
                 f". {ps_quote(str(copied_runtime))}; "
                 "$receipt = [pscustomobject]@{ enabled = $true }; "
+                "$lifecycle = [pscustomobject]@{ "
+                "  layer_id = 'discussion_consultation'; "
+                "  skills = @([pscustomobject]@{ skill_id = 'legacy-skill'; state = 'selected' }) "
+                "}; "
                 "$payload = try { "
-                "  New-VibeRetiredSpecialistConsultationLifecycleLayerProjection -ConsultationReceipt $receipt | Out-Null; "
-                "  [pscustomobject]@{ failed = $false; message = '' } "
+                "  $layer = New-VibeRetiredSpecialistConsultationLifecycleLayerProjection -ConsultationReceipt $receipt; "
+                "  $segment = New-VibeRetiredHostUserBriefingSegmentProjection -LifecycleLayer $lifecycle -ConsultationReceipt $receipt; "
+                "  $eventId = Get-VibeRetiredHostStageDisclosureEventId "
+                "    -SegmentId 'discussion_consultation' "
+                "    -Skills @([pscustomobject]@{ skill_id = 'legacy-skill'; state = 'selected' }); "
+                "  [pscustomobject]@{ "
+                "    failed = $false; "
+                "    layer_is_null = ($null -eq $layer); "
+                "    segment_is_null = ($null -eq $segment); "
+                "    event_is_null = ($null -eq $eventId); "
+                "    message = '' "
+                "  } "
                 "} catch { "
-                "  [pscustomobject]@{ failed = $true; message = $_.Exception.Message } "
+                "  [pscustomobject]@{ "
+                "    failed = $true; "
+                "    layer_is_null = $false; "
+                "    segment_is_null = $false; "
+                "    event_is_null = $false; "
+                "    message = $_.Exception.Message "
+                "  } "
                 "}; "
                 "$payload | ConvertTo-Json -Depth 5 "
                 "}"
@@ -256,9 +276,10 @@ class CurrentRoutingContractCleanupTests(unittest.TestCase):
             )
             payload = json.loads(completed.stdout)
 
-            self.assertTrue(payload["failed"])
-            self.assertIn("Missing retired consultation helper", payload["message"])
-            self.assertIn("VibeRetiredConsultation.Common.ps1", payload["message"])
+            self.assertFalse(payload["failed"], payload["message"])
+            self.assertTrue(payload["layer_is_null"])
+            self.assertTrue(payload["segment_is_null"])
+            self.assertTrue(payload["event_is_null"])
 
     def test_retired_stage_event_fallback_returns_null_for_non_consultation_segment_when_helper_missing(self) -> None:
         shell = resolve_powershell()

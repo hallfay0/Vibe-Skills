@@ -383,16 +383,32 @@ def run_collect_commands(
     results: list[dict[str, Any]] = []
     env, _disable_env = build_pytest_env(repo_root, policy)
     for item in build_collect_commands(policy):
-        completed = runner(
-            item["command"],
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=item["timeout_seconds"],
-            env=env,
-        )
+        try:
+            completed = runner(
+                item["command"],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=item["timeout_seconds"],
+                env=env,
+            )
+        except subprocess.TimeoutExpired as exc:
+            stdout = getattr(exc, "stdout", None)
+            if stdout is None:
+                stdout = getattr(exc, "output", None)
+            stderr = getattr(exc, "stderr", None)
+            detail_parts = [
+                f"pytest collection timed out for {item['pytest_args']}",
+                f"after {item['timeout_seconds']}s",
+                f"layers={item['source_layer_ids']}",
+            ]
+            if stdout:
+                detail_parts.append(f"stdout={stdout}")
+            if stderr:
+                detail_parts.append(f"stderr={stderr}")
+            raise RuntimeError("; ".join(detail_parts)) from exc
         parsed_nodes = parse_collect_output(completed.stdout)
         nodes.extend(parsed_nodes)
         results.append(

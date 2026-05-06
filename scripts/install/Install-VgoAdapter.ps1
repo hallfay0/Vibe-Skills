@@ -1044,9 +1044,6 @@ function Sync-VgoInternalSkillCorpus {
     }
     New-Item -ItemType Directory -Force -Path $destinationRoot | Out-Null
     Add-VgoCreatedPath -Path $destinationRoot
-    if ($sourceEqualsDestination) {
-        return $destinationRoot
-    }
 
     $excluded = New-Object System.Collections.Generic.HashSet[string]([System.StringComparer]::OrdinalIgnoreCase)
     if ($Packaging.PSObject.Properties.Name -contains 'exclude_bundled_skill_names' -and $null -ne $Packaging.exclude_bundled_skill_names) {
@@ -1073,13 +1070,30 @@ function Sync-VgoInternalSkillCorpus {
         }
     }
 
-    foreach ($name in @($selected | Select-Object -Unique | Sort-Object)) {
+    $selectedNames = @($selected | Select-Object -Unique | Sort-Object)
+    if ($sourceEqualsDestination) {
+        $selectedSet = New-Object System.Collections.Generic.HashSet[string]([System.StringComparer]::OrdinalIgnoreCase)
+        foreach ($name in @($selectedNames)) {
+            [void]$selectedSet.Add([string]$name)
+        }
+        foreach ($existing in @(Get-ChildItem -LiteralPath $destinationRoot -Directory -ErrorAction SilentlyContinue)) {
+            if (-not $selectedSet.Contains([string]$existing.Name)) {
+                Remove-Item -LiteralPath $existing.FullName -Recurse -Force
+            }
+        }
+    }
+
+    foreach ($name in @($selectedNames)) {
         $source = Join-Path $bundledRoot $name
         if (-not (Test-Path -LiteralPath $source -PathType Container)) {
             throw "Internal corpus skill packaging source missing: $source"
         }
         $destination = Join-Path $destinationRoot $name
-        Copy-DirContent -Source $source -Destination $destination
+        $sourceFull = [System.IO.Path]::GetFullPath($source).TrimEnd($trimSeparators)
+        $destinationFull = [System.IO.Path]::GetFullPath($destination).TrimEnd($trimSeparators)
+        if ($sourceFull -ne $destinationFull) {
+            Copy-DirContent -Source $source -Destination $destination
+        }
         Convert-SkillEntryPointToRuntimeMirror -SkillRoot $destination
     }
 
