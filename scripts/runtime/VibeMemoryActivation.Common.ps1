@@ -151,6 +151,7 @@ function Get-VibeMemoryReadActionObject {
         artifact_path = if ($BackendResult.artifact_path) { [string]$BackendResult.artifact_path } else { $null }
         project_key = if ($BackendResult.project_key) { [string]$BackendResult.project_key } else { $null }
         project_key_source = if ($BackendResult.project_key_source) { [string]$BackendResult.project_key_source } else { $null }
+        workspace_memory_plane = if ($BackendResult.PSObject.Properties.Name -contains 'workspace_memory_plane') { $BackendResult.workspace_memory_plane } else { $null }
     }
 }
 
@@ -169,6 +170,7 @@ function Get-VibeMemoryWriteActionObject {
         project_key = if ($BackendResult.project_key) { [string]$BackendResult.project_key } else { $null }
         project_key_source = if ($BackendResult.project_key_source) { [string]$BackendResult.project_key_source } else { $null }
         store_path = if ($BackendResult.store_path) { [string]$BackendResult.store_path } else { $null }
+        workspace_memory_plane = if ($BackendResult.PSObject.Properties.Name -contains 'workspace_memory_plane') { $BackendResult.workspace_memory_plane } else { $null }
     }
 }
 

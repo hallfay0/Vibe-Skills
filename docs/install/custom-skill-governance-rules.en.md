@@ -7,7 +7,7 @@ The default recommended lane remains `workflow`, because it keeps the governed w
 ## Hard Rules That Must Not Be Broken
 
 1. There is only one runtime: `vibe`
-2. There is only one route authority: canonical router
+2. There is only one canonical routing controller: canonical router
 3. Custom content can join routing only after a manifest declaration
 4. A directory must not become active just because it exists
 5. An external repository must not become a live route source directly

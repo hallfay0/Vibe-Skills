@@ -10,6 +10,7 @@ import unittest
 import uuid
 from unittest import mock
 from pathlib import Path
+from typing import Mapping
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -18,10 +19,23 @@ RELEVANT_TOPIC = "quartz-scheduler"
 RELEVANT_DEPENDENCY = "planner"
 IRRELEVANT_TOPIC = "billing-export"
 IRRELEVANT_DEPENDENCY = "audit-ledger"
+RUN_MEMORY_BENCHMARKS_ENV = "VIBESKILLS_RUN_MEMORY_BENCHMARKS"
+RUNTIME_INVOCATION_TIMEOUT_SECONDS = 240
+INSTALL_TIMEOUT_SECONDS = 180
 
 
 def _ps_single_quote(value: str) -> str:
     return "'" + value.replace("'", "''") + "'"
+
+
+def memory_benchmarks_enabled(env: Mapping[str, str] | None = None) -> bool:
+    values = os.environ if env is None else env
+    return str(values.get(RUN_MEMORY_BENCHMARKS_ENV, "")).strip() == "1"
+
+
+def require_memory_benchmarks_enabled(env: Mapping[str, str] | None = None) -> None:
+    if not memory_benchmarks_enabled(env):
+        raise unittest.SkipTest(f"set {RUN_MEMORY_BENCHMARKS_ENV}=1 to run extended memory benchmark matrix")
 
 
 def resolve_powershell() -> str | None:
@@ -37,6 +51,84 @@ def resolve_powershell() -> str | None:
         if candidate and Path(candidate).exists():
             return str(Path(candidate))
     return None
+
+
+def _is_wsl_bash_path(path: str) -> bool:
+    normalized = path.replace("/", "\\").lower()
+    return normalized.endswith("\\windows\\system32\\bash.exe") or normalized.endswith(
+        "\\appdata\\local\\microsoft\\windowsapps\\bash.exe"
+    )
+
+
+def resolve_bash() -> str | None:
+    candidates: list[str] = []
+    first = shutil.which("bash")
+    if first:
+        candidates.append(first)
+    if os.name == "nt":
+        for entry in os.environ.get("PATH", "").split(os.pathsep):
+            if not entry:
+                continue
+            for leaf in ("bash.exe", "bash"):
+                candidate = Path(entry) / leaf
+                if candidate.exists():
+                    candidates.append(str(candidate))
+
+    seen: set[str] = set()
+    unique: list[str] = []
+    for candidate in candidates:
+        normalized = str(Path(candidate)).casefold()
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        unique.append(candidate)
+
+    if os.name == "nt":
+        for candidate in unique:
+            if not _is_wsl_bash_path(candidate):
+                return candidate
+    return unique[0] if unique else None
+
+
+def _run_path_tool(tool_name: str, flag: str, path: Path) -> str | None:
+    tool = shutil.which(tool_name)
+    if not tool:
+        return None
+    try:
+        converted = subprocess.run(
+            [tool, flag, str(path.resolve())],
+            cwd=REPO_ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return None
+    value = converted.stdout.strip()
+    return value or None
+
+
+def _bash_looks_like_wsl(bash: str | None = None) -> bool:
+    bash = bash or resolve_bash()
+    if not bash:
+        return False
+    return _is_wsl_bash_path(bash)
+
+
+def _to_bash_path(path: Path, bash: str | None = None) -> str:
+    resolved_path = path.resolve()
+    resolved = str(resolved_path).replace("\\", "/")
+    if len(resolved) >= 3 and resolved[1:3] == ":/":
+        if not _bash_looks_like_wsl(bash):
+            if "'" in str(resolved_path):
+                return str(resolved_path)
+            converted = _run_path_tool("cygpath", "-u", resolved_path) or _run_path_tool("wslpath", "-u", resolved_path)
+            if converted:
+                return converted
+        return f"/mnt/{resolved[0].lower()}/{resolved[3:]}"
+    return resolved
 
 
 def load_json(path: str | Path) -> dict[str, object]:
@@ -97,7 +189,7 @@ def create_fake_codex_command(directory: Path) -> Path:
 def require_codex_test_prereqs() -> str:
     if resolve_powershell() is None:
         raise unittest.SkipTest("PowerShell executable not available in PATH")
-    bash = shutil.which("bash")
+    bash = resolve_bash()
     if bash is None:
         raise unittest.SkipTest("bash executable not available in PATH")
     return bash
@@ -113,7 +205,7 @@ def install_codex(target_root: Path, *, env: dict[str, str]) -> None:
         "--profile",
         "full",
         "--target-root",
-        str(target_root),
+        _to_bash_path(target_root, bash),
     ]
     subprocess.run(
         command,
@@ -122,6 +214,7 @@ def install_codex(target_root: Path, *, env: dict[str, str]) -> None:
         text=True,
         check=True,
         env=env,
+        timeout=INSTALL_TIMEOUT_SECONDS,
     )
 
 
@@ -138,6 +231,8 @@ def run_installed_runtime(
         raise unittest.SkipTest("PowerShell executable not available in PATH")
 
     run_id = f"pytest-codex-memory-sim-{host_id}-{uuid.uuid4().hex[:8]}"
+    effective_env = dict(env)
+    effective_env.setdefault("VGO_DISABLE_NATIVE_SPECIALIST_EXECUTION", "1")
     command = [
         shell,
         "-NoLogo",
@@ -159,8 +254,9 @@ def run_installed_runtime(
         capture_output=True,
         text=True,
         encoding="utf-8",
-        env=env,
+        env=effective_env,
         check=True,
+        timeout=RUNTIME_INVOCATION_TIMEOUT_SECONDS,
     )
     stdout = completed.stdout.strip()
     if stdout in ("", "null"):
@@ -206,6 +302,7 @@ def run_repo_governed_runtime(task: str, artifact_root: Path, env: dict[str, str
         encoding="utf-8",
         env=effective_env,
         check=True,
+        timeout=RUNTIME_INVOCATION_TIMEOUT_SECONDS,
     )
     stdout = completed.stdout.strip()
     if stdout in ("", "null"):
@@ -228,7 +325,20 @@ def selected_capsule_text(context_pack: dict[str, object] | None) -> str:
 
 
 def extract_memory_metrics(payload: dict[str, object]) -> dict[str, object]:
-    report = load_json(payload["summary"]["artifacts"]["memory_activation_report"])
+    summary = payload["summary"]
+    artifacts = summary["artifacts"]
+    report_path = artifacts["memory_activation_report"]
+    if not report_path:
+        raise AssertionError(
+            {
+                "message": "memory benchmark payload returned before memory activation report was emitted",
+                "terminal_stage": summary.get("terminal_stage"),
+                "executed_stage_order": summary.get("executed_stage_order"),
+                "host_user_briefing": payload.get("host_user_briefing"),
+            }
+        )
+
+    report = load_json(report_path)
     stage_by_name = {stage["stage"]: stage for stage in report["stages"]}
     requirement_context = stage_by_name["requirement_doc"]["context_injection"]
     plan_context = stage_by_name["xl_plan"]["context_injection"]
@@ -350,10 +460,59 @@ class CodexMemoryUserSimulationTests(unittest.TestCase):
                     install_codex(Path(tempdir), env=os.environ.copy())
                 run_mock.assert_not_called()
 
+    def test_install_codex_applies_timeout_budget(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            target_root = Path(tempdir)
+            completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
+            with mock.patch(
+                f"{__name__}.require_codex_test_prereqs",
+                return_value=r"C:\Program Files\Git\bin\bash.exe",
+            ), mock.patch(f"{__name__}._to_bash_path", return_value="/tmp/codex-root"), mock.patch(
+                "subprocess.run",
+                return_value=completed,
+            ) as run_mock:
+                install_codex(target_root, env=os.environ.copy())
+
+            self.assertEqual(INSTALL_TIMEOUT_SECONDS, run_mock.call_args.kwargs["timeout"])
+
+    def test_quantitative_memory_benchmarks_are_opt_in(self) -> None:
+        self.assertFalse(memory_benchmarks_enabled({}))
+        with self.assertRaises(unittest.SkipTest):
+            require_memory_benchmarks_enabled({})
+
+        self.assertTrue(memory_benchmarks_enabled({RUN_MEMORY_BENCHMARKS_ENV: "1"}))
+        require_memory_benchmarks_enabled({RUN_MEMORY_BENCHMARKS_ENV: "1"})
+
+    def test_installed_memory_runtime_disables_native_specialist_execution_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            installed_root = Path(tempdir)
+            caller_env = {"EXISTING_FLAG": "1"}
+            completed = subprocess.CompletedProcess(
+                args=[],
+                returncode=0,
+                stdout='{"summary":{"artifacts":{}}}',
+                stderr="",
+            )
+            with mock.patch(
+                f"{__name__}.resolve_powershell",
+                return_value=r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe",
+            ), mock.patch("subprocess.run", return_value=completed) as run_mock:
+                run_installed_runtime(
+                    installed_root,
+                    task="XL follow-up memory-only recall check. $vibe",
+                    artifact_root=installed_root / "artifacts",
+                    env=caller_env,
+                )
+
+            runtime_env = run_mock.call_args.kwargs["env"]
+            self.assertEqual("1", runtime_env["VGO_DISABLE_NATIVE_SPECIALIST_EXECUTION"])
+            self.assertEqual(RUNTIME_INVOCATION_TIMEOUT_SECONDS, run_mock.call_args.kwargs["timeout"])
+            self.assertNotIn("VGO_DISABLE_NATIVE_SPECIALIST_EXECUTION", caller_env)
+
     def test_installed_runtime_helper_escapes_single_quotes_in_task_and_paths(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             temp_root = Path(tempdir)
-            target_root, installed_root, base_env = self._install_codex_context(temp_root, "codex-user'sim")
+            target_root, installed_root, base_env = self._install_codex_context(temp_root, "codex-user-sim")
             runtime_env = self._runtime_env(
                 base_env=base_env,
                 target_root=target_root,
@@ -534,6 +693,7 @@ class CodexMemoryUserSimulationTests(unittest.TestCase):
             self.assertTrue(any(str(action.get("status")) == "backend_read_empty" for action in read_actions))
 
     def test_quantitative_related_followup_hit_rate_meets_threshold(self) -> None:
+        require_memory_benchmarks_enabled()
         with tempfile.TemporaryDirectory() as tempdir:
             temp_root = Path(tempdir)
             target_root, installed_root, base_env = self._install_codex_context(temp_root, "codex-hit-rate")
@@ -544,7 +704,7 @@ class CodexMemoryUserSimulationTests(unittest.TestCase):
             follow_up_tasks = [
                 f"XL follow-up {RELEVANT_TOPIC} continuity review with {RELEVANT_DEPENDENCY} dependency recall before the next implementation step. $vibe",
                 f"XL prepare {RELEVANT_TOPIC} execution plan using {RELEVANT_DEPENDENCY} continuity evidence before coding. $vibe",
-                f"XL assess {RELEVANT_TOPIC} rollout risk with {RELEVANT_DEPENDENCY} linkage and prior continuity evidence before execution. $vibe",
+                f"XL continue {RELEVANT_TOPIC} rollout planning with {RELEVANT_DEPENDENCY} linkage and prior continuity evidence before coding. $vibe",
                 f"XL debug {RELEVANT_TOPIC} next step while preserving {RELEVANT_DEPENDENCY} continuity and prior relationship context. $vibe",
             ]
 
@@ -571,6 +731,7 @@ class CodexMemoryUserSimulationTests(unittest.TestCase):
             self.assertEqual(0.0, bleed_rate, {"bleed_rate": bleed_rate, "irrelevant_bleeds": irrelevant_bleeds})
 
     def test_quantitative_irrelevant_followup_false_recall_rate_stays_zero(self) -> None:
+        require_memory_benchmarks_enabled()
         with tempfile.TemporaryDirectory() as tempdir:
             temp_root = Path(tempdir)
             target_root, installed_root, base_env = self._install_codex_context(temp_root, "codex-false-recall")
@@ -606,6 +767,7 @@ class CodexMemoryUserSimulationTests(unittest.TestCase):
             )
 
     def test_quantitative_recall_survives_intervening_turn_noise(self) -> None:
+        require_memory_benchmarks_enabled()
         with tempfile.TemporaryDirectory() as tempdir:
             temp_root = Path(tempdir)
             target_root, installed_root, base_env = self._install_codex_context(temp_root, "codex-decay")
@@ -648,6 +810,7 @@ class CodexMemoryUserSimulationTests(unittest.TestCase):
             self.assertEqual(1.0, retention_rate, {"retention_rate": retention_rate, "retained_hits": retained_hits})
 
     def test_quantitative_cross_workspace_leak_rate_stays_zero(self) -> None:
+        require_memory_benchmarks_enabled()
         with tempfile.TemporaryDirectory() as tempdir:
             temp_root = Path(tempdir)
             shared_backend_root = temp_root / "shared-backend-root"

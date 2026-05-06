@@ -1,4 +1,4 @@
-﻿param(
+param(
     [Parameter(Mandatory = $true)]
     [string]$Prompt,
     [AllowEmptyString()]
@@ -637,7 +637,7 @@ foreach ($pack in $packsForScoring) {
     $candidateSignal = ([double]$selection.score * 0.75) + ([double]$selection.top1_top2_gap * 0.25)
     $candidateSignal = [Math]::Round([Math]::Min(1.0, [Math]::Max(0.0, $candidateSignal)), 4)
     $customMetadata = if ($pack.PSObject.Properties.Name -contains 'custom_admission') { $pack.custom_admission } else { $null }
-    $routeUsable = if ($selection.PSObject.Properties.Name -contains '_selection_usable') { [bool]$selection._selection_usable } elseif ($selection.PSObject.Properties.Name -contains 'route_authority_eligible') { [bool]$selection.route_authority_eligible } else { -not [string]::IsNullOrWhiteSpace([string]$selection.selected) }
+    $routeUsable = if ($selection.PSObject.Properties.Name -contains '_selection_usable') { [bool]$selection._selection_usable } else { -not [string]::IsNullOrWhiteSpace([string]$selection.selected) }
     $fallbackSelected = ([string]$selection.reason -like 'fallback_*')
     $weakFallback = $fallbackSelected -and [string]::IsNullOrWhiteSpace($requestedCanonical) -and $trigger -lt 0.5 -and $selectionRelevanceScore -lt 0.15 -and $intent -lt 0.2 -and $workspace -lt 0.1
     if ($fallbackSelected -and [string]::IsNullOrWhiteSpace($requestedCanonical)) {
@@ -645,8 +645,6 @@ foreach ($pack in $packsForScoring) {
     }
     if ($null -ne $customMetadata -and $customMetadata.PSObject.Properties.Name -contains '_route_usable') {
         $routeUsable = $routeUsable -and [bool]$customMetadata._route_usable
-    } elseif ($null -ne $customMetadata -and $customMetadata.PSObject.Properties.Name -contains 'route_authority_eligible') {
-        $routeUsable = $routeUsable -and [bool]$customMetadata.route_authority_eligible
     }
     if ($weakFallback) {
         $routeUsable = $false
@@ -775,7 +773,7 @@ function ConvertTo-PublicRouteCustomMetadata {
 
     $public = [ordered]@{}
     foreach ($property in @($Value.PSObject.Properties)) {
-        if ($property.Name -in @('_route_usable', 'route_authority_eligible')) {
+        if ($property.Name -in @('_route_usable')) {
             continue
         }
         $public[$property.Name] = $property.Value
@@ -793,7 +791,7 @@ function ConvertTo-PublicAdmittedCandidates {
         }
         $public = [ordered]@{}
         foreach ($property in @($row.PSObject.Properties)) {
-            if ($property.Name -in @('_route_usable', 'route_authority_eligible')) {
+            if ($property.Name -in @('_route_usable')) {
                 continue
             }
             $public[$property.Name] = $property.Value
@@ -808,7 +806,7 @@ function ConvertTo-PublicRoutePackRow {
 
     $public = [ordered]@{}
     foreach ($property in @($PackRow.PSObject.Properties)) {
-        if ($property.Name -in @('_route_usable', 'route_authority_eligible', 'stage_assistant_candidates')) {
+        if ($property.Name -in @('_route_usable')) {
             continue
         }
         if ($property.Name -eq 'candidate_ranking') {

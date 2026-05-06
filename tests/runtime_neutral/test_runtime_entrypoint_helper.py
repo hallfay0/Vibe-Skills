@@ -207,15 +207,17 @@ class RuntimeEntrypointHelperTests(unittest.TestCase):
             self.skipTest("PowerShell not available")
 
         helper_path = REPO_ROOT / "scripts" / "runtime" / "VibeRuntime.Common.ps1"
+        common_helper_path = REPO_ROOT / "scripts" / "common" / "vibe-governance-helpers.ps1"
         root = str((REPO_ROOT / "dist" / "host-codex").resolve())
         inside_candidate = str((REPO_ROOT / "dist" / "host-codex" / "bundled" / "skills" / "pdf" / "SKILL.md").resolve())
         sibling_candidate = str((REPO_ROOT / "dist" / "host-codex-shadow" / "bundled" / "skills" / "pdf" / "SKILL.md").resolve())
 
         ps_script = (
             "& { "
+            f". '{common_helper_path}'; "
             f". '{helper_path}'; "
-            f"$inside = Test-VibePathWithinRoot -RootPath '{root}' -CandidatePath '{inside_candidate}'; "
-            f"$sibling = Test-VibePathWithinRoot -RootPath '{root}' -CandidatePath '{sibling_candidate}'; "
+            f"$inside = Test-VgoPathWithin -ParentPath '{root}' -ChildPath '{inside_candidate}'; "
+            f"$sibling = Test-VgoPathWithin -ParentPath '{root}' -ChildPath '{sibling_candidate}'; "
             "[pscustomobject]@{ inside = $inside; sibling = $sibling } | ConvertTo-Json -Depth 5 }"
         )
 

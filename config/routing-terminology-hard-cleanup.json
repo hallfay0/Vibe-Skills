@@ -47,7 +47,8 @@
   ],
   "historical_doc_exemptions": [
     "docs/governance/current-routing-contract.md",
-    "docs/governance/current-runtime-field-contract.md"
+    "docs/governance/current-runtime-field-contract.md",
+    "docs/governance/terminology-governance.md"
   ],
   "execution_internal_scan_files": [
     "scripts/runtime/Invoke-PlanExecute.ps1",
@@ -87,6 +88,76 @@
     "specialist dispatch integrity proof",
     "approved_dispatch_only",
     "dispatch_unit_count ="
+  ],
+  "current_surface_roots": [
+    "README.md",
+    "README.zh.md",
+    "SKILL.md",
+    "protocols",
+    "docs/governance/current-routing-contract.md",
+    "docs/governance/current-runtime-field-contract.md",
+    "docs/governance/terminology-governance.md",
+    "docs/install",
+    "docs/status",
+    "packages/verification-core/src/vgo_verify",
+    "packages/runtime-core/src/vgo_runtime",
+    "scripts/router",
+    "scripts/runtime",
+    "scripts/verify",
+    "tests/runtime_neutral",
+    "tests/unit",
+    "tests/integration"
+  ],
+  "historical_surface_roots": [
+    "docs/superpowers/plans",
+    "docs/superpowers/specs",
+    "docs/governance"
+  ],
+  "historical_surface_exemptions": [
+    "docs/governance/current-routing-contract.md",
+    "docs/governance/current-runtime-field-contract.md",
+    "docs/governance/terminology-governance.md"
+  ],
+  "allowed_negative_files": [
+    "tests/runtime_neutral/test_current_routing_debt_gate.py",
+    "tests/runtime_neutral/test_current_routing_debt_erasure_policy.py",
+    "tests/runtime_neutral/test_current_routing_contract_cleanup.py",
+    "tests/runtime_neutral/test_routing_terminology_hard_cleanup.py",
+    "tests/runtime_neutral/test_retired_old_routing_compat.py",
+    "tests/runtime_neutral/test_runtime_route_output_shape.py",
+    "tests/runtime_neutral/test_global_pack_consolidation_audit.py",
+    "tests/runtime_neutral/test_code_quality_pack_consolidation_audit.py",
+    "tests/runtime_neutral/test_bio_science_pack_consolidation_audit.py",
+    "tests/runtime_neutral/test_ml_skills_pruning_audit.py",
+    "tests/runtime_neutral/test_historical_routing_doc_compression.py",
+    "tests/runtime_neutral/test_final_stage_assistant_removal.py",
+    "tests/runtime_neutral/test_terminology_field_simplification.py",
+    "tests/unit/test_router_contract_selection_guards.py",
+    "scripts/verify/vibe-current-routing-debt-gate.ps1",
+    "scripts/verify/vibe-current-routing-contract-scan.ps1",
+    "scripts/verify/vibe-routing-terminology-hard-cleanup-scan.ps1"
+  ],
+  "compatibility_review_files": [
+    "scripts/runtime/VibeConsultation.Common.ps1",
+    "scripts/runtime/legacy/VibeRetiredConsultation.Common.ps1",
+    "packages/runtime-core/src/vgo_runtime/router_contract_runtime.py",
+    "packages/runtime-core/src/vgo_runtime/router_contract_presentation.py",
+    "scripts/router/resolve-pack-route.ps1"
+  ],
+  "retired_positive_terms": [
+    "route_authority_candidates",
+    "stage_assistant_candidates",
+    "route_authority_eligible",
+    "legacy_role",
+    "_legacy_role",
+    "_legacy_stage_assistant_candidates",
+    "route authority",
+    "stage assistant",
+    "route owner",
+    "primary skill",
+    "secondary skill",
+    "legacy admission role",
+    "pack consolidation role"
   ],
   "retired_terms": [
     "legacy_skill_routing",

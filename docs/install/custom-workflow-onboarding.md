@@ -53,7 +53,7 @@
 - `advisory`（默认推荐）
 - `auto`
 
-建议默认 `advisory`，因为它在“可被建议”与“不抢 route authority”之间最稳。
+建议默认 `advisory`，因为它在“可被建议”与“不抢 canonical routing control”之间最稳。
 
 ## 如何保证“被恰到好处地调用”
 

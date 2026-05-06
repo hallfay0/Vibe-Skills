@@ -48,11 +48,25 @@ function Get-PreferredPythonInvocation {
     '/usr/local/bin/python3',
     '/opt/homebrew/bin/python3',
     '/opt/local/bin/python3',
+    'C:\Python313\python.exe',
+    'C:\Python312\python.exe',
     'C:\Python311\python.exe',
     'C:\Python310\python.exe'
   )
+  foreach ($programFilesRoot in @($env:ProgramFiles, [Environment]::GetEnvironmentVariable('ProgramFiles(x86)'))) {
+    if (-not [string]::IsNullOrWhiteSpace($programFilesRoot)) {
+      $absoluteCandidates += @(
+        (Join-Path $programFilesRoot 'Python313\python.exe'),
+        (Join-Path $programFilesRoot 'Python312\python.exe'),
+        (Join-Path $programFilesRoot 'Python311\python.exe'),
+        (Join-Path $programFilesRoot 'Python310\python.exe')
+      )
+    }
+  }
   if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
     $absoluteCandidates += @(
+      (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python313\python.exe'),
+      (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python312\python.exe'),
       (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python311\python.exe'),
       (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python310\python.exe')
     )

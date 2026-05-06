@@ -12,6 +12,12 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+RUNTIME_SRC = REPO_ROOT / "packages" / "runtime-core" / "src"
+if str(RUNTIME_SRC) not in sys.path:
+    sys.path.insert(0, str(RUNTIME_SRC))
+
+from vgo_runtime.custom_admission import load_custom_admission  # noqa: E402
+
 ROUTER_BRIDGE = REPO_ROOT / "scripts" / "router" / "invoke-pack-route.py"
 FREEZE_SCRIPT = REPO_ROOT / "scripts" / "runtime" / "Freeze-RuntimeInputPacket.ps1"
 INVOKE_RUNTIME_SCRIPT = REPO_ROOT / "scripts" / "runtime" / "invoke-vibe-runtime.ps1"
@@ -222,6 +228,25 @@ def run_full_runtime(
 
 
 class CustomAdmissionBridgeTests(unittest.TestCase):
+    def test_custom_admission_internal_metadata_uses_route_usable_not_old_role_field(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            target_root = Path(tempdir) / ".codex"
+            write_custom_skill(target_root, skill_id="genomics-qc-flow", trigger_mode="auto")
+
+            admission = load_custom_admission(
+                repo_root=REPO_ROOT,
+                target_root=target_root,
+                requested_canonical=None,
+            )
+
+            self.assertEqual("admitted", admission["status"])
+            admitted = admission["admitted_candidates"][0]
+            self.assertIn("_route_usable", admitted)
+            self.assertTrue(bool(admitted["_route_usable"]))
+            self.assertNotIn("route_authority_eligible", admitted)
+            self.assertEqual(admitted["_route_usable"], admitted["pack"]["custom_admission"]["_route_usable"])
+            self.assertNotIn("route_authority_eligible", admitted["pack"]["custom_admission"])
+
     def test_runtime_neutral_router_admits_advisory_custom_candidate_without_route_authority(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             target_root = Path(tempdir) / ".codex"
@@ -242,6 +267,12 @@ class CustomAdmissionBridgeTests(unittest.TestCase):
             )
             for admitted in result["custom_admission"]["admitted_candidates"]:
                 self.assertNotIn("route_authority_eligible", admitted)
+                self.assertNotIn("_route_usable", admitted)
+                pack = admitted.get("pack")
+                self.assertIsInstance(pack, dict)
+                custom_metadata = pack.get("custom_admission")
+                self.assertIsInstance(custom_metadata, dict)
+                self.assertNotIn("_route_usable", custom_metadata)
 
             custom_ranked = next(
                 (row for row in result["ranked"] if row["pack_id"] == "custom-workflow-genomics-qc-flow"),

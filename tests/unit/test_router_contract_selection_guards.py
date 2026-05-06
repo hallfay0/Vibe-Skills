@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import sys
+import unittest
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -10,6 +11,9 @@ if str(RUNTIME_SRC) not in sys.path:
     sys.path.insert(0, str(RUNTIME_SRC))
 
 from vgo_runtime.router_contract_selection import get_pack_skill_candidates, select_pack_candidate
+
+
+ASSERTIONS = unittest.TestCase()
 
 
 def _selection(prompt: str, *, requested: str | None = None) -> dict[str, object]:
@@ -82,28 +86,29 @@ def test_requested_subagent_bypasses_guard() -> None:
 
     assert selection["selected"] == "subagent-driven-development"
     assert selection["reason"] == "requested_skill"
+    ASSERTIONS.assertNotIn("_legacy_stage_assistant_candidates", selection)
 
 
-def test_pack_skill_candidates_prefer_unified_field_over_legacy_roles() -> None:
+def test_pack_skill_candidates_prefer_unified_field_over_old_role_fixture_fields() -> None:
     pack = {
         "skill_candidates": ["primary", "assistant"],
-        "route_authority_candidates": ["legacy-only-primary"],
-        "stage_assistant_candidates": ["legacy-only-assistant"],
+        "route_authority_candidates": ["legacy-only-primary"],  # retired fixture field
+        "stage_assistant_candidates": ["legacy-only-assistant"],  # retired fixture field
     }
 
     assert get_pack_skill_candidates(pack) == ["primary", "assistant"]
 
 
-def test_pack_skill_candidates_fall_back_to_legacy_role_union_for_old_fixtures() -> None:
+def test_pack_skill_candidates_ignore_retired_role_fields_for_old_fixtures() -> None:
     pack = {
-        "route_authority_candidates": ["primary", "shared"],
-        "stage_assistant_candidates": ["assistant", "shared"],
+        "route_authority_candidates": ["primary", "shared"],  # retired fixture field
+        "stage_assistant_candidates": ["assistant", "shared"],  # retired fixture field
     }
 
-    assert get_pack_skill_candidates(pack) == ["primary", "shared", "assistant"]
+    assert get_pack_skill_candidates(pack) == []
 
 
-def test_active_skill_candidates_do_not_need_legacy_role_fields() -> None:
+def test_active_skill_candidates_use_current_fields_only() -> None:
     selection = select_pack_candidate(
         prompt_lower="use helper for specialized cleanup",
         candidates=["primary", "helper"],
@@ -133,7 +138,8 @@ def test_active_skill_candidates_do_not_need_legacy_role_fields() -> None:
     )
 
     assert selection["selected"] == "helper"
-    assert "legacy_role" not in selection["ranking"][0]
-    assert "route_authority_eligible" not in selection["ranking"][0]
-    assert selection["_legacy_stage_assistant_candidates"] == []
+    ASSERTIONS.assertNotIn("legacy_role", selection["ranking"][0])
+    ASSERTIONS.assertNotIn("_legacy_role", selection["ranking"][0])
+    ASSERTIONS.assertNotIn("route_authority_eligible", selection["ranking"][0])
+    ASSERTIONS.assertNotIn("_legacy_stage_assistant_candidates", selection)
     assert "routing_role" not in selection["ranking"][0]

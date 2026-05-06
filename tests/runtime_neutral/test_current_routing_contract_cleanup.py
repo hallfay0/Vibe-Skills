@@ -14,6 +14,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RUNTIME_SCRIPT = REPO_ROOT / "scripts" / "runtime" / "invoke-vibe-runtime.ps1"
 RUNTIME_COMMON = REPO_ROOT / "scripts" / "runtime" / "VibeRuntime.Common.ps1"
+RETIRED_CONSULTATION_COMMON = REPO_ROOT / "scripts" / "runtime" / "legacy" / "VibeRetiredConsultation.Common.ps1"
 
 CURRENT_TASK = (
     "Build a scikit-learn classification baseline, include a result figure, "
@@ -84,6 +85,7 @@ def run_runtime(task: str, artifact_root: Path) -> dict[str, object]:
         text=True,
         encoding="utf-8",
         check=True,
+        timeout=180,
         env={
             **os.environ,
             "VGO_DISABLE_NATIVE_SPECIALIST_EXECUTION": "1",
@@ -163,6 +165,7 @@ class CurrentRoutingContractCleanupTests(unittest.TestCase):
         script = (
             "& { "
             f". {ps_quote(str(RUNTIME_COMMON))}; "
+            f". {ps_quote(str(RETIRED_CONSULTATION_COMMON))}; "
             "$receipt = [pscustomobject]@{ "
             "enabled = $true; "
             "window_id = 'discussion'; "
@@ -182,7 +185,7 @@ class CurrentRoutingContractCleanupTests(unittest.TestCase):
             "summary = [pscustomobject]@{ consulted_unit_count = 0; routed_unit_count = 1 }; "
             "freeze_gate = [pscustomobject]@{ passed = $true; errors = @() } "
             "}; "
-            "$layer = New-VibeSpecialistConsultationLifecycleLayerProjection -ConsultationReceipt $receipt; "
+            "$layer = New-VibeRetiredSpecialistConsultationLifecycleLayerProjection -ConsultationReceipt $receipt; "
             "$lifecycle = New-VibeSpecialistLifecycleDisclosureProjection -RuntimeInputPacket $null -DiscussionConsultationReceipt $receipt; "
             "$markdown = Get-VibeSpecialistLifecycleDisclosureMarkdownLines -LifecycleDisclosure $lifecycle; "
             "[pscustomobject]@{ "
@@ -200,6 +203,7 @@ class CurrentRoutingContractCleanupTests(unittest.TestCase):
             text=True,
             encoding="utf-8",
             check=True,
+            timeout=60,
         )
         payload = json.loads(completed.stdout)
 
@@ -209,11 +213,163 @@ class CurrentRoutingContractCleanupTests(unittest.TestCase):
         self.assertIn("## Legacy Specialist Lifecycle Disclosure", payload["markdown"])
         self.assertIn("Usage claims still require `skill_usage.used` evidence", payload["markdown"])
 
+    def test_retired_consultation_fallback_noops_when_helper_missing_for_non_null_receipt(self) -> None:
+        shell = resolve_powershell()
+        if shell is None:
+            self.skipTest("PowerShell executable not available in PATH")
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_root = Path(tempdir)
+            runtime_dir = temp_root / "scripts" / "runtime"
+            common_dir = temp_root / "scripts" / "common"
+            runtime_dir.mkdir(parents=True, exist_ok=True)
+            common_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(RUNTIME_COMMON, runtime_dir / "VibeRuntime.Common.ps1")
+            shutil.copy2(
+                REPO_ROOT / "scripts" / "common" / "vibe-governance-helpers.ps1",
+                common_dir / "vibe-governance-helpers.ps1",
+            )
+
+            copied_runtime = runtime_dir / "VibeRuntime.Common.ps1"
+            script = (
+                "& { "
+                "$ErrorActionPreference = 'Stop'; "
+                f". {ps_quote(str(copied_runtime))}; "
+                "$receipt = [pscustomobject]@{ enabled = $true }; "
+                "$lifecycle = [pscustomobject]@{ "
+                "  layer_id = 'discussion_consultation'; "
+                "  skills = @([pscustomobject]@{ skill_id = 'legacy-skill'; state = 'selected' }) "
+                "}; "
+                "$payload = try { "
+                "  $layer = New-VibeRetiredSpecialistConsultationLifecycleLayerProjection -ConsultationReceipt $receipt; "
+                "  $segment = New-VibeRetiredHostUserBriefingSegmentProjection -LifecycleLayer $lifecycle -ConsultationReceipt $receipt; "
+                "  $eventId = Get-VibeRetiredHostStageDisclosureEventId "
+                "    -SegmentId 'discussion_consultation' "
+                "    -Skills @([pscustomobject]@{ skill_id = 'legacy-skill'; state = 'selected' }); "
+                "  [pscustomobject]@{ "
+                "    failed = $false; "
+                "    layer_is_null = ($null -eq $layer); "
+                "    segment_is_null = ($null -eq $segment); "
+                "    event_is_null = ($null -eq $eventId); "
+                "    message = '' "
+                "  } "
+                "} catch { "
+                "  [pscustomobject]@{ "
+                "    failed = $true; "
+                "    layer_is_null = $false; "
+                "    segment_is_null = $false; "
+                "    event_is_null = $false; "
+                "    message = $_.Exception.Message "
+                "  } "
+                "}; "
+                "$payload | ConvertTo-Json -Depth 5 "
+                "}"
+            )
+            completed = subprocess.run(
+                [shell, "-NoLogo", "-NoProfile", "-Command", script],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                check=True,
+                timeout=60,
+            )
+            payload = json.loads(completed.stdout)
+
+            self.assertFalse(payload["failed"], payload["message"])
+            self.assertTrue(payload["layer_is_null"])
+            self.assertTrue(payload["segment_is_null"])
+            self.assertTrue(payload["event_is_null"])
+
+    def test_retired_stage_event_fallback_returns_null_for_non_consultation_segment_when_helper_missing(self) -> None:
+        shell = resolve_powershell()
+        if shell is None:
+            self.skipTest("PowerShell executable not available in PATH")
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_root = Path(tempdir)
+            runtime_dir = temp_root / "scripts" / "runtime"
+            common_dir = temp_root / "scripts" / "common"
+            runtime_dir.mkdir(parents=True, exist_ok=True)
+            common_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(RUNTIME_COMMON, runtime_dir / "VibeRuntime.Common.ps1")
+            shutil.copy2(
+                REPO_ROOT / "scripts" / "common" / "vibe-governance-helpers.ps1",
+                common_dir / "vibe-governance-helpers.ps1",
+            )
+
+            copied_runtime = runtime_dir / "VibeRuntime.Common.ps1"
+            script = (
+                "& { "
+                "$ErrorActionPreference = 'Stop'; "
+                f". {ps_quote(str(copied_runtime))}; "
+                "$payload = try { "
+                "  $eventId = Get-VibeRetiredHostStageDisclosureEventId "
+                "    -SegmentId 'discussion_routing' "
+                "    -Skills @([pscustomobject]@{ skill_id = 'x'; state = 'selected' }); "
+                "  [pscustomobject]@{ failed = $false; is_null = ($null -eq $eventId); message = '' } "
+                "} catch { "
+                "  [pscustomobject]@{ failed = $true; is_null = $false; message = $_.Exception.Message } "
+                "}; "
+                "$payload | ConvertTo-Json -Depth 5 "
+                "}"
+            )
+            completed = subprocess.run(
+                [shell, "-NoLogo", "-NoProfile", "-Command", script],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                check=True,
+                timeout=60,
+            )
+            payload = json.loads(completed.stdout)
+
+            self.assertFalse(payload["failed"], payload["message"])
+            self.assertTrue(payload["is_null"])
+
+    def test_retired_stage_event_prefers_completed_when_routed_and_completed_are_mixed(self) -> None:
+        shell = resolve_powershell()
+        if shell is None:
+            self.skipTest("PowerShell executable not available in PATH")
+
+        script = (
+            "& { "
+            "$ErrorActionPreference = 'Stop'; "
+            f". {ps_quote(str(RUNTIME_COMMON))}; "
+            f". {ps_quote(str(RETIRED_CONSULTATION_COMMON))}; "
+            "$skills = @( "
+            "  [pscustomobject]@{ skill_id = 'routed'; state = 'discussion_routed' }, "
+            "  [pscustomobject]@{ skill_id = 'done'; state = 'completed' } "
+            "); "
+            "[pscustomobject]@{ "
+            "  discussion = Get-VibeRetiredHostStageDisclosureEventId -SegmentId 'discussion_consultation' -Skills $skills; "
+            "  planning = Get-VibeRetiredHostStageDisclosureEventId -SegmentId 'planning_consultation' -Skills $skills "
+            "} | ConvertTo-Json -Depth 5 "
+            "}"
+        )
+        completed = subprocess.run(
+            [shell, "-NoLogo", "-NoProfile", "-Command", script],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=True,
+            timeout=60,
+        )
+        payload = json.loads(completed.stdout)
+
+        self.assertEqual("discussion_consultation_completed", payload["discussion"])
+        self.assertEqual("planning_consultation_completed", payload["planning"])
+
     def test_current_routing_governance_doc_defines_only_current_terms(self) -> None:
         path = REPO_ROOT / "docs" / "governance" / "current-routing-contract.md"
         text = path.read_text(encoding="utf-8")
 
-        self.assertIn("skill_candidates -> skill_routing.selected -> skill_usage.used / skill_usage.unused", text)
+        self.assertIn(
+            "skill_candidates -> skill_routing.selected -> skill_execution_lock -> selected_skill_execution -> skill_usage.used / skill_usage.unused",
+            text,
+        )
         for required in [
             "`candidate`",
             "`selected`",
@@ -233,6 +389,22 @@ class CurrentRoutingContractCleanupTests(unittest.TestCase):
             "auxiliary expert",
         ]:
             self.assertNotIn(forbidden, active_section.lower())
+
+    def test_retired_consultation_field_reads_live_outside_current_runtime_common(self) -> None:
+        current_text = RUNTIME_COMMON.read_text(encoding="utf-8")
+        legacy_text = RETIRED_CONSULTATION_COMMON.read_text(encoding="utf-8")
+
+        for retired_field in [
+            "consulted_units",
+            "routed_units",
+            "discussion_consultation",
+            "planning_consultation",
+        ]:
+            self.assertNotIn(retired_field, current_text)
+            self.assertIn(retired_field, legacy_text)
+
+        self.assertIn("New-VibeRetiredSpecialistConsultationLifecycleLayerProjection", legacy_text)
+        self.assertNotIn("New-VibeSpecialistConsultationLifecycleLayerProjection", current_text)
 
 
 if __name__ == "__main__":

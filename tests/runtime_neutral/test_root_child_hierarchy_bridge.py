@@ -201,7 +201,8 @@ class RootChildHierarchyBridgeTests(unittest.TestCase):
             "allow_plan_freeze",
             "allow_global_dispatch",
             "allow_completion_claim",
-            "specialist_dispatch",
+            "selected_skill_execution",
+            "skill_execution_contract",
             "auto_promote_when_safe_same_round",
             "escalation_required",
         ]

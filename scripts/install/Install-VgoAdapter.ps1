@@ -867,25 +867,44 @@ function Ensure-SkillPresent {
         [string]$Name,
         [bool]$Required,
         [string[]]$FallbackSources = @(),
+        [string]$DestinationRoot = (Join-Path $TargetRoot 'skills'),
+        [switch]$HiddenEntryPoints,
         [System.Collections.Generic.List[string]]$ExternalFallbackUsed,
         [System.Collections.Generic.List[string]]$MissingRequiredSkills
     )
 
-    $targetSkillMd = Join-Path $TargetRoot ("skills\" + $Name + "\SKILL.md")
-    if (Test-Path -LiteralPath $targetSkillMd) { return }
+    $targetSkillRoot = Join-Path $DestinationRoot $Name
+    if ($HiddenEntryPoints) {
+        if (Test-Path -LiteralPath (Join-Path $targetSkillRoot 'SKILL.runtime-mirror.md') -PathType Leaf) { return }
+        Convert-SkillEntryPointToRuntimeMirror -SkillRoot $targetSkillRoot
+        if (Test-Path -LiteralPath (Join-Path $targetSkillRoot 'SKILL.runtime-mirror.md') -PathType Leaf) { return }
+    } else {
+        if (Test-Path -LiteralPath (Join-Path $targetSkillRoot 'SKILL.md') -PathType Leaf) { return }
+        Restore-SkillEntryPointIfNeeded -SkillRoot $targetSkillRoot
+        if (Test-Path -LiteralPath (Join-Path $targetSkillRoot 'SKILL.md') -PathType Leaf) { return }
+    }
     if ($AllowExternalSkillFallback) {
         foreach ($src in $FallbackSources) {
             if ([string]::IsNullOrWhiteSpace($src)) { continue }
             if (Test-Path -LiteralPath $src) {
-                $destination = Join-Path $TargetRoot ("skills\" + $Name)
+                $destination = Join-Path $DestinationRoot $Name
                 Copy-DirContent -Source $src -Destination $destination
-                Restore-SkillEntryPointIfNeeded -SkillRoot $destination
+                if ($HiddenEntryPoints) {
+                    Convert-SkillEntryPointToRuntimeMirror -SkillRoot $destination
+                } else {
+                    Restore-SkillEntryPointIfNeeded -SkillRoot $destination
+                }
                 $ExternalFallbackUsed.Add($Name) | Out-Null
                 break
             }
         }
     }
-    if (-not (Test-Path -LiteralPath $targetSkillMd)) {
+    $skillPresent = if ($HiddenEntryPoints) {
+        Test-Path -LiteralPath (Join-Path $targetSkillRoot 'SKILL.runtime-mirror.md') -PathType Leaf
+    } else {
+        Test-Path -LiteralPath (Join-Path $targetSkillRoot 'SKILL.md') -PathType Leaf
+    }
+    if (-not $skillPresent) {
         if ($Required) {
             $MissingRequiredSkills.Add($Name) | Out-Null
         }
@@ -934,6 +953,141 @@ function Sync-VibeCanonicalToTarget {
         }
         Copy-DirContent -Source $srcDir -Destination $dstDir
     }
+}
+
+function Get-VgoBundledSkillsRoot {
+    param(
+        [Parameter(Mandatory)] [string]$RepoRoot,
+        [Parameter(Mandatory)] [psobject]$Packaging
+    )
+
+    $sourceRel = if ($Packaging.PSObject.Properties.Name -contains 'bundled_skills_source' -and -not [string]::IsNullOrWhiteSpace([string]$Packaging.bundled_skills_source)) {
+        [string]$Packaging.bundled_skills_source
+    } else {
+        'bundled\skills'
+    }
+
+    $candidates = New-Object System.Collections.Generic.List[string]
+    if ($Packaging.PSObject.Properties.Name -contains 'skill_source_root' -and -not [string]::IsNullOrWhiteSpace([string]$Packaging.skill_source_root)) {
+        $candidates.Add([string]$Packaging.skill_source_root) | Out-Null
+    }
+    if ($Packaging.PSObject.Properties.Name -contains 'catalog_root' -and -not [string]::IsNullOrWhiteSpace([string]$Packaging.catalog_root)) {
+        $candidates.Add((Join-Path ([string]$Packaging.catalog_root) 'skills')) | Out-Null
+    }
+    $candidates.Add((Join-Path $RepoRoot $sourceRel)) | Out-Null
+    $repoParent = Split-Path -Parent $RepoRoot
+    if ((Split-Path -Leaf $repoParent) -eq 'skills') {
+        $candidates.Add($repoParent) | Out-Null
+    }
+
+    foreach ($candidate in @($candidates | Select-Object -Unique)) {
+        if ([string]::IsNullOrWhiteSpace($candidate)) {
+            continue
+        }
+        $resolvedCandidate = if ([System.IO.Path]::IsPathRooted($candidate)) {
+            [System.IO.Path]::GetFullPath($candidate)
+        } else {
+            [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $candidate))
+        }
+        if (Test-Path -LiteralPath $resolvedCandidate -PathType Container) {
+            return $resolvedCandidate
+        }
+    }
+    return [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $sourceRel))
+}
+
+function Sync-VgoInternalSkillCorpus {
+    param(
+        [Parameter(Mandatory)] [string]$RepoRoot,
+        [Parameter(Mandatory)] [string]$TargetRoot,
+        [Parameter(Mandatory)] [psobject]$Packaging,
+        [Parameter(Mandatory)] [string]$CanonicalVibeName
+    )
+
+    $corpus = if ($Packaging.PSObject.Properties.Name -contains 'internal_skill_corpus') { $Packaging.internal_skill_corpus } else { $null }
+    $corpusEnabled = (
+        $null -ne $corpus -and
+        $corpus.PSObject.Properties.Name -contains 'enabled' -and
+        [bool]$corpus.enabled
+    )
+    if (-not $corpusEnabled) {
+        return $null
+    }
+
+    $targetRel = if ($corpus.PSObject.Properties.Name -contains 'target_relpath' -and -not [string]::IsNullOrWhiteSpace([string]$corpus.target_relpath)) {
+        [string]$corpus.target_relpath
+    } else {
+        'skills\vibe\bundled\skills'
+    }
+    $destinationRoot = Join-Path $TargetRoot $targetRel
+    $bundledRoot = Get-VgoBundledSkillsRoot -RepoRoot $RepoRoot -Packaging $Packaging
+    if (-not (Test-Path -LiteralPath $bundledRoot -PathType Container)) {
+        throw "Bundled skills source missing for internal corpus packaging: $bundledRoot"
+    }
+
+    $trimSeparators = [char[]]@([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+    $destinationFullName = [System.IO.Path]::GetFullPath($destinationRoot).TrimEnd($trimSeparators)
+    $bundledFullName = [System.IO.Path]::GetFullPath($bundledRoot).TrimEnd($trimSeparators)
+    $sourceEqualsDestination = ($destinationFullName -eq $bundledFullName)
+    if ((Test-Path -LiteralPath $destinationRoot) -and $destinationFullName -ne $bundledFullName) {
+        Remove-Item -LiteralPath $destinationRoot -Recurse -Force
+    }
+    New-Item -ItemType Directory -Force -Path $destinationRoot | Out-Null
+    Add-VgoCreatedPath -Path $destinationRoot
+
+    $excluded = New-Object System.Collections.Generic.HashSet[string]([System.StringComparer]::OrdinalIgnoreCase)
+    if ($Packaging.PSObject.Properties.Name -contains 'exclude_bundled_skill_names' -and $null -ne $Packaging.exclude_bundled_skill_names) {
+        foreach ($name in @($Packaging.exclude_bundled_skill_names)) {
+            if (-not [string]::IsNullOrWhiteSpace([string]$name)) {
+                $null = $excluded.Add([string]$name)
+            }
+        }
+    }
+    $null = $excluded.Add($CanonicalVibeName)
+
+    $selected = New-Object System.Collections.Generic.List[string]
+    if ($Packaging.PSObject.Properties.Name -contains 'copy_bundled_skills' -and [bool]$Packaging.copy_bundled_skills) {
+        foreach ($skillDir in @(Get-ChildItem -LiteralPath $bundledRoot -Directory -ErrorAction SilentlyContinue | Sort-Object Name)) {
+            if (-not $excluded.Contains($skillDir.Name)) {
+                $selected.Add($skillDir.Name) | Out-Null
+            }
+        }
+    } elseif ($Packaging.PSObject.Properties.Name -contains 'skills_allowlist' -and $null -ne $Packaging.skills_allowlist) {
+        foreach ($name in @($Packaging.skills_allowlist)) {
+            if (-not [string]::IsNullOrWhiteSpace([string]$name) -and -not $excluded.Contains([string]$name)) {
+                $selected.Add([string]$name) | Out-Null
+            }
+        }
+    }
+
+    $selectedNames = @($selected | Select-Object -Unique | Sort-Object)
+    if ($sourceEqualsDestination) {
+        $selectedSet = New-Object System.Collections.Generic.HashSet[string]([System.StringComparer]::OrdinalIgnoreCase)
+        foreach ($name in @($selectedNames)) {
+            [void]$selectedSet.Add([string]$name)
+        }
+        foreach ($existing in @(Get-ChildItem -LiteralPath $destinationRoot -Directory -ErrorAction SilentlyContinue)) {
+            if (-not $selectedSet.Contains([string]$existing.Name)) {
+                Remove-Item -LiteralPath $existing.FullName -Recurse -Force
+            }
+        }
+    }
+
+    foreach ($name in @($selectedNames)) {
+        $source = Join-Path $bundledRoot $name
+        if (-not (Test-Path -LiteralPath $source -PathType Container)) {
+            throw "Internal corpus skill packaging source missing: $source"
+        }
+        $destination = Join-Path $destinationRoot $name
+        $sourceFull = [System.IO.Path]::GetFullPath($source).TrimEnd($trimSeparators)
+        $destinationFull = [System.IO.Path]::GetFullPath($destination).TrimEnd($trimSeparators)
+        if ($sourceFull -ne $destinationFull) {
+            Copy-DirContent -Source $source -Destination $destination
+        }
+        Convert-SkillEntryPointToRuntimeMirror -SkillRoot $destination
+    }
+
+    return $destinationRoot
 }
 
 function Get-GeneratedNestedCompatibilitySuffix {
@@ -1007,7 +1161,8 @@ function Sync-InstalledGeneratedNestedCompatibilityRoot {
     param(
         [Parameter(Mandatory)] [psobject]$Governance,
         [Parameter(Mandatory)] [string]$TargetRoot,
-        [string]$TargetRel = 'skills\vibe'
+        [string]$TargetRel = 'skills\vibe',
+        [AllowEmptyString()] [string]$SourceSkillsRoot = ''
     )
 
     $nestedSuffix = Get-GeneratedNestedCompatibilitySuffix -Governance $Governance
@@ -1022,8 +1177,16 @@ function Sync-InstalledGeneratedNestedCompatibilityRoot {
     }
 
     $nestedSkillsRoot = Split-Path -Parent $nestedRoot
-    $sourceSkillsRoot = Split-Path -Parent $targetVibeRoot
-    if (Test-Path -LiteralPath $nestedSkillsRoot) {
+    $sourceSkillsRoot = if ([string]::IsNullOrWhiteSpace($SourceSkillsRoot)) { Split-Path -Parent $targetVibeRoot } else { $SourceSkillsRoot }
+    $sourceIsNestedSkillsRoot = (
+        -not [string]::IsNullOrWhiteSpace($sourceSkillsRoot) -and
+        ([System.IO.Path]::GetFullPath($sourceSkillsRoot) -eq [System.IO.Path]::GetFullPath($nestedSkillsRoot))
+    )
+    if ($sourceIsNestedSkillsRoot) {
+        if (Test-Path -LiteralPath $nestedRoot) {
+            Remove-Item -LiteralPath $nestedRoot -Recurse -Force
+        }
+    } elseif (Test-Path -LiteralPath $nestedSkillsRoot) {
         Remove-Item -LiteralPath $nestedSkillsRoot -Recurse -Force
     }
 
@@ -1032,8 +1195,10 @@ function Sync-InstalledGeneratedNestedCompatibilityRoot {
             continue
         }
         $destination = Join-Path $nestedSkillsRoot $skillDir.Name
-        Copy-DirContent -Source $skillDir.FullName -Destination $destination
-        Convert-SkillEntryPointToRuntimeMirror -SkillRoot $destination
+        if ([System.IO.Path]::GetFullPath($skillDir.FullName) -ne [System.IO.Path]::GetFullPath($destination)) {
+            Copy-DirContent -Source $skillDir.FullName -Destination $destination
+            Convert-SkillEntryPointToRuntimeMirror -SkillRoot $destination
+        }
     }
 
     $packaging = Get-VgoPackagingContract -Governance $Governance -RepoRoot $targetVibeRoot
@@ -1134,13 +1299,17 @@ function Install-RuntimeCorePayload {
     }
 
     Sync-VibeCanonicalToTarget -RepoRoot $RepoRoot -TargetRoot $TargetRoot -TargetRel $targetVibeRel
-    Sync-InstalledGeneratedNestedCompatibilityRoot -Governance $governance -TargetRoot $TargetRoot -TargetRel $targetVibeRel
+    $internalCorpusRoot = Sync-VgoInternalSkillCorpus -RepoRoot $RepoRoot -TargetRoot $TargetRoot -Packaging $packaging -CanonicalVibeName $canonicalVibeName
+    Sync-InstalledGeneratedNestedCompatibilityRoot -Governance $governance -TargetRoot $TargetRoot -TargetRel $targetVibeRel -SourceSkillsRoot ([string]$internalCorpusRoot)
 
     $canonicalSkillsRoot = Get-VgoParentPath -Path $RepoRoot
     $workspaceRoot = Get-VgoParentPath -Path $canonicalSkillsRoot
     $workspaceSkillsRoot = if (-not [string]::IsNullOrWhiteSpace($workspaceRoot)) { Join-Path $workspaceRoot 'skills' } else { '' }
     $workspaceSuperpowersRoot = if (-not [string]::IsNullOrWhiteSpace($workspaceRoot)) { Join-Path $workspaceRoot 'superpowers\skills' } else { '' }
     $bundledSuperpowersRoot = Join-Path $RepoRoot 'bundled\superpowers-skills'
+    $bundledSkillsRoot = Get-VgoBundledSkillsRoot -RepoRoot $RepoRoot -Packaging $packaging
+    $skillDestinationRoot = if (-not [string]::IsNullOrWhiteSpace([string]$internalCorpusRoot)) { [string]$internalCorpusRoot } else { Join-Path $TargetRoot 'skills' }
+    $hiddenSkillEntrypoints = -not [string]::IsNullOrWhiteSpace([string]$internalCorpusRoot)
 
     function New-SkillFallbackSources {
         param(
@@ -1174,21 +1343,21 @@ function Install-RuntimeCorePayload {
 
     foreach ($name in $requiredCore) {
         Ensure-SkillPresent -Name $name -Required $true -FallbackSources @(
-            (New-SkillFallbackSources -Name $name -Roots @($canonicalSkillsRoot, $workspaceSkillsRoot, $workspaceSuperpowersRoot, $bundledSuperpowersRoot))
-        ) -ExternalFallbackUsed $externalFallbackUsed -MissingRequiredSkills $missingRequiredSkills
+            (New-SkillFallbackSources -Name $name -Roots @($bundledSkillsRoot, $canonicalSkillsRoot, $workspaceSkillsRoot, $workspaceSuperpowersRoot, $bundledSuperpowersRoot))
+        ) -DestinationRoot $skillDestinationRoot -HiddenEntryPoints:$hiddenSkillEntrypoints -ExternalFallbackUsed $externalFallbackUsed -MissingRequiredSkills $missingRequiredSkills
     }
 
     foreach ($name in $requiredWorkflow) {
         Ensure-SkillPresent -Name $name -Required $true -FallbackSources @(
-            (New-SkillFallbackSources -Name $name -Roots @($workspaceSkillsRoot, $workspaceSuperpowersRoot, $bundledSuperpowersRoot, $canonicalSkillsRoot))
-        ) -ExternalFallbackUsed $externalFallbackUsed -MissingRequiredSkills $missingRequiredSkills
+            (New-SkillFallbackSources -Name $name -Roots @($bundledSkillsRoot, $workspaceSkillsRoot, $workspaceSuperpowersRoot, $bundledSuperpowersRoot, $canonicalSkillsRoot))
+        ) -DestinationRoot $skillDestinationRoot -HiddenEntryPoints:$hiddenSkillEntrypoints -ExternalFallbackUsed $externalFallbackUsed -MissingRequiredSkills $missingRequiredSkills
     }
 
     if ($Profile -eq 'full') {
         foreach ($name in $optionalWorkflow) {
             Ensure-SkillPresent -Name $name -Required $false -FallbackSources @(
-                (New-SkillFallbackSources -Name $name -Roots @($workspaceSkillsRoot, $workspaceSuperpowersRoot, $bundledSuperpowersRoot, $canonicalSkillsRoot))
-            ) -ExternalFallbackUsed $externalFallbackUsed -MissingRequiredSkills $missingRequiredSkills
+                (New-SkillFallbackSources -Name $name -Roots @($bundledSkillsRoot, $workspaceSkillsRoot, $workspaceSuperpowersRoot, $bundledSuperpowersRoot, $canonicalSkillsRoot))
+            ) -DestinationRoot $skillDestinationRoot -HiddenEntryPoints:$hiddenSkillEntrypoints -ExternalFallbackUsed $externalFallbackUsed -MissingRequiredSkills $missingRequiredSkills
         }
     }
 

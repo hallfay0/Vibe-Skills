@@ -12,21 +12,23 @@
 
 1. `vibe-pack-routing-smoke.ps1`
 2. `vibe-router-contract-gate.ps1`
-3. `vibe-version-packaging-gate.ps1`
+3. `vibe-current-routing-debt-gate.ps1`
+   current meaning: current routing debt stays out of runtime, router, docs, and current tests
+4. `vibe-version-packaging-gate.ps1`
    current meaning: canonical-only packaging governance + generated compatibility wiring
-4. `vibe-mirror-edit-hygiene-gate.ps1`
+5. `vibe-mirror-edit-hygiene-gate.ps1`
    current meaning: block repo-tracked mirror reintroduction
-5. `vibe-output-artifact-boundary-gate.ps1`
-6. `vibe-installed-runtime-freshness-gate.ps1`
-7. `vibe-release-install-runtime-coherence-gate.ps1`
-8. `vibe-release-truth-consistency-gate.ps1`
-9. `vibe-repo-cleanliness-gate.ps1`
+6. `vibe-output-artifact-boundary-gate.ps1`
+7. `vibe-installed-runtime-freshness-gate.ps1`
+8. `vibe-release-install-runtime-coherence-gate.ps1`
+9. `vibe-release-truth-consistency-gate.ps1`
+10. `vibe-repo-cleanliness-gate.ps1`
 
 ## Families
 
 - Runtime / packaging: `vibe-bom-frontmatter-gate.ps1`, `vibe-version-packaging-gate.ps1`, `vibe-installed-runtime-freshness-gate.ps1`
 - Release / truth honesty: `vibe-dist-manifest-gate.ps1`, `vibe-release-notes-quality-gate.ps1`, `vibe-release-truth-consistency-gate.ps1`
-- Cleanliness / outputs / compatibility hygiene: `vibe-repo-cleanliness-gate.ps1`, `vibe-output-artifact-boundary-gate.ps1`, `vibe-mirror-edit-hygiene-gate.ps1`, `vibe-nested-bundled-parity-gate.ps1`
+- Cleanliness / outputs / compatibility hygiene: `vibe-current-routing-debt-gate.ps1` verifies retired routing terms stay out of current runtime, router, docs, and current tests while allowing explicit retired/historical evidence; `vibe-repo-cleanliness-gate.ps1`, `vibe-output-artifact-boundary-gate.ps1`, `vibe-mirror-edit-hygiene-gate.ps1`, `vibe-nested-bundled-parity-gate.ps1`
 - Plane governance: `vibe-browserops-*.ps1`, `vibe-desktopops-*.ps1`, `vibe-docling-*.ps1`, `vibe-connector-*.ps1`
 - Capability / upstream / role packs: `vibe-capability-*.ps1`, `vibe-role-pack-*.ps1`, `vibe-upstream-*.ps1`
 - Operator Preview / Apply Safety: `vibe-operator-preview-contract-gate.ps1`, `vibe-manual-apply-policy-gate.ps1`

@@ -78,14 +78,19 @@ def _write_valid_truth_artifacts(
                 "selected": [{"skill_id": router_selected_skill}],
                 "rejected": [],
             },
-            "specialist_recommendations": [
-                {
-                    "skill_id": router_selected_skill,
-                }
-            ],
-            "specialist_dispatch": {
-                "approved_dispatch": [],
-                "local_specialist_suggestions": [],
+            "skill_usage": {
+                "state_model": "binary_used_unused",
+                "used": [],
+                "unused": [{"skill_id": router_selected_skill}],
+                "evidence": [],
+            },
+            "specialist_decision": {
+                "decision_state": "no_specialist_recommendations",
+                "resolution_mode": "no_specialist_needed",
+                "recommendation_count": 0,
+                "candidate_skill_ids_reviewed": [router_selected_skill],
+                "selected_skill_ids": [],
+                "rejected_candidates": [],
             },
             "divergence_shadow": {
                 "router_selected_skill": (

@@ -89,9 +89,27 @@ class InstallGeneratedNestedBundledTests(unittest.TestCase):
                     "schema_version": 1,
                     "package_id": "runtime-core",
                     "directories": ["skills", "config"],
-                    "copy_directories": [{"source": "bundled/skills", "target": "skills"}],
+                    "copy_directories": [],
                     "copy_files": [{"source": "config/upstream-lock.json", "target": "config/upstream-lock.json", "optional": False}],
-                    "canonical_vibe_mirror": {"enabled": True, "target_relpath": "skills/vibe"},
+                    "bundled_skills_source": "bundled/skills",
+                    "exclude_bundled_skill_names": ["vibe"],
+                    "canonical_vibe_payload": {"enabled": True, "target_relpath": "skills/vibe"},
+                    "copy_bundled_skills": False,
+                    "skills_allowlist": REQUIRED_CORE + REQUIRED_WORKFLOW,
+                    "internal_skill_corpus": {
+                        "enabled": True,
+                        "source": "bundled/skills",
+                        "target_relpath": "skills/vibe/bundled/skills",
+                        "entrypoint_filename": "SKILL.runtime-mirror.md",
+                        "sanitize_entrypoints": True,
+                        "resolver_roots": ["skills/vibe/bundled/skills"],
+                    },
+                    "compatibility_skill_projections": {
+                        "mode": "explicit_projection_only",
+                        "target_root": "skills",
+                        "projected_skill_names": [],
+                        "resolver_roots": ["skills"],
+                    },
                     "managed_skill_inventory": {
                         "required_runtime_skills": ["vibe", "dialectic", "local-vco-roles", "spec-kit-vibe-compat", "superclaude-framework-compat", "ralph-loop", "cancel-ralph", "tdd-guide", "think-harder"],
                         "required_workflow_skills": ["brainstorming", "writing-plans", "subagent-driven-development", "systematic-debugging"],
@@ -189,6 +207,7 @@ class InstallGeneratedNestedBundledTests(unittest.TestCase):
         installed_root = self.target_root / "skills" / "vibe"
         nested_root = installed_root / "bundled" / "skills" / "vibe"
         self.assertTrue(installed_root.exists())
+        self.assertTrue((installed_root / "bundled" / "skills" / "brainstorming" / "SKILL.runtime-mirror.md").exists())
         self.assertTrue(nested_root.exists())
         self.assertFalse((nested_root / "SKILL.md").exists())
         self.assertTrue((nested_root / "SKILL.runtime-mirror.md").exists())
@@ -219,6 +238,7 @@ class InstallGeneratedNestedBundledTests(unittest.TestCase):
         installed_root = self.target_root / "skills" / "vibe"
         nested_root = installed_root / "bundled" / "skills" / "vibe"
         self.assertTrue(installed_root.exists())
+        self.assertTrue((installed_root / "bundled" / "skills" / "brainstorming" / "SKILL.runtime-mirror.md").exists())
         self.assertTrue(nested_root.exists())
         self.assertFalse((nested_root / "SKILL.md").exists())
         self.assertTrue((nested_root / "SKILL.runtime-mirror.md").exists())

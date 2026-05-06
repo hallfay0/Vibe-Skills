@@ -3,10 +3,14 @@ from __future__ import annotations
 import importlib.util
 import sys
 from pathlib import Path
+import tempfile
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+INSTALLER_CORE_SRC = REPO_ROOT / 'packages' / 'installer-core' / 'src'
 MODULE_PATH = REPO_ROOT / 'packages' / 'installer-core' / 'src' / 'vgo_installer' / 'runtime_packaging.py'
+if str(INSTALLER_CORE_SRC) not in sys.path:
+    sys.path.insert(0, str(INSTALLER_CORE_SRC))
 def _load_module():
     spec = importlib.util.spec_from_file_location('runtime_packaging_unit', MODULE_PATH)
     if spec is None or spec.loader is None:
@@ -36,3 +40,27 @@ def test_runtime_packaging_resolver_loads_profile_projection_from_authoritative_
     assert full['public_skill_surface']['discoverable_entry_surface'] == 'config/vibe-entry-surfaces.json'
     assert minimal['public_skill_surface']['projected_skill_names'] == ['vibe', 'vibe-upgrade']
     assert full['public_skill_surface']['projected_skill_names'] == ['vibe', 'vibe-upgrade']
+
+
+def test_resolve_bundled_skills_root_normalizes_relative_packaging_sources_against_repo_root(monkeypatch) -> None:
+    from vgo_installer import materializer as module
+
+    with tempfile.TemporaryDirectory() as tempdir:
+        repo_root = Path(tempdir) / 'repo'
+        catalog_root = repo_root / 'catalog'
+        (catalog_root / 'skills').mkdir(parents=True)
+        workdir = Path(tempdir) / 'cwd'
+        workdir.mkdir(parents=True)
+        monkeypatch.chdir(workdir)
+        packaging = {
+            'bundled_skills_source': 'bundled/skills',
+            'skill_source_root': 'catalog/skills',
+            'catalog_root': 'catalog',
+        }
+
+        try:
+            resolved = module.resolve_bundled_skills_root(repo_root, packaging)
+        finally:
+            monkeypatch.chdir(REPO_ROOT)
+
+    assert resolved == (repo_root / 'catalog' / 'skills').resolve()

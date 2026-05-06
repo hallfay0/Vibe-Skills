@@ -78,19 +78,59 @@ class RoutingTerminologyHardCleanupTests(unittest.TestCase):
             check=True,
         )
         payload = json.loads(completed.stdout)
-        self.assertIn("current_doc_retired_term_violation_count", payload)
-        self.assertIn("current_behavior_test_retired_field_read_count", payload)
-        self.assertIn("historical_doc_retired_term_file_count", payload)
-        self.assertIn("historical_doc_marked_retired_term_count", payload)
-        self.assertIn("historical_doc_unmarked_retired_term_count", payload)
-        self.assertIn("execution_internal_specialist_dispatch_reference_count", payload)
-        self.assertIn("current_policy_helper_dispatch_vocabulary_reference_count", payload)
-        self.assertGreater(int(payload["historical_doc_retired_term_file_count"]), 50)
-        self.assertGreater(int(payload["historical_doc_marked_retired_term_count"]), 50)
-        self.assertEqual(0, int(payload["historical_doc_unmarked_retired_term_count"]))
-        self.assertEqual(0, payload["execution_internal_specialist_dispatch_reference_count"])
-        self.assertEqual(0, payload["current_policy_helper_dispatch_vocabulary_reference_count"])
-        self.assertEqual([], payload["findings"])
+        self.assertIn("summary", payload)
+        self.assertIn("fail_count", payload["summary"])
+        self.assertIn("allowed_negative_count", payload["summary"])
+        self.assertIn("allowed_historical_count", payload["summary"])
+        self.assertIn("review_count", payload["summary"])
+        self.assertIn("findings", payload)
+        self.assertIn("failures", payload)
+        self.assertIn("allowed_negative", payload)
+        self.assertIn("allowed_historical", payload)
+        self.assertIn("review", payload)
+        self.assertEqual("pass", payload["status"])
+        self.assertEqual(0, int(payload["summary"]["fail_count"]))
+        self.assertGreater(int(payload["summary"]["allowed_negative_count"]), 0)
+        self.assertGreater(int(payload["summary"]["allowed_historical_count"]), 50)
+        self.assertEqual(0, int(payload["summary"]["review_count"]))
+        self.assertEqual([], payload["failures"])
+        self.assertEqual([], payload["review"])
+
+    def test_policy_defines_current_surface_budget_layers(self) -> None:
+        policy_path = REPO_ROOT / "config" / "routing-terminology-hard-cleanup.json"
+        payload = json.loads(policy_path.read_text(encoding="utf-8"))
+
+        self.assertIn("current_surface_roots", payload)
+        self.assertIn("historical_surface_roots", payload)
+        self.assertIn("allowed_negative_files", payload)
+        self.assertIn("compatibility_review_files", payload)
+        self.assertIn("retired_positive_terms", payload)
+
+        current_roots = set(payload["current_surface_roots"])
+        self.assertIn("packages/verification-core/src/vgo_verify", current_roots)
+        self.assertIn("scripts/verify", current_roots)
+        self.assertIn("tests/runtime_neutral", current_roots)
+        self.assertIn("docs/governance/current-routing-contract.md", current_roots)
+        self.assertIn("docs/governance/current-runtime-field-contract.md", current_roots)
+        self.assertIn("docs/governance/terminology-governance.md", current_roots)
+
+        historical_roots = set(payload["historical_surface_roots"])
+        self.assertIn("docs/superpowers/plans", historical_roots)
+        self.assertIn("docs/superpowers/specs", historical_roots)
+
+        retired_terms = set(payload["retired_positive_terms"])
+        for term in [
+            "route_authority_candidates",
+            "stage_assistant_candidates",
+            "route_authority_eligible",
+            "legacy_role",
+            "_legacy_role",
+            "_legacy_stage_assistant_candidates",
+            "route authority",
+            "stage assistant",
+            "route owner",
+        ]:
+            self.assertIn(term, retired_terms)
 
 
 if __name__ == "__main__":

@@ -601,7 +601,10 @@ projected_skill_names_for_check() {
       return 1
     fi
     if [[ -n "${allowlist_output}" ]]; then
-      mapfile -t allowlist <<<"${allowlist_output}"
+      local allowlist_entry=""
+      while IFS= read -r allowlist_entry; do
+        allowlist+=("${allowlist_entry}")
+      done <<<"${allowlist_output}"
     fi
     if [[ ${#allowlist[@]} -gt 0 ]]; then
       local allowed="false"
@@ -632,9 +635,12 @@ load_projected_skill_names_for_check() {
   local projection_name="$1"
   local output=""
   output="$(projected_skill_names_for_check "${projection_name}")" || return 1
-  mapfile -t PROJECTED_SKILL_NAMES <<<"${output}"
-  if [[ ${#PROJECTED_SKILL_NAMES[@]} -eq 1 && -z "${PROJECTED_SKILL_NAMES[0]}" ]]; then
-    PROJECTED_SKILL_NAMES=()
+  PROJECTED_SKILL_NAMES=()
+  if [[ -n "${output}" ]]; then
+    local projected_skill_name=""
+    while IFS= read -r projected_skill_name; do
+      PROJECTED_SKILL_NAMES+=("${projected_skill_name}")
+    done <<<"${output}"
   fi
 }
 

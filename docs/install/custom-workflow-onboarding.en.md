@@ -1,6 +1,6 @@
 # Custom Workflow Onboarding Guide (Governed Onboarding)
 
-This document describes one governed onboarding path only: make your workflow callable by the canonical router without weakening route authority.
+This document describes one governed onboarding path only: make your workflow callable by the canonical router without weakening canonical routing control.
 
 ## Prerequisites
 
@@ -53,7 +53,7 @@ Allowed values:
 - `advisory` (default recommendation)
 - `auto`
 
-`advisory` is the safest default because it allows recommendation without competing for route authority.
+`advisory` is the safest default because it allows recommendation without competing with canonical routing control.
 
 ## How To Make It Callable At The Right Time
 
@@ -76,7 +76,7 @@ Frozen priority order:
 - correct: the workflow becomes routable only after a manifest declaration
 
 - misunderstanding: a custom workflow can replace the canonical router
-- correct: a custom workflow can participate, but it cannot take route authority
+- correct: a custom workflow can participate, but it cannot take over canonical routing control
 
 - misunderstanding: declaration means online readiness
 - correct: online readiness still depends on local provider, MCP, and host-side manual work

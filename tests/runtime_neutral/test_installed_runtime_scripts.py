@@ -37,21 +37,6 @@ CANONICAL_ENTRY_RUNTIME_SURFACES = (
     "scripts/verify/vibe-canonical-entry-truth-gate.ps1",
 )
 
-_RAW_SUBPROCESS_RUN = subprocess.run
-
-
-def _utf8_text_subprocess_run(*args, **kwargs):
-    if kwargs.get("text") or kwargs.get("universal_newlines"):
-        kwargs.setdefault("encoding", "utf-8")
-        kwargs.setdefault("errors", "replace")
-    return _RAW_SUBPROCESS_RUN(*args, **kwargs)
-
-
-# Normalize text-mode decoding across Windows shell tests so bash/pwsh output
-# is evaluated against the installed runtime contract rather than the host locale.
-subprocess.run = _utf8_text_subprocess_run
-
-
 def _native_shell_frontend_unavailable_reason() -> str | None:
     if os.name != "nt":
         return None
@@ -191,16 +176,18 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
         sanitized_bin = self.root / "strict-bin"
         sanitized_bin.mkdir(parents=True, exist_ok=True)
         blocked = {"claude", "claude-code", "cursor", "cursor-agent", "windsurf", "codeium", "openclaw", "opencode"}
-        for candidate in Path("/bin").iterdir():
-            if candidate.name in blocked:
-                continue
-            target = sanitized_bin / candidate.name
-            if target.exists():
-                continue
-            try:
-                target.symlink_to(candidate)
-            except FileExistsError:
-                continue
+        system_bin = Path("/bin")
+        if system_bin.exists():
+            for candidate in system_bin.iterdir():
+                if candidate.name in blocked:
+                    continue
+                target = sanitized_bin / candidate.name
+                if target.exists():
+                    continue
+                try:
+                    target.symlink_to(candidate)
+                except FileExistsError:
+                    continue
         env["PATH"] = str(sanitized_bin)
         for _host_id, env_name in STRICT_READY_HOSTS:
             env.pop(env_name, None)
@@ -1183,17 +1170,15 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
         self.assertNotEqual(0, check_result.returncode)
         self.assertIn("duplicate Codex-discovered vibe skill surface", check_result.stdout)
 
-    def test_powershell_install_require_closed_ready_enforces_real_host_closure(self) -> None:
+    def test_powershell_install_require_closed_ready_accepts_same_session_openclaw_closure(self) -> None:
         powershell = resolve_powershell()
         if powershell is None:
             self.skipTest("PowerShell executable not available in PATH")
 
         host_id = "openclaw"
-        env_name = "VGO_OPENCLAW_SPECIALIST_BRIDGE_COMMAND"
-
-        failure_target = self.root / "pwsh-openclaw-strict-fail"
-        failure_target.mkdir(parents=True, exist_ok=True)
-        fail_result = subprocess.run(
+        target_root = self.root / "pwsh-openclaw-strict-same-session"
+        target_root.mkdir(parents=True, exist_ok=True)
+        result = subprocess.run(
             [
                 powershell,
                 "-NoProfile",
@@ -1206,50 +1191,23 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
                 "-Profile",
                 "full",
                 "-TargetRoot",
-                str(failure_target),
-                "-RequireClosedReady",
-            ],
-            capture_output=True,
-            text=True,
-            env=self.strict_install_env(powershell=powershell),
-        )
-        self.assertNotEqual(0, fail_result.returncode)
-        self.assertIn("not closed_ready", fail_result.stderr or fail_result.stdout)
-
-        success_target = self.root / "pwsh-openclaw-strict-pass"
-        success_target.mkdir(parents=True, exist_ok=True)
-        bridge = self.create_fake_bridge("pwsh-openclaw-bridge", host_id)
-        env = self.strict_install_env(powershell=powershell, include_fake_bridge=(env_name, str(bridge)))
-        success_result = subprocess.run(
-            [
-                powershell,
-                "-NoProfile",
-                "-ExecutionPolicy",
-                "Bypass",
-                "-File",
-                str(REPO_ROOT / "install.ps1"),
-                "-HostId",
-                host_id,
-                "-Profile",
-                "full",
-                "-TargetRoot",
-                str(success_target),
+                str(target_root),
                 "-RequireClosedReady",
             ],
             capture_output=True,
             text=True,
             check=True,
-            env=env,
+            env=self.strict_install_env(powershell=powershell),
         )
-        self.assertIn("Installation complete.", success_result.stdout)
-        closure_path = success_target / ".vibeskills" / "host-closure.json"
+
+        self.assertIn("Installation complete.", result.stdout)
+        closure_path = target_root / ".vibeskills" / "host-closure.json"
         self.assertTrue(closure_path.exists())
         closure = json.loads(closure_path.read_text(encoding="utf-8"))
         self.assertEqual("closed_ready", closure["host_closure_state"])
-        self.assertEqual(f"env:{env_name}", closure["specialist_wrapper"]["bridge_source"])
-        launcher_path = Path(closure["specialist_wrapper"]["launcher_path"])
-        self.assertTrue(launcher_path.exists())
-        self.invoke_installed_specialist_wrapper(launcher_path, host_id)
+        self.assertEqual("same_session_path_only", closure["specialist_execution"]["mode"])
+        self.assertTrue(closure["specialist_wrapper"]["removed"])
+        self.assertEqual("same_session_path_only", closure["specialist_wrapper"]["removal_reason"])
 
 
 if __name__ == "__main__":

@@ -12,6 +12,29 @@ VERIFICATION_CORE_SRC = REPO_ROOT / "packages" / "verification-core" / "src"
 if str(VERIFICATION_CORE_SRC) not in sys.path:
     sys.path.insert(0, str(VERIFICATION_CORE_SRC))
 
+RETIRED_POSITIVE_OUTPUT_TERMS = [
+    "route_authority_count",
+    "stage_assistant_count",
+    "target_route_authority_count",
+    "target_stage_assistant_count",
+    "target_route_authority_candidates",
+    "target_stage_assistant_candidates",
+    "keep-route-authority",
+    "Route Authorities",
+    "Stage Assistants",
+    "Target Route Authorities",
+    "Target Stage Assistants",
+    "route authority",
+    "stage assistant",
+]
+
+
+def assert_no_retired_positive_output_terms(text: str) -> None:
+    lower = text.lower()
+    for term in RETIRED_POSITIVE_OUTPUT_TERMS:
+        assert term.lower() not in lower, term
+
+
 from vgo_verify.global_pack_consolidation_audit import (
     audit_repository,
     write_artifacts,
@@ -74,15 +97,6 @@ class GlobalPackConsolidationAuditTests(unittest.TestCase):
                             "research-lookup",
                             "report-generator",
                         ],
-                        "route_authority_candidates": [
-                            "designing-experiments",
-                            "hypothesis-generation",
-                            "hypothesis-testing",
-                            "performing-causal-analysis",
-                            "performing-regression-analysis",
-                            "research-lookup",
-                        ],
-                        "stage_assistant_candidates": ["report-generator"],
                         "defaults_by_task": {
                             "planning": "designing-experiments",
                             "research": "research-lookup",
@@ -108,13 +122,6 @@ class GlobalPackConsolidationAuditTests(unittest.TestCase):
                         "skill_candidates": [
                             "scikit-learn",
                             "ml-data-leakage-guard",
-                            "preprocessing-data-with-automated-pipelines",
-                        ],
-                        "route_authority_candidates": [
-                            "scikit-learn",
-                            "ml-data-leakage-guard",
-                        ],
-                        "stage_assistant_candidates": [
                             "preprocessing-data-with-automated-pipelines",
                         ],
                         "defaults_by_task": {
@@ -185,11 +192,12 @@ class GlobalPackConsolidationAuditTests(unittest.TestCase):
         self.assertEqual(3, artifact.summary["pack_count"])
         self.assertEqual("P0", rows["research-design"].priority)
         self.assertGreater(rows["research-design"].risk_score, rows["data-ml"].risk_score)
-        self.assertGreaterEqual(rows["research-design"].route_authority_count, 6)
-        self.assertTrue(rows["research-design"].has_explicit_role_split)
+        self.assertFalse(hasattr(rows["research-design"], "compat_direct_candidate_count"))
+        self.assertFalse(hasattr(rows["research-design"], "compat_stage_candidate_count"))
+        self.assertFalse(hasattr(rows["research-design"], "has_compat_role_split"))
 
         self.assertEqual("P0", rows["code-quality"].priority)
-        self.assertFalse(rows["code-quality"].has_explicit_role_split)
+        self.assertFalse(hasattr(rows["code-quality"], "has_compat_role_split"))
         self.assertGreater(rows["code-quality"].suspected_overlap_count, 0)
         self.assertEqual(2, artifact.summary["p0_count"])
 
@@ -202,13 +210,46 @@ class GlobalPackConsolidationAuditTests(unittest.TestCase):
         self.assertTrue(written["markdown"].exists())
 
         csv_text = written["csv"].read_text(encoding="utf-8")
-        self.assertIn("pack_id,skill_candidate_count,route_authority_count", csv_text)
+        self.assertIn("pack_id,skill_candidate_count,default_task_count", csv_text)
         self.assertIn("research-design", csv_text)
+        self.assertNotIn("compat_direct_candidate_count", csv_text)
+        self.assertNotIn("compat_stage_candidate_count", csv_text)
+        self.assertNotIn("has_compat_role_split", csv_text)
+        assert_no_retired_positive_output_terms(csv_text)
 
         markdown_text = written["markdown"].read_text(encoding="utf-8")
-        self.assertIn("# Global Pack Consolidation Audit", markdown_text)
+        self.assertIn("# Global Pack Routing Audit", markdown_text)
         self.assertIn("## P0", markdown_text)
         self.assertIn("research-design", markdown_text)
+        assert_no_retired_positive_output_terms(markdown_text)
+
+    def test_retired_candidate_fields_do_not_influence_global_audit(self) -> None:
+        manifest_path = self.root / "config" / "pack-manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        research_pack = next(pack for pack in manifest["packs"] if pack["id"] == "research-design")
+        research_pack["route_authority_candidates"] = ["retired-only-direct-global"]
+        research_pack["stage_assistant_candidates"] = ["retired-only-stage-global"]
+        manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+        artifact = audit_repository(self.root)
+        written = write_artifacts(self.root, artifact, self.root / "outputs" / "skills-audit")
+        payload_text = json.dumps(
+            {
+                "summary": artifact.summary,
+                "rows": [row.__dict__ for row in artifact.rows],
+            },
+            ensure_ascii=False,
+        )
+        csv_text = written["csv"].read_text(encoding="utf-8")
+        markdown_text = written["markdown"].read_text(encoding="utf-8")
+
+        rows = {row.pack_id: row for row in artifact.rows}
+        self.assertEqual(7, rows["research-design"].skill_candidate_count)
+        for text in (payload_text, csv_text, markdown_text):
+            self.assertNotIn("retired-only-direct-global", text)
+            self.assertNotIn("retired-only-stage-global", text)
+            self.assertNotIn("route_authority_candidates", text)
+            self.assertNotIn("stage_assistant_candidates", text)
 
     def test_audit_and_writer_do_not_modify_live_config(self) -> None:
         config_paths = [
@@ -252,19 +293,15 @@ class GlobalPackConsolidationAuditTests(unittest.TestCase):
         self.assertEqual(3, artifact.summary["pack_count"])
         self.assertIn("research-design", {row.pack_id for row in artifact.rows})
 
-    def test_real_pack_manifest_uses_skill_candidates_without_legacy_fields(self) -> None:
+    def test_real_pack_manifest_uses_skill_candidates_for_all_packs(self) -> None:
         manifest = json.loads((REPO_ROOT / "config" / "pack-manifest.json").read_text(encoding="utf-8-sig"))
         missing_skill_candidates: list[str] = []
-        packs_with_legacy_fields: list[str] = []
 
         for pack in manifest["packs"]:
             if not pack.get("skill_candidates"):
                 missing_skill_candidates.append(pack["id"])
-            if "route_authority_candidates" in pack or "stage_assistant_candidates" in pack:
-                packs_with_legacy_fields.append(pack["id"])
 
         self.assertEqual([], missing_skill_candidates)
-        self.assertEqual([], packs_with_legacy_fields)
 
 
 if __name__ == "__main__":

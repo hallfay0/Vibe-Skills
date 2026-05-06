@@ -134,7 +134,7 @@ DATA_ML_PROBLEM_DECISIONS: dict[str, dict[str, Any]] = {
         "target_role": "keep",
         "target_owner": "",
         "overlap_with": "statsmodels; timesfm-forecasting",
-        "routing_change": "keep in data-ml as narrow time-series ML route authority",
+        "routing_change": "keep in data-ml as narrow time-series ML routing skill",
         "delete_allowed_after_migration": False,
         "risk_level": "low",
         "rationale": "时间序列 ML 是独立问题类型，普通 scikit-learn 不够精确。",
@@ -178,7 +178,7 @@ DATA_ML_PROBLEM_DECISIONS: dict[str, dict[str, Any]] = {
         "target_role": "keep",
         "target_owner": "",
         "overlap_with": "scikit-learn; training-machine-learning-models",
-        "routing_change": "keep in data-ml as review/evaluation route authority",
+        "routing_change": "keep in data-ml as review/evaluation routing skill",
         "delete_allowed_after_migration": False,
         "risk_level": "low",
         "rationale": "模型评估、阈值、校准和比较是独立高价值问题。",
@@ -189,7 +189,7 @@ DATA_ML_PROBLEM_DECISIONS: dict[str, dict[str, Any]] = {
         "target_role": "keep",
         "target_owner": "",
         "overlap_with": "data-exploration-visualization; creating-data-visualizations",
-        "routing_change": "keep in data-ml as data-understanding route authority",
+        "routing_change": "keep in data-ml as data-understanding routing skill",
         "delete_allowed_after_migration": False,
         "risk_level": "low",
         "rationale": "数据质量、结构、分布和初步理解是 ML 流程的核心入口。",
@@ -211,7 +211,7 @@ DATA_ML_PROBLEM_DECISIONS: dict[str, dict[str, Any]] = {
         "target_role": "keep",
         "target_owner": "",
         "overlap_with": "evaluating-machine-learning-models; preprocessing-data-with-automated-pipelines",
-        "routing_change": "keep in data-ml as leakage-audit route authority",
+        "routing_change": "keep in data-ml as leakage-audit routing skill",
         "delete_allowed_after_migration": False,
         "risk_level": "low",
         "rationale": "数据泄漏是独立高风险问题，应保留专门检查入口。",
@@ -233,7 +233,7 @@ DATA_ML_PROBLEM_DECISIONS: dict[str, dict[str, Any]] = {
         "target_role": "keep",
         "target_owner": "",
         "overlap_with": "engineering-features-for-machine-learning; scikit-learn; ml-pipeline-workflow",
-        "routing_change": "keep in data-ml as direct preprocessing-pipeline route authority",
+        "routing_change": "keep in data-ml as direct preprocessing-pipeline routing skill",
         "delete_allowed_after_migration": False,
         "risk_level": "low",
         "rationale": "清洗、编码、缩放、转换和验证可形成独立的可复用预处理流水线任务。",
@@ -266,7 +266,7 @@ DATA_ML_PROBLEM_DECISIONS: dict[str, dict[str, Any]] = {
         "target_role": "keep",
         "target_owner": "",
         "overlap_with": "evaluating-machine-learning-models",
-        "routing_change": "keep in data-ml as narrow explainability route authority",
+        "routing_change": "keep in data-ml as narrow explainability routing skill",
         "delete_allowed_after_migration": False,
         "risk_level": "low",
         "rationale": "模型解释和特征归因是独立问题，且 SHAP 工具边界清楚。",
@@ -387,7 +387,10 @@ class ProblemMapArtifact:
             "summary": {
                 "data_ml_skill_count": len(self.rows),
                 "target_keep_count": sum(1 for row in self.rows if row.target_role == "keep"),
-                "target_stage_assistant_count": sum(1 for row in self.rows if row.target_role == "stage-assistant"),
+                "target_routing_skill_count": sum(1 for row in self.rows if row.target_role == "keep"),
+                "target_retired_stage_candidate_count": sum(
+                    1 for row in self.rows if row.target_role == "retired-stage-candidate"
+                ),
                 "target_move_out_count": sum(1 for row in self.rows if row.target_role == "move-out"),
                 "target_merge_delete_count": sum(
                     1 for row in self.rows if row.target_role == "merge-delete-after-migration"
@@ -492,56 +495,25 @@ def _build_pack_index(pack_manifest: dict[str, Any]) -> dict[str, dict[str, set[
         for value in _as_list(pack.get("skill_candidates")):
             skill_id = str(value).strip()
             if skill_id:
-                record = index.setdefault(
-                    skill_id,
-                    {"packs": set(), "route_authority": set(), "stage_assistant": set(), "defaults": set()},
-                )
+                record = index.setdefault(skill_id, {"packs": set(), "defaults": set()})
                 record["packs"].add(pack_id)
-        for value in _as_list(pack.get("route_authority_candidates")):
-            skill_id = str(value).strip()
-            if skill_id:
-                record = index.setdefault(
-                    skill_id,
-                    {"packs": set(), "route_authority": set(), "stage_assistant": set(), "defaults": set()},
-                )
-                record["packs"].add(pack_id)
-                record["route_authority"].add(pack_id)
-        for value in _as_list(pack.get("stage_assistant_candidates")):
-            skill_id = str(value).strip()
-            if skill_id:
-                record = index.setdefault(
-                    skill_id,
-                    {"packs": set(), "route_authority": set(), "stage_assistant": set(), "defaults": set()},
-                )
-                record["packs"].add(pack_id)
-                record["stage_assistant"].add(pack_id)
         defaults_by_task = pack.get("defaults_by_task")
         if isinstance(defaults_by_task, dict):
             for value in defaults_by_task.values():
                 skill_id = str(value).strip()
                 if skill_id:
-                    record = index.setdefault(
-                        skill_id,
-                        {"packs": set(), "route_authority": set(), "stage_assistant": set(), "defaults": set()},
-                    )
+                    record = index.setdefault(skill_id, {"packs": set(), "defaults": set()})
                     record["packs"].add(pack_id)
                     record["defaults"].add(pack_id)
         elif defaults:
             for skill_id in defaults:
-                record = index.setdefault(
-                    skill_id,
-                    {"packs": set(), "route_authority": set(), "stage_assistant": set(), "defaults": set()},
-                )
+                record = index.setdefault(skill_id, {"packs": set(), "defaults": set()})
                 record["packs"].add(pack_id)
                 record["defaults"].add(pack_id)
     return index
 
 
 def _current_role(record: dict[str, set[str]]) -> str:
-    if record["route_authority"]:
-        return "route_authority"
-    if record["stage_assistant"]:
-        return "stage_assistant"
     if record["defaults"]:
         return "default"
     return "candidate"
@@ -549,12 +521,14 @@ def _current_role(record: dict[str, set[str]]) -> str:
 
 def _current_pack_role(skill_id: str, pack: dict[str, Any]) -> str:
     skill_candidates = {str(item).strip() for item in _as_list(pack.get("skill_candidates"))}
-    route_authorities = {str(item).strip() for item in _as_list(pack.get("route_authority_candidates"))}
-    stage_assistants = {str(item).strip() for item in _as_list(pack.get("stage_assistant_candidates"))}
-    if skill_id in route_authorities:
-        return "route_authority"
-    if skill_id in stage_assistants:
-        return "stage_assistant"
+    defaults_by_task = pack.get("defaults_by_task")
+    default_skills = (
+        {str(value).strip() for value in defaults_by_task.values() if str(value).strip()}
+        if isinstance(defaults_by_task, dict)
+        else set()
+    )
+    if skill_id in default_skills:
+        return "default"
     if skill_id not in skill_candidates:
         return "removed_from_pack"
     return "candidate"
@@ -592,7 +566,7 @@ def _duplication_score(
         return 1
     if skill_id in DEFAULT_REPLACEMENTS and not has_scripts and not has_references:
         return 5
-    if current_role == "stage_assistant" and len(text) < 3500 and skill_id in DEFAULT_REPLACEMENTS:
+    if current_role == "candidate" and len(text) < 3500 and skill_id in DEFAULT_REPLACEMENTS:
         return 4
     if any(_contains_keyword(text, keyword) for keyword in ML_KEYWORDS):
         return 3
@@ -639,10 +613,10 @@ def _category(skill_id: str, recommended_action: str, current_role: str) -> str:
         return "删除候选"
     if skill_id in SPECIALIST_DEFER_SKILLS:
         return "工具型"
-    if skill_id in OWNER_SKILLS or current_role == "route_authority":
+    if skill_id in OWNER_SKILLS:
         return "主专家"
-    if current_role == "stage_assistant":
-        return "阶段助手"
+    if current_role == "default":
+        return "默认技能"
     return "参考型"
 
 
@@ -681,7 +655,7 @@ def _make_row(
     keyword_index: dict[str, Any],
     routing_rules: dict[str, Any],
 ) -> AuditRow | None:
-    record = pack_index.get(skill_id, {"packs": set(), "route_authority": set(), "stage_assistant": set(), "defaults": set()})
+    record = pack_index.get(skill_id, {"packs": set(), "defaults": set()})
     skill_dir = repo_root / "bundled" / "skills" / skill_id
     skill_md = skill_dir / "SKILL.md"
     skill_text = skill_md.read_text(encoding="utf-8-sig") if skill_md.exists() else ""
@@ -910,8 +884,8 @@ def _write_problem_markdown(path: Path, artifact: ProblemMapArtifact) -> None:
         "",
         f"- Generated At: `{artifact.generated_at}`",
         f"- Current Data-ML Skills: {len(artifact.rows)}",
-        f"- Target Keep: {len(keep_rows)}",
-        f"- Target Stage Assistants: {len(stage_rows)}",
+        f"- Target Routing Skills: {len(keep_rows)}",
+        f"- Retired Stage Candidates: {len(stage_rows)}",
         f"- Move Out: {len(move_rows)}",
         f"- Merge/Delete After Migration: {len(merge_rows)}",
         "",
@@ -922,7 +896,7 @@ def _write_problem_markdown(path: Path, artifact: ProblemMapArtifact) -> None:
         lines.extend(_markdown_table(keep_rows, ["skill_id", "primary_problem_id", "current_role", "rationale"]))
     else:
         lines.append("- none")
-    lines.extend(["", "## 阶段助手", ""])
+    lines.extend(["", "## Retired Stage Candidates", ""])
     if stage_rows:
         lines.extend(_markdown_table(stage_rows, ["skill_id", "primary_problem_id", "current_role", "rationale"]))
     else:

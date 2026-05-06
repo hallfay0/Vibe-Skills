@@ -161,27 +161,49 @@ if (Test-Path -LiteralPath $hardCleanupScript) {
     $hardCleanup = ($hardJson -join "`n") | ConvertFrom-Json
 }
 
+function Get-HardCleanupCount {
+    param(
+        [object]$Payload,
+        [Parameter(Mandatory)] [string]$Name
+    )
+    if (-not $Payload) {
+        return 0
+    }
+    if ($Payload.PSObject.Properties.Name -contains $Name) {
+        return [int]$Payload.$Name
+    }
+    if ($Payload.PSObject.Properties.Name -contains 'summary' -and $Payload.summary.PSObject.Properties.Name -contains $Name) {
+        return [int]$Payload.summary.$Name
+    }
+    return 0
+}
+
 $summary = [pscustomobject]@{
     current_surface_violation_count = @($findings | Where-Object { $_.category -eq 'current_surface_violation' }).Count
     current_runtime_old_format_fallback_count = @($findings | Where-Object { $_.category -eq 'current_runtime_old_format_fallback' }).Count
     retired_old_format_reference_count = [int]$legacyReferenceCount
     historical_reference_count = [int]$historicalReferenceCount
-    hard_cleanup_current_doc_retired_term_violation_count = if ($hardCleanup) { [int]$hardCleanup.current_doc_retired_term_violation_count } else { 0 }
-    hard_cleanup_current_behavior_test_retired_field_read_count = if ($hardCleanup) { [int]$hardCleanup.current_behavior_test_retired_field_read_count } else { 0 }
-    hard_cleanup_historical_doc_retired_term_file_count = if ($hardCleanup) { [int]$hardCleanup.historical_doc_retired_term_file_count } else { 0 }
-    hard_cleanup_historical_doc_marked_retired_term_count = if ($hardCleanup) { [int]$hardCleanup.historical_doc_marked_retired_term_count } else { 0 }
-    hard_cleanup_historical_doc_unmarked_retired_term_count = if ($hardCleanup) { [int]$hardCleanup.historical_doc_unmarked_retired_term_count } else { 0 }
-    hard_cleanup_execution_internal_specialist_dispatch_reference_count = if ($hardCleanup) { [int]$hardCleanup.execution_internal_specialist_dispatch_reference_count } else { 0 }
-    hard_cleanup_current_policy_helper_dispatch_vocabulary_reference_count = if ($hardCleanup) { [int]$hardCleanup.current_policy_helper_dispatch_vocabulary_reference_count } else { 0 }
+    hard_cleanup_current_doc_retired_term_violation_count = Get-HardCleanupCount -Payload $hardCleanup -Name 'current_doc_retired_term_violation_count'
+    hard_cleanup_current_behavior_test_retired_field_read_count = Get-HardCleanupCount -Payload $hardCleanup -Name 'current_behavior_test_retired_field_read_count'
+    hard_cleanup_historical_doc_retired_term_file_count = Get-HardCleanupCount -Payload $hardCleanup -Name 'historical_doc_retired_term_file_count'
+    hard_cleanup_historical_doc_marked_retired_term_count = Get-HardCleanupCount -Payload $hardCleanup -Name 'historical_doc_marked_retired_term_count'
+    hard_cleanup_historical_doc_unmarked_retired_term_count = Get-HardCleanupCount -Payload $hardCleanup -Name 'historical_doc_unmarked_retired_term_count'
+    hard_cleanup_execution_internal_specialist_dispatch_reference_count = Get-HardCleanupCount -Payload $hardCleanup -Name 'execution_internal_specialist_dispatch_reference_count'
+    hard_cleanup_current_policy_helper_dispatch_vocabulary_reference_count = Get-HardCleanupCount -Payload $hardCleanup -Name 'current_policy_helper_dispatch_vocabulary_reference_count'
+    hard_cleanup_fail_count = Get-HardCleanupCount -Payload $hardCleanup -Name 'fail_count'
+    hard_cleanup_review_count = Get-HardCleanupCount -Payload $hardCleanup -Name 'review_count'
     findings = [object[]]$findings.ToArray()
 }
 
-$hardCleanupBlockingViolationCount = (
-    [int]$summary.hard_cleanup_current_doc_retired_term_violation_count +
-    [int]$summary.hard_cleanup_current_behavior_test_retired_field_read_count +
-    [int]$summary.hard_cleanup_historical_doc_unmarked_retired_term_count +
-    [int]$summary.hard_cleanup_current_policy_helper_dispatch_vocabulary_reference_count
-)
+$hardCleanupBlockingViolationCount = [int]$summary.hard_cleanup_fail_count
+if ($hardCleanupBlockingViolationCount -eq 0) {
+    $hardCleanupBlockingViolationCount = (
+        [int]$summary.hard_cleanup_current_doc_retired_term_violation_count +
+        [int]$summary.hard_cleanup_current_behavior_test_retired_field_read_count +
+        [int]$summary.hard_cleanup_current_policy_helper_dispatch_vocabulary_reference_count
+    )
+    $summary.hard_cleanup_fail_count = $hardCleanupBlockingViolationCount
+}
 
 if ($Json) {
     $summary | ConvertTo-Json -Depth 20
@@ -198,6 +220,8 @@ if ($Json) {
     ('Hard cleanup historical docs without retired marker: {0}' -f [int]$summary.hard_cleanup_historical_doc_unmarked_retired_term_count)
     ('Hard cleanup execution-internal specialist_dispatch references: {0}' -f [int]$summary.hard_cleanup_execution_internal_specialist_dispatch_reference_count)
     ('Hard cleanup current policy/helper dispatch vocabulary references: {0}' -f [int]$summary.hard_cleanup_current_policy_helper_dispatch_vocabulary_reference_count)
+    ('Hard cleanup blocking failures: {0}' -f [int]$hardCleanupBlockingViolationCount)
+    ('Hard cleanup compatibility review hits: {0}' -f [int]$summary.hard_cleanup_review_count)
     foreach ($finding in @($summary.findings)) {
         '[FAIL] {0}:{1} [{2}] {3}' -f $finding.path, $finding.line, $finding.pattern, $finding.text
     }

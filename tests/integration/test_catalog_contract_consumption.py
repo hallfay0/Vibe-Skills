@@ -17,12 +17,16 @@ from vgo_installer.install_plan import build_install_plan
 
 def test_catalog_exports_descriptor_without_runtime_imports(tmp_path) -> None:
     descriptor = export_catalog_descriptor(tmp_path)
+    profiles_manifest = Path(descriptor['profiles_manifest']).as_posix()
+    groups_manifest = Path(descriptor['groups_manifest']).as_posix()
+    skill_source_root = Path(descriptor['skill_source_root']).as_posix()
+
     assert 'runtime' not in descriptor['owner']
     assert descriptor['owner'] == 'skill-catalog'
-    assert descriptor['profiles_manifest'].endswith('catalog/profiles/index.json')
-    assert descriptor['groups_manifest'].endswith('catalog/groups/index.json')
-    assert descriptor['skill_source_root'].endswith('catalog/skills')
-    assert 'bundled/skills' not in str(descriptor['skill_source_root'])
+    assert profiles_manifest.endswith('catalog/profiles/index.json')
+    assert groups_manifest.endswith('catalog/groups/index.json')
+    assert skill_source_root.endswith('catalog/skills')
+    assert 'bundled/skills' not in skill_source_root
 
 
 def test_skill_catalog_uses_local_bootstrap_helper_for_contract_path_setup() -> None:

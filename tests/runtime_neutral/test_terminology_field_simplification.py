@@ -68,12 +68,15 @@ def test_pack_defaults_point_to_skill_candidates() -> None:
 
 def test_terminology_governance_doc_exists_and_defines_active_model() -> None:
     text = TERMINOLOGY_DOC.read_text(encoding="utf-8")
-    assert "skill_candidates -> selected skill -> used / unused" in text
+    assert "skill_candidates -> skill_routing.selected -> skill_execution_lock -> selected_skill_execution -> skill_usage" in text
     assert "`skill_candidates`" in text
     assert "`skill_routing.selected`" in text
+    assert "`skill_execution_lock`" in text
+    assert "`selected_skill_execution`" in text
     assert "`skill_usage.used`" in text
     assert "`skill_usage.unused`" in text
-    assert "Legacy compatibility" in text
+    assert "`skill_usage.evidence`" in text
+    assert "Retired Context" in text
 
 
 def test_public_docs_do_not_use_deprecated_routing_terms_as_active_language() -> None:

@@ -69,10 +69,13 @@ function Invoke-SupportedHostRuntimeTruthProbe {
         Add-Assertion -Assertions $Assertions -Pass ($routeSnapshot -and -not [string]::IsNullOrWhiteSpace($routeSelectedSkill)) -Message "$HostId route_snapshot records routed specialist truth"
         Add-Assertion -Assertions $Assertions -Pass ($runtimeInput.PSObject.Properties.Name -contains 'divergence_shadow') -Message "$HostId runtime-input-packet contains divergence_shadow artifact"
         Add-Assertion -Assertions $Assertions -Pass ($runtimeInput.PSObject.Properties.Name -contains 'skill_routing') -Message "$HostId runtime-input-packet contains canonical skill_routing artifact"
-        Add-Assertion -Assertions $Assertions -Pass ($runtimeInput.PSObject.Properties.Name -contains 'legacy_skill_routing') -Message "$HostId runtime-input-packet contains legacy_skill_routing artifact"
-        $legacySkillRouting = if ($runtimeInput.PSObject.Properties.Name -contains 'legacy_skill_routing') { $runtimeInput.legacy_skill_routing } else { $null }
-        $hasSpecialistRecommendations = ($legacySkillRouting -and $legacySkillRouting.PSObject.Properties['specialist_recommendations'] -ne $null)
-        $specialistRecommendationCount = if ($hasSpecialistRecommendations) { @($legacySkillRouting.specialist_recommendations).Count } else { 0 }
+        Add-Assertion -Assertions $Assertions -Pass ($runtimeInput.PSObject.Properties.Name -contains 'skill_usage') -Message "$HostId runtime-input-packet contains canonical skill_usage artifact"
+        $skillUsage = if ($runtimeInput.PSObject.Properties.Name -contains 'skill_usage') { $runtimeInput.skill_usage } else { $null }
+        if ($skillUsage) {
+            foreach ($propertyName in @('used', 'unused', 'evidence')) {
+                Add-Assertion -Assertions $Assertions -Pass ($skillUsage.PSObject.Properties.Name -contains $propertyName) -Message "$HostId skill_usage records $propertyName"
+            }
+        }
         $specialistDecision = if ($runtimeInput.PSObject.Properties.Name -contains 'specialist_decision') { $runtimeInput.specialist_decision } else { $null }
         $noSpecialistResolved = (
             $null -ne $specialistDecision -and
@@ -81,8 +84,16 @@ function Invoke-SupportedHostRuntimeTruthProbe {
             [string]$specialistDecision.decision_state -eq 'no_specialist_recommendations' -and
             [string]$specialistDecision.resolution_mode -in @('no_matching_specialist', 'no_specialist_needed')
         )
-        Add-Assertion -Assertions $Assertions -Pass $hasSpecialistRecommendations -Message "$HostId runtime-input-packet contains legacy specialist_recommendations artifact"
-        Add-Assertion -Assertions $Assertions -Pass (($specialistRecommendationCount -ge 1) -or $noSpecialistResolved) -Message "$HostId runtime-input-packet preserves specialist recommendation or no-specialist resolution evidence"
+        $selectedSkillIds = if (
+            $runtimeInput.PSObject.Properties.Name -contains 'skill_routing' -and
+            $null -ne $runtimeInput.skill_routing -and
+            $runtimeInput.skill_routing.PSObject.Properties.Name -contains 'selected'
+        ) {
+            @($runtimeInput.skill_routing.selected | ForEach-Object { [string]$_.skill_id } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+        } else {
+            @()
+        }
+        Add-Assertion -Assertions $Assertions -Pass (($selectedSkillIds.Count -ge 1) -or $noSpecialistResolved) -Message "$HostId runtime-input-packet records selected skills or no-specialist resolution evidence"
         $divergenceShadow = if ($runtimeInput.PSObject.Properties.Name -contains 'divergence_shadow') { $runtimeInput.divergence_shadow } else { $null }
         $runtimeSelectedSkill = if ($divergenceShadow -and $divergenceShadow.PSObject.Properties.Name -contains 'runtime_selected_skill') { [string]$divergenceShadow.runtime_selected_skill } else { '' }
         Add-Assertion -Assertions $Assertions -Pass ($divergenceShadow -and $runtimeSelectedSkill -eq 'vibe') -Message "$HostId divergence_shadow keeps vibe as runtime authority"
@@ -90,6 +101,8 @@ function Invoke-SupportedHostRuntimeTruthProbe {
         Add-Assertion -Assertions $Assertions -Pass ($executionManifest.PSObject.Properties.Name -contains 'specialist_accounting') -Message "$HostId execution-manifest contains specialist_accounting artifact"
         $specialistAccounting = if ($executionManifest.PSObject.Properties.Name -contains 'specialist_accounting') { $executionManifest.specialist_accounting } else { $null }
         Add-Assertion -Assertions $Assertions -Pass ($specialistAccounting -and $specialistAccounting.PSObject.Properties.Name -contains 'effective_execution_status') -Message "$HostId specialist_accounting records effective_execution_status"
+        Add-Assertion -Assertions $Assertions -Pass ($specialistAccounting -and $specialistAccounting.PSObject.Properties.Name -contains 'selected_skill_execution') -Message "$HostId specialist_accounting records selected_skill_execution"
+        Add-Assertion -Assertions $Assertions -Pass ($specialistAccounting -and $specialistAccounting.PSObject.Properties.Name -contains 'selected_skill_execution_count') -Message "$HostId specialist_accounting records selected_skill_execution_count"
     }
     finally {
         if ([string]::IsNullOrWhiteSpace($previousHostId)) {
@@ -174,7 +187,7 @@ Add-Assertion -Assertions $assertions -Pass ([string]$routerGovernance.provider_
 Add-Assertion -Assertions $assertions -Pass ([bool]$routerGovernance.hard_rules.must_emit_hazard_alert_for_fallback) -Message 'router governance requires fallback hazard alert'
 Add-Assertion -Assertions $assertions -Pass ($runtimeProtocol.Contains('Silent fallback and silent degradation are forbidden.')) -Message 'runtime protocol documents no silent fallback'
 Add-Assertion -Assertions $assertions -Pass ($runtimeProtocol.Contains('route_snapshot')) -Message 'runtime protocol requires route_snapshot evidence'
-Add-Assertion -Assertions $assertions -Pass ($runtimeProtocol.Contains('specialist dispatch accounting')) -Message 'runtime protocol requires specialist dispatch accounting evidence'
+Add-Assertion -Assertions $assertions -Pass ($runtimeProtocol.Contains('skill execution accounting')) -Message 'runtime protocol requires skill execution accounting evidence'
 Add-Assertion -Assertions $assertions -Pass (Test-Path -LiteralPath $truthGatePath) -Message 'canonical truth gate script exists' -Details $truthGatePath
 Add-Assertion -Assertions $assertions -Pass ($truthGate.Contains('host-launch-receipt.json')) -Message 'canonical truth gate requires host-launch-receipt.json'
 Add-Assertion -Assertions $assertions -Pass ($truthGate.Contains('reading SKILL.md alone is not canonical vibe entry')) -Message 'canonical truth gate rejects SKILL.md-only activation claims'

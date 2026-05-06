@@ -12,10 +12,33 @@ VERIFICATION_CORE_SRC = REPO_ROOT / "packages" / "verification-core" / "src"
 if str(VERIFICATION_CORE_SRC) not in sys.path:
     sys.path.insert(0, str(VERIFICATION_CORE_SRC))
 
+RETIRED_POSITIVE_OUTPUT_TERMS = [
+    "route_authority_count",
+    "stage_assistant_count",
+    "target_route_authority_count",
+    "target_stage_assistant_count",
+    "target_route_authority_candidates",
+    "target_stage_assistant_candidates",
+    "keep-route-authority",
+    "Route Authorities",
+    "Stage Assistants",
+    "Target Route Authorities",
+    "Target Stage Assistants",
+    "route authority",
+    "stage assistant",
+]
+
+
+def assert_no_retired_positive_output_terms(text: str) -> None:
+    lower = text.lower()
+    for term in RETIRED_POSITIVE_OUTPUT_TERMS:
+        assert term.lower() not in lower, term
+
+
 from vgo_verify.bio_science_pack_consolidation_audit import (
     BIO_SCIENCE_MERGE_DELETE_SKILLS,
-    BIO_SCIENCE_ROUTE_AUTHORITIES,
-    BIO_SCIENCE_STAGE_ASSISTANTS,
+    BIO_SCIENCE_RETIRED_STAGE_CANDIDATES,
+    BIO_SCIENCE_ROUTING_SKILLS,
     audit_bio_science_problem_map,
     write_bio_science_problem_artifacts,
 )
@@ -60,6 +83,7 @@ MERGED_DATABASE_SKILLS = [
 REMOVED_BIO_SCIENCE_SKILLS = MERGED_DATABASE_SKILLS + PRUNED_DIRECT_SKILLS
 
 BIO_SCIENCE_DIRECT_ROUTE_OWNERS = BIO_SCIENCE_DIRECT_OWNERS
+BIO_SCIENCE_DIRECT_ROUTING_SKILLS = BIO_SCIENCE_DIRECT_OWNERS
 
 
 class BioSciencePackConsolidationAuditTests(unittest.TestCase):
@@ -111,8 +135,6 @@ class BioSciencePackConsolidationAuditTests(unittest.TestCase):
                     {
                         "id": "bio-science",
                         "skill_candidates": BIO_SCIENCE_DIRECT_OWNERS,
-                        "route_authority_candidates": BIO_SCIENCE_DIRECT_ROUTE_OWNERS,
-                        "stage_assistant_candidates": [],
                         "defaults_by_task": {
                             "planning": "biopython",
                             "coding": "biopython",
@@ -142,13 +164,13 @@ class BioSciencePackConsolidationAuditTests(unittest.TestCase):
         rows = {row.skill_id: row for row in artifact.rows}
 
         self.assertEqual(set(BIO_SCIENCE_DIRECT_OWNERS + REMOVED_BIO_SCIENCE_SKILLS), set(rows))
-        self.assertEqual(BIO_SCIENCE_DIRECT_ROUTE_OWNERS, BIO_SCIENCE_ROUTE_AUTHORITIES)
+        self.assertEqual(BIO_SCIENCE_DIRECT_ROUTING_SKILLS, BIO_SCIENCE_ROUTING_SKILLS)
         self.assertEqual(REMOVED_BIO_SCIENCE_SKILLS, BIO_SCIENCE_MERGE_DELETE_SKILLS)
-        self.assertEqual([], BIO_SCIENCE_STAGE_ASSISTANTS)
+        self.assertEqual([], BIO_SCIENCE_RETIRED_STAGE_CANDIDATES)
         self.assertEqual(set(BIO_SCIENCE_DIRECT_ROUTE_OWNERS), {row.skill_id for row in artifact.rows if row.target_role == "keep"})
-        self.assertEqual(set(), {row.skill_id for row in artifact.rows if row.target_role == "stage-assistant"})
-        self.assertEqual(4, artifact.to_dict()["summary"]["target_route_authority_count"])
-        self.assertEqual(0, artifact.to_dict()["summary"]["target_stage_assistant_count"])
+        self.assertEqual(set(), {row.skill_id for row in artifact.rows if row.target_role == "retired-stage-candidate"})
+        self.assertEqual(4, artifact.to_dict()["summary"]["target_routing_skill_count"])
+        self.assertEqual(0, artifact.to_dict()["summary"]["target_retired_stage_candidate_count"])
         self.assertEqual(23, artifact.to_dict()["summary"]["target_merge_delete_count"])
 
     def test_problem_map_records_primary_problem_owners(self) -> None:
@@ -177,6 +199,27 @@ class BioSciencePackConsolidationAuditTests(unittest.TestCase):
         self.assertEqual("scanpy", rows["scvi-tools"].target_owner)
         self.assertEqual("bio-database-evidence", rows["clinvar-database"].target_owner)
 
+    def test_retired_candidate_fields_do_not_add_bio_rows_or_roles(self) -> None:
+        manifest_path = self.root / "config" / "pack-manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        bio_pack = next(pack for pack in manifest["packs"] if pack["id"] == "bio-science")
+        bio_pack["route_authority_candidates"] = ["retired-only-bio-direct"]
+        bio_pack["stage_assistant_candidates"] = ["pysam", "retired-only-bio-stage"]
+        manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+        artifact = audit_bio_science_problem_map(self.root)
+        rows = {row.skill_id: row for row in artifact.rows}
+        artifact_text = json.dumps(artifact.to_dict(), ensure_ascii=False)
+
+        self.assertNotIn("retired-only-bio-direct", rows)
+        self.assertNotIn("retired-only-bio-stage", rows)
+        self.assertEqual("candidate", rows["pysam"].current_role)
+        self.assertEqual("merge-delete-after-migration", rows["pysam"].target_role)
+        self.assertNotIn("compat_direct_candidate", artifact_text)
+        self.assertNotIn("compat_stage_candidate", artifact_text)
+        self.assertNotIn("retired-only-bio-direct", artifact_text)
+        self.assertNotIn("retired-only-bio-stage", artifact_text)
+
     def test_artifact_writer_outputs_json_csv_and_markdown(self) -> None:
         artifact = audit_bio_science_problem_map(self.root)
         output_dir = self.root / "outputs" / "skills-audit"
@@ -194,9 +237,9 @@ class BioSciencePackConsolidationAuditTests(unittest.TestCase):
 
         markdown_text = written["markdown"].read_text(encoding="utf-8")
         self.assertIn("# Bio-Science Problem-First Consolidation", markdown_text)
-        self.assertIn("## Route Authorities", markdown_text)
-        self.assertIn("Stage assistants: 0", markdown_text)
-        self.assertNotIn("## Stage Assistants", markdown_text)
+        self.assertIn("## Routing Skills", markdown_text)
+        self.assertIn("Retired stage candidates: 0", markdown_text)
+        assert_no_retired_positive_output_terms(markdown_text)
 
     def test_audit_and_writer_do_not_modify_live_config(self) -> None:
         config_paths = [

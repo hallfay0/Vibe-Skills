@@ -5,6 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from tests.bash_test_support import capture_text_kwargs, to_bash_path
+
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -16,15 +18,14 @@ class BootstrapShellTargetRootGuardTests(unittest.TestCase):
             result = subprocess.run(
                 [
                     'bash',
-                    str(REPO_ROOT / 'scripts' / 'bootstrap' / 'one-shot-setup.sh'),
+                    to_bash_path(REPO_ROOT / 'scripts' / 'bootstrap' / 'one-shot-setup.sh'),
                     '--host', 'codex',
                     '--profile', 'minimal',
                     '--skip-external-install',
-                    '--target-root', str(target_root),
+                    '--target-root', to_bash_path(target_root),
                 ],
                 cwd=REPO_ROOT,
-                capture_output=True,
-                text=True,
+                **capture_text_kwargs(),
             )
 
         self.assertNotEqual(0, result.returncode)
@@ -36,15 +37,14 @@ class BootstrapShellTargetRootGuardTests(unittest.TestCase):
             result = subprocess.run(
                 [
                     'bash',
-                    str(REPO_ROOT / 'scripts' / 'bootstrap' / 'one-shot-setup.sh'),
+                    to_bash_path(REPO_ROOT / 'scripts' / 'bootstrap' / 'one-shot-setup.sh'),
                     '--host', 'codex',
                     '--profile', 'minimal',
                     '--skip-external-install',
-                    '--target-root', str(target_root),
+                    '--target-root', to_bash_path(target_root),
                 ],
                 cwd=REPO_ROOT,
-                capture_output=True,
-                text=True,
+                **capture_text_kwargs(),
             )
 
         self.assertNotEqual(0, result.returncode)

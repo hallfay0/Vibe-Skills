@@ -25,14 +25,14 @@ PROBLEM_MAP_CSV_FIELDS = [
     "rationale",
 ]
 
-BIO_SCIENCE_ROUTE_AUTHORITIES = [
+BIO_SCIENCE_ROUTING_SKILLS = [
     "biopython",
     "scanpy",
     "pydeseq2",
     "bio-database-evidence",
 ]
 
-BIO_SCIENCE_STAGE_ASSISTANTS: list[str] = []
+BIO_SCIENCE_RETIRED_STAGE_CANDIDATES: list[str] = []
 
 BIO_SCIENCE_MERGED_DATABASE_SKILLS = [
     "alphafold-database",
@@ -71,10 +71,10 @@ BIO_DATABASE_EVIDENCE_MERGE_DELETE_DECISION = {
     "target_role": "merge-delete-after-migration",
     "target_owner": "bio-database-evidence",
     "overlap_with": "bio-database-evidence",
-    "routing_change": "merge useful database evidence material into bio-database-evidence and remove this separate route owner",
+    "routing_change": "merge useful database evidence material into bio-database-evidence and remove this separate routing skill",
     "delete_allowed_after_migration": True,
     "risk_level": "medium",
-    "rationale": "This is useful biological evidence source material, but it should not remain a separate top-level route owner.",
+    "rationale": "This is useful biological evidence source material, but it should not remain a separate top-level routing skill.",
 }
 
 BIO_SCIENCE_PROBLEM_DECISIONS: dict[str, dict[str, Any]] = {
@@ -84,7 +84,7 @@ BIO_SCIENCE_PROBLEM_DECISIONS: dict[str, dict[str, Any]] = {
         "target_role": "keep",
         "target_owner": "",
         "overlap_with": "anndata; scvi-tools; bio-database-evidence; pydeseq2",
-        "routing_change": "keep as route authority for single-cell RNA-seq clustering, annotation, marker genes, and h5ad/10X workflows",
+        "routing_change": "keep as routing skill for single-cell RNA-seq clustering, annotation, marker genes, and h5ad/10X workflows",
         "delete_allowed_after_migration": False,
         "risk_level": "low",
         "rationale": "Single-cell RNA-seq is a distinct high-value user problem and scanpy is the clearest owner.",
@@ -95,7 +95,7 @@ BIO_SCIENCE_PROBLEM_DECISIONS: dict[str, dict[str, Any]] = {
         "target_role": "keep",
         "target_owner": "",
         "overlap_with": "scanpy; statistical-analysis",
-        "routing_change": "keep as route authority for bulk RNA-seq differential expression, DESeq2-style statistics, MA plots, and volcano plots",
+        "routing_change": "keep as routing skill for bulk RNA-seq differential expression, DESeq2-style statistics, MA plots, and volcano plots",
         "delete_allowed_after_migration": False,
         "risk_level": "low",
         "rationale": "Bulk RNA-seq differential expression must not be absorbed by scanpy or biopython.",
@@ -106,7 +106,7 @@ BIO_SCIENCE_PROBLEM_DECISIONS: dict[str, dict[str, Any]] = {
         "target_role": "merge-delete-after-migration",
         "target_owner": "none-retained",
         "overlap_with": "biopython; tiledbvcf",
-        "routing_change": "remove from default bundled route authority; explicit BAM/VCF processing should be handled as normal coding rather than a retained bio-science expert",
+        "routing_change": "remove from default bundled routing skill set; explicit BAM/VCF processing should be handled as normal coding rather than a retained bio-science expert",
         "delete_allowed_after_migration": True,
         "risk_level": "medium",
         "rationale": "Useful but narrow NGS file tooling is too cold for the simplified bundled bio-science route surface.",
@@ -117,7 +117,7 @@ BIO_SCIENCE_PROBLEM_DECISIONS: dict[str, dict[str, Any]] = {
         "target_role": "keep",
         "target_owner": "",
         "overlap_with": "bio-database-evidence; pysam",
-        "routing_change": "keep as route authority and planning/coding default for sequence IO, FASTA, GenBank, SeqIO, Entrez, and sequence conversion",
+        "routing_change": "keep as routing skill and planning/coding default for sequence IO, FASTA, GenBank, SeqIO, Entrez, and sequence conversion",
         "delete_allowed_after_migration": False,
         "risk_level": "medium",
         "rationale": "Biopython is broad and useful, but negative routing boundaries must stop it from swallowing single-cell, DESeq2, BAM/VCF, ESM, COBRApy, and flow cytometry prompts.",
@@ -128,10 +128,10 @@ BIO_SCIENCE_PROBLEM_DECISIONS: dict[str, dict[str, Any]] = {
         "target_role": "keep",
         "target_owner": "",
         "overlap_with": "biopython; scanpy; pydeseq2; pysam; esm; cobrapy; geniml",
-        "routing_change": "keep as unified route authority for biological database evidence, annotation, pathway, variant, target, structure, interaction, reference census, and cross-database lookup tasks",
+        "routing_change": "keep as unified routing skill for biological database evidence, annotation, pathway, variant, target, structure, interaction, reference census, and cross-database lookup tasks",
         "delete_allowed_after_migration": False,
         "risk_level": "low",
-        "rationale": "A single evidence owner keeps useful database material without exposing every source wrapper as a separate route authority.",
+        "rationale": "A single evidence skill keeps useful database material without exposing every source wrapper as a separate routing skill.",
     },
     "esm": {
         "problem_ids": ["protein_language_models"],
@@ -139,7 +139,7 @@ BIO_SCIENCE_PROBLEM_DECISIONS: dict[str, dict[str, Any]] = {
         "target_role": "merge-delete-after-migration",
         "target_owner": "none-retained",
         "overlap_with": "bio-database-evidence",
-        "routing_change": "remove ESM as a default bundled route owner; keep protein structure evidence under bio-database-evidence",
+        "routing_change": "remove ESM as a default bundled routing skill; keep protein structure evidence under bio-database-evidence",
         "delete_allowed_after_migration": True,
         "risk_level": "medium",
         "rationale": "Protein language-model work is specialized, heavy, and cold for the default bundle.",
@@ -150,7 +150,7 @@ BIO_SCIENCE_PROBLEM_DECISIONS: dict[str, dict[str, Any]] = {
         "target_role": "merge-delete-after-migration",
         "target_owner": "none-retained",
         "overlap_with": "bio-database-evidence",
-        "routing_change": "remove COBRApy as a default bundled route owner while retaining pathway evidence lookup under bio-database-evidence",
+        "routing_change": "remove COBRApy as a default bundled routing skill while retaining pathway evidence lookup under bio-database-evidence",
         "delete_allowed_after_migration": True,
         "risk_level": "medium",
         "rationale": "Constraint-based metabolic modeling is specialized and low-frequency for this simplified pack.",
@@ -161,7 +161,7 @@ BIO_SCIENCE_PROBLEM_DECISIONS: dict[str, dict[str, Any]] = {
         "target_role": "merge-delete-after-migration",
         "target_owner": "none-retained",
         "overlap_with": "anndata",
-        "routing_change": "remove FlowIO as a default bundled route owner",
+        "routing_change": "remove FlowIO as a default bundled routing skill",
         "delete_allowed_after_migration": True,
         "risk_level": "medium",
         "rationale": "FCS parsing is narrow and cold for the default bio-science route surface.",
@@ -172,7 +172,7 @@ BIO_SCIENCE_PROBLEM_DECISIONS: dict[str, dict[str, Any]] = {
         "target_role": "merge-delete-after-migration",
         "target_owner": "none-retained",
         "overlap_with": "scanpy; geniml",
-        "routing_change": "remove Arboreto as a default bundled route owner",
+        "routing_change": "remove Arboreto as a default bundled routing skill",
         "delete_allowed_after_migration": True,
         "risk_level": "medium",
         "rationale": "GRN inference is specialized and overlaps ordinary single-cell workflows enough to not justify a separate bundled expert.",
@@ -183,7 +183,7 @@ BIO_SCIENCE_PROBLEM_DECISIONS: dict[str, dict[str, Any]] = {
         "target_role": "merge-delete-after-migration",
         "target_owner": "none-retained",
         "overlap_with": "esm; data-ml",
-        "routing_change": "remove Geniml as a default bundled route owner",
+        "routing_change": "remove Geniml as a default bundled routing skill",
         "delete_allowed_after_migration": True,
         "risk_level": "medium",
         "rationale": "Genomic interval embeddings are too narrow and cold for the simplified bundled route surface.",
@@ -194,7 +194,7 @@ BIO_SCIENCE_PROBLEM_DECISIONS: dict[str, dict[str, Any]] = {
         "target_role": "merge-delete-after-migration",
         "target_owner": "scanpy",
         "overlap_with": "scanpy; scvi-tools; bio-database-evidence",
-        "routing_change": "merge AnnData/h5ad container prompts into scanpy and remove the separate route owner",
+        "routing_change": "merge AnnData/h5ad container prompts into scanpy and remove the separate routing skill",
         "delete_allowed_after_migration": True,
         "risk_level": "low",
         "rationale": "AnnData is a data-structure layer inside single-cell workflows and should not be a separate top-level expert.",
@@ -205,10 +205,10 @@ BIO_SCIENCE_PROBLEM_DECISIONS: dict[str, dict[str, Any]] = {
         "target_role": "merge-delete-after-migration",
         "target_owner": "scanpy",
         "overlap_with": "scanpy; anndata",
-        "routing_change": "merge scVI/scANVI routing into scanpy and remove the separate route owner",
+        "routing_change": "merge scVI/scANVI routing into scanpy and remove the separate routing skill",
         "delete_allowed_after_migration": True,
         "risk_level": "medium",
-        "rationale": "scVI is useful inside single-cell workflows but too narrow to justify a separate bundled route owner.",
+        "rationale": "scVI is useful inside single-cell workflows but too narrow to justify a separate bundled routing skill.",
     },
     "deeptools": {
         "problem_ids": ["genomics_track_processing"],
@@ -216,7 +216,7 @@ BIO_SCIENCE_PROBLEM_DECISIONS: dict[str, dict[str, Any]] = {
         "target_role": "merge-delete-after-migration",
         "target_owner": "none-retained",
         "overlap_with": "pysam",
-        "routing_change": "remove deepTools as a default bundled route owner",
+        "routing_change": "remove deepTools as a default bundled routing skill",
         "delete_allowed_after_migration": True,
         "risk_level": "medium",
         "rationale": "NGS track visualization is a narrow helper workflow and should not remain a top-level expert in the simplified pack.",
@@ -256,13 +256,15 @@ class ProblemMapArtifact:
             "repo_root": self.repo_root,
             "summary": {
                 "bio_science_skill_count": len(self.rows),
-                "target_route_authority_count": sum(1 for row in self.rows if row.target_role == "keep"),
-                "target_stage_assistant_count": sum(1 for row in self.rows if row.target_role == "stage-assistant"),
+                "target_routing_skill_count": sum(1 for row in self.rows if row.target_role == "keep"),
+                "target_retired_stage_candidate_count": sum(
+                    1 for row in self.rows if row.target_role == "retired-stage-candidate"
+                ),
                 "target_manual_review_count": sum(1 for row in self.rows if row.target_role == "manual-review"),
                 "target_merge_delete_count": sum(1 for row in self.rows if row.target_role == "merge-delete-after-migration"),
             },
-            "target_route_authority_candidates": BIO_SCIENCE_ROUTE_AUTHORITIES,
-            "target_stage_assistant_candidates": BIO_SCIENCE_STAGE_ASSISTANTS,
+            "target_routing_skills": BIO_SCIENCE_ROUTING_SKILLS,
+            "target_retired_stage_candidates": BIO_SCIENCE_RETIRED_STAGE_CANDIDATES,
             "rows": [asdict(row) for row in self.rows],
         }
 
@@ -298,40 +300,25 @@ def _pack_index(pack_manifest: dict[str, Any]) -> dict[str, dict[str, set[str]]]
         pack_id = str(pack.get("id", "")).strip()
         if not pack_id:
             continue
-        for role_key in ("skill_candidates", "route_authority_candidates", "stage_assistant_candidates"):
-            for value in _as_list(pack.get(role_key)):
-                skill_id = str(value).strip()
-                if not skill_id:
-                    continue
-                record = index.setdefault(
-                    skill_id,
-                    {"packs": set(), "route_authority": set(), "stage_assistant": set(), "defaults": set()},
-                )
-                record["packs"].add(pack_id)
-                if role_key == "route_authority_candidates":
-                    record["route_authority"].add(pack_id)
-                if role_key == "stage_assistant_candidates":
-                    record["stage_assistant"].add(pack_id)
+        for value in _as_list(pack.get("skill_candidates")):
+            skill_id = str(value).strip()
+            if not skill_id:
+                continue
+            record = index.setdefault(skill_id, {"packs": set(), "defaults": set()})
+            record["packs"].add(pack_id)
         defaults_by_task = pack.get("defaults_by_task")
         if isinstance(defaults_by_task, dict):
             for value in defaults_by_task.values():
                 skill_id = str(value).strip()
                 if not skill_id:
                     continue
-                record = index.setdefault(
-                    skill_id,
-                    {"packs": set(), "route_authority": set(), "stage_assistant": set(), "defaults": set()},
-                )
+                record = index.setdefault(skill_id, {"packs": set(), "defaults": set()})
                 record["packs"].add(pack_id)
                 record["defaults"].add(pack_id)
     return index
 
 
 def _current_role(record: dict[str, set[str]]) -> str:
-    if record["route_authority"]:
-        return "route_authority"
-    if record["stage_assistant"]:
-        return "stage_assistant"
     if record["defaults"]:
         return "default"
     return "candidate"
@@ -382,7 +369,7 @@ def audit_bio_science_problem_map(repo_root: Path) -> ProblemMapArtifact:
     for skill_id in skill_ids:
         record = pack_index.get(
             skill_id,
-            {"packs": set(), "route_authority": set(), "stage_assistant": set(), "defaults": set()},
+            {"packs": set(), "defaults": set()},
         )
         decision = _decision_for(skill_id)
         skill_dir = repo_root / "bundled" / "skills" / skill_id
@@ -424,17 +411,17 @@ def _write_problem_markdown(path: Path, artifact: ProblemMapArtifact) -> None:
         "",
         f"- Generated At: `{artifact.generated_at}`",
         f"- Current Bio-Science Skills: {len(artifact.rows)}",
-        f"- Target Route Authorities: {len(route_rows)}",
-        f"- Stage assistants: {len(stage_rows)}",
+        f"- Target Routing Skills: {len(route_rows)}",
+        f"- Retired stage candidates: {len(stage_rows)}",
         f"- Manual Review: {len(manual_rows)}",
         f"- Merge/Delete After Migration: {len(merge_rows)}",
         "",
-        "## Route Authorities",
+        "## Routing Skills",
         "",
     ]
     lines.extend(_markdown_table(route_rows, ["skill_id", "primary_problem_id", "current_role", "overlap_with", "rationale"]))
     if stage_rows:
-        lines.extend(["", "## Stage Assistants", ""])
+        lines.extend(["", "## Retired Stage Candidates", ""])
         lines.extend(_markdown_table(stage_rows, ["skill_id", "primary_problem_id", "target_owner", "unique_assets", "rationale"]))
     lines.extend(["", "## Manual Review", ""])
     if manual_rows:

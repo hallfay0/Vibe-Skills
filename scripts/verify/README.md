@@ -38,6 +38,7 @@ pwsh -NoProfile -File .\..\governance\phase-end-cleanup.ps1 -WriteArtifacts -Inc
 ```powershell
 & ".\vibe-pack-routing-smoke.ps1"
 & ".\vibe-router-contract-gate.ps1"
+& ".\vibe-current-routing-debt-gate.ps1" -WriteArtifacts
 & ".\vibe-version-packaging-gate.ps1" -WriteArtifacts
 & ".\vibe-output-artifact-boundary-gate.ps1" -WriteArtifacts
 & ".\vibe-installed-runtime-freshness-gate.ps1" -WriteReceipt
@@ -51,6 +52,12 @@ Routing stability:
 
 ```powershell
 & ".\vibe-routing-stability-gate.ps1" -WriteArtifacts
+```
+
+Current routing debt:
+
+```powershell
+& ".\vibe-current-routing-debt-gate.ps1" -WriteArtifacts
 ```
 
 Repo cleanliness:
