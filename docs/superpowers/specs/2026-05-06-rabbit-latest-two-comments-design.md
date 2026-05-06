@@ -4,8 +4,7 @@
 
 PR 228 has two newly unresolved CodeRabbit inline threads after the previous
 latest-three-comments patch landed on the remote branch. The branch is
-`review/pr226-pr227-combined` in the worktree
-`F:\vibe\Vibe-Skills\.worktrees\pr226-pr227-combined`.
+`review/pr226-pr227-combined`.
 
 This design covers only the two currently unresolved actionable threads:
 

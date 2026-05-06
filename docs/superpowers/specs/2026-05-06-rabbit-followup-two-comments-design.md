@@ -3,8 +3,7 @@
 ## Context
 
 PR 228 has two unresolved CodeRabbit inline threads after the previous review
-cleanup. The branch is `review/pr226-pr227-combined` in the worktree
-`F:\vibe\Vibe-Skills\.worktrees\pr226-pr227-combined`.
+cleanup. The branch is `review/pr226-pr227-combined`.
 
 The fix is intentionally narrow: address only the two still-unresolved,
 actionable comments and avoid unrelated installer refactoring or optional

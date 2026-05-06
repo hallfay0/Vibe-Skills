@@ -3,8 +3,7 @@
 ## Context
 
 PR 228 has three unresolved CodeRabbit inline threads after the previous
-follow-up patch. The branch is `review/pr226-pr227-combined` in the worktree
-`F:\vibe\Vibe-Skills\.worktrees\pr226-pr227-combined`.
+follow-up patch. The branch is `review/pr226-pr227-combined`.
 
 This design covers only the three currently unresolved actionable threads:
 
