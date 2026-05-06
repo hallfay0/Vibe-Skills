@@ -579,6 +579,47 @@ class TestBaselineAuditCliTests(unittest.TestCase):
         self.assertIn("partial stdout", result["stdout"])
         self.assertIn("partial stderr", result["stderr"])
 
+    def test_main_reports_missing_policy_without_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            missing_policy = Path(tempdir) / "missing-policy.json"
+            stderr = tempfile.TemporaryFile(mode="w+", encoding="utf-8")
+            try:
+                original_stderr = sys.stderr
+                sys.stderr = stderr
+                exit_code = audit.main(["--policy", str(missing_policy), "--collect-only"], runner=FakeRunner())
+            finally:
+                sys.stderr = original_stderr
+            stderr.seek(0)
+            message = stderr.read()
+            stderr.close()
+
+        self.assertEqual(2, exit_code)
+        self.assertIn("[ERROR]", message)
+        self.assertIn("missing-policy.json", message)
+        self.assertNotIn("Traceback", message)
+
+    def test_main_reports_collection_failure_without_traceback(self) -> None:
+        class FailingCollectRunner(FakeRunner):
+            def __call__(self, command: list[str], **kwargs: object) -> FakeCompletedProcess:
+                self.calls.append({"command": command, "kwargs": kwargs})
+                return FakeCompletedProcess(command, returncode=2, stdout="", stderr="collection failed")
+
+        stderr = tempfile.TemporaryFile(mode="w+", encoding="utf-8")
+        try:
+            original_stderr = sys.stderr
+            sys.stderr = stderr
+            exit_code = audit.main(["--collect-only"], runner=FailingCollectRunner())
+        finally:
+            sys.stderr = original_stderr
+        stderr.seek(0)
+        message = stderr.read()
+        stderr.close()
+
+        self.assertEqual(1, exit_code)
+        self.assertIn("[ERROR]", message)
+        self.assertIn("pytest collection failed", message)
+        self.assertNotIn("Traceback", message)
+
     def test_script_entrypoint_runs_collect_only(self) -> None:
         completed = subprocess.run(
             [

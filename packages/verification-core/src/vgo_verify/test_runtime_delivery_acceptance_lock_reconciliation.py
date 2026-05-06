@@ -119,6 +119,25 @@ def test_selected_lock_reconciliation_does_not_require_candidates_or_advice():
     assert "rejected-only" not in lists["required"]
 
 
+def test_selected_lock_reconciliation_passes_when_no_active_lock_is_present():
+    runtime_packet = {
+        "specialist_decision": {
+            "approved_dispatch_skill_ids": [
+                "systematic-debugging",
+            ]
+        },
+    }
+    lock: dict[str, object] = {}
+
+    state, notes, lists = _evaluate_selected_lock_reconciliation(runtime_packet, lock)
+
+    assert state == "passing"
+    assert notes == ["No active specialist execution lock was present."]
+    assert lists["required"] == ["systematic-debugging"]
+    assert lists["locked"] == []
+    assert lists["missing"] == []
+
+
 def test_specialist_lock_resolution_ignores_stale_resolution_buckets():
     skill_execution_lock = {
         "state": "active",

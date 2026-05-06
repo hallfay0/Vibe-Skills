@@ -190,27 +190,27 @@ def _load_skill_execution_lock(
     execution_manifest: dict[str, Any],
 ) -> dict[str, Any]:
     manifest_lock = execution_manifest.get("skill_execution_lock")
-    if isinstance(manifest_lock, dict):
+    if isinstance(manifest_lock, dict) and manifest_lock:
         return manifest_lock
     accounting = execution_manifest.get("specialist_accounting")
     if isinstance(accounting, dict):
         accounting_lock = accounting.get("skill_execution_lock")
-        if isinstance(accounting_lock, dict):
+        if isinstance(accounting_lock, dict) and accounting_lock:
             return accounting_lock
     packet_lock = runtime_packet.get("skill_execution_lock")
-    if isinstance(packet_lock, dict):
+    if isinstance(packet_lock, dict) and packet_lock:
         return packet_lock
     return {}
 
 
 def _load_specialist_lock_resolution(execution_manifest: dict[str, Any]) -> dict[str, Any]:
     manifest_resolution = execution_manifest.get("specialist_lock_resolution")
-    if isinstance(manifest_resolution, dict):
+    if isinstance(manifest_resolution, dict) and manifest_resolution:
         return manifest_resolution
     accounting = execution_manifest.get("specialist_accounting")
     if isinstance(accounting, dict):
         accounting_resolution = accounting.get("specialist_lock_resolution")
-        if isinstance(accounting_resolution, dict):
+        if isinstance(accounting_resolution, dict) and accounting_resolution:
             return accounting_resolution
     return {}
 
@@ -283,18 +283,22 @@ def _evaluate_selected_lock_reconciliation(
     )
     required_skill_ids = _normalize_unique_string_list([*selected_skill_ids, *approved_skill_ids])
     locked_skill_ids = _locked_skill_ids(skill_execution_lock)
+    lock_active = str(skill_execution_lock.get("state") or "").strip().lower() == "active"
     locked_set = set(locked_skill_ids)
-    missing_skill_ids = [skill_id for skill_id in required_skill_ids if skill_id not in locked_set]
     lists = {
         "required": required_skill_ids,
         "selected": selected_skill_ids,
         "approved": approved_skill_ids,
         "locked": locked_skill_ids,
-        "missing": missing_skill_ids,
+        "missing": [],
     }
 
     if not required_skill_ids:
         return "passing", ["No selected/approved specialist execution obligations were present."], lists
+    if not lock_active:
+        return "passing", ["No active specialist execution lock was present."], lists
+    missing_skill_ids = [skill_id for skill_id in required_skill_ids if skill_id not in locked_set]
+    lists["missing"] = missing_skill_ids
     if missing_skill_ids:
         return (
             "manual_review_required",

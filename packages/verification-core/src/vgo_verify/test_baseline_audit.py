@@ -22,6 +22,10 @@ class PolicyError(ValueError):
     """Raised when the test baseline policy is malformed."""
 
 
+CONFIG_ERROR_EXIT_CODE = 2
+RUNTIME_ERROR_EXIT_CODE = 1
+
+
 def load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
@@ -637,44 +641,57 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def main(argv: list[str] | None = None, runner=subprocess.run) -> int:
-    args = parse_args(argv or sys.argv[1:])
-    repo_root = resolve_repo_root(Path(__file__))
-    policy_path = (repo_root / args.policy).resolve()
-    policy = load_policy(policy_path)
-    collected_nodes, collection_results = run_collect_commands(repo_root, policy, runner=runner)
-    run_result = None
-    if args.run_layer and not args.collect_only:
-        def print_progress(message: str) -> None:
-            print(message, flush=True)
+def _print_cli_error(message: str) -> None:
+    print(f"[ERROR] {message}", file=sys.stderr)
 
-        run_result = run_layer(
-            repo_root,
-            policy,
-            args.run_layer,
+
+def main(argv: list[str] | None = None, runner=subprocess.run) -> int:
+    try:
+        args = parse_args(argv or sys.argv[1:])
+        repo_root = resolve_repo_root(Path(__file__))
+        policy_path = (repo_root / args.policy).resolve()
+        if not policy_path.exists():
+            raise PolicyError(f"Policy file not found: {policy_path}")
+        policy = load_policy(policy_path)
+        collected_nodes, collection_results = run_collect_commands(repo_root, policy, runner=runner)
+        run_result = None
+        if args.run_layer and not args.collect_only:
+            def print_progress(message: str) -> None:
+                print(message, flush=True)
+
+            run_result = run_layer(
+                repo_root,
+                policy,
+                args.run_layer,
+                collected_nodes=collected_nodes,
+                runner=runner,
+                progress=print_progress,
+            )
+        artifact = build_artifact(
+            repo_root=repo_root,
+            policy_path=policy_path,
+            policy=policy,
             collected_nodes=collected_nodes,
-            runner=runner,
-            progress=print_progress,
+            collection_results=collection_results,
+            run_result=run_result,
         )
-    artifact = build_artifact(
-        repo_root=repo_root,
-        policy_path=policy_path,
-        policy=policy,
-        collected_nodes=collected_nodes,
-        collection_results=collection_results,
-        run_result=run_result,
-    )
-    if args.write_artifacts:
-        write_artifacts(repo_root, artifact, args.output_directory, policy=policy)
-    print(
-        f"[INFO] total_nodes={artifact['summary']['total_nodes']} "
-        f"layers={artifact['summary']['layer_count']} "
-        f"risks={artifact['summary']['risk_tag_count']}"
-    )
-    if run_result is not None:
-        print(f"[INFO] run_layer={run_result['layer_id']} exit_code={run_result['exit_code']}")
-        return int(run_result["exit_code"])
-    return 0
+        if args.write_artifacts:
+            write_artifacts(repo_root, artifact, args.output_directory, policy=policy)
+        print(
+            f"[INFO] total_nodes={artifact['summary']['total_nodes']} "
+            f"layers={artifact['summary']['layer_count']} "
+            f"risks={artifact['summary']['risk_tag_count']}"
+        )
+        if run_result is not None:
+            print(f"[INFO] run_layer={run_result['layer_id']} exit_code={run_result['exit_code']}")
+            return int(run_result["exit_code"])
+        return 0
+    except (PolicyError, json.JSONDecodeError) as exc:
+        _print_cli_error(str(exc))
+        return CONFIG_ERROR_EXIT_CODE
+    except (RuntimeError, OSError) as exc:
+        _print_cli_error(str(exc))
+        return RUNTIME_ERROR_EXIT_CODE
 
 
 if __name__ == "__main__":
