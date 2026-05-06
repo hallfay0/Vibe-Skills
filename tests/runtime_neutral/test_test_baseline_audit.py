@@ -487,6 +487,18 @@ class TestBaselineAuditCliTests(unittest.TestCase):
             run_calls[0]["command"],
         )
 
+    def test_run_layer_raises_policy_error_for_unknown_layer_without_collected_nodes(self) -> None:
+        policy = copy.deepcopy(audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json"))
+
+        with self.assertRaisesRegex(audit.PolicyError, "Unknown layer id: missing_layer"):
+            audit.run_layer(
+                REPO_ROOT,
+                policy,
+                "missing_layer",
+                collected_nodes=None,
+                runner=FakeRunner(),
+            )
+
     def test_run_layer_file_serial_strategy_records_per_file_results(self) -> None:
         policy = copy.deepcopy(audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json"))
         layers = {layer["id"]: layer for layer in policy["layers"]}
