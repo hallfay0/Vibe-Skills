@@ -55,67 +55,57 @@ rg -n "host approved additions|host-approved additions" docs/superpowers/plans/2
 
 Expected: only `host-approved additions` appears.
 
-### Task 2: Remove Unused Installer Helper
+### Task 2: Confirm The Installer Helper Is Already Gone
 
 **Files:**
-- Modify: `scripts/install/Install-VgoAdapter.ps1:204-214`
+- Modify: `docs/superpowers/plans/2026-05-06-rabbit-followup-two-comments.md`
 
-- [ ] **Step 1: Confirm the helper is unreferenced**
-
-Run:
-
-```powershell
-rg -n "Test-VgoSkillEntryPoint" scripts tests packages -S
-```
-
-Expected before the edit: only the definition in `scripts/install/Install-VgoAdapter.ps1` appears.
-
-- [ ] **Step 2: Remove the unused function block**
-
-Delete this block from `scripts/install/Install-VgoAdapter.ps1`:
-
-```powershell
-function Test-VgoSkillEntryPoint {
-    param([string]$SkillRoot)
-
-    if ([string]::IsNullOrWhiteSpace($SkillRoot)) {
-        return $false
-    }
-    return (
-        (Test-Path -LiteralPath (Join-Path $SkillRoot 'SKILL.md') -PathType Leaf) -or
-        (Test-Path -LiteralPath (Join-Path $SkillRoot 'SKILL.runtime-mirror.md') -PathType Leaf)
-    )
-}
-```
-
-- [ ] **Step 3: Verify no stale helper references remain**
+- [ ] **Step 1: Confirm the helper is absent**
 
 Run:
 
 ```powershell
-rg -n "Test-VgoSkillEntryPoint" scripts tests packages -S
+rg -n "Test-VgoSkillEntryPoint" scripts/install/Install-VgoAdapter.ps1 scripts tests packages -S
 ```
 
-Expected after the edit: no code or test matches. The design and implementation
-plan may still mention the removed helper by name.
+Expected: no matches. `Test-VgoSkillEntryPoint` is not present in the current
+installer codebase.
+
+- [ ] **Step 2: Record the no-op conclusion**
+
+Replace the old removal instructions with a short explanation that the earlier
+review item no longer applies because the helper is already absent from current
+installer code.
+
+- [ ] **Step 3: Verify the updated task is self-consistent**
+
+Run:
+
+```powershell
+rg -n "Test-VgoSkillEntryPoint|no-op|already absent|Remove Unused Installer Helper" docs/superpowers/plans/2026-05-06-rabbit-followup-two-comments.md
+```
+
+Expected: the file still names `Test-VgoSkillEntryPoint`, explains the no-op
+state, and no longer uses the heading `Remove Unused Installer Helper`.
 
 ### Task 3: Validate and Commit
 
 **Files:**
 - Check: `docs/superpowers/plans/2026-05-06-rabbit-review-followup.md`
-- Check: `scripts/install/Install-VgoAdapter.ps1`
 - Check: `docs/superpowers/specs/2026-05-06-rabbit-followup-two-comments-design.md`
 - Check: `docs/superpowers/plans/2026-05-06-rabbit-followup-two-comments.md`
 
-- [ ] **Step 1: Run targeted installer test**
+- [ ] **Step 1: Run targeted documentation-state checks**
 
 Run:
 
 ```powershell
-pytest tests/runtime_neutral/test_generated_nested_bundled.py::InstallTimeGeneratedNestedBundledTests::test_powershell_fallback_in_place_internal_corpus_prunes_and_sanitizes -q
+rg -n "host approved additions|host-approved additions" docs/superpowers/plans/2026-05-06-rabbit-review-followup.md
+rg -n "Test-VgoSkillEntryPoint" scripts/install/Install-VgoAdapter.ps1 scripts tests packages -S
 ```
 
-Expected: the targeted pytest test passes.
+Expected: only `host-approved additions` appears in the follow-up review plan,
+and the repository search returns no code matches for `Test-VgoSkillEntryPoint`.
 
 - [ ] **Step 2: Run whitespace validation**
 
@@ -133,11 +123,12 @@ Run:
 
 ```powershell
 git status --short
-git add -- docs/superpowers/plans/2026-05-06-rabbit-review-followup.md scripts/install/Install-VgoAdapter.ps1 docs/superpowers/plans/2026-05-06-rabbit-followup-two-comments.md
-git commit -m "fix: resolve rabbit follow-up inline comments"
+git add -- docs/superpowers/plans/2026-05-06-rabbit-review-followup.md docs/superpowers/specs/2026-05-06-rabbit-followup-two-comments-design.md docs/superpowers/plans/2026-05-06-rabbit-followup-two-comments.md
+git commit -m "docs: align rabbit follow-up two-comment docs"
 ```
 
-Expected: a commit containing the wording fix, helper removal, and this implementation plan.
+Expected: a commit containing the wording fix, the no-op helper conclusion, and
+the aligned implementation-plan text.
 
 ### Task 4: Update PR Branch and Verify GitHub State
 
