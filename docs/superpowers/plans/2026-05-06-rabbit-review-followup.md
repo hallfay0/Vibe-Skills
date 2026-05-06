@@ -116,7 +116,7 @@ Run the same pytest command. Expected: all tests in the file pass.
 Update the missing retired consultation helper test so the fallback returns
 without failure and yields `$null`. Add execution lock tests showing deferred
 or rejected host decisions are excluded from current selected records, previous
-lock rehydration, and host approved additions.
+lock rehydration, and host-approved additions.
 
 - [ ] **Step 2: Run failing tests**
 

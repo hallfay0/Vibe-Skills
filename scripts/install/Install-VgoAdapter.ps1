@@ -201,18 +201,6 @@ function Convert-SkillEntryPointToRuntimeMirror {
     }
 }
 
-function Test-VgoSkillEntryPoint {
-    param([string]$SkillRoot)
-
-    if ([string]::IsNullOrWhiteSpace($SkillRoot)) {
-        return $false
-    }
-    return (
-        (Test-Path -LiteralPath (Join-Path $SkillRoot 'SKILL.md') -PathType Leaf) -or
-        (Test-Path -LiteralPath (Join-Path $SkillRoot 'SKILL.runtime-mirror.md') -PathType Leaf)
-    )
-}
-
 function Get-VgoPlatformTag {
     if ([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)) {
         return 'windows'
