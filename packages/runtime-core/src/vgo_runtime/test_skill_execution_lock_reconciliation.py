@@ -20,18 +20,28 @@ def _powershell_executable() -> str:
     pytest.skip("PowerShell executable was not found on PATH.")
 
 
+def _powershell_single_quoted_path(path: Path) -> str:
+    return str(path).replace("'", "''")
+
+
+def test_powershell_single_quoted_path_escapes_apostrophes():
+    assert _powershell_single_quoted_path(Path(r"C:\Users\O'Brien\repo\file.ps1")) == r"C:\Users\O''Brien\repo\file.ps1"
+
+
 def _run_projection(script_body: str) -> dict:
     with tempfile.TemporaryDirectory() as tmp_dir:
         script_path = Path(tmp_dir) / "run-lock-projection.ps1"
         skill_routing_common = REPO_ROOT / "scripts" / "runtime" / "VibeSkillRouting.Common.ps1"
         runtime_common = REPO_ROOT / "scripts" / "runtime" / "VibeRuntime.Common.ps1"
+        skill_routing_common_ps = _powershell_single_quoted_path(skill_routing_common)
+        runtime_common_ps = _powershell_single_quoted_path(runtime_common)
         script_path.write_text(
             textwrap.dedent(
                 f"""
                 $ErrorActionPreference = 'Stop'
                 Set-StrictMode -Version Latest
-                . '{skill_routing_common}'
-                . '{runtime_common}'
+                . '{skill_routing_common_ps}'
+                . '{runtime_common_ps}'
                 {script_body}
                 """
             ),

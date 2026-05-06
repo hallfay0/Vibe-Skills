@@ -448,6 +448,33 @@ class TestBaselineAuditCliTests(unittest.TestCase):
         self.assertNotIn("tests/runtime_neutral/test_install_profile_differentiation.py", command)
         self.assertNotIn("tests/runtime_neutral", command)
 
+    def test_build_run_layer_command_preserves_pytest_options_when_narrowing_to_files(self) -> None:
+        policy = copy.deepcopy(audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json"))
+        layers = {layer["id"]: layer for layer in policy["layers"]}
+        layers["runtime_neutral_fast"]["pytest_args"] = [
+            "tests/runtime_neutral",
+            "-k",
+            "runtime_contracts",
+            "--maxfail=1",
+        ]
+        nodes = [
+            "tests/runtime_neutral/test_runtime_contracts.py::test_contract_shape",
+            "tests/runtime_neutral/test_install_profile_differentiation.py::test_profile",
+        ]
+
+        command = audit.build_run_layer_command(
+            policy,
+            "runtime_neutral_fast",
+            repo_root=REPO_ROOT,
+            collected_nodes=nodes,
+        )
+
+        self.assertIn("-k", command)
+        self.assertEqual("runtime_contracts", command[command.index("-k") + 1])
+        self.assertIn("--maxfail=1", command)
+        self.assertIn("tests/runtime_neutral/test_runtime_contracts.py", command)
+        self.assertNotIn("tests/runtime_neutral", command)
+
     def test_run_layer_accepts_policy_defined_heavy_sublayer(self) -> None:
         runner = FakeRunner()
         exit_code = audit.main(["--run-layer", "runtime_neutral_heavy_runtime"], runner=runner)

@@ -82,6 +82,49 @@ def build_pytest_command(pytest_args: list[str], *, collect_only: bool = False, 
     return command
 
 
+PYTEST_OPTIONS_WITH_VALUE = {
+    "-c",
+    "-k",
+    "-m",
+    "--basetemp",
+    "--confcutdir",
+    "--deselect",
+    "--ignore",
+    "--ignore-glob",
+    "--rootdir",
+}
+
+
+def pytest_arg_targets_repo_path(arg: str, repo_root: Path) -> bool:
+    if not arg or arg.startswith("-"):
+        return False
+    selector_path = arg.split("::", 1)[0]
+    candidate = Path(selector_path)
+    if not candidate.is_absolute():
+        candidate = repo_root / selector_path
+    return candidate.exists()
+
+
+def preserved_pytest_args_when_narrowing(pytest_args: list[str], repo_root: Path) -> list[str]:
+    preserved: list[str] = []
+    preserve_next = False
+    for arg in pytest_args:
+        if preserve_next:
+            preserved.append(arg)
+            preserve_next = False
+            continue
+        if arg.startswith("-"):
+            preserved.append(arg)
+            option_name = arg.split("=", 1)[0]
+            if "=" not in arg and option_name in PYTEST_OPTIONS_WITH_VALUE:
+                preserve_next = True
+            continue
+        if pytest_arg_targets_repo_path(arg, repo_root):
+            continue
+        preserved.append(arg)
+    return preserved
+
+
 def build_pytest_env(repo_root: Path, policy: dict[str, Any]) -> tuple[dict[str, str], str]:
     env = dict(os.environ)
     disable_env = str((policy.get("defaults") or {}).get("disable_network_env") or "VIBESKILLS_TEST_DISABLE_NETWORK")
@@ -448,7 +491,7 @@ def build_run_layer_command(
         selected_files = select_layer_files(collected_nodes, repo_root, policy, layer_id)
         if not selected_files:
             raise PolicyError(f"No collected tests matched layer id: {layer_id}")
-        pytest_args = selected_files
+        pytest_args = [*preserved_pytest_args_when_narrowing(pytest_args, repo_root), *selected_files]
 
     return build_pytest_command(pytest_args, quiet=quiet)
 
