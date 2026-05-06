@@ -263,6 +263,18 @@ class GeneratedNestedBundledTests(unittest.TestCase):
         self.assertFalse((nested_root / "config" / "extra.json").exists())
 
 
+class PowerShellInstallerScriptContractTests(unittest.TestCase):
+    def test_hidden_entrypoints_normalize_existing_visible_entrypoint_before_missing_check(self) -> None:
+        text = PS_INSTALLER.read_text(encoding="utf-8")
+        start = text.index("function Ensure-SkillPresent")
+        hidden_start = text.index("if ($HiddenEntryPoints) {", start)
+        visible_start = text.index("} else {", hidden_start)
+        hidden_branch = text[hidden_start:visible_start]
+
+        self.assertIn("Convert-SkillEntryPointToRuntimeMirror -SkillRoot $targetSkillRoot", hidden_branch)
+        self.assertGreaterEqual(hidden_branch.count("SKILL.runtime-mirror.md"), 2)
+
+
 class InstallTimeGeneratedNestedBundledTests(unittest.TestCase):
     def setUp(self) -> None:
         self.powershell = resolve_powershell()

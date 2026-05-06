@@ -466,16 +466,30 @@ def run_layer(
         return run_layer_file_serial(repo_root, policy, layer_id, selected_files, runner=runner, progress=progress)
     command = build_run_layer_command(policy, layer_id, repo_root=repo_root, collected_nodes=collected_nodes)
     env, disable_env = build_pytest_env(repo_root, policy)
-    completed = runner(
-        command,
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        timeout=int(layer.get("timeout_seconds") or 300),
-        env=env,
-    )
+    timeout_seconds = int(layer.get("timeout_seconds") or 300)
+    try:
+        completed = runner(
+            command,
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout_seconds,
+            env=env,
+        )
+    except subprocess.TimeoutExpired as exc:
+        return {
+            "layer_id": layer_id,
+            "command": command,
+            "exit_code": 124,
+            "stdout": timeout_stream_to_text(getattr(exc, "stdout", None) or getattr(exc, "output", None)),
+            "stderr": timeout_stream_to_text(getattr(exc, "stderr", None)),
+            "disable_network_env": disable_env,
+            "selected_files": selected_files,
+            "selected_file_count": len(selected_files),
+            "timeout_seconds": timeout_seconds,
+        }
     return {
         "layer_id": layer_id,
         "command": command,

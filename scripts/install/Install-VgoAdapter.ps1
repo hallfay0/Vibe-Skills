@@ -888,6 +888,8 @@ function Ensure-SkillPresent {
     $targetSkillRoot = Join-Path $DestinationRoot $Name
     if ($HiddenEntryPoints) {
         if (Test-Path -LiteralPath (Join-Path $targetSkillRoot 'SKILL.runtime-mirror.md') -PathType Leaf) { return }
+        Convert-SkillEntryPointToRuntimeMirror -SkillRoot $targetSkillRoot
+        if (Test-Path -LiteralPath (Join-Path $targetSkillRoot 'SKILL.runtime-mirror.md') -PathType Leaf) { return }
     } else {
         if (Test-Path -LiteralPath (Join-Path $targetSkillRoot 'SKILL.md') -PathType Leaf) { return }
         Restore-SkillEntryPointIfNeeded -SkillRoot $targetSkillRoot

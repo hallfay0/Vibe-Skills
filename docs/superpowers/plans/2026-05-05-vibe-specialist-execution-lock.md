@@ -601,7 +601,7 @@ function New-VibeSkillExecutionLockSummaryProjection {
     )
 
     $active = Test-VibeSkillExecutionLockActive -SkillExecutionLock $SkillExecutionLock
-    $lockedSkillIds = if ($active -and (Test-VibeObjectHasProperty -InputObject $SkillExecutionLock -PropertyName 'locked_skill_ids')) { @($SkillExecutionLock.locked_skill_ids) } else { @() }
+    $lockedSkillIds = if ($active) { @(Get-VibeSkillExecutionLockSkillIds -SkillExecutionLock $SkillExecutionLock) } else { @() }
     return [pscustomobject]@{
         active = [bool]$active
         locked_skill_count = @($lockedSkillIds).Count

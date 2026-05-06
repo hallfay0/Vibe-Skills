@@ -153,8 +153,14 @@ directory is pruned and selected skills have `SKILL.runtime-mirror.md`.
 
 - [ ] **Step 2: Run failing test**
 
-Run the focused installer test. Expected before implementation: stale children
-remain or selected entrypoints are not sanitized.
+Run:
+
+```powershell
+pytest tests/runtime_neutral/test_generated_nested_bundled.py::InstallTimeGeneratedNestedBundledTests::test_powershell_fallback_in_place_internal_corpus_prunes_and_sanitizes -q
+```
+
+Expected before implementation: stale children remain or selected entrypoints
+are not sanitized.
 
 - [ ] **Step 3: Implement installer fix**
 
@@ -165,7 +171,15 @@ destination are the same path, and always call
 
 - [ ] **Step 4: Verify**
 
-Run the focused installer test. Expected: pass.
+Run:
+
+```powershell
+pytest tests/runtime_neutral/test_generated_nested_bundled.py::InstallTimeGeneratedNestedBundledTests::test_powershell_fallback_in_place_internal_corpus_prunes_and_sanitizes -q
+```
+
+Expected: pass. This verifies the in-place path continues after
+`Add-VgoCreatedPath`, avoids a self-copy through `Copy-DirContent`, and still
+normalizes selected skills through `Convert-SkillEntryPointToRuntimeMirror`.
 
 ### Task 5: Documentation Snippet Alignment
 

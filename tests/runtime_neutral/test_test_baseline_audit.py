@@ -509,6 +509,28 @@ class TestBaselineAuditCliTests(unittest.TestCase):
         run_calls = [call for call in runner.calls if "--collect-only" not in call["command"]]
         self.assertEqual(5, run_calls[0]["kwargs"]["timeout"])
 
+    def test_run_layer_default_strategy_reports_timeout(self) -> None:
+        policy = copy.deepcopy(audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json"))
+        layers = {layer["id"]: layer for layer in policy["layers"]}
+        layers["contract_unit"]["timeout_seconds"] = 7
+
+        def timeout_runner(command: list[str], **kwargs: object) -> FakeCompletedProcess:
+            raise subprocess.TimeoutExpired(command, kwargs["timeout"], output="partial stdout", stderr="partial stderr")
+
+        result = audit.run_layer(
+            REPO_ROOT,
+            policy,
+            "contract_unit",
+            runner=timeout_runner,
+        )
+
+        self.assertEqual(124, result["exit_code"])
+        self.assertEqual(7, result["timeout_seconds"])
+        self.assertIn("partial stdout", result["stdout"])
+        self.assertIn("partial stderr", result["stderr"])
+        self.assertEqual([], result["selected_files"])
+        self.assertEqual(0, result["selected_file_count"])
+
     def test_run_layer_file_serial_strategy_emits_progress_events(self) -> None:
         policy = copy.deepcopy(audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json"))
         layers = {layer["id"]: layer for layer in policy["layers"]}
