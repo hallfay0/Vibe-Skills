@@ -62,8 +62,19 @@ def choose_authoritative_route(
     rows_by_pack = _row_by_pack_id(ranked)
     fallback_by_task = authority_policy.get("global_safe_fallback_by_task") or {}
     task_fallback = fallback_by_task.get(task_type) or {}
-    fallback_pack_id = normalize_text(task_fallback.get("pack_id") or top.get("fallback_owner_pack_id") or "")
-    fallback_skill = str(task_fallback.get("skill") or top.get("fallback_owner_skill") or "").strip()
+    top_authority_tier = normalize_text(str(top.get("authority_tier") or ""))
+    top_pack_fallback_pack_id = (
+        normalize_text(top.get("fallback_owner_pack_id") or "")
+        if top_authority_tier == "narrow_specialist"
+        else ""
+    )
+    top_pack_fallback_skill = (
+        str(top.get("fallback_owner_skill") or "").strip()
+        if top_authority_tier == "narrow_specialist"
+        else ""
+    )
+    fallback_pack_id = normalize_text(task_fallback.get("pack_id") or top_pack_fallback_pack_id or "")
+    fallback_skill = str(task_fallback.get("skill") or top_pack_fallback_skill or "").strip()
     fallback_row = rows_by_pack.get(fallback_pack_id)
 
     if fallback_row:

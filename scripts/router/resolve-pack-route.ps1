@@ -905,16 +905,17 @@ function Get-AuthorityRouteDecision {
     if ($AuthorityPolicy -and $AuthorityPolicy.global_safe_fallback_by_task -and ($AuthorityPolicy.global_safe_fallback_by_task.PSObject.Properties.Name -contains $TaskType)) {
         $taskFallback = $AuthorityPolicy.global_safe_fallback_by_task.$TaskType
     }
+    $topAuthorityTier = Normalize-Key -InputText ([string]$top.authority_tier)
     $fallbackPackId = if ($taskFallback -and $taskFallback.pack_id) {
         Normalize-Key -InputText ([string]$taskFallback.pack_id)
-    } elseif ($top.PSObject.Properties.Name -contains 'fallback_owner_pack_id' -and $top.fallback_owner_pack_id) {
+    } elseif ($topAuthorityTier -eq 'narrow_specialist' -and $top.PSObject.Properties.Name -contains 'fallback_owner_pack_id' -and $top.fallback_owner_pack_id) {
         Normalize-Key -InputText ([string]$top.fallback_owner_pack_id)
     } else {
         ''
     }
     $fallbackSkill = if ($taskFallback -and $taskFallback.skill) {
         [string]$taskFallback.skill
-    } elseif ($top.PSObject.Properties.Name -contains 'fallback_owner_skill' -and $top.fallback_owner_skill) {
+    } elseif ($topAuthorityTier -eq 'narrow_specialist' -and $top.PSObject.Properties.Name -contains 'fallback_owner_skill' -and $top.fallback_owner_skill) {
         [string]$top.fallback_owner_skill
     } else {
         ''

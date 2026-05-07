@@ -32,6 +32,13 @@ def selected(result: dict[str, object]) -> tuple[str, str]:
     return str(selected_row.get("pack_id") or ""), str(selected_row.get("skill") or "")
 
 
+def selected_pack_or_none(result: dict[str, object]) -> str | None:
+    selected_row = result.get("selected")
+    if not isinstance(selected_row, dict):
+        return None
+    return str(selected_row.get("pack_id") or "") or None
+
+
 def ranked_summary(result: dict[str, object]) -> list[tuple[str, str, float, str]]:
     ranked = result.get("ranked")
     assert isinstance(ranked, list), result
@@ -55,13 +62,9 @@ class DocsResearchPublishingBoundaryRoutingTests(unittest.TestCase):
         self.assertEqual((expected_pack, expected_skill), selected(result), ranked_summary(result))
 
     def test_existing_pdf_extraction_routes_to_pdf(self) -> None:
-        self.assert_selected(
-            "读取 PDF 并提取正文",
-            "docs-media",
-            "pdf",
-            grade="XL",
-            task_type="coding",
-        )
+        result = route("读取 PDF 并提取正文", grade="XL", task_type="coding")
+        self.assertEqual(("docs-media", "pdf"), selected(result))
+        self.assertFalse(bool(result.get("fallback_applied")))
 
     def test_pdf_to_markdown_routes_to_markitdown(self) -> None:
         self.assert_selected(
@@ -73,13 +76,9 @@ class DocsResearchPublishingBoundaryRoutingTests(unittest.TestCase):
         )
 
     def test_latex_manuscript_pdf_build_routes_to_latex_pipeline(self) -> None:
-        self.assert_selected(
-            "用 LaTeX 写论文并构建 PDF",
-            "scholarly-publishing-workflow",
-            "latex-submission-pipeline",
-            grade="XL",
-            task_type="coding",
-        )
+        result = route("用 LaTeX 写论文并构建 PDF", grade="XL", task_type="coding")
+        self.assertEqual(("scholarly-publishing-workflow", "latex-submission-pipeline"), selected(result))
+        self.assertFalse(bool(result.get("fallback_applied")))
 
     def test_scientific_report_routes_to_science_reporting(self) -> None:
         self.assert_selected(
@@ -137,7 +136,7 @@ class DocsResearchPublishingBoundaryRoutingTests(unittest.TestCase):
 
     def test_generic_xlsx_docx_parallel_prompt_is_not_docs_media_without_explicit_file_operation(self) -> None:
         result = route("xlsx and docx parallel processing", grade="XL", task_type="coding")
-        self.assertNotEqual("docs-media", selected(result)[0], ranked_summary(result))
+        self.assertNotEqual("docs-media", selected_pack_or_none(result), ranked_summary(result))
 
     def test_explicit_requested_xlsx_still_routes_to_docs_media_in_xl(self) -> None:
         self.assert_selected(
