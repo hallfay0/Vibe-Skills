@@ -31,6 +31,17 @@ INTERNAL_CANDIDATE_USABLE = "_candidate_usable"
 INTERNAL_SELECTION_USABLE = "_selection_usable"
 
 
+def _pack_authority_tier(pack: dict[str, Any]) -> str:
+    return normalize_text(pack.get("authority_tier")) or "broad_owner"
+
+
+def _rule_keyword_list(rule: dict[str, Any], key: str) -> list[Any]:
+    values = rule.get(key) or []
+    if isinstance(values, list):
+        return values
+    return [values]
+
+
 def public_candidate_row(row: dict[str, Any]) -> dict[str, Any]:
     public = dict(row)
     public.pop(INTERNAL_CANDIDATE_USABLE, None)
@@ -83,6 +94,12 @@ def select_pack_candidate(
     positive_bonus = float(candidate_selection_config.get("rule_positive_keyword_bonus", 0.2))
     negative_penalty = float(candidate_selection_config.get("rule_negative_keyword_penalty", 0.25))
     canonical_bonus = float(candidate_selection_config.get("canonical_for_task_bonus", 0.12))
+    authority_cfg = candidate_selection_config.get("authority") or {}
+    supporting_keyword_weight = float(authority_cfg.get("supporting_keyword_weight", 0.35))
+    default_requires_positive_keyword_match_for_narrow = bool(
+        authority_cfg.get("default_requires_positive_keyword_match_for_narrow", False)
+    )
+    pack_authority_tier = _pack_authority_tier(pack)
 
     rules = (routing_rules.get("skills") or {}) if routing_rules else {}
     rules_by_skill = {
@@ -113,9 +130,13 @@ def select_pack_candidate(
                         "score": 1.0,
                         "keyword_score": 1.0,
                         "name_score": 1.0,
+                        "authority_keyword_score": 1.0,
+                        "supporting_keyword_score": 0.0,
                         "positive_score": 1.0,
                         "negative_score": 0.0,
                         "canonical_for_task_hit": 1.0,
+                        "pack_authority_tier": pack_authority_tier,
+                        "authority_guard_reason": None,
                         INTERNAL_CANDIDATE_USABLE: True,
                     }
                 ]),
@@ -152,14 +173,28 @@ def select_pack_candidate(
         name_score = candidate_name_score(prompt_lower, candidate)
 
         rule = rules_by_skill.get(candidate_key) or {}
-        positive_score = keyword_ratio(prompt_lower, rule.get("positive_keywords") or [])
+        authority_keywords = _rule_keyword_list(rule, "authority_keywords")
+        supporting_keywords = _rule_keyword_list(rule, "supporting_keywords")
+        authority_keyword_score = keyword_ratio(prompt_lower, authority_keywords)
+        supporting_keyword_score = keyword_ratio(prompt_lower, supporting_keywords)
+        if authority_keywords or supporting_keywords:
+            positive_score = min(1.0, authority_keyword_score + (supporting_keyword_weight * supporting_keyword_score))
+        else:
+            authority_keyword_score = keyword_ratio(prompt_lower, _rule_keyword_list(rule, "positive_keywords"))
+            supporting_keyword_score = 0.0
+            positive_score = authority_keyword_score
         negative_score = keyword_ratio(prompt_lower, rule.get("negative_keywords") or [])
         canonical_for_task = [normalize_text(item) for item in (rule.get("canonical_for_task") or [])]
         canonical_hit = 1.0 if task_type in canonical_for_task else 0.0
         use_eligible = True
+        authority_guard_reason = None
+        rule_has_positive_guard = "requires_positive_keyword_match" in rule
         requires_positive_keyword_match = bool(rule.get("requires_positive_keyword_match"))
-        if use_eligible and requires_positive_keyword_match and positive_score <= 0:
+        if pack_authority_tier == "narrow_specialist" and not rule_has_positive_guard:
+            requires_positive_keyword_match = default_requires_positive_keyword_match_for_narrow
+        if use_eligible and requires_positive_keyword_match and authority_keyword_score <= 0:
             use_eligible = False
+            authority_guard_reason = "missing_authority_keyword"
 
         score = (
             (weight_keyword * keyword_score)
@@ -175,9 +210,13 @@ def select_pack_candidate(
                 "score": score,
                 "keyword_score": round(keyword_score, 4),
                 "name_score": round(name_score, 4),
+                "authority_keyword_score": round(authority_keyword_score, 4),
+                "supporting_keyword_score": round(supporting_keyword_score, 4),
                 "positive_score": round(positive_score, 4),
                 "negative_score": round(negative_score, 4),
                 "canonical_for_task_hit": round(canonical_hit, 4),
+                "pack_authority_tier": pack_authority_tier,
+                "authority_guard_reason": authority_guard_reason,
                 INTERNAL_CANDIDATE_USABLE: use_eligible,
                 "requires_positive_keyword_match": requires_positive_keyword_match,
                 "ordinal": ordinal,
@@ -203,9 +242,13 @@ def select_pack_candidate(
                     "score": 1.0,
                     "keyword_score": 1.0,
                     "name_score": 1.0,
+                    "authority_keyword_score": 1.0,
+                    "supporting_keyword_score": 0.0,
                     "positive_score": 1.0,
                     "negative_score": 0.0,
                     "canonical_for_task_hit": 1.0,
+                    "pack_authority_tier": pack_authority_tier,
+                    "authority_guard_reason": None,
                     INTERNAL_CANDIDATE_USABLE: True,
                 }
             ]),

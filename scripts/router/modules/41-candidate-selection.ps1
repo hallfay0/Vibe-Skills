@@ -47,10 +47,45 @@ function Test-CandidateUsable {
     return $true
 }
 
+function Get-PackAuthorityTier {
+    param([AllowNull()] [object]$Pack)
+
+    if ($null -eq $Pack) {
+        return "broad_owner"
+    }
+
+    $tier = if ($Pack.PSObject.Properties.Name -contains 'authority_tier') {
+        Normalize-Key -InputText ([string]$Pack.authority_tier)
+    } else {
+        ""
+    }
+
+    if ([string]::IsNullOrWhiteSpace($tier)) {
+        return "broad_owner"
+    }
+    return $tier
+}
+
+function Get-RuleKeywordList {
+    param(
+        [AllowNull()] [object]$Rule,
+        [string]$PropertyName
+    )
+
+    if ($null -eq $Rule -or [string]::IsNullOrWhiteSpace($PropertyName)) {
+        return @()
+    }
+    if (-not ($Rule.PSObject.Properties.Name -contains $PropertyName)) {
+        return @()
+    }
+    return @($Rule.$PropertyName)
+}
+
 function New-RequestedSkillSelection {
     param(
         [string]$RequestedCandidate,
-        [object[]]$BlockedByTask
+        [object[]]$BlockedByTask,
+        [string]$PackAuthorityTier
     )
 
     return [pscustomobject]@{
@@ -63,9 +98,13 @@ function New-RequestedSkillSelection {
                 score = 1.0
                 keyword_score = 1.0
                 name_score = 1.0
+                authority_keyword_score = 1.0
+                supporting_keyword_score = 0.0
                 positive_score = 1.0
                 negative_score = 0.0
                 canonical_for_task_hit = 1.0
+                pack_authority_tier = $PackAuthorityTier
+                authority_guard_reason = $null
                 _candidate_usable = $true
             }
         ))
@@ -119,6 +158,8 @@ function Select-PackCandidate {
     $positiveBonus = 0.2
     $negativePenalty = 0.25
     $canonicalBonus = 0.12
+    $supportingKeywordWeight = 0.35
+    $defaultRequiresPositiveKeywordMatchForNarrow = $false
     if ($CandidateSelectionConfig) {
         if ($CandidateSelectionConfig.rule_positive_keyword_bonus -ne $null) {
             $positiveBonus = [double]$CandidateSelectionConfig.rule_positive_keyword_bonus
@@ -129,7 +170,16 @@ function Select-PackCandidate {
         if ($CandidateSelectionConfig.canonical_for_task_bonus -ne $null) {
             $canonicalBonus = [double]$CandidateSelectionConfig.canonical_for_task_bonus
         }
+        if ($CandidateSelectionConfig.authority) {
+            if ($CandidateSelectionConfig.authority.supporting_keyword_weight -ne $null) {
+                $supportingKeywordWeight = [double]$CandidateSelectionConfig.authority.supporting_keyword_weight
+            }
+            if ($CandidateSelectionConfig.authority.default_requires_positive_keyword_match_for_narrow -ne $null) {
+                $defaultRequiresPositiveKeywordMatchForNarrow = [bool]$CandidateSelectionConfig.authority.default_requires_positive_keyword_match_for_narrow
+            }
+        }
     }
+    $packAuthorityTier = Get-PackAuthorityTier -Pack $Pack
 
     $filteredCandidates = @()
     $blockedByTask = @()
@@ -146,7 +196,7 @@ function Select-PackCandidate {
 
     if ($filteredCandidates.Count -eq 0) {
         if ($requestedCandidate) {
-            return New-RequestedSkillSelection -RequestedCandidate $requestedCandidate -BlockedByTask @($blockedByTask)
+            return New-RequestedSkillSelection -RequestedCandidate $requestedCandidate -BlockedByTask @($blockedByTask) -PackAuthorityTier $packAuthorityTier
         }
         if ($defaultCandidate) {
             return [pscustomobject]@{
@@ -183,11 +233,23 @@ function Select-PackCandidate {
         $keywordScore = Get-SkillKeywordScore -PromptLower $PromptLower -Candidate $candidate -SkillKeywordIndex $SkillKeywordIndex
         $nameScore = Get-CandidateNameMatchScore -PromptLower $PromptLower -Candidate $candidate
 
+        $authorityKeywordScore = 0.0
+        $supportingKeywordScore = 0.0
         $positiveScore = 0.0
         $negativeScore = 0.0
         $equivalentGroup = $null
         if ($rule) {
-            $positiveScore = Get-KeywordRatio -PromptLower $PromptLower -Keywords @($rule.positive_keywords)
+            $authorityKeywords = @(Get-RuleKeywordList -Rule $rule -PropertyName 'authority_keywords')
+            $supportingKeywords = @(Get-RuleKeywordList -Rule $rule -PropertyName 'supporting_keywords')
+            $authorityKeywordScore = Get-KeywordRatio -PromptLower $PromptLower -Keywords $authorityKeywords
+            $supportingKeywordScore = Get-KeywordRatio -PromptLower $PromptLower -Keywords $supportingKeywords
+            if ($authorityKeywords.Count -gt 0 -or $supportingKeywords.Count -gt 0) {
+                $positiveScore = [Math]::Min(1.0, ([double]$authorityKeywordScore + ([double]$supportingKeywordWeight * [double]$supportingKeywordScore)))
+            } else {
+                $authorityKeywordScore = Get-KeywordRatio -PromptLower $PromptLower -Keywords @(Get-RuleKeywordList -Rule $rule -PropertyName 'positive_keywords')
+                $supportingKeywordScore = 0.0
+                $positiveScore = [double]$authorityKeywordScore
+            }
             $negativeScore = Get-KeywordRatio -PromptLower $PromptLower -Keywords @($rule.negative_keywords)
             if ($rule.equivalent_group) {
                 $equivalentGroup = [string]$rule.equivalent_group
@@ -197,11 +259,18 @@ function Select-PackCandidate {
         $canonicalHit = Get-CanonicalForTaskHit -Rule $rule -TaskType $TaskType
         $useEligible = $true
         $requiresPositiveKeywordMatch = $false
+        $authorityGuardReason = $null
+        $ruleHasPositiveGuard = $false
         if ($rule -and ($rule.PSObject.Properties.Name -contains 'requires_positive_keyword_match')) {
+            $ruleHasPositiveGuard = $true
             $requiresPositiveKeywordMatch = [bool]$rule.requires_positive_keyword_match
         }
-        if ($useEligible -and $requiresPositiveKeywordMatch -and ([double]$positiveScore -le 0.0)) {
+        if ($packAuthorityTier -eq 'narrow_specialist' -and -not $ruleHasPositiveGuard) {
+            $requiresPositiveKeywordMatch = [bool]$defaultRequiresPositiveKeywordMatchForNarrow
+        }
+        if ($useEligible -and $requiresPositiveKeywordMatch -and ([double]$authorityKeywordScore -le 0.0)) {
             $useEligible = $false
+            $authorityGuardReason = "missing_authority_keyword"
         }
 
         $score =
@@ -218,9 +287,13 @@ function Select-PackCandidate {
             score = [Math]::Round($score, 4)
             keyword_score = [Math]::Round($keywordScore, 4)
             name_score = [Math]::Round($nameScore, 4)
+            authority_keyword_score = [Math]::Round($authorityKeywordScore, 4)
+            supporting_keyword_score = [Math]::Round($supportingKeywordScore, 4)
             positive_score = [Math]::Round($positiveScore, 4)
             negative_score = [Math]::Round($negativeScore, 4)
             canonical_for_task_hit = [Math]::Round($canonicalHit, 4)
+            pack_authority_tier = $packAuthorityTier
+            authority_guard_reason = $authorityGuardReason
             _candidate_usable = [bool]$useEligible
             requires_positive_keyword_match = [bool]$requiresPositiveKeywordMatch
             equivalent_group = $equivalentGroup
@@ -238,7 +311,7 @@ function Select-PackCandidate {
     $usableRanked = @($ranked | Where-Object { Test-CandidateUsable -Row $_ })
 
     if ($requestedCandidate) {
-        return New-RequestedSkillSelection -RequestedCandidate $requestedCandidate -BlockedByTask @($blockedByTask)
+        return New-RequestedSkillSelection -RequestedCandidate $requestedCandidate -BlockedByTask @($blockedByTask) -PackAuthorityTier $packAuthorityTier
     }
 
     $top = $usableRanked | Select-Object -First 1

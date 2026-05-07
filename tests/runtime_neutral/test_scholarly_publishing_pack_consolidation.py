@@ -57,6 +57,13 @@ def selected(result: dict[str, object]) -> tuple[str, str]:
     return str(selected_row.get("pack_id") or ""), str(selected_row.get("skill") or "")
 
 
+def selected_pack_or_none(result: dict[str, object]) -> str | None:
+    selected_row = result.get("selected")
+    if not isinstance(selected_row, dict):
+        return None
+    return str(selected_row.get("pack_id") or "") or None
+
+
 def ranked_summary(result: dict[str, object]) -> list[tuple[str, str, float, str]]:
     ranked = result.get("ranked")
     assert isinstance(ranked, list), result
@@ -117,13 +124,22 @@ class ScholarlyPublishingPackConsolidationTests(unittest.TestCase):
         grade: str = "L",
     ) -> None:
         result = route(prompt, task_type=task_type, grade=grade)
-        self.assertNotEqual("scholarly-publishing-workflow", selected(result)[0], ranked_summary(result))
+        selected_pack = selected_pack_or_none(result)
+        if selected_pack is not None:
+            self.assertNotEqual("scholarly-publishing-workflow", selected_pack, ranked_summary(result))
+            return
+        pre_fallback_top = result.get("pre_fallback_top")
+        assert isinstance(pre_fallback_top, dict), result
+        self.assertNotEqual("scholarly-publishing-workflow", str(pre_fallback_top.get("pack_id") or ""), ranked_summary(result))
 
     def test_manifest_is_publishing_workflow_only(self) -> None:
         pack = pack_by_id("scholarly-publishing-workflow")
         self.assertEqual(SCHOLARLY_PUBLISHING_SKILLS, pack.get("skill_candidates"))
         self.assertNotIn("route_authority_candidates", pack)
         self.assertNotIn("stage_assistant_candidates", pack)
+        self.assertEqual("narrow_specialist", pack.get("authority_tier"))
+        self.assertEqual("code-quality", pack.get("fallback_owner_pack_id"))
+        self.assertEqual("systematic-debugging", pack.get("fallback_owner_skill"))
         self.assertEqual(
             {
                 "planning": "scholarly-publishing",

@@ -63,6 +63,7 @@ $cases = @(
     [pscustomobject]@{ Name = "code-quality security audit owns mixed review"; Prompt = "code review and security audit"; Grade = "M"; TaskType = "review"; RequestedSkill = $null; ExpectedPack = "code-quality"; ExpectedSkill = "security-reviewer"; AllowedModes = @("pack_overlay", "confirm_required") },
     [pscustomobject]@{ Name = "code-quality debug"; Prompt = "do root cause debugging for failing tests"; Grade = "M"; TaskType = "debug"; RequestedSkill = $null; ExpectedPack = "code-quality"; ExpectedSkill = "systematic-debugging"; AllowedModes = @("pack_overlay", "confirm_required", "legacy_fallback") },
     [pscustomobject]@{ Name = "code-quality build compile debug"; Prompt = "构建失败，TypeScript compile error，帮我定位"; Grade = "M"; TaskType = "debug"; RequestedSkill = $null; ExpectedPack = "code-quality"; ExpectedSkill = "systematic-debugging"; AllowedModes = @("pack_overlay", "confirm_required") },
+    [pscustomobject]@{ Name = "debug logs translation api direct owner"; Prompt = "根据错误日志排查翻译接口失败并给出解决方案，检查 runtime pipeline 和 API 请求"; Grade = "XL"; TaskType = "debug"; RequestedSkill = $null; ExpectedPack = "code-quality"; ExpectedSkill = "systematic-debugging"; ExpectedFallbackApplied = $false; AllowedModes = @("pack_overlay", "confirm_required") },
 
     [pscustomobject]@{ Name = "data-ml coding"; Prompt = "build machine learning model with scikit-learn feature engineering and training"; Grade = "M"; TaskType = "coding"; RequestedSkill = $null; ExpectedPack = "data-ml"; AllowedModes = @("pack_overlay", "confirm_required") },
     [pscustomobject]@{ Name = "data-ml research ZH"; Prompt = "使用scikit-learn做分类训练并交叉验证"; Grade = "L"; TaskType = "research"; RequestedSkill = $null; ExpectedPack = "data-ml"; AllowedModes = @("pack_overlay", "confirm_required") },
@@ -178,6 +179,7 @@ $cases = @(
     [pscustomobject]@{ Name = "scholarly latex not research design"; Prompt = "论文撰写、LaTeX 构建或 PDF 投稿"; Grade = "L"; TaskType = "coding"; RequestedSkill = $null; ExpectedPack = "scholarly-publishing-workflow"; AllowedModes = @("pack_overlay", "confirm_required") },
     [pscustomobject]@{ Name = "publishing workflow package"; Prompt = "规划一套期刊投稿工作流，包含投稿包、校样和 camera-ready"; Grade = "L"; TaskType = "planning"; RequestedSkill = $null; ExpectedPack = "scholarly-publishing-workflow"; ExpectedSkill = "scholarly-publishing"; AllowedModes = @("pack_overlay", "confirm_required") },
     [pscustomobject]@{ Name = "publishing latex pipeline"; Prompt = "配置 latexmk/chktex/latexindent 编译论文 PDF 并打包 submission zip"; Grade = "XL"; TaskType = "coding"; RequestedSkill = $null; ExpectedPack = "scholarly-publishing-workflow"; ExpectedSkill = "latex-submission-pipeline"; AllowedModes = @("pack_overlay", "confirm_required") },
+    [pscustomobject]@{ Name = "latex submission authority"; Prompt = "配置 latexmk chktex latexindent 编译 LaTeX manuscript PDF 并打包 submission zip"; Grade = "XL"; TaskType = "coding"; RequestedSkill = $null; ExpectedPack = "scholarly-publishing-workflow"; ExpectedSkill = "latex-submission-pipeline"; ExpectedFallbackApplied = $false; AllowedModes = @("pack_overlay", "confirm_required") },
     [pscustomobject]@{ Name = "publishing venue template"; Prompt = "查 NeurIPS 模板和匿名投稿格式要求"; Grade = "L"; TaskType = "planning"; RequestedSkill = $null; ExpectedPack = "scholarly-publishing-workflow"; ExpectedSkill = "venue-templates"; AllowedModes = @("pack_overlay", "confirm_required") },
     [pscustomobject]@{ Name = "figures matplotlib wording direct owner"; Prompt = "用 matplotlib 绘制 publication-ready result figure，600dpi TIFF，带误差棒和显著性标注"; Grade = "L"; TaskType = "coding"; RequestedSkill = $null; ExpectedPack = "science-figures-visualization"; ExpectedSkill = "scientific-visualization"; AllowedModes = @("pack_overlay", "confirm_required") },
     [pscustomobject]@{ Name = "figures mermaid schematic direct owner"; Prompt = "用 Mermaid 写一个实验流程图 flowchart，并给出可复制 markdown"; Grade = "M"; TaskType = "coding"; RequestedSkill = $null; ExpectedPack = "science-figures-visualization"; ExpectedSkill = "scientific-schematics"; AllowedModes = @("pack_overlay", "confirm_required") },
@@ -235,6 +237,10 @@ foreach ($case in $cases) {
         $pair = [string]$case.BlockedPackAndSkill
         $actualPair = "{0}/{1}" -f $route.selected.pack_id, $route.selected.skill
         $results += Assert-True -Condition ($actualPair -ne $pair) -Message "[$($case.Name)] blocked pair $pair not selected"
+    }
+
+    if ($case.PSObject.Properties.Name -contains "ExpectedFallbackApplied") {
+        $results += Assert-True -Condition ([bool]$route.fallback_applied -eq [bool]$case.ExpectedFallbackApplied) -Message "[$($case.Name)] fallback_applied is $($case.ExpectedFallbackApplied)"
     }
 
     $results += Assert-True -Condition ($route.top1_top2_gap -ge 0) -Message "[$($case.Name)] top1_top2_gap is non-negative"
