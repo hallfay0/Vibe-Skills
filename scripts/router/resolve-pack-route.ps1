@@ -651,8 +651,10 @@ foreach ($pack in $packsForScoring) {
     if ($weakFallback) {
         $routeUsable = $false
     }
-    $packAuthorityTier = if ($pack.PSObject.Properties.Name -contains 'authority_tier' -and -not [string]::IsNullOrWhiteSpace([string]$pack.authority_tier)) { [string]$pack.authority_tier } else { 'broad_owner' }
-    $minimumSignal = if ($minimumCandidateSignalByTier -and ($minimumCandidateSignalByTier.PSObject.Properties.Name -contains $packAuthorityTier)) { [double]$minimumCandidateSignalByTier.$packAuthorityTier } else { 0.0 }
+    $packAuthorityTierRaw = if ($pack.PSObject.Properties.Name -contains 'authority_tier' -and -not [string]::IsNullOrWhiteSpace([string]$pack.authority_tier)) { [string]$pack.authority_tier } else { 'broad_owner' }
+    $packAuthorityTier = Normalize-Key -InputText $packAuthorityTierRaw
+    $broadOwnerMinimumSignal = if ($minimumCandidateSignalByTier -and ($minimumCandidateSignalByTier.PSObject.Properties.Name -contains 'broad_owner')) { [double]$minimumCandidateSignalByTier.broad_owner } else { 0.0 }
+    $minimumSignal = if ($minimumCandidateSignalByTier -and ($minimumCandidateSignalByTier.PSObject.Properties.Name -contains $packAuthorityTier)) { [double]$minimumCandidateSignalByTier.$packAuthorityTier } else { $broadOwnerMinimumSignal }
     $authorityEligible = [bool]$routeUsable -and ([double]$candidateSignal -ge $minimumSignal)
     $authorityRejectionReasons = New-Object System.Collections.Generic.List[string]
     if (-not [bool]$selection._selection_usable) {
@@ -943,7 +945,7 @@ function Get-AuthorityRouteDecision {
     } else {
         $broadOwner = @(
             $Ranked | Where-Object {
-                [string]$_.authority_tier -eq 'broad_owner' -and [bool]$_.authority_eligible
+                (Normalize-Key -InputText ([string]$_.authority_tier)) -eq 'broad_owner' -and [bool]$_.authority_eligible
             } | Select-Object -First 1
         )[0]
         $selectedRow = $broadOwner
@@ -951,11 +953,13 @@ function Get-AuthorityRouteDecision {
         $selectedSkill = if ($broadOwner) { [string]$broadOwner.selected_candidate } else { $null }
     }
 
+    $fallbackApplied = [bool]$selectedRow -or -not [string]::IsNullOrWhiteSpace([string]$selectedPackId) -or -not [string]::IsNullOrWhiteSpace([string]$selectedSkill)
+
     return [pscustomobject]@{
         selected_pack_id = $selectedPackId
         selected_skill = $selectedSkill
         selected_row = $selectedRow
-        fallback_applied = $true
+        fallback_applied = [bool]$fallbackApplied
         fallback_target_pack_id = $selectedPackId
         fallback_target_skill = $selectedSkill
         pre_fallback_top_pack_id = [string]$top.pack_id

@@ -56,7 +56,7 @@ def choose_authoritative_route(
             "rejected_specialist_reasons": [],
         }
 
-    if bool(top.get("authority_eligible", True)):
+    if bool(top.get("authority_eligible", False)):
         return {
             "selected_pack_id": str(top.get("pack_id") or ""),
             "selected_skill": str(top.get("selected_candidate") or ""),
@@ -97,7 +97,7 @@ def choose_authoritative_route(
                 row
                 for row in ranked
                 if normalize_text(str(row.get("authority_tier") or "")) == "broad_owner"
-                and bool(row.get("authority_eligible", True))
+                and bool(row.get("authority_eligible", False))
             ),
             None,
         )
@@ -105,11 +105,12 @@ def choose_authoritative_route(
         selected_pack_id = str((broad_owner or {}).get("pack_id") or "")
         selected_skill = str((broad_owner or {}).get("selected_candidate") or "")
 
+    fallback_applied = bool(selected_row or selected_pack_id or selected_skill)
     return {
         "selected_pack_id": selected_pack_id or None,
         "selected_skill": selected_skill or None,
         "selected_row": selected_row,
-        "fallback_applied": True,
+        "fallback_applied": fallback_applied,
         "fallback_target_pack_id": selected_pack_id or None,
         "fallback_target_skill": selected_skill or None,
         "pre_fallback_top_pack_id": str(top.get("pack_id") or ""),

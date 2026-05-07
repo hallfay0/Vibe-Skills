@@ -582,7 +582,12 @@ def route_prompt(
         if weak_fallback:
             route_usable = False
         pack_authority_tier = normalize_text(pack.get("authority_tier") or "broad_owner") or "broad_owner"
-        minimum_signal = float(minimum_candidate_signal_by_tier.get(pack_authority_tier, 0.0))
+        minimum_signal = float(
+            minimum_candidate_signal_by_tier.get(
+                pack_authority_tier,
+                minimum_candidate_signal_by_tier.get("broad_owner", 0.0),
+            )
+        )
         authority_eligible = bool(route_usable and candidate_signal >= minimum_signal)
         authority_rejection_reasons: list[str] = []
         if not bool(selection.get(INTERNAL_SELECTION_USABLE, selection.get("selected") is not None)):
