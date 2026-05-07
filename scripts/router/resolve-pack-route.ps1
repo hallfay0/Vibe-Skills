@@ -874,10 +874,20 @@ function Get-AuthorityRouteDecision {
     }
 
     if (-not [string]::IsNullOrWhiteSpace($RequestedCanonical)) {
+        $requestedRow = @(
+            $Ranked | Where-Object {
+                $selectedSkill = [string]$_.selected_candidate
+                $routeUsable = if ($_.PSObject.Properties.Name -contains '_route_usable') { [bool]$_._route_usable } else { -not [string]::IsNullOrWhiteSpace($selectedSkill) }
+                $routeUsable -and -not [string]::IsNullOrWhiteSpace($selectedSkill)
+            } | Select-Object -First 1
+        )[0]
+        if (-not $requestedRow) {
+            $requestedRow = $top
+        }
         return [pscustomobject]@{
-            selected_pack_id = [string]$top.pack_id
-            selected_skill = [string]$top.selected_candidate
-            selected_row = $top
+            selected_pack_id = [string]$requestedRow.pack_id
+            selected_skill = [string]$requestedRow.selected_candidate
+            selected_row = $requestedRow
             fallback_applied = $false
             fallback_target_pack_id = $null
             fallback_target_skill = $null
@@ -958,7 +968,9 @@ $ranked = $packResults | Sort-Object -Property @(
     @{ Expression = "score"; Descending = $true },
     @{ Expression = "pack_id"; Descending = $false }
 )
-$selectionPool = @($ranked | Where-Object { $_.PSObject.Properties.Name -contains 'authority_eligible' -and [bool]$_.authority_eligible })
+$authorityRanked = @($ranked | Where-Object { $_.PSObject.Properties.Name -contains 'authority_eligible' -and [bool]$_.authority_eligible })
+$selectableRanked = @($ranked | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_.selected_candidate) })
+$selectionPool = if ($authorityRanked.Count -gt 0) { @($authorityRanked) } elseif ($selectableRanked.Count -gt 0) { @($selectableRanked) } else { @($ranked) }
 $authorityDecision = Get-AuthorityRouteDecision -Ranked @($ranked) -TaskType $TaskType -RequestedCanonical $requestedCanonical -AuthorityPolicy $authorityPolicy
 $top = $authorityDecision.selected_row
 $confidence = if ($top) { [double]$top.score } else { 0.0 }
@@ -1069,6 +1081,9 @@ $effectiveTop = $top
 if ($aiRerankRouteOverrideRequested -and $aiRerankAdvice -and $aiRerankAdvice.override_target_pack) {
     $overridePackId = [string]$aiRerankAdvice.override_target_pack
     $overrideTop = $selectionPool | Where-Object { [string]$_.pack_id -eq $overridePackId } | Select-Object -First 1
+    if (-not $overrideTop) {
+        $overrideTop = $selectableRanked | Where-Object { [string]$_.pack_id -eq $overridePackId } | Select-Object -First 1
+    }
     if ($overrideTop) {
         $aiRerankRouteOverride = $true
         $effectiveTop = $overrideTop
@@ -1144,6 +1159,9 @@ $llmAccelerationOverrideBlockReason = $null
 if ($llmAccelerationRouteOverrideRequested -and $llmAccelerationAdvice -and $llmAccelerationAdvice.override_target_pack) {
     $overridePackId = [string]$llmAccelerationAdvice.override_target_pack
     $overrideTop = $selectionPool | Where-Object { [string]$_.pack_id -eq $overridePackId } | Select-Object -First 1
+    if (-not $overrideTop) {
+        $overrideTop = $selectableRanked | Where-Object { [string]$_.pack_id -eq $overridePackId } | Select-Object -First 1
+    }
     if ($overrideTop) {
         $llmAccelerationRouteOverride = $true
         $effectiveTop = $overrideTop

@@ -13,6 +13,15 @@ def _row_by_pack_id(ranked: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     }
 
 
+def _first_requested_route_usable_row(ranked: list[dict[str, Any]]) -> dict[str, Any] | None:
+    for row in ranked:
+        selected_skill = str(row.get("selected_candidate") or "").strip()
+        route_usable = bool(row.get("_route_usable", bool(selected_skill)))
+        if route_usable and selected_skill:
+            return row
+    return None
+
+
 def choose_authoritative_route(
     ranked: list[dict[str, Any]],
     task_type: str,
@@ -34,10 +43,11 @@ def choose_authoritative_route(
         }
 
     if requested_canonical:
+        requested_row = _first_requested_route_usable_row(ranked) or top
         return {
-            "selected_pack_id": str(top.get("pack_id") or ""),
-            "selected_skill": str(top.get("selected_candidate") or ""),
-            "selected_row": top,
+            "selected_pack_id": str((requested_row or {}).get("pack_id") or ""),
+            "selected_skill": str((requested_row or {}).get("selected_candidate") or ""),
+            "selected_row": requested_row,
             "fallback_applied": False,
             "fallback_target_pack_id": None,
             "fallback_target_skill": None,

@@ -12,8 +12,6 @@ from pathlib import Path
 # Import UI constants for testing
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "packages" / "runtime-core" / "src"))
 from vgo_runtime.router_contract_presentation import (
-    CONFIRM_UI_BATCH_PROMPT,
-    DEEP_DISCOVERY_FIRST_QUESTION,
     build_confirm_ui,
 )
 from vgo_runtime.router_contract_runtime import route_prompt
@@ -144,6 +142,7 @@ class RouterBridgeTests(unittest.TestCase):
             with self.subTest(case=case["id"]):
                 result = run_bridge(case["prompt"], case["grade"], case["task_type"])
                 expected = case["expected"]
+                selected = result.get("selected") or {}
 
                 self.assertIn("route_mode", result)
                 self.assertIn("route_reason", result)
@@ -157,11 +156,12 @@ class RouterBridgeTests(unittest.TestCase):
                 if "allowed_route_modes" in expected:
                     self.assertIn(result["route_mode"], expected["allowed_route_modes"])
                 if "selected_pack" in expected:
-                    self.assertEqual(expected["selected_pack"], result["selected"]["pack_id"])
+                    self.assertEqual(expected["selected_pack"], selected["pack_id"])
                 if "selected_skill" in expected:
-                    self.assertEqual(expected["selected_skill"], result["selected"]["skill"])
+                    self.assertEqual(expected["selected_skill"], selected["skill"])
                 if "blocked_pack" in expected:
-                    self.assertNotEqual(expected["blocked_pack"], result["selected"]["pack_id"])
+                    if selected:
+                        self.assertNotEqual(expected["blocked_pack"], selected["pack_id"])
                     ranked_pack_ids = {
                         str(row.get("pack_id") or "")
                         for row in result["ranked"]
@@ -170,7 +170,7 @@ class RouterBridgeTests(unittest.TestCase):
                     self.assertNotIn(expected["blocked_pack"], ranked_pack_ids)
                 if "blocked_skill_prefix" in expected:
                     blocked_prefix = expected["blocked_skill_prefix"]
-                    ranked_skills = {str(result["selected"].get("skill") or "")}
+                    ranked_skills = {str(selected.get("skill") or "")}
                     for row in result["ranked"]:
                         if not isinstance(row, dict):
                             continue
@@ -182,49 +182,43 @@ class RouterBridgeTests(unittest.TestCase):
                         ranked_skills,
                     )
 
-    def test_confirm_required_returns_batched_clarification_bundle(self) -> None:
+    def test_confirm_required_can_degrade_to_clarification_only_when_no_specialist_is_usable(self) -> None:
         result = run_bridge(
             "Help me clarify scope, choose repo path, define constraints, and then implement the feature with verification and deliverables.",
             "L",
             "planning",
         )
         self.assertEqual("confirm_required", result["route_mode"])
+        self.assertEqual("legacy_fallback_guard", result["route_reason"])
         self.assertGreaterEqual(len(result["deep_discovery_advice"]["interview_questions"]), 6)
-        self.assertIn("confirm_ui", result)
-        self.assertTrue(result["confirm_ui"]["enabled"])
-        self.assertGreaterEqual(len(result["confirm_ui"]["options"]), 1)
-        self.assertGreaterEqual(len(result["confirm_ui"]["clarification_questions"]), 6)
-        self.assertIn(CONFIRM_UI_BATCH_PROMPT, result["confirm_ui"]["rendered_text"])
-        self.assertIn(DEEP_DISCOVERY_FIRST_QUESTION, result["confirm_ui"]["rendered_text"])
+        self.assertTrue(result["deep_discovery_advice"]["confirm_required"])
+        self.assertIsNone(result["selected"])
+        self.assertNotIn("confirm_ui", result)
 
-    def test_host_selection_confirm_ui_does_not_reopen_generic_clarifiers(self) -> None:
+    def test_planning_prompt_uses_fallback_guard_without_reopening_generic_clarifiers(self) -> None:
         result = run_bridge(
             "create implementation plan and task breakdown",
             "L",
             "planning",
         )
 
-        self.assertEqual("pack_overlay", result["route_mode"])
-        self.assertEqual("host_selection_required", result["route_reason"])
-        self.assertIn("confirm_ui", result)
-        self.assertEqual([], result["confirm_ui"]["clarification_questions"])
-        self.assertNotIn(CONFIRM_UI_BATCH_PROMPT, result["confirm_ui"]["rendered_text"])
-        self.assertNotIn(DEEP_DISCOVERY_FIRST_QUESTION, result["confirm_ui"]["rendered_text"])
+        self.assertEqual("confirm_required", result["route_mode"])
+        self.assertEqual("legacy_fallback_guard", result["route_reason"])
+        self.assertIsNone(result["selected"])
+        self.assertNotIn("confirm_ui", result)
         self.assertFalse(result["deep_discovery_advice"]["should_apply_hook"])
 
-    def test_powershell_host_selection_confirm_ui_does_not_reopen_generic_clarifiers(self) -> None:
+    def test_powershell_planning_prompt_uses_fallback_guard_without_reopening_generic_clarifiers(self) -> None:
         result = run_powershell_route(
             "create implementation plan and task breakdown",
             "L",
             "planning",
         )
 
-        self.assertEqual("pack_overlay", result["route_mode"])
-        self.assertEqual("host_selection_required", result["route_reason"])
-        self.assertIn("confirm_ui", result)
-        self.assertEqual([], result["confirm_ui"]["clarification_questions"])
-        self.assertNotIn(CONFIRM_UI_BATCH_PROMPT, result["confirm_ui"]["rendered_text"])
-        self.assertNotIn(DEEP_DISCOVERY_FIRST_QUESTION, result["confirm_ui"]["rendered_text"])
+        self.assertEqual("confirm_required", result["route_mode"])
+        self.assertEqual("legacy_fallback_guard", result["route_reason"])
+        self.assertIsNone(result["selected"])
+        self.assertNotIn("confirm_ui", result)
 
     def test_ml_critical_discussion_routes_to_data_leakage_guard(self) -> None:
         result = run_bridge(

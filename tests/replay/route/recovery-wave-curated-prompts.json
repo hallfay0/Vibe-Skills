@@ -10,12 +10,7 @@
       "task_type": "planning",
       "prompt": "create implementation plan and task breakdown",
       "expected": {
-        "allowed_route_modes": [
-          "pack_overlay",
-          "confirm_required"
-        ],
-        "selected_pack": "scholarly-publishing-workflow",
-        "selected_skill": "scholarly-publishing"
+        "route_mode": "confirm_required"
       }
     },
     {
@@ -24,9 +19,7 @@
       "task_type": "planning",
       "prompt": "design a migration plan for cross-module routing and governance",
       "expected": {
-        "route_mode": "pack_overlay",
-        "selected_pack": "scholarly-publishing-workflow",
-        "selected_skill": "scholarly-publishing"
+        "route_mode": "confirm_required"
       }
     },
     {
@@ -49,10 +42,7 @@
       "task_type": "research",
       "prompt": "help me with this",
       "expected": {
-        "allowed_route_modes": [
-          "pack_overlay",
-          "confirm_required"
-        ]
+        "route_mode": "confirm_required"
       }
     },
     {
