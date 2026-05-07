@@ -1,0 +1,97 @@
+from __future__ import annotations
+
+from typing import Any
+
+from .router_contract_support import normalize_text
+
+
+def _row_by_pack_id(ranked: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    return {
+        normalize_text(row.get("pack_id") or ""): row
+        for row in ranked
+        if normalize_text(row.get("pack_id") or "")
+    }
+
+
+def choose_authoritative_route(
+    ranked: list[dict[str, Any]],
+    task_type: str,
+    requested_canonical: str | None,
+    authority_policy: dict[str, Any],
+) -> dict[str, Any]:
+    top = ranked[0] if ranked else None
+    if not top:
+        return {
+            "selected_pack_id": None,
+            "selected_skill": None,
+            "selected_row": None,
+            "fallback_applied": False,
+            "fallback_target_pack_id": None,
+            "fallback_target_skill": None,
+            "pre_fallback_top_pack_id": None,
+            "pre_fallback_top_skill": None,
+            "rejected_specialist_reasons": [],
+        }
+
+    if requested_canonical:
+        return {
+            "selected_pack_id": str(top.get("pack_id") or ""),
+            "selected_skill": str(top.get("selected_candidate") or ""),
+            "selected_row": top,
+            "fallback_applied": False,
+            "fallback_target_pack_id": None,
+            "fallback_target_skill": None,
+            "pre_fallback_top_pack_id": str(top.get("pack_id") or ""),
+            "pre_fallback_top_skill": str(top.get("selected_candidate") or ""),
+            "rejected_specialist_reasons": [],
+        }
+
+    if bool(top.get("authority_eligible", True)):
+        return {
+            "selected_pack_id": str(top.get("pack_id") or ""),
+            "selected_skill": str(top.get("selected_candidate") or ""),
+            "selected_row": top,
+            "fallback_applied": False,
+            "fallback_target_pack_id": None,
+            "fallback_target_skill": None,
+            "pre_fallback_top_pack_id": str(top.get("pack_id") or ""),
+            "pre_fallback_top_skill": str(top.get("selected_candidate") or ""),
+            "rejected_specialist_reasons": [],
+        }
+
+    rows_by_pack = _row_by_pack_id(ranked)
+    fallback_by_task = authority_policy.get("global_safe_fallback_by_task") or {}
+    task_fallback = fallback_by_task.get(task_type) or {}
+    fallback_pack_id = normalize_text(task_fallback.get("pack_id") or top.get("fallback_owner_pack_id") or "")
+    fallback_skill = str(task_fallback.get("skill") or top.get("fallback_owner_skill") or "").strip()
+    fallback_row = rows_by_pack.get(fallback_pack_id)
+
+    if fallback_row:
+        selected_pack_id = str(fallback_row.get("pack_id") or "")
+        selected_skill = fallback_skill or str(fallback_row.get("selected_candidate") or "")
+        selected_row = fallback_row
+    else:
+        broad_owner = next(
+            (
+                row
+                for row in ranked
+                if normalize_text(str(row.get("authority_tier") or "")) == "broad_owner"
+                and bool(row.get("authority_eligible", True))
+            ),
+            None,
+        )
+        selected_row = broad_owner
+        selected_pack_id = str((broad_owner or {}).get("pack_id") or "")
+        selected_skill = str((broad_owner or {}).get("selected_candidate") or "")
+
+    return {
+        "selected_pack_id": selected_pack_id or None,
+        "selected_skill": selected_skill or None,
+        "selected_row": selected_row,
+        "fallback_applied": True,
+        "fallback_target_pack_id": selected_pack_id or None,
+        "fallback_target_skill": selected_skill or None,
+        "pre_fallback_top_pack_id": str(top.get("pack_id") or ""),
+        "pre_fallback_top_skill": str(top.get("selected_candidate") or ""),
+        "rejected_specialist_reasons": [str(item) for item in (top.get("authority_rejection_reasons") or [])],
+    }

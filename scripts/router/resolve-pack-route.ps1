@@ -397,6 +397,8 @@ $rules = $thresholds.safety
 $th = $thresholds.thresholds
 $weightSkillSignal = if ($weights.skill_keyword_signal -ne $null) { [double]$weights.skill_keyword_signal } else { 0.25 }
 $candidateSelectionConfig = if ($thresholds.candidate_selection) { $thresholds.candidate_selection } else { $null }
+$authorityPolicy = if ($thresholds.authority) { $thresholds.authority } else { $null }
+$minimumCandidateSignalByTier = if ($authorityPolicy -and $authorityPolicy.minimum_candidate_signal_by_tier) { $authorityPolicy.minimum_candidate_signal_by_tier } else { $null }
 $minTopGap = if ($th.min_top1_top2_gap -ne $null) { [double]$th.min_top1_top2_gap } else { 0.0 }
 $minCandidateSignalForConfirmOverride = if ($th.min_candidate_signal_for_confirm_override -ne $null) { [double]$th.min_candidate_signal_for_confirm_override } else { 0.0 }
 $minCandidateSignalForAutoRoute = if ($th.min_candidate_signal_for_auto_route -ne $null) { [double]$th.min_candidate_signal_for_auto_route } else { [double]$th.auto_route }
@@ -649,6 +651,27 @@ foreach ($pack in $packsForScoring) {
     if ($weakFallback) {
         $routeUsable = $false
     }
+    $packAuthorityTier = if ($pack.PSObject.Properties.Name -contains 'authority_tier' -and -not [string]::IsNullOrWhiteSpace([string]$pack.authority_tier)) { [string]$pack.authority_tier } else { 'broad_owner' }
+    $minimumSignal = if ($minimumCandidateSignalByTier -and ($minimumCandidateSignalByTier.PSObject.Properties.Name -contains $packAuthorityTier)) { [double]$minimumCandidateSignalByTier.$packAuthorityTier } else { 0.0 }
+    $authorityEligible = [bool]$routeUsable -and ([double]$candidateSignal -ge $minimumSignal)
+    $authorityRejectionReasons = New-Object System.Collections.Generic.List[string]
+    if (-not [bool]$selection._selection_usable) {
+        $authorityEligible = $false
+        [void]$authorityRejectionReasons.Add('no_usable_candidate')
+    }
+    if ($weakFallback) {
+        $authorityEligible = $false
+        [void]$authorityRejectionReasons.Add('weak_fallback')
+    }
+    if ([double]$candidateSignal -lt $minimumSignal) {
+        $authorityEligible = $false
+        [void]$authorityRejectionReasons.Add('candidate_signal_below_authority_threshold')
+    }
+    $selectedCandidateRow = @($selection.ranking | Where-Object { [string]$_.skill -eq [string]$selection.selected } | Select-Object -First 1)[0]
+    if ($selectedCandidateRow -and -not [string]::IsNullOrWhiteSpace([string]$selectedCandidateRow.authority_guard_reason)) {
+        $authorityEligible = $false
+        [void]$authorityRejectionReasons.Add([string]$selectedCandidateRow.authority_guard_reason)
+    }
 
     $packResults += [pscustomobject]@{
         pack_id = [string]$pack.id
@@ -669,6 +692,11 @@ foreach ($pack in $packsForScoring) {
         candidate_top1_top2_gap = [Math]::Round([double]$selection.top1_top2_gap, 4)
         candidate_signal = $candidateSignal
         candidate_filtered_out_by_task = @($selection.filtered_out_by_task)
+        authority_tier = $packAuthorityTier
+        authority_eligible = [bool]$authorityEligible
+        authority_rejection_reasons = @($authorityRejectionReasons | Select-Object -Unique)
+        fallback_owner_pack_id = if ($pack.PSObject.Properties.Name -contains 'fallback_owner_pack_id') { [string]$pack.fallback_owner_pack_id } else { $null }
+        fallback_owner_skill = if ($pack.PSObject.Properties.Name -contains 'fallback_owner_skill') { [string]$pack.fallback_owner_skill } else { $null }
         _route_usable = [bool]$routeUsable
         custom_admission = $customMetadata
     }
@@ -822,14 +850,116 @@ function ConvertTo-PublicRoutePackRow {
     return [pscustomobject]$public
 }
 
+function Get-AuthorityRouteDecision {
+    param(
+        [AllowNull()] [object[]]$Ranked = @(),
+        [string]$TaskType,
+        [string]$RequestedCanonical,
+        [AllowNull()] [object]$AuthorityPolicy
+    )
+
+    $top = @($Ranked | Select-Object -First 1)[0]
+    if (-not $top) {
+        return [pscustomobject]@{
+            selected_pack_id = $null
+            selected_skill = $null
+            selected_row = $null
+            fallback_applied = $false
+            fallback_target_pack_id = $null
+            fallback_target_skill = $null
+            pre_fallback_top_pack_id = $null
+            pre_fallback_top_skill = $null
+            rejected_specialist_reasons = @()
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($RequestedCanonical)) {
+        return [pscustomobject]@{
+            selected_pack_id = [string]$top.pack_id
+            selected_skill = [string]$top.selected_candidate
+            selected_row = $top
+            fallback_applied = $false
+            fallback_target_pack_id = $null
+            fallback_target_skill = $null
+            pre_fallback_top_pack_id = [string]$top.pack_id
+            pre_fallback_top_skill = [string]$top.selected_candidate
+            rejected_specialist_reasons = @()
+        }
+    }
+
+    if ([bool]$top.authority_eligible) {
+        return [pscustomobject]@{
+            selected_pack_id = [string]$top.pack_id
+            selected_skill = [string]$top.selected_candidate
+            selected_row = $top
+            fallback_applied = $false
+            fallback_target_pack_id = $null
+            fallback_target_skill = $null
+            pre_fallback_top_pack_id = [string]$top.pack_id
+            pre_fallback_top_skill = [string]$top.selected_candidate
+            rejected_specialist_reasons = @()
+        }
+    }
+
+    $taskFallback = $null
+    if ($AuthorityPolicy -and $AuthorityPolicy.global_safe_fallback_by_task -and ($AuthorityPolicy.global_safe_fallback_by_task.PSObject.Properties.Name -contains $TaskType)) {
+        $taskFallback = $AuthorityPolicy.global_safe_fallback_by_task.$TaskType
+    }
+    $fallbackPackId = if ($taskFallback -and $taskFallback.pack_id) {
+        Normalize-Key -InputText ([string]$taskFallback.pack_id)
+    } elseif ($top.PSObject.Properties.Name -contains 'fallback_owner_pack_id' -and $top.fallback_owner_pack_id) {
+        Normalize-Key -InputText ([string]$top.fallback_owner_pack_id)
+    } else {
+        ''
+    }
+    $fallbackSkill = if ($taskFallback -and $taskFallback.skill) {
+        [string]$taskFallback.skill
+    } elseif ($top.PSObject.Properties.Name -contains 'fallback_owner_skill' -and $top.fallback_owner_skill) {
+        [string]$top.fallback_owner_skill
+    } else {
+        ''
+    }
+
+    $fallbackRow = $null
+    if (-not [string]::IsNullOrWhiteSpace($fallbackPackId)) {
+        $fallbackRow = @($Ranked | Where-Object { (Normalize-Key -InputText ([string]$_.pack_id)) -eq $fallbackPackId } | Select-Object -First 1)[0]
+    }
+
+    if ($fallbackRow) {
+        $selectedPackId = [string]$fallbackRow.pack_id
+        $selectedSkill = if (-not [string]::IsNullOrWhiteSpace($fallbackSkill)) { $fallbackSkill } else { [string]$fallbackRow.selected_candidate }
+        $selectedRow = $fallbackRow
+    } else {
+        $broadOwner = @(
+            $Ranked | Where-Object {
+                [string]$_.authority_tier -eq 'broad_owner' -and [bool]$_.authority_eligible
+            } | Select-Object -First 1
+        )[0]
+        $selectedRow = $broadOwner
+        $selectedPackId = if ($broadOwner) { [string]$broadOwner.pack_id } else { $null }
+        $selectedSkill = if ($broadOwner) { [string]$broadOwner.selected_candidate } else { $null }
+    }
+
+    return [pscustomobject]@{
+        selected_pack_id = $selectedPackId
+        selected_skill = $selectedSkill
+        selected_row = $selectedRow
+        fallback_applied = $true
+        fallback_target_pack_id = $selectedPackId
+        fallback_target_skill = $selectedSkill
+        pre_fallback_top_pack_id = [string]$top.pack_id
+        pre_fallback_top_skill = [string]$top.selected_candidate
+        rejected_specialist_reasons = @($top.authority_rejection_reasons)
+    }
+}
+
 $ranked = $packResults | Sort-Object -Property @(
     @{ Expression = "score"; Descending = $true },
     @{ Expression = "pack_id"; Descending = $false }
 )
-$authorityRanked = @($ranked | Where-Object { $_.PSObject.Properties.Name -contains '_route_usable' -and [bool]$_._route_usable })
-$selectableRanked = @($ranked | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_.selected_candidate) })
-$selectionPool = if ($authorityRanked.Count -gt 0) { @($authorityRanked) } elseif ($selectableRanked.Count -gt 0) { @($selectableRanked) } else { @($ranked) }
-$top = $selectionPool | Select-Object -First 1
+$selectionPool = @($ranked | Where-Object { $_.PSObject.Properties.Name -contains 'authority_eligible' -and [bool]$_.authority_eligible })
+$authorityDecision = Get-AuthorityRouteDecision -Ranked @($ranked) -TaskType $TaskType -RequestedCanonical $requestedCanonical -AuthorityPolicy $authorityPolicy
+$top = $authorityDecision.selected_row
 $confidence = if ($top) { [double]$top.score } else { 0.0 }
 
 # Soft-migration behavior: explicit legacy/canonical skill request mapped to a pack
@@ -1496,6 +1626,16 @@ $result = [pscustomobject]@{
     candidate_signal = [Math]::Round($candidateSignal, 4)
     legacy_fallback_guard_applied = [bool]$legacyFallbackGuardApplied
     legacy_fallback_original_reason = $legacyFallbackOriginalReason
+    fallback_applied = [bool]$authorityDecision.fallback_applied
+    fallback_target = [pscustomobject]@{
+        pack_id = $authorityDecision.fallback_target_pack_id
+        skill = $authorityDecision.fallback_target_skill
+    }
+    pre_fallback_top = [pscustomobject]@{
+        pack_id = $authorityDecision.pre_fallback_top_pack_id
+        skill = $authorityDecision.pre_fallback_top_skill
+    }
+    rejected_specialist_reasons = @($authorityDecision.rejected_specialist_reasons)
     fallback_active = [bool]$fallbackActive
     hazard_alert_required = [bool]$hazardAlertRequired
     truth_level = $truthLevel
@@ -1559,13 +1699,17 @@ $result = [pscustomobject]@{
     }
     selected = if ($effectiveTop) {
         [pscustomobject]@{
-            pack_id = $effectiveTop.pack_id
+            pack_id = if (-not [string]::IsNullOrWhiteSpace([string]$effectiveTop.pack_id)) { $effectiveTop.pack_id } else { $authorityDecision.selected_pack_id }
             skill = $effectiveSelectedSkill
             selection_reason = $effectiveSelectionReason
             selection_score = $effectiveSelectionScore
             top1_top2_gap = $effectiveTop.candidate_top1_top2_gap
             candidate_signal = $effectiveTop.candidate_signal
             filtered_out_by_task = @($effectiveTop.candidate_filtered_out_by_task)
+            authority = [pscustomobject]@{
+                tier = [string]$effectiveTop.authority_tier
+                eligible = [bool]$effectiveTop.authority_eligible
+            }
             promotion_eligible = if ($selectedPromotionMetadata) { [bool]$selectedPromotionMetadata.promotion_eligible } else { $false }
             destructive = if ($selectedPromotionMetadata) { [bool]$selectedPromotionMetadata.destructive } else { $false }
             destructive_reason_codes = if ($selectedPromotionMetadata) { [object[]]@($selectedPromotionMetadata.destructive_reason_codes) } else { @() }
