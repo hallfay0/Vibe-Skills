@@ -12,9 +12,18 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+try:
+    from ._repo import resolve_repo_root as resolve_vco_repo_root
+except ImportError:  # pragma: no cover - exercised by direct script invocation.
+    from _repo import resolve_repo_root as resolve_vco_repo_root
+
 
 class PolicyError(ValueError):
     """Raised when the test baseline policy is malformed."""
+
+
+CONFIG_ERROR_EXIT_CODE = 2
+RUNTIME_ERROR_EXIT_CODE = 1
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -55,7 +64,7 @@ def parse_collect_output(stdout: str) -> list[str]:
         line = raw_line.strip()
         if not line or line.startswith("<") or line.startswith("="):
             continue
-        if "::" in line and (line.startswith("tests/") or line.startswith("tests\\")):
+        if "::" in line:
             nodes.append(line.replace("\\", "/"))
     return nodes
 
@@ -71,6 +80,49 @@ def build_pytest_command(pytest_args: list[str], *, collect_only: bool = False, 
     if quiet:
         command.append(quiet)
     return command
+
+
+PYTEST_OPTIONS_WITH_VALUE = {
+    "-c",
+    "-k",
+    "-m",
+    "--basetemp",
+    "--confcutdir",
+    "--deselect",
+    "--ignore",
+    "--ignore-glob",
+    "--rootdir",
+}
+
+
+def pytest_arg_targets_repo_path(arg: str, repo_root: Path) -> bool:
+    if not arg or arg.startswith("-"):
+        return False
+    selector_path = arg.split("::", 1)[0]
+    candidate = Path(selector_path)
+    if not candidate.is_absolute():
+        candidate = repo_root / selector_path
+    return candidate.exists()
+
+
+def preserved_pytest_args_when_narrowing(pytest_args: list[str], repo_root: Path) -> list[str]:
+    preserved: list[str] = []
+    preserve_next = False
+    for arg in pytest_args:
+        if preserve_next:
+            preserved.append(arg)
+            preserve_next = False
+            continue
+        if arg.startswith("-"):
+            preserved.append(arg)
+            option_name = arg.split("=", 1)[0]
+            if "=" not in arg and option_name in PYTEST_OPTIONS_WITH_VALUE:
+                preserve_next = True
+            continue
+        if pytest_arg_targets_repo_path(arg, repo_root):
+            continue
+        preserved.append(arg)
+    return preserved
 
 
 def build_pytest_env(repo_root: Path, policy: dict[str, Any]) -> tuple[dict[str, str], str]:
@@ -337,12 +389,29 @@ def render_markdown(artifact: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def write_artifacts(repo_root: Path, artifact: dict[str, Any], output_directory: str | None = None) -> dict[str, str]:
-    output_root = Path(output_directory) if output_directory else repo_root / "outputs" / "verify"
+def _artifact_names_from_policy(policy: dict[str, Any] | None = None) -> dict[str, str]:
+    configured = (policy or {}).get("artifact_names") or {}
     names = {
         "json": "test-baseline-audit.json",
         "markdown": "test-baseline-audit.md",
     }
+    if isinstance(configured, dict):
+        for key in names:
+            value = configured.get(key)
+            if isinstance(value, str) and value.strip():
+                names[key] = value.strip()
+    return names
+
+
+def write_artifacts(
+    repo_root: Path,
+    artifact: dict[str, Any],
+    output_directory: str | None = None,
+    *,
+    policy: dict[str, Any] | None = None,
+) -> dict[str, str]:
+    output_root = Path(output_directory) if output_directory else repo_root / "outputs" / "verify"
+    names = _artifact_names_from_policy(policy)
     json_path = output_root / names["json"]
     md_path = output_root / names["markdown"]
     write_text(json_path, json.dumps(artifact, ensure_ascii=False, indent=2) + "\n")
@@ -351,11 +420,7 @@ def write_artifacts(repo_root: Path, artifact: dict[str, Any], output_directory:
 
 
 def resolve_repo_root(start: Path) -> Path:
-    current = start.resolve()
-    for candidate in [current, *current.parents]:
-        if (candidate / ".git").exists() and (candidate / "config").exists():
-            return candidate
-    raise RuntimeError(f"Unable to resolve repository root from {start}")
+    return resolve_vco_repo_root(start)
 
 
 def run_collect_commands(
@@ -365,16 +430,32 @@ def run_collect_commands(
     results: list[dict[str, Any]] = []
     env, _disable_env = build_pytest_env(repo_root, policy)
     for item in build_collect_commands(policy):
-        completed = runner(
-            item["command"],
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=item["timeout_seconds"],
-            env=env,
-        )
+        try:
+            completed = runner(
+                item["command"],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=item["timeout_seconds"],
+                env=env,
+            )
+        except subprocess.TimeoutExpired as exc:
+            stdout = getattr(exc, "stdout", None)
+            if stdout is None:
+                stdout = getattr(exc, "output", None)
+            stderr = getattr(exc, "stderr", None)
+            detail_parts = [
+                f"pytest collection timed out for {item['pytest_args']}",
+                f"after {item['timeout_seconds']}s",
+                f"layers={item['source_layer_ids']}",
+            ]
+            if stdout:
+                detail_parts.append(f"stdout={stdout}")
+            if stderr:
+                detail_parts.append(f"stderr={stderr}")
+            raise RuntimeError("; ".join(detail_parts)) from exc
         parsed_nodes = parse_collect_output(completed.stdout)
         nodes.extend(parsed_nodes)
         results.append(
@@ -410,7 +491,7 @@ def build_run_layer_command(
         selected_files = select_layer_files(collected_nodes, repo_root, policy, layer_id)
         if not selected_files:
             raise PolicyError(f"No collected tests matched layer id: {layer_id}")
-        pytest_args = selected_files
+        pytest_args = [*preserved_pytest_args_when_narrowing(pytest_args, repo_root), *selected_files]
 
     return build_pytest_command(pytest_args, quiet=quiet)
 
@@ -424,24 +505,42 @@ def run_layer(
     runner=subprocess.run,
     progress: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
+    layers = layer_by_id(policy)
+    if layer_id not in layers:
+        raise PolicyError(f"Unknown layer id: {layer_id}")
+
     selected_files: list[str] = []
     if collected_nodes is not None:
         selected_files = select_layer_files(collected_nodes, repo_root, policy, layer_id)
-    layer = layer_by_id(policy)[layer_id]
+    layer = layers[layer_id]
     if selected_files and str(layer.get("run_strategy") or "") == "file_serial":
         return run_layer_file_serial(repo_root, policy, layer_id, selected_files, runner=runner, progress=progress)
     command = build_run_layer_command(policy, layer_id, repo_root=repo_root, collected_nodes=collected_nodes)
     env, disable_env = build_pytest_env(repo_root, policy)
-    completed = runner(
-        command,
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        timeout=int(layer.get("timeout_seconds") or 300),
-        env=env,
-    )
+    timeout_seconds = int(layer.get("timeout_seconds") or 300)
+    try:
+        completed = runner(
+            command,
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout_seconds,
+            env=env,
+        )
+    except subprocess.TimeoutExpired as exc:
+        return {
+            "layer_id": layer_id,
+            "command": command,
+            "exit_code": 124,
+            "stdout": timeout_stream_to_text(getattr(exc, "stdout", None) or getattr(exc, "output", None)),
+            "stderr": timeout_stream_to_text(getattr(exc, "stderr", None)),
+            "disable_network_env": disable_env,
+            "selected_files": selected_files,
+            "selected_file_count": len(selected_files),
+            "timeout_seconds": timeout_seconds,
+        }
     return {
         "layer_id": layer_id,
         "command": command,
@@ -589,44 +688,57 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def main(argv: list[str] | None = None, runner=subprocess.run) -> int:
-    args = parse_args(argv or sys.argv[1:])
-    repo_root = resolve_repo_root(Path(__file__))
-    policy_path = (repo_root / args.policy).resolve()
-    policy = load_policy(policy_path)
-    collected_nodes, collection_results = run_collect_commands(repo_root, policy, runner=runner)
-    run_result = None
-    if args.run_layer:
-        def print_progress(message: str) -> None:
-            print(message, flush=True)
+def _print_cli_error(message: str) -> None:
+    print(f"[ERROR] {message}", file=sys.stderr)
 
-        run_result = run_layer(
-            repo_root,
-            policy,
-            args.run_layer,
+
+def main(argv: list[str] | None = None, runner=subprocess.run) -> int:
+    try:
+        args = parse_args(argv or sys.argv[1:])
+        repo_root = resolve_repo_root(Path(__file__))
+        policy_path = (repo_root / args.policy).resolve()
+        if not policy_path.exists():
+            raise PolicyError(f"Policy file not found: {policy_path}")
+        policy = load_policy(policy_path)
+        collected_nodes, collection_results = run_collect_commands(repo_root, policy, runner=runner)
+        run_result = None
+        if args.run_layer and not args.collect_only:
+            def print_progress(message: str) -> None:
+                print(message, flush=True)
+
+            run_result = run_layer(
+                repo_root,
+                policy,
+                args.run_layer,
+                collected_nodes=collected_nodes,
+                runner=runner,
+                progress=print_progress,
+            )
+        artifact = build_artifact(
+            repo_root=repo_root,
+            policy_path=policy_path,
+            policy=policy,
             collected_nodes=collected_nodes,
-            runner=runner,
-            progress=print_progress,
+            collection_results=collection_results,
+            run_result=run_result,
         )
-    artifact = build_artifact(
-        repo_root=repo_root,
-        policy_path=policy_path,
-        policy=policy,
-        collected_nodes=collected_nodes,
-        collection_results=collection_results,
-        run_result=run_result,
-    )
-    if args.write_artifacts:
-        write_artifacts(repo_root, artifact, args.output_directory)
-    print(
-        f"[INFO] total_nodes={artifact['summary']['total_nodes']} "
-        f"layers={artifact['summary']['layer_count']} "
-        f"risks={artifact['summary']['risk_tag_count']}"
-    )
-    if run_result is not None:
-        print(f"[INFO] run_layer={run_result['layer_id']} exit_code={run_result['exit_code']}")
-        return int(run_result["exit_code"])
-    return 0
+        if args.write_artifacts:
+            write_artifacts(repo_root, artifact, args.output_directory, policy=policy)
+        print(
+            f"[INFO] total_nodes={artifact['summary']['total_nodes']} "
+            f"layers={artifact['summary']['layer_count']} "
+            f"risks={artifact['summary']['risk_tag_count']}"
+        )
+        if run_result is not None:
+            print(f"[INFO] run_layer={run_result['layer_id']} exit_code={run_result['exit_code']}")
+            return int(run_result["exit_code"])
+        return 0
+    except (PolicyError, json.JSONDecodeError) as exc:
+        _print_cli_error(str(exc))
+        return CONFIG_ERROR_EXIT_CODE
+    except (RuntimeError, OSError) as exc:
+        _print_cli_error(str(exc))
+        return RUNTIME_ERROR_EXIT_CODE
 
 
 if __name__ == "__main__":

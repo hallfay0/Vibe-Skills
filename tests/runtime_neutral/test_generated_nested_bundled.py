@@ -263,6 +263,18 @@ class GeneratedNestedBundledTests(unittest.TestCase):
         self.assertFalse((nested_root / "config" / "extra.json").exists())
 
 
+class PowerShellInstallerScriptContractTests(unittest.TestCase):
+    def test_hidden_entrypoints_normalize_existing_visible_entrypoint_before_missing_check(self) -> None:
+        text = PS_INSTALLER.read_text(encoding="utf-8")
+        start = text.index("function Ensure-SkillPresent")
+        hidden_start = text.index("if ($HiddenEntryPoints) {", start)
+        visible_start = text.index("} else {", hidden_start)
+        hidden_branch = text[hidden_start:visible_start]
+
+        self.assertIn("Convert-SkillEntryPointToRuntimeMirror -SkillRoot $targetSkillRoot", hidden_branch)
+        self.assertGreaterEqual(hidden_branch.count("SKILL.runtime-mirror.md"), 2)
+
+
 class InstallTimeGeneratedNestedBundledTests(unittest.TestCase):
     def setUp(self) -> None:
         self.powershell = resolve_powershell()
@@ -522,3 +534,67 @@ class InstallTimeGeneratedNestedBundledTests(unittest.TestCase):
             env=env,
         )
         self.assert_generated_nested_installed()
+
+    def test_powershell_fallback_in_place_internal_corpus_prunes_and_sanitizes(self) -> None:
+        if self.powershell is None:
+            self.skipTest("PowerShell is required for fallback installer test.")
+
+        in_place_root = self.target_root / "internal-corpus"
+        selected = in_place_root / "brainstorming"
+        stale = in_place_root / "stale-skill"
+        selected.mkdir(parents=True, exist_ok=True)
+        stale.mkdir(parents=True, exist_ok=True)
+        (selected / "SKILL.md").write_text(
+            "---\nname: brainstorming\ndescription: selected\n---\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        (stale / "SKILL.md").write_text(
+            "---\nname: stale-skill\ndescription: stale\n---\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+
+        packaging_path = self.repo_root / "config" / "runtime-core-packaging.json"
+        packaging = json.loads(packaging_path.read_text(encoding="utf-8"))
+        packaging["skill_source_root"] = str(in_place_root)
+        packaging["copy_bundled_skills"] = False
+        packaging["skills_allowlist"] = ["brainstorming"]
+        packaging["internal_skill_corpus"]["target_relpath"] = "internal-corpus"
+        packaging["managed_skill_inventory"] = {
+            "required_runtime_skills": [],
+            "required_workflow_skills": [],
+            "optional_workflow_skills": [],
+        }
+        packaging_path.write_text(json.dumps(packaging, indent=2) + "\n", encoding="utf-8", newline="\n")
+
+        env = os.environ.copy()
+        empty_path = self.root / "no-python-path"
+        empty_path.mkdir(parents=True, exist_ok=True)
+        env["PATH"] = str(empty_path)
+        subprocess.run(
+            [
+                self.powershell,
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                str(self.repo_root / "scripts" / "install" / "Install-VgoAdapter.ps1"),
+                "-RepoRoot",
+                str(self.repo_root),
+                "-TargetRoot",
+                str(self.target_root),
+                "-HostId",
+                "openclaw",
+                "-Profile",
+                "minimal",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+            env=env,
+        )
+
+        self.assertFalse(stale.exists())
+        self.assertFalse((selected / "SKILL.md").exists())
+        self.assertTrue((selected / "SKILL.runtime-mirror.md").exists())

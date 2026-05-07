@@ -90,6 +90,7 @@ class TestBaselineAuditPolicyTests(unittest.TestCase):
                 "tests/unit/test_alpha.py::test_one",
                 "tests/unit/test_alpha.py::test_param[value]",
                 "tests/runtime_neutral/test_beta.py::BetaTests::test_two",
+                "packages/runtime-core/src/vgo_runtime/test_lock.py::test_package_node",
                 "3 tests collected",
             ]
         )
@@ -99,6 +100,7 @@ class TestBaselineAuditPolicyTests(unittest.TestCase):
                 "tests/unit/test_alpha.py::test_one",
                 "tests/unit/test_alpha.py::test_param[value]",
                 "tests/runtime_neutral/test_beta.py::BetaTests::test_two",
+                "packages/runtime-core/src/vgo_runtime/test_lock.py::test_package_node",
             ],
             audit.parse_collect_output(output),
         )
@@ -250,6 +252,37 @@ class TestBaselineAuditPolicyTests(unittest.TestCase):
         self.assertGreater(len(heavy_selected), 0)
         self.assertEqual(heavy_selected, sublayer_selected)
 
+    def test_run_collect_commands_reports_layer_context_on_timeout(self) -> None:
+        policy = {
+            "defaults": {"pytest_quiet_arg": "-q", "collect_timeout_seconds": 7},
+            "layers": [
+                {
+                    "id": "slow_layer",
+                    "pytest_args": ["tests/runtime_neutral/test_runtime_contracts.py"],
+                    "timeout_seconds": 7,
+                }
+            ],
+        }
+
+        def timeout_runner(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+            raise subprocess.TimeoutExpired(
+                command,
+                kwargs["timeout"],
+                output="partial stdout",
+                stderr="partial stderr",
+            )
+
+        with self.assertRaises(RuntimeError) as raised:
+            audit.run_collect_commands(REPO_ROOT, policy, runner=timeout_runner)
+
+        message = str(raised.exception)
+        self.assertIn("pytest collection timed out", message)
+        self.assertIn("tests/runtime_neutral/test_runtime_contracts.py", message)
+        self.assertIn("slow_layer", message)
+        self.assertIn("7s", message)
+        self.assertIn("partial stdout", message)
+        self.assertIn("partial stderr", message)
+
     def test_build_run_layer_command_uses_classified_files_when_nodes_are_available(self) -> None:
         policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
         nodes = [
@@ -296,6 +329,10 @@ class TestBaselineAuditPolicyTests(unittest.TestCase):
 
     def test_write_artifacts_emits_json_and_markdown(self) -> None:
         policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
+        policy["artifact_names"] = {
+            "json": "custom-test-baseline.json",
+            "markdown": "custom-test-baseline.md",
+        }
         artifact = audit.build_artifact(
             repo_root=REPO_ROOT,
             policy_path=REPO_ROOT / "config" / "test-baseline-policy.json",
@@ -305,14 +342,32 @@ class TestBaselineAuditPolicyTests(unittest.TestCase):
             run_result=None,
         )
         with tempfile.TemporaryDirectory() as tempdir:
-            written = audit.write_artifacts(REPO_ROOT, artifact, tempdir)
+            written = audit.write_artifacts(REPO_ROOT, artifact, tempdir, policy=policy)
             json_path = Path(written["json"])
             md_path = Path(written["markdown"])
 
             self.assertTrue(json_path.exists())
             self.assertTrue(md_path.exists())
+            self.assertEqual("custom-test-baseline.json", json_path.name)
+            self.assertEqual("custom-test-baseline.md", md_path.name)
             self.assertEqual(1, json.loads(json_path.read_text(encoding="utf-8"))["summary"]["total_nodes"])
             self.assertIn("Test Baseline Audit", md_path.read_text(encoding="utf-8"))
+
+    def test_resolve_repo_root_uses_vco_marker_not_generic_ancestor_config(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            outer = Path(tempdir) / "outer"
+            inner = Path(tempdir) / "outer" / "tools" / "Vibe-Skills"
+            script_path = inner / "packages" / "verification-core" / "src" / "vgo_verify" / "test_baseline_audit.py"
+            (outer / ".git").mkdir(parents=True)
+            (outer / "config").mkdir()
+            (inner / "config").mkdir(parents=True)
+            (inner / "config" / "version-governance.json").write_text("{}\n", encoding="utf-8")
+            script_path.parent.mkdir(parents=True)
+            script_path.write_text("# fixture\n", encoding="utf-8")
+
+            resolved = audit.resolve_repo_root(script_path)
+
+        self.assertEqual(inner.resolve(), resolved)
 
 
 class FakeCompletedProcess:
@@ -357,6 +412,14 @@ class TestBaselineAuditCliTests(unittest.TestCase):
             self.assertEqual("1", env["PYTHONDONTWRITEBYTECODE"])
             self.assertEqual(str(REPO_ROOT / ".tmp" / "pycache"), env["PYTHONPYCACHEPREFIX"])
 
+    def test_collect_only_overrides_run_layer(self) -> None:
+        runner = FakeRunner()
+        exit_code = audit.main(["--collect-only", "--run-layer", "contract_unit"], runner=runner)
+
+        self.assertEqual(0, exit_code)
+        self.assertEqual(3, len(runner.calls))
+        self.assertTrue(all("--collect-only" in call["command"] for call in runner.calls))
+
     def test_run_layer_sets_disable_network_env(self) -> None:
         runner = FakeRunner()
         exit_code = audit.main(["--run-layer", "contract_unit"], runner=runner)
@@ -385,6 +448,33 @@ class TestBaselineAuditCliTests(unittest.TestCase):
         self.assertNotIn("tests/runtime_neutral/test_install_profile_differentiation.py", command)
         self.assertNotIn("tests/runtime_neutral", command)
 
+    def test_build_run_layer_command_preserves_pytest_options_when_narrowing_to_files(self) -> None:
+        policy = copy.deepcopy(audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json"))
+        layers = {layer["id"]: layer for layer in policy["layers"]}
+        layers["runtime_neutral_fast"]["pytest_args"] = [
+            "tests/runtime_neutral",
+            "-k",
+            "runtime_contracts",
+            "--maxfail=1",
+        ]
+        nodes = [
+            "tests/runtime_neutral/test_runtime_contracts.py::test_contract_shape",
+            "tests/runtime_neutral/test_install_profile_differentiation.py::test_profile",
+        ]
+
+        command = audit.build_run_layer_command(
+            policy,
+            "runtime_neutral_fast",
+            repo_root=REPO_ROOT,
+            collected_nodes=nodes,
+        )
+
+        self.assertIn("-k", command)
+        self.assertEqual("runtime_contracts", command[command.index("-k") + 1])
+        self.assertIn("--maxfail=1", command)
+        self.assertIn("tests/runtime_neutral/test_runtime_contracts.py", command)
+        self.assertNotIn("tests/runtime_neutral", command)
+
     def test_run_layer_accepts_policy_defined_heavy_sublayer(self) -> None:
         runner = FakeRunner()
         exit_code = audit.main(["--run-layer", "runtime_neutral_heavy_runtime"], runner=runner)
@@ -396,6 +486,18 @@ class TestBaselineAuditCliTests(unittest.TestCase):
             [sys.executable, "-m", "pytest", "tests/runtime_neutral/test_l_xl_native_execution_topology.py", "-q"],
             run_calls[0]["command"],
         )
+
+    def test_run_layer_raises_policy_error_for_unknown_layer_without_collected_nodes(self) -> None:
+        policy = copy.deepcopy(audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json"))
+
+        with self.assertRaisesRegex(audit.PolicyError, "Unknown layer id: missing_layer"):
+            audit.run_layer(
+                REPO_ROOT,
+                policy,
+                "missing_layer",
+                collected_nodes=None,
+                runner=FakeRunner(),
+            )
 
     def test_run_layer_file_serial_strategy_records_per_file_results(self) -> None:
         policy = copy.deepcopy(audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json"))
@@ -446,6 +548,28 @@ class TestBaselineAuditCliTests(unittest.TestCase):
         run_calls = [call for call in runner.calls if "--collect-only" not in call["command"]]
         self.assertEqual(5, run_calls[0]["kwargs"]["timeout"])
 
+    def test_run_layer_default_strategy_reports_timeout(self) -> None:
+        policy = copy.deepcopy(audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json"))
+        layers = {layer["id"]: layer for layer in policy["layers"]}
+        layers["contract_unit"]["timeout_seconds"] = 7
+
+        def timeout_runner(command: list[str], **kwargs: object) -> FakeCompletedProcess:
+            raise subprocess.TimeoutExpired(command, kwargs["timeout"], output="partial stdout", stderr="partial stderr")
+
+        result = audit.run_layer(
+            REPO_ROOT,
+            policy,
+            "contract_unit",
+            runner=timeout_runner,
+        )
+
+        self.assertEqual(124, result["exit_code"])
+        self.assertEqual(7, result["timeout_seconds"])
+        self.assertIn("partial stdout", result["stdout"])
+        self.assertIn("partial stderr", result["stderr"])
+        self.assertEqual([], result["selected_files"])
+        self.assertEqual(0, result["selected_file_count"])
+
     def test_run_layer_file_serial_strategy_emits_progress_events(self) -> None:
         policy = copy.deepcopy(audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json"))
         layers = {layer["id"]: layer for layer in policy["layers"]}
@@ -493,6 +617,47 @@ class TestBaselineAuditCliTests(unittest.TestCase):
         self.assertEqual("tests/runtime_neutral/test_install_profile_differentiation.py", result["file_results"][0]["file"])
         self.assertIn("partial stdout", result["stdout"])
         self.assertIn("partial stderr", result["stderr"])
+
+    def test_main_reports_missing_policy_without_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            missing_policy = Path(tempdir) / "missing-policy.json"
+            stderr = tempfile.TemporaryFile(mode="w+", encoding="utf-8")
+            try:
+                original_stderr = sys.stderr
+                sys.stderr = stderr
+                exit_code = audit.main(["--policy", str(missing_policy), "--collect-only"], runner=FakeRunner())
+            finally:
+                sys.stderr = original_stderr
+            stderr.seek(0)
+            message = stderr.read()
+            stderr.close()
+
+        self.assertEqual(2, exit_code)
+        self.assertIn("[ERROR]", message)
+        self.assertIn("missing-policy.json", message)
+        self.assertNotIn("Traceback", message)
+
+    def test_main_reports_collection_failure_without_traceback(self) -> None:
+        class FailingCollectRunner(FakeRunner):
+            def __call__(self, command: list[str], **kwargs: object) -> FakeCompletedProcess:
+                self.calls.append({"command": command, "kwargs": kwargs})
+                return FakeCompletedProcess(command, returncode=2, stdout="", stderr="collection failed")
+
+        stderr = tempfile.TemporaryFile(mode="w+", encoding="utf-8")
+        try:
+            original_stderr = sys.stderr
+            sys.stderr = stderr
+            exit_code = audit.main(["--collect-only"], runner=FailingCollectRunner())
+        finally:
+            sys.stderr = original_stderr
+        stderr.seek(0)
+        message = stderr.read()
+        stderr.close()
+
+        self.assertEqual(1, exit_code)
+        self.assertIn("[ERROR]", message)
+        self.assertIn("pytest collection failed", message)
+        self.assertNotIn("Traceback", message)
 
     def test_script_entrypoint_runs_collect_only(self) -> None:
         completed = subprocess.run(

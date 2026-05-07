@@ -2,7 +2,7 @@
 
 > Historical / Retired Note: This design intentionally names retired routing
 > role fields as cleanup targets. The current routing model is
-> `skill_candidates -> skill_routing.selected -> selected_skill_execution -> skill_usage`.
+> `skill_candidates -> skill_routing.selected -> skill_execution_lock -> selected_skill_execution -> skill_usage`.
 > Old role fields discussed here are debt targets, not current runtime states.
 
 Date: 2026-05-02
@@ -17,9 +17,14 @@ The current routing and usage chain must remain:
 ```text
 skill_candidates
   -> skill_routing.selected
+  -> skill_execution_lock
   -> selected_skill_execution
   -> skill_usage.used / skill_usage.unused / skill_usage.evidence
 ```
+
+`docs/governance/current-runtime-field-contract.md` is the authoritative
+current runtime field contract; this design records cleanup scope and defers to
+that contract for the live field chain.
 
 The cleanup target is the implementation residue that still reads, derives, or
 filters by old role fields:

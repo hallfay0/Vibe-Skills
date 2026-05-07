@@ -157,9 +157,10 @@ if ($hasReceipt -and $hasRuntimePacket -and $hasGovernanceCapsule -and $hasStage
 
     if (Test-ObjectHasProperty -InputObject $runtimePacket -PropertyName 'skill_usage') {
         $skillUsage = $runtimePacket.skill_usage
-        foreach ($propertyName in @('used', 'unused', 'evidence')) {
-            Add-Assertion -Assertions $assertions -Pass (Test-ObjectHasProperty -InputObject $skillUsage -PropertyName $propertyName) -Message ("runtime packet skill_usage includes {0}" -f $propertyName)
-        }
+        $hasLegacyUsageShape = (Test-ObjectHasProperty -InputObject $skillUsage -PropertyName 'used') -and (Test-ObjectHasProperty -InputObject $skillUsage -PropertyName 'unused')
+        $hasBinaryUsageShape = (Test-ObjectHasProperty -InputObject $skillUsage -PropertyName 'used_skills') -and (Test-ObjectHasProperty -InputObject $skillUsage -PropertyName 'unused_skills')
+        Add-Assertion -Assertions $assertions -Pass ($hasLegacyUsageShape -or $hasBinaryUsageShape) -Message 'runtime packet skill_usage includes used/unused or used_skills/unused_skills'
+        Add-Assertion -Assertions $assertions -Pass (Test-ObjectHasProperty -InputObject $skillUsage -PropertyName 'evidence') -Message 'runtime packet skill_usage includes evidence'
     }
 
     Add-Assertion -Assertions $assertions -Pass ([string]$governanceCapsule.runtime_selected_skill -eq 'vibe') -Message 'governance capsule keeps vibe as runtime authority'

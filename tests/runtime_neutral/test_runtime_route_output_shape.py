@@ -15,7 +15,7 @@ RUNTIME_SRC = REPO_ROOT / "packages" / "runtime-core" / "src"
 if str(RUNTIME_SRC) not in sys.path:
     sys.path.insert(0, str(RUNTIME_SRC))
 
-from vgo_runtime.router_contract_runtime import route_prompt  # noqa: E402
+from vgo_runtime.router_contract_runtime import _public_admitted_candidates, _public_pack_row, route_prompt  # noqa: E402
 
 
 POLICY = REPO_ROOT / "config" / "current-routing-debt-erasure.json"
@@ -142,6 +142,51 @@ class RuntimeRouteOutputShapeTests(unittest.TestCase):
 
     def test_powershell_pack_skill_candidates_ignore_retired_role_fields(self) -> None:
         self.assertEqual([], run_powershell_old_manifest_candidate_probe(self))
+
+    def test_python_public_route_helpers_scrub_retired_custom_metadata(self) -> None:
+        retired_key = "route_authority" + "_eligible"
+        public_pack = _public_pack_row(
+            {
+                "pack_id": "custom-pack",
+                "_route_usable": True,
+                "custom_admission": {
+                    "_route_usable": True,
+                    retired_key: True,
+                    "trigger_mode": "auto",
+                },
+                "candidate_ranking": [],
+            }
+        )
+
+        self.assertNotIn("_route_usable", public_pack)
+        self.assertNotIn("_route_usable", public_pack["custom_admission"])
+        self.assertNotIn(retired_key, public_pack["custom_admission"])
+
+        admitted = _public_admitted_candidates(
+            [
+                {
+                    "skill_id": "custom-skill",
+                    "_route_usable": True,
+                    retired_key: True,
+                    "pack": {
+                        "pack_id": "custom-pack",
+                        "_route_usable": True,
+                        retired_key: True,
+                        "custom_admission": {
+                            "_route_usable": True,
+                            retired_key: True,
+                        },
+                    },
+                }
+            ]
+        )[0]
+
+        self.assertNotIn("_route_usable", admitted)
+        self.assertNotIn(retired_key, admitted)
+        self.assertNotIn("_route_usable", admitted["pack"])
+        self.assertNotIn(retired_key, admitted["pack"])
+        self.assertNotIn("_route_usable", admitted["pack"]["custom_admission"])
+        self.assertNotIn(retired_key, admitted["pack"]["custom_admission"])
 
     def test_python_route_output_has_only_current_skill_ranking_fields(self) -> None:
         for prompt, grade, task_type, expected_pack, expected_skill in ROUTE_CASES:

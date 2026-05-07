@@ -43,7 +43,7 @@
 **Do Not Modify**
 
 - Do not change routing, runtime, installer, host adapter, or skill-selection behavior.
-- Do not write to `C:\Users\羽裳\.codex`.
+- Do not write to the local Codex root.
 - Do not add network access to local tests.
 - Do not change `pytest.ini`.
 - Do not add broad skip markers to existing tests.
@@ -916,17 +916,15 @@ import argparse
 import os
 import subprocess
 import sys
+
+from ._repo import resolve_repo_root as resolve_vco_repo_root
 ```
 
 Append these helpers:
 
 ```python
 def resolve_repo_root(start: Path) -> Path:
-    current = start.resolve()
-    for candidate in [current, *current.parents]:
-        if (candidate / ".git").exists() and (candidate / "config").exists():
-            return candidate
-    raise RuntimeError(f"Unable to resolve repository root from {start}")
+    return resolve_vco_repo_root(start)
 
 
 def run_collect_commands(repo_root: Path, policy: dict[str, Any], runner=subprocess.run) -> tuple[list[str], list[dict[str, Any]]]:
@@ -1238,7 +1236,7 @@ If validation required no source adjustment, do not create a commit in this step
   - JSON and Markdown artifacts: Task 4
   - safe `--run-layer contract_unit`: Task 5
   - real repository validation and generated-output boundary: Task 6
-- No implementation step installs, deploys, pushes, mutates host roots, changes routing, or writes to `C:\Users\羽裳\.codex`.
+- No implementation step installs, deploys, pushes, mutates host roots, changes routing, or writes to the local Codex root.
 - Full `tests/runtime_neutral tests/integration` is not claimed green by this plan.
 - Generated files under `outputs/verify/` are evidence, not committed source.
 - Final completion wording must cite the exact commands that passed in the current execution session.

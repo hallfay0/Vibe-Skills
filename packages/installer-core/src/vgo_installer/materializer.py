@@ -357,27 +357,34 @@ def resolve_bundled_skills_root(repo_root: Path, packaging: dict[str, Any]) -> P
 
     skill_source_root = str(packaging.get("skill_source_root") or "").strip()
     if skill_source_root:
-        candidates.append(Path(skill_source_root).expanduser())
+        skill_source_candidate = Path(skill_source_root).expanduser()
+        if skill_source_candidate.is_absolute():
+            candidates.append(skill_source_candidate.resolve())
+        else:
+            candidates.append((repo_root / skill_source_candidate).resolve())
 
     catalog_root = str(packaging.get("catalog_root") or "").strip()
     if catalog_root:
-        candidates.append(Path(catalog_root).expanduser() / "skills")
+        catalog_candidate = Path(catalog_root).expanduser() / "skills"
+        if catalog_candidate.is_absolute():
+            candidates.append(catalog_candidate.resolve())
+        else:
+            candidates.append((repo_root / catalog_candidate).resolve())
 
-    candidates.append(repo_root / source_rel)
+    candidates.append((repo_root / source_rel).resolve())
     parent = repo_root.parent
     if parent.name == "skills":
-        candidates.append(parent)
+        candidates.append(parent.resolve())
 
     seen: list[Path] = []
     for candidate in candidates:
-        resolved = candidate.resolve() if candidate.exists() else candidate
-        if resolved in seen:
+        if candidate in seen:
             continue
-        seen.append(resolved)
+        seen.append(candidate)
         if candidate.exists():
             return candidate
 
-    return Path(skill_source_root).expanduser() if skill_source_root else repo_root / source_rel
+    return candidates[0] if candidates else (repo_root / source_rel).resolve()
 
 
 def materialize_allowlisted_skills(

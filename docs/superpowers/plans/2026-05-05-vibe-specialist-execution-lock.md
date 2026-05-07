@@ -45,7 +45,7 @@ git branch --show-current
 Expected:
 
 ```text
-pr226-followup-review-fixes
+review/pr226-pr227-combined
 ```
 
 `git status --short` may show this plan file or task files created by the current implementation. Do not revert unrelated user changes.
@@ -322,7 +322,15 @@ class SkillExecutionLockContractTests(unittest.TestCase):
                 check=True,
             )
             self.assertIn("packet_path", completed.stdout)
-            packet_path = next((artifact_root / "outputs" / "runtime" / "vibe-sessions" / "pytest-execute-run").rglob("runtime-input-packet.json"))
+            packet_search_root = artifact_root / "outputs" / "runtime" / "vibe-sessions" / "pytest-execute-run"
+            packet_path = next(
+                packet_search_root.rglob("runtime-input-packet.json"),
+                None,
+            )
+            self.assertIsNotNone(
+                packet_path,
+                f"Freeze script did not produce runtime-input-packet.json under {packet_search_root}",
+            )
             packet = json.loads(packet_path.read_text(encoding="utf-8"))
 
         lock = packet["skill_execution_lock"]
@@ -428,6 +436,31 @@ function Test-VibeSkillExecutionLockActive {
     return [bool]([string]::Equals($state, 'active', [System.StringComparison]::OrdinalIgnoreCase) -and ((@($lockedDispatch).Count -gt 0) -or (@($lockedSkillIds).Count -gt 0)))
 }
 
+function Get-VibeSkillExecutionLockSkillIds {
+    param(
+        [AllowNull()] [object]$SkillExecutionLock = $null
+    )
+
+    if ($null -eq $SkillExecutionLock) {
+        return @()
+    }
+
+    $fromIdList = if (Test-VibeObjectHasProperty -InputObject $SkillExecutionLock -PropertyName 'locked_skill_ids') {
+        @(Get-VibeNormalizedStringList -Values $SkillExecutionLock.locked_skill_ids)
+    } else {
+        @()
+    }
+    $fromDispatch = if (Test-VibeObjectHasProperty -InputObject $SkillExecutionLock -PropertyName 'locked_dispatch') {
+        @($SkillExecutionLock.locked_dispatch | ForEach-Object {
+            if ($null -ne $_ -and (Test-VibeObjectHasProperty -InputObject $_ -PropertyName 'skill_id')) { [string]$_.skill_id } else { '' }
+        } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    } else {
+        @()
+    }
+
+    return @((@($fromIdList) + @($fromDispatch)) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+}
+
 function Copy-VibeSkillExecutionLockDispatchRecord {
     param(
         [AllowNull()] [object]$Record = $null,
@@ -528,7 +561,8 @@ function New-VibeSkillExecutionLockProjection {
     $rows = New-Object System.Collections.Generic.List[object]
     $seen = @{}
     $currentRecords = @(Get-VibeSkillExecutionLockCandidateRecords -SkillRouting $CurrentSkillRouting)
-    $currentSkillIds = @($currentRecords | ForEach-Object {
+    $currentSelectedRecords = @(Get-VibeSkillRoutingSelected -SkillRouting $CurrentSkillRouting)
+    $currentSelectedSkillIds = @($currentSelectedRecords | ForEach-Object {
         if (Test-VibeObjectHasProperty -InputObject $_ -PropertyName 'skill_id') { [string]$_.skill_id } else { '' }
     } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
 
@@ -537,38 +571,38 @@ function New-VibeSkillExecutionLockProjection {
     } else {
         @()
     }
-    if (@($hostApproved).Count -gt 0) {
-        foreach ($skillId in @($hostApproved)) {
-            $sourceRecord = @($currentRecords | Where-Object {
-                (Test-VibeObjectHasProperty -InputObject $_ -PropertyName 'skill_id') -and
-                [string]::Equals([string]$_.skill_id, [string]$skillId, [System.StringComparison]::OrdinalIgnoreCase)
-            } | Select-Object -First 1)
-            $record = if (@($sourceRecord).Count -gt 0) {
-                Copy-VibeSkillExecutionLockDispatchRecord -Record $sourceRecord[0] -LockSource 'host_decision' -ReconciliationState 'current_surfaced'
-            } else {
-                New-VibeMinimalSkillExecutionLockDispatchRecord -SkillId $skillId -LockSource 'host_decision' -ReconciliationState 'host_approved_not_currently_surfaced'
-            }
-            Add-VibeSkillExecutionLockRecord -Rows $rows -Seen $seen -Record $record
+
+    foreach ($entry in @($currentSelectedRecords)) {
+        $record = Copy-VibeSkillExecutionLockDispatchRecord -Record $entry -LockSource 'current_skill_routing_selected' -ReconciliationState 'current_surfaced'
+        Add-VibeSkillExecutionLockRecord -Rows $rows -Seen $seen -Record $record
+    }
+
+    foreach ($skillId in @($hostApproved)) {
+        $sourceRecord = @($currentRecords | Where-Object {
+            (Test-VibeObjectHasProperty -InputObject $_ -PropertyName 'skill_id') -and
+            [string]::Equals([string]$_.skill_id, [string]$skillId, [System.StringComparison]::OrdinalIgnoreCase)
+        } | Select-Object -First 1)
+        $record = if (@($sourceRecord).Count -gt 0) {
+            Copy-VibeSkillExecutionLockDispatchRecord -Record $sourceRecord[0] -LockSource 'host_decision' -ReconciliationState 'host_approved_added_to_lock'
+        } else {
+            New-VibeMinimalSkillExecutionLockDispatchRecord -SkillId $skillId -LockSource 'host_decision' -ReconciliationState 'host_approved_not_currently_surfaced'
         }
-    } else {
-        $previousLock = Get-VibeSkillExecutionLockFromRuntimeInputPacket -RuntimeInputPacket $PreviousRuntimeInputPacket
-        if (Test-VibeSkillExecutionLockActive -SkillExecutionLock $previousLock) {
-            foreach ($entry in @($previousLock.locked_dispatch)) {
-                $skillId = if (Test-VibeObjectHasProperty -InputObject $entry -PropertyName 'skill_id') { [string]$entry.skill_id } else { '' }
-                $state = if ($skillId -in @($currentSkillIds)) { 'current_surfaced' } else { 'inherited_not_currently_surfaced' }
-                Add-VibeSkillExecutionLockRecord -Rows $rows -Seen $seen -Record (Copy-VibeSkillExecutionLockDispatchRecord -Record $entry -LockSource 'previous_skill_execution_lock' -ReconciliationState $state)
-            }
-        } elseif ($null -ne $PreviousRuntimeInputPacket -and (Test-VibeObjectHasProperty -InputObject $PreviousRuntimeInputPacket -PropertyName 'skill_routing') -and $null -ne $PreviousRuntimeInputPacket.skill_routing) {
-            foreach ($entry in @(Get-VibeSkillRoutingSelected -RuntimeInputPacket $PreviousRuntimeInputPacket)) {
-                $skillId = if (Test-VibeObjectHasProperty -InputObject $entry -PropertyName 'skill_id') { [string]$entry.skill_id } else { '' }
-                $state = if ($skillId -in @($currentSkillIds)) { 'current_surfaced' } else { 'inherited_not_currently_surfaced' }
-                Add-VibeSkillExecutionLockRecord -Rows $rows -Seen $seen -Record (Copy-VibeSkillExecutionLockDispatchRecord -Record $entry -LockSource 'previous_skill_routing_selected' -ReconciliationState $state)
-            }
+        Add-VibeSkillExecutionLockRecord -Rows $rows -Seen $seen -Record $record
+    }
+
+    $previousLock = Get-VibeSkillExecutionLockFromRuntimeInputPacket -RuntimeInputPacket $PreviousRuntimeInputPacket
+    if (Test-VibeSkillExecutionLockActive -SkillExecutionLock $previousLock) {
+        $previousDispatch = if (Test-VibeObjectHasProperty -InputObject $previousLock -PropertyName 'locked_dispatch') { @($previousLock.locked_dispatch) } else { @() }
+        foreach ($entry in @($previousDispatch)) {
+            $skillId = if (Test-VibeObjectHasProperty -InputObject $entry -PropertyName 'skill_id') { [string]$entry.skill_id } else { '' }
+            $state = if ($skillId -in @($currentSelectedSkillIds)) { 'current_surfaced' } else { 'inherited_not_currently_surfaced' }
+            Add-VibeSkillExecutionLockRecord -Rows $rows -Seen $seen -Record (Copy-VibeSkillExecutionLockDispatchRecord -Record $entry -LockSource 'previous_skill_execution_lock' -ReconciliationState $state)
         }
-        if (@($rows.ToArray()).Count -eq 0 -and $null -ne $CurrentSkillRouting) {
-            foreach ($entry in @(Get-VibeSkillRoutingSelected -SkillRouting $CurrentSkillRouting)) {
-                Add-VibeSkillExecutionLockRecord -Rows $rows -Seen $seen -Record (Copy-VibeSkillExecutionLockDispatchRecord -Record $entry -LockSource 'current_skill_routing_selected' -ReconciliationState 'current_surfaced')
-            }
+    } elseif ($null -ne $PreviousRuntimeInputPacket -and (Test-VibeObjectHasProperty -InputObject $PreviousRuntimeInputPacket -PropertyName 'skill_routing') -and $null -ne $PreviousRuntimeInputPacket.skill_routing) {
+        foreach ($entry in @(Get-VibeSkillRoutingSelected -RuntimeInputPacket $PreviousRuntimeInputPacket)) {
+            $skillId = if (Test-VibeObjectHasProperty -InputObject $entry -PropertyName 'skill_id') { [string]$entry.skill_id } else { '' }
+            $state = if ($skillId -in @($currentSelectedSkillIds)) { 'current_surfaced' } else { 'inherited_not_currently_surfaced' }
+            Add-VibeSkillExecutionLockRecord -Rows $rows -Seen $seen -Record (Copy-VibeSkillExecutionLockDispatchRecord -Record $entry -LockSource 'previous_skill_routing_selected' -ReconciliationState $state)
         }
     }
 
@@ -593,7 +627,7 @@ function New-VibeSkillExecutionLockSummaryProjection {
     )
 
     $active = Test-VibeSkillExecutionLockActive -SkillExecutionLock $SkillExecutionLock
-    $lockedSkillIds = if ($active -and (Test-VibeObjectHasProperty -InputObject $SkillExecutionLock -PropertyName 'locked_skill_ids')) { @($SkillExecutionLock.locked_skill_ids) } else { @() }
+    $lockedSkillIds = if ($active) { @(Get-VibeSkillExecutionLockSkillIds -SkillExecutionLock $SkillExecutionLock) } else { @() }
     return [pscustomobject]@{
         active = [bool]$active
         locked_skill_count = @($lockedSkillIds).Count
@@ -1220,27 +1254,27 @@ def _normalize_string_list(value: object) -> list[str]:
 
 def _load_skill_execution_lock(runtime_packet: dict[str, object], execution_manifest: dict[str, object]) -> dict[str, object]:
     manifest_lock = execution_manifest.get("skill_execution_lock")
-    if isinstance(manifest_lock, dict):
+    if isinstance(manifest_lock, dict) and manifest_lock:
         return manifest_lock
     accounting = execution_manifest.get("specialist_accounting")
     if isinstance(accounting, dict):
         accounting_lock = accounting.get("skill_execution_lock")
-        if isinstance(accounting_lock, dict):
+        if isinstance(accounting_lock, dict) and accounting_lock:
             return accounting_lock
     packet_lock = runtime_packet.get("skill_execution_lock")
-    if isinstance(packet_lock, dict):
+    if isinstance(packet_lock, dict) and packet_lock:
         return packet_lock
     return {}
 
 
 def _load_specialist_lock_resolution(execution_manifest: dict[str, object]) -> dict[str, object]:
     manifest_resolution = execution_manifest.get("specialist_lock_resolution")
-    if isinstance(manifest_resolution, dict):
+    if isinstance(manifest_resolution, dict) and manifest_resolution:
         return manifest_resolution
     accounting = execution_manifest.get("specialist_accounting")
     if isinstance(accounting, dict):
         accounting_resolution = accounting.get("specialist_lock_resolution")
-        if isinstance(accounting_resolution, dict):
+        if isinstance(accounting_resolution, dict) and accounting_resolution:
             return accounting_resolution
     return {}
 
@@ -1262,6 +1296,7 @@ def _evaluate_specialist_lock_resolution(
             "unresolved": [],
         }
 
+    locked_set = set(locked_skill_ids)
     executed = _normalize_string_list(specialist_lock_resolution.get("executed_skill_ids"))
     not_applicable = _normalize_string_list(specialist_lock_resolution.get("not_applicable_skill_ids"))
     deferred = _normalize_string_list(specialist_lock_resolution.get("deferred_skill_ids"))
@@ -1270,7 +1305,7 @@ def _evaluate_specialist_lock_resolution(
     resolved = set(executed) | set(not_applicable) | set(deferred) | set(failed)
     unresolved = [skill_id for skill_id in locked_skill_ids if skill_id not in resolved]
     for skill_id in explicitly_unresolved:
-        if skill_id not in unresolved:
+        if skill_id in locked_set and skill_id not in resolved and skill_id not in unresolved:
             unresolved.append(skill_id)
 
     if failed:
@@ -1606,7 +1641,7 @@ Verification:
 - powershell -ExecutionPolicy Bypass -File .\check.ps1
 ```
 
-Do not claim the installed Codex runtime has changed unless a separate deployment step explicitly installs this branch into `C:\Users\羽裳\.codex`.
+Do not claim the installed Codex runtime has changed unless a separate deployment step explicitly installs this branch into the local Codex root.
 
 ---
 

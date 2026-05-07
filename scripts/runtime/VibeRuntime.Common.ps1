@@ -11,9 +11,6 @@ if (Test-Path -LiteralPath $retiredConsultationHelper -PathType Leaf) {
 if (-not (Get-Command -Name New-VibeRetiredSpecialistConsultationLifecycleLayerProjection -CommandType Function -ErrorAction SilentlyContinue)) {
     function New-VibeRetiredSpecialistConsultationLifecycleLayerProjection {
         param([AllowNull()] [object]$ConsultationReceipt)
-        if ($null -ne $ConsultationReceipt) {
-            throw $script:VibeRetiredConsultationHelperMissingMessage
-        }
         return $null
     }
 }
@@ -23,9 +20,6 @@ if (-not (Get-Command -Name New-VibeRetiredHostUserBriefingSegmentProjection -Co
             [AllowNull()] [object]$LifecycleLayer = $null,
             [AllowNull()] [object]$ConsultationReceipt = $null
         )
-        if ($null -ne $LifecycleLayer -or $null -ne $ConsultationReceipt) {
-            throw $script:VibeRetiredConsultationHelperMissingMessage
-        }
         return $null
     }
 }
@@ -35,9 +29,6 @@ if (-not (Get-Command -Name Get-VibeRetiredHostStageDisclosureEventId -CommandTy
             [Parameter(Mandatory)] [string]$SegmentId,
             [AllowNull()] [object[]]$Skills = @()
         )
-        if ($SegmentId.IndexOf('consultation', [System.StringComparison]::OrdinalIgnoreCase) -ge 0 -and @($Skills).Count -gt 0) {
-            throw $script:VibeRetiredConsultationHelperMissingMessage
-        }
         return $null
     }
 }
@@ -788,6 +779,311 @@ function Resolve-VibeHostSkillExecutionDecision {
         stale_skill_ids = @($unknownSkillIds)
         reconciliation_state = [string]$reconciliationState
         requires_recuration = [bool]$requiresRecuration
+    }
+}
+
+function Get-VibeRuntimeInputPacketFromSessionRunId {
+    param(
+        [AllowEmptyString()] [string]$ArtifactRoot = '',
+        [AllowEmptyString()] [string]$SourceRunId = ''
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ArtifactRoot) -or [string]::IsNullOrWhiteSpace($SourceRunId)) {
+        return $null
+    }
+
+    $candidatePath = Join-Path (Join-Path (Join-Path (Join-Path $ArtifactRoot 'outputs') 'runtime') 'vibe-sessions') (Join-Path $SourceRunId 'runtime-input-packet.json')
+    if (-not (Test-Path -LiteralPath $candidatePath)) {
+        return $null
+    }
+
+    try {
+        return Get-Content -LiteralPath $candidatePath -Raw -Encoding UTF8 | ConvertFrom-Json
+    } catch {
+        return $null
+    }
+}
+
+function Get-VibeSkillExecutionLockFromRuntimeInputPacket {
+    param(
+        [AllowNull()] [object]$RuntimeInputPacket = $null
+    )
+
+    if (
+        $null -eq $RuntimeInputPacket -or
+        -not (Test-VibeObjectHasProperty -InputObject $RuntimeInputPacket -PropertyName 'skill_execution_lock') -or
+        $null -eq $RuntimeInputPacket.skill_execution_lock
+    ) {
+        return $null
+    }
+
+    return $RuntimeInputPacket.skill_execution_lock
+}
+
+function Test-VibeSkillExecutionLockActive {
+    param(
+        [AllowNull()] [object]$SkillExecutionLock = $null
+    )
+
+    if ($null -eq $SkillExecutionLock) {
+        return $false
+    }
+
+    $state = if (Test-VibeObjectHasProperty -InputObject $SkillExecutionLock -PropertyName 'state') { [string]$SkillExecutionLock.state } else { '' }
+    $lockedDispatch = if (Test-VibeObjectHasProperty -InputObject $SkillExecutionLock -PropertyName 'locked_dispatch') { @($SkillExecutionLock.locked_dispatch) } else { @() }
+    $lockedSkillIds = if (Test-VibeObjectHasProperty -InputObject $SkillExecutionLock -PropertyName 'locked_skill_ids') { @($SkillExecutionLock.locked_skill_ids) } else { @() }
+    return [bool]([string]::Equals($state, 'active', [System.StringComparison]::OrdinalIgnoreCase) -and ((@($lockedDispatch).Count -gt 0) -or (@($lockedSkillIds).Count -gt 0)))
+}
+
+function Get-VibeSkillExecutionLockSkillIds {
+    param(
+        [AllowNull()] [object]$SkillExecutionLock = $null
+    )
+
+    if ($null -eq $SkillExecutionLock) {
+        return @()
+    }
+
+    $fromIdList = if (Test-VibeObjectHasProperty -InputObject $SkillExecutionLock -PropertyName 'locked_skill_ids') {
+        @(Get-VibeNormalizedStringList -Values $SkillExecutionLock.locked_skill_ids)
+    } else {
+        @()
+    }
+    $fromDispatch = if (Test-VibeObjectHasProperty -InputObject $SkillExecutionLock -PropertyName 'locked_dispatch') {
+        @($SkillExecutionLock.locked_dispatch | ForEach-Object {
+            if ($null -ne $_ -and (Test-VibeObjectHasProperty -InputObject $_ -PropertyName 'skill_id')) { [string]$_.skill_id } else { '' }
+        } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    } else {
+        @()
+    }
+
+    return @((@($fromIdList) + @($fromDispatch)) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+}
+
+function Copy-VibeSkillExecutionLockDispatchRecord {
+    param(
+        [AllowNull()] [object]$Record = $null,
+        [AllowEmptyString()] [string]$LockSource = '',
+        [AllowEmptyString()] [string]$ReconciliationState = ''
+    )
+
+    if ($null -eq $Record) {
+        return $null
+    }
+
+    $copy = Copy-VibeRecordObject -InputObject $Record
+    $skillId = if (Test-VibeObjectHasProperty -InputObject $copy -PropertyName 'skill_id') { [string]$copy.skill_id } else { '' }
+    if ([string]::IsNullOrWhiteSpace($skillId)) {
+        return $null
+    }
+
+    if (-not (Test-VibeObjectHasProperty -InputObject $copy -PropertyName 'task_slice') -or [string]::IsNullOrWhiteSpace([string]$copy.task_slice)) {
+        $copy | Add-Member -NotePropertyName task_slice -NotePropertyValue ('Resolve locked specialist execution for {0}.' -f $skillId) -Force
+    }
+    if (-not (Test-VibeObjectHasProperty -InputObject $copy -PropertyName 'dispatch_phase') -or [string]::IsNullOrWhiteSpace([string]$copy.dispatch_phase)) {
+        $copy | Add-Member -NotePropertyName dispatch_phase -NotePropertyValue 'in_execution' -Force
+    }
+    if (-not (Test-VibeObjectHasProperty -InputObject $copy -PropertyName 'write_scope') -or [string]::IsNullOrWhiteSpace([string]$copy.write_scope)) {
+        $copy | Add-Member -NotePropertyName write_scope -NotePropertyValue ('specialist:{0}' -f $skillId) -Force
+    }
+    if (-not (Test-VibeObjectHasProperty -InputObject $copy -PropertyName 'verification_expectation') -or [string]::IsNullOrWhiteSpace([string]$copy.verification_expectation)) {
+        $copy | Add-Member -NotePropertyName verification_expectation -NotePropertyValue 'Resolve locked specialist execution before delivery acceptance.' -Force
+    }
+
+    $copy | Add-Member -NotePropertyName locked_for_execution -NotePropertyValue $true -Force
+    $copy | Add-Member -NotePropertyName lock_source -NotePropertyValue $(if ([string]::IsNullOrWhiteSpace($LockSource)) { 'unknown' } else { [string]$LockSource }) -Force
+    $copy | Add-Member -NotePropertyName reconciliation_state -NotePropertyValue $(if ([string]::IsNullOrWhiteSpace($ReconciliationState)) { 'current_surfaced' } else { [string]$ReconciliationState }) -Force
+    $copy | Add-Member -NotePropertyName requires_resolution -NotePropertyValue $true -Force
+    return $copy
+}
+
+function New-VibeMinimalSkillExecutionLockDispatchRecord {
+    param(
+        [Parameter(Mandatory)] [string]$SkillId,
+        [AllowEmptyString()] [string]$LockSource = '',
+        [AllowEmptyString()] [string]$ReconciliationState = ''
+    )
+
+    return Copy-VibeSkillExecutionLockDispatchRecord `
+        -Record ([pscustomobject]@{
+            skill_id = [string]$SkillId
+            task_slice = ('Resolve locked specialist execution for {0}.' -f [string]$SkillId)
+            dispatch_phase = 'in_execution'
+            write_scope = ('specialist:{0}' -f [string]$SkillId)
+            verification_expectation = 'Resolve locked specialist execution before delivery acceptance.'
+        }) `
+        -LockSource $LockSource `
+        -ReconciliationState $ReconciliationState
+}
+
+function Add-VibeSkillExecutionLockRecord {
+    param(
+        [Parameter(Mandatory)] [object]$Rows,
+        [Parameter(Mandatory)] [hashtable]$Seen,
+        [AllowNull()] [object]$Record = $null
+    )
+
+    if ($null -eq $Record -or -not (Test-VibeObjectHasProperty -InputObject $Record -PropertyName 'skill_id')) {
+        return
+    }
+
+    $skillId = [string]$Record.skill_id
+    if ([string]::IsNullOrWhiteSpace($skillId) -or $Seen.ContainsKey($skillId)) {
+        return
+    }
+
+    $Rows.Add($Record) | Out-Null
+    $Seen[$skillId] = $true
+}
+
+function Get-VibeSkillExecutionLockCandidateRecords {
+    param(
+        [AllowNull()] [object]$SkillRouting = $null
+    )
+
+    if ($null -eq $SkillRouting) {
+        return @()
+    }
+
+    $rows = @()
+    foreach ($propertyName in @('selected', 'candidates', 'rejected')) {
+        if (Test-VibeObjectHasProperty -InputObject $SkillRouting -PropertyName $propertyName) {
+            $rows += @($SkillRouting.$propertyName)
+        }
+    }
+    return @($rows | Where-Object { $null -ne $_ })
+}
+
+function New-VibeSkillExecutionLockProjection {
+    param(
+        [AllowNull()] [object]$PreviousRuntimeInputPacket = $null,
+        [AllowNull()] [object]$CurrentSkillRouting = $null,
+        [AllowNull()] [object]$HostSpecialistDispatchDecision = $null,
+        [AllowEmptyString()] [string]$SourceRunId = '',
+        [AllowEmptyString()] [string]$Source = 'current_skill_routing_selected'
+    )
+
+    $rows = New-Object System.Collections.Generic.List[object]
+    $seen = @{}
+    $currentRecords = @(Get-VibeSkillExecutionLockCandidateRecords -SkillRouting $CurrentSkillRouting)
+    $currentSelectedRecords = @(Get-VibeSkillRoutingSelected -SkillRouting $CurrentSkillRouting)
+    $currentSelectedSkillIds = @($currentSelectedRecords | ForEach-Object {
+        if (Test-VibeObjectHasProperty -InputObject $_ -PropertyName 'skill_id') { [string]$_.skill_id } else { '' }
+    } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+
+    $hostSelectionMode = if ($null -ne $HostSpecialistDispatchDecision -and (Test-VibeObjectHasProperty -InputObject $HostSpecialistDispatchDecision -PropertyName 'selection_mode')) {
+        [string]$HostSpecialistDispatchDecision.selection_mode
+    } else {
+        ''
+    }
+    $curatedOnly = [string]::Equals($hostSelectionMode, 'curated_only', [System.StringComparison]::OrdinalIgnoreCase)
+    $hostDeferred = if ($null -ne $HostSpecialistDispatchDecision -and (Test-VibeObjectHasProperty -InputObject $HostSpecialistDispatchDecision -PropertyName 'deferred_skill_ids')) {
+        @(Get-VibeNormalizedStringList -Values $HostSpecialistDispatchDecision.deferred_skill_ids)
+    } else {
+        @()
+    }
+    $hostRejected = if ($null -ne $HostSpecialistDispatchDecision -and (Test-VibeObjectHasProperty -InputObject $HostSpecialistDispatchDecision -PropertyName 'rejected_skill_ids')) {
+        @(Get-VibeNormalizedStringList -Values $HostSpecialistDispatchDecision.rejected_skill_ids)
+    } else {
+        @()
+    }
+    $hostExcluded = @(@($hostDeferred) + @($hostRejected) | Select-Object -Unique)
+    $hostDecisionHasApprovedSkillIds = $null -ne $HostSpecialistDispatchDecision -and (Test-VibeObjectHasProperty -InputObject $HostSpecialistDispatchDecision -PropertyName 'approved_skill_ids')
+    $hostApproved = if ($hostDecisionHasApprovedSkillIds) {
+        @(Get-VibeNormalizedStringList -Values $HostSpecialistDispatchDecision.approved_skill_ids)
+    } else {
+        @()
+    }
+    $explicitZeroHostApproval = [bool](($curatedOnly -or $hostDecisionHasApprovedSkillIds) -and @($hostApproved).Count -eq 0)
+
+    if (-not $curatedOnly) {
+        foreach ($entry in @($currentSelectedRecords)) {
+            $skillId = if (Test-VibeObjectHasProperty -InputObject $entry -PropertyName 'skill_id') { [string]$entry.skill_id } else { '' }
+            if (-not [string]::IsNullOrWhiteSpace($skillId) -and $skillId -in @($hostExcluded)) {
+                continue
+            }
+            $record = Copy-VibeSkillExecutionLockDispatchRecord -Record $entry -LockSource 'current_skill_routing_selected' -ReconciliationState 'current_surfaced'
+            Add-VibeSkillExecutionLockRecord -Rows $rows -Seen $seen -Record $record
+        }
+    }
+
+    foreach ($skillId in @($hostApproved)) {
+        if ($skillId -in @($hostExcluded)) {
+            continue
+        }
+        $sourceRecord = @($currentRecords | Where-Object {
+            (Test-VibeObjectHasProperty -InputObject $_ -PropertyName 'skill_id') -and
+            [string]::Equals([string]$_.skill_id, [string]$skillId, [System.StringComparison]::OrdinalIgnoreCase)
+        } | Select-Object -First 1)
+        $record = if (@($sourceRecord).Count -gt 0) {
+            Copy-VibeSkillExecutionLockDispatchRecord -Record $sourceRecord[0] -LockSource 'host_decision' -ReconciliationState 'host_approved_added_to_lock'
+        } else {
+            New-VibeMinimalSkillExecutionLockDispatchRecord -SkillId $skillId -LockSource 'host_decision' -ReconciliationState 'host_approved_not_currently_surfaced'
+        }
+        Add-VibeSkillExecutionLockRecord -Rows $rows -Seen $seen -Record $record
+    }
+
+    $previousLock = Get-VibeSkillExecutionLockFromRuntimeInputPacket -RuntimeInputPacket $PreviousRuntimeInputPacket
+    if ((Test-VibeSkillExecutionLockActive -SkillExecutionLock $previousLock) -and -not $curatedOnly -and -not $explicitZeroHostApproval) {
+        $previousDispatch = if (Test-VibeObjectHasProperty -InputObject $previousLock -PropertyName 'locked_dispatch') { @($previousLock.locked_dispatch) } else { @() }
+        foreach ($entry in @($previousDispatch)) {
+            $skillId = if (Test-VibeObjectHasProperty -InputObject $entry -PropertyName 'skill_id') { [string]$entry.skill_id } else { '' }
+            if (-not [string]::IsNullOrWhiteSpace($skillId) -and $skillId -in @($hostExcluded)) {
+                continue
+            }
+            $state = if ($skillId -in @($currentSelectedSkillIds)) { 'current_surfaced' } else { 'inherited_not_currently_surfaced' }
+            Add-VibeSkillExecutionLockRecord -Rows $rows -Seen $seen -Record (Copy-VibeSkillExecutionLockDispatchRecord -Record $entry -LockSource 'previous_skill_execution_lock' -ReconciliationState $state)
+        }
+        foreach ($skillId in @(Get-VibeSkillExecutionLockSkillIds -SkillExecutionLock $previousLock)) {
+            if ($skillId -in @($hostExcluded)) {
+                continue
+            }
+            if ($seen.ContainsKey($skillId)) {
+                continue
+            }
+            $state = if ($skillId -in @($currentSelectedSkillIds)) { 'current_surfaced' } else { 'inherited_not_currently_surfaced' }
+            Add-VibeSkillExecutionLockRecord -Rows $rows -Seen $seen -Record (New-VibeMinimalSkillExecutionLockDispatchRecord -SkillId $skillId -LockSource 'previous_skill_execution_lock' -ReconciliationState $state)
+        }
+    } elseif (-not $curatedOnly -and -not $explicitZeroHostApproval -and $null -ne $PreviousRuntimeInputPacket -and (Test-VibeObjectHasProperty -InputObject $PreviousRuntimeInputPacket -PropertyName 'skill_routing') -and $null -ne $PreviousRuntimeInputPacket.skill_routing) {
+        foreach ($entry in @(Get-VibeSkillRoutingSelected -RuntimeInputPacket $PreviousRuntimeInputPacket)) {
+            $skillId = if (Test-VibeObjectHasProperty -InputObject $entry -PropertyName 'skill_id') { [string]$entry.skill_id } else { '' }
+            if (-not [string]::IsNullOrWhiteSpace($skillId) -and $skillId -in @($hostExcluded)) {
+                continue
+            }
+            $state = if ($skillId -in @($currentSelectedSkillIds)) { 'current_surfaced' } else { 'inherited_not_currently_surfaced' }
+            Add-VibeSkillExecutionLockRecord -Rows $rows -Seen $seen -Record (Copy-VibeSkillExecutionLockDispatchRecord -Record $entry -LockSource 'previous_skill_routing_selected' -ReconciliationState $state)
+        }
+    }
+
+    $lockedDispatch = [object[]]$rows.ToArray()
+    $lockedSkillIds = [object[]]@($lockedDispatch | ForEach-Object { [string]$_.skill_id } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+    $state = if (@($lockedSkillIds).Count -gt 0) { 'active' } else { 'inactive' }
+    return [pscustomobject]@{
+        schema_version = 'v1'
+        state = $state
+        source = if ([string]::IsNullOrWhiteSpace($Source)) { 'current_skill_routing_selected' } else { [string]$Source }
+        source_run_id = if ([string]::IsNullOrWhiteSpace($SourceRunId)) { $null } else { [string]$SourceRunId }
+        locked_skill_ids = @($lockedSkillIds)
+        locked_dispatch = @($lockedDispatch)
+        resolution_required = [bool](@($lockedSkillIds).Count -gt 0)
+        resolution_states = @('executed', 'not_applicable', 'deferred', 'failed')
+    }
+}
+
+function New-VibeSkillExecutionLockSummaryProjection {
+    param(
+        [AllowNull()] [object]$SkillExecutionLock = $null
+    )
+
+    $active = Test-VibeSkillExecutionLockActive -SkillExecutionLock $SkillExecutionLock
+    $lockedSkillIds = if ($active) { @(Get-VibeSkillExecutionLockSkillIds -SkillExecutionLock $SkillExecutionLock) } else { @() }
+    return [pscustomobject]@{
+        active = [bool]$active
+        locked_skill_count = @($lockedSkillIds).Count
+        locked_skill_ids = @($lockedSkillIds)
+        source = if ($active -and (Test-VibeObjectHasProperty -InputObject $SkillExecutionLock -PropertyName 'source')) { [string]$SkillExecutionLock.source } else { $null }
+        source_run_id = if ($active -and (Test-VibeObjectHasProperty -InputObject $SkillExecutionLock -PropertyName 'source_run_id')) { [string]$SkillExecutionLock.source_run_id } else { $null }
+        resolution_required = if ($active -and (Test-VibeObjectHasProperty -InputObject $SkillExecutionLock -PropertyName 'resolution_required')) { [bool]$SkillExecutionLock.resolution_required } else { $false }
     }
 }
 
@@ -1980,6 +2276,7 @@ function New-VibeRuntimeInputPacketProjection {
         [AllowNull()] [object[]]$StageAssistantHints = @(),
         [AllowNull()] [object]$SkillUsage = $null,
         [AllowNull()] [object]$SkillRouting = $null,
+        [AllowNull()] [object]$SkillExecutionLock = $null,
         [Parameter(Mandatory)] [object]$SpecialistDispatch,
         [AllowNull()] [object[]]$OverlayDecisions = @(),
         [Parameter(Mandatory)] [object]$Policy
@@ -2123,6 +2420,8 @@ function New-VibeRuntimeInputPacketProjection {
         execution_phase_decomposition = $ExecutionPhaseDecomposition
         code_task_tdd_decision = $CodeTaskTddDecision
         host_skill_execution_decision = $HostSpecialistDispatchDecision
+        skill_execution_lock = if ($null -ne $SkillExecutionLock) { $SkillExecutionLock } else { $null }
+        skill_execution_lock_summary = New-VibeSkillExecutionLockSummaryProjection -SkillExecutionLock $SkillExecutionLock
         skill_routing = if ($null -ne $SkillRouting) {
             $SkillRouting
         } else {

@@ -145,6 +145,10 @@ function Get-LineCommentAndStringFragments {
 function Test-LineIsGuardAssertion {
     param([Parameter(Mandatory)] [string]$Line)
 
+    $trimmed = $Line.TrimStart()
+    if ($trimmed -match '(?i)^assert\s+.+\s+not\s+in\s+') {
+        return $true
+    }
     foreach ($needle in @('assertNotIn', 'self.assertNotIn', 'assertNotRegex')) {
         if ($Line.IndexOf($needle, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
             return $true
@@ -288,7 +292,11 @@ foreach ($file in $scannedFiles) {
                 continue
             }
 
-            $category = if ($layer -in @('current_runtime', 'current_router', 'runtime_core') -and ($highRisk -contains $term)) {
+            $escapedTerm = [regex]::Escape($term)
+            $looksLikeFieldWrite = $lineText -match "(?i)(['`"]?$escapedTerm['`"]?\s*[:=])"
+            $category = if ($looksLikeFieldWrite -and $layer -in @('current_runtime', 'current_router', 'runtime_core', 'current_config_or_verify') -and ($highRisk -contains $term)) {
+                'P0'
+            } elseif ($layer -in @('current_runtime', 'current_router', 'runtime_core') -and ($highRisk -contains $term)) {
                 'P1'
             } elseif ($layer -eq 'current_tests') {
                 'P1'

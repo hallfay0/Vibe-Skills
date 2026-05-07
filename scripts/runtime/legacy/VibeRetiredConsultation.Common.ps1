@@ -236,19 +236,19 @@ function Get-VibeRetiredHostStageDisclosureEventId {
     }
 
     if ($SegmentId -eq 'discussion_consultation') {
-        if ($hasCompletedConsultation -and -not $hasRoutedConsultation) {
+        if ($hasCompletedConsultation) {
             return 'discussion_consultation_completed'
         }
-        if ($hasRoutedConsultation -and -not $hasCompletedConsultation) {
+        if ($hasRoutedConsultation) {
             return 'discussion_consultation_routed'
         }
         return 'discussion_consultation_reported'
     }
 
-    if ($hasCompletedConsultation -and -not $hasRoutedConsultation) {
+    if ($hasCompletedConsultation) {
         return 'planning_consultation_completed'
     }
-    if ($hasRoutedConsultation -and -not $hasCompletedConsultation) {
+    if ($hasRoutedConsultation) {
         return 'planning_consultation_routed'
     }
     return 'planning_consultation_reported'

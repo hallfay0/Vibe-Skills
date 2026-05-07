@@ -84,7 +84,11 @@ function Invoke-SupportedHostRuntimeTruthProbe {
             [string]$specialistDecision.decision_state -eq 'no_specialist_recommendations' -and
             [string]$specialistDecision.resolution_mode -in @('no_matching_specialist', 'no_specialist_needed')
         )
-        $selectedSkillIds = if ($runtimeInput.PSObject.Properties.Name -contains 'skill_routing') {
+        $selectedSkillIds = if (
+            $runtimeInput.PSObject.Properties.Name -contains 'skill_routing' -and
+            $null -ne $runtimeInput.skill_routing -and
+            $runtimeInput.skill_routing.PSObject.Properties.Name -contains 'selected'
+        ) {
             @($runtimeInput.skill_routing.selected | ForEach-Object { [string]$_.skill_id } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
         } else {
             @()

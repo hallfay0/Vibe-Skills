@@ -201,18 +201,6 @@ function Convert-SkillEntryPointToRuntimeMirror {
     }
 }
 
-function Test-VgoSkillEntryPoint {
-    param([string]$SkillRoot)
-
-    if ([string]::IsNullOrWhiteSpace($SkillRoot)) {
-        return $false
-    }
-    return (
-        (Test-Path -LiteralPath (Join-Path $SkillRoot 'SKILL.md') -PathType Leaf) -or
-        (Test-Path -LiteralPath (Join-Path $SkillRoot 'SKILL.runtime-mirror.md') -PathType Leaf)
-    )
-}
-
 function Get-VgoPlatformTag {
     if ([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)) {
         return 'windows'
@@ -886,7 +874,15 @@ function Ensure-SkillPresent {
     )
 
     $targetSkillRoot = Join-Path $DestinationRoot $Name
-    if (Test-VgoSkillEntryPoint -SkillRoot $targetSkillRoot) { return }
+    if ($HiddenEntryPoints) {
+        if (Test-Path -LiteralPath (Join-Path $targetSkillRoot 'SKILL.runtime-mirror.md') -PathType Leaf) { return }
+        Convert-SkillEntryPointToRuntimeMirror -SkillRoot $targetSkillRoot
+        if (Test-Path -LiteralPath (Join-Path $targetSkillRoot 'SKILL.runtime-mirror.md') -PathType Leaf) { return }
+    } else {
+        if (Test-Path -LiteralPath (Join-Path $targetSkillRoot 'SKILL.md') -PathType Leaf) { return }
+        Restore-SkillEntryPointIfNeeded -SkillRoot $targetSkillRoot
+        if (Test-Path -LiteralPath (Join-Path $targetSkillRoot 'SKILL.md') -PathType Leaf) { return }
+    }
     if ($AllowExternalSkillFallback) {
         foreach ($src in $FallbackSources) {
             if ([string]::IsNullOrWhiteSpace($src)) { continue }
@@ -903,7 +899,12 @@ function Ensure-SkillPresent {
             }
         }
     }
-    if (-not (Test-VgoSkillEntryPoint -SkillRoot $targetSkillRoot)) {
+    $skillPresent = if ($HiddenEntryPoints) {
+        Test-Path -LiteralPath (Join-Path $targetSkillRoot 'SKILL.runtime-mirror.md') -PathType Leaf
+    } else {
+        Test-Path -LiteralPath (Join-Path $targetSkillRoot 'SKILL.md') -PathType Leaf
+    }
+    if (-not $skillPresent) {
         if ($Required) {
             $MissingRequiredSkills.Add($Name) | Out-Null
         }
@@ -980,11 +981,19 @@ function Get-VgoBundledSkillsRoot {
     }
 
     foreach ($candidate in @($candidates | Select-Object -Unique)) {
-        if (-not [string]::IsNullOrWhiteSpace($candidate) -and (Test-Path -LiteralPath $candidate -PathType Container)) {
-            return $candidate
+        if ([string]::IsNullOrWhiteSpace($candidate)) {
+            continue
+        }
+        $resolvedCandidate = if ([System.IO.Path]::IsPathRooted($candidate)) {
+            [System.IO.Path]::GetFullPath($candidate)
+        } else {
+            [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $candidate))
+        }
+        if (Test-Path -LiteralPath $resolvedCandidate -PathType Container) {
+            return $resolvedCandidate
         }
     }
-    return (Join-Path $RepoRoot $sourceRel)
+    return [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $sourceRel))
 }
 
 function Sync-VgoInternalSkillCorpus {
@@ -996,7 +1005,12 @@ function Sync-VgoInternalSkillCorpus {
     )
 
     $corpus = if ($Packaging.PSObject.Properties.Name -contains 'internal_skill_corpus') { $Packaging.internal_skill_corpus } else { $null }
-    if ($null -eq $corpus -or -not [bool]$corpus.enabled) {
+    $corpusEnabled = (
+        $null -ne $corpus -and
+        $corpus.PSObject.Properties.Name -contains 'enabled' -and
+        [bool]$corpus.enabled
+    )
+    if (-not $corpusEnabled) {
         return $null
     }
 
@@ -1011,7 +1025,11 @@ function Sync-VgoInternalSkillCorpus {
         throw "Bundled skills source missing for internal corpus packaging: $bundledRoot"
     }
 
-    if (Test-Path -LiteralPath $destinationRoot) {
+    $trimSeparators = [char[]]@([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+    $destinationFullName = [System.IO.Path]::GetFullPath($destinationRoot).TrimEnd($trimSeparators)
+    $bundledFullName = [System.IO.Path]::GetFullPath($bundledRoot).TrimEnd($trimSeparators)
+    $sourceEqualsDestination = ($destinationFullName -eq $bundledFullName)
+    if ((Test-Path -LiteralPath $destinationRoot) -and $destinationFullName -ne $bundledFullName) {
         Remove-Item -LiteralPath $destinationRoot -Recurse -Force
     }
     New-Item -ItemType Directory -Force -Path $destinationRoot | Out-Null
@@ -1042,13 +1060,30 @@ function Sync-VgoInternalSkillCorpus {
         }
     }
 
-    foreach ($name in @($selected | Select-Object -Unique | Sort-Object)) {
+    $selectedNames = @($selected | Select-Object -Unique | Sort-Object)
+    if ($sourceEqualsDestination) {
+        $selectedSet = New-Object System.Collections.Generic.HashSet[string]([System.StringComparer]::OrdinalIgnoreCase)
+        foreach ($name in @($selectedNames)) {
+            [void]$selectedSet.Add([string]$name)
+        }
+        foreach ($existing in @(Get-ChildItem -LiteralPath $destinationRoot -Directory -ErrorAction SilentlyContinue)) {
+            if (-not $selectedSet.Contains([string]$existing.Name)) {
+                Remove-Item -LiteralPath $existing.FullName -Recurse -Force
+            }
+        }
+    }
+
+    foreach ($name in @($selectedNames)) {
         $source = Join-Path $bundledRoot $name
         if (-not (Test-Path -LiteralPath $source -PathType Container)) {
             throw "Internal corpus skill packaging source missing: $source"
         }
         $destination = Join-Path $destinationRoot $name
-        Copy-DirContent -Source $source -Destination $destination
+        $sourceFull = [System.IO.Path]::GetFullPath($source).TrimEnd($trimSeparators)
+        $destinationFull = [System.IO.Path]::GetFullPath($destination).TrimEnd($trimSeparators)
+        if ($sourceFull -ne $destinationFull) {
+            Copy-DirContent -Source $source -Destination $destination
+        }
         Convert-SkillEntryPointToRuntimeMirror -SkillRoot $destination
     }
 
