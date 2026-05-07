@@ -14,13 +14,13 @@
       "task_type": "planning",
       "requested_skill": null,
       "expected": {
-        "route_mode": "pack_overlay",
-        "route_reason": "host_selection_required",
-        "selected_pack": "scholarly-publishing-workflow",
-        "selected_skill": "scholarly-publishing",
-        "confidence": 0.0619,
+        "route_mode": "confirm_required",
+        "route_reason": "legacy_fallback_guard",
+        "selected_pack": "",
+        "selected_skill": "",
+        "confidence": 0.45,
         "top1_top2_gap": 0.0,
-        "candidate_signal": 0.09
+        "candidate_signal": 0.0
       }
     },
     {
@@ -30,13 +30,13 @@
       "task_type": "planning",
       "requested_skill": null,
       "expected": {
-        "route_mode": "pack_overlay",
-        "route_reason": "host_selection_required",
-        "selected_pack": "scholarly-publishing-workflow",
-        "selected_skill": "scholarly-publishing",
-        "confidence": 0.0619,
+        "route_mode": "confirm_required",
+        "route_reason": "legacy_fallback_guard",
+        "selected_pack": "",
+        "selected_skill": "",
+        "confidence": 0.45,
         "top1_top2_gap": 0.0,
-        "candidate_signal": 0.09
+        "candidate_signal": 0.0
       }
     },
     {
@@ -79,12 +79,12 @@
       "requested_skill": null,
       "expected": {
         "route_mode": "pack_overlay",
-        "route_reason": "candidate_signal_auto_route",
+        "route_reason": "candidate_signal_host_selection",
         "selected_pack": "integration-devops",
         "selected_skill": "gh-fix-ci",
-        "confidence": 0.7,
-        "top1_top2_gap": 0.5875,
-        "candidate_signal": 0.6306
+        "confidence": 0.4068,
+        "top1_top2_gap": 0.5375,
+        "candidate_signal": 0.5806
       }
     },
     {
@@ -142,13 +142,13 @@
       "task_type": "research",
       "requested_skill": null,
       "expected": {
-        "route_mode": "pack_overlay",
-        "route_reason": "host_selection_required",
-        "selected_pack": "scholarly-publishing-workflow",
-        "selected_skill": "scientific-writing",
-        "confidence": 0.0619,
+        "route_mode": "confirm_required",
+        "route_reason": "legacy_fallback_guard",
+        "selected_pack": "",
+        "selected_skill": "",
+        "confidence": 0.45,
         "top1_top2_gap": 0.0,
-        "candidate_signal": 0.09
+        "candidate_signal": 0.0
       }
     },
     {

@@ -511,6 +511,17 @@
         "debug",
         "coding"
       ],
+      "authority_keywords": [
+        "root cause",
+        "stack trace",
+        "traceback",
+        "runtime logs",
+        "api failure",
+        "报错",
+        "异常",
+        "故障定位",
+        "错误日志"
+      ],
       "positive_keywords": [
         "root cause",
         "systematic debugging",
@@ -798,6 +809,9 @@
       "positive_keywords": [
         "scikit-learn",
         "sklearn",
+        "umap",
+        "dimensionality reduction",
+        "降维可视化",
         "classification",
         "regression",
         "regression analysis",
@@ -1872,6 +1886,13 @@
         "debug",
         "review"
       ],
+      "authority_keywords": [
+        "github actions",
+        "workflow logs",
+        "ci failed",
+        "pipeline failed",
+        "检查ci日志"
+      ],
       "positive_keywords": [
         "github actions",
         "ci pipeline failure",
@@ -1898,6 +1919,13 @@
       "task_allow": [
         "debug",
         "review"
+      ],
+      "authority_keywords": [
+        "sentry alert",
+        "sentry issue",
+        "production error",
+        "线上告警",
+        "错误追踪"
       ],
       "positive_keywords": [
         "sentry",
@@ -2525,47 +2553,45 @@
         "debug",
         "research"
       ],
-      "positive_keywords": [
-        "latex submission pipeline",
+      "authority_keywords": [
         "latexmk",
-        "latexmkrc",
         "latexindent",
         "chktex",
-        "biber",
-        "bibtex",
-        "pdflatex",
-        "xelatex",
-        "lualatex",
-        "github actions",
-        "ci pipeline",
-        "compile latex",
-        "build pdf",
         "submission zip",
-        "自动编译",
-        "latex",
-        "latex paper",
         "latex manuscript",
-        "latex pdf",
-        "paper pdf build",
-        "manuscript pdf build",
-        "build manuscript pdf",
-        "compile paper",
-        "compile manuscript",
-        "LaTeX 论文",
+        "latex 构建",
+        "anonymous submission",
+        "pdf 投稿",
+        "论文编译",
+        "LaTeX manuscript",
         "LaTeX 写论文",
+        "论文撰写",
         "LaTeX 论文 PDF",
-        "LaTeX 写成论文",
-        "LaTeX 写成论文 PDF",
-        "写成论文 PDF",
-        "论文 PDF",
-        "PDF 构建",
-        "生成论文 PDF",
+        "可投稿 PDF"
+      ],
+      "supporting_keywords": [
+        "build pdf",
+        "paper pdf build",
+        "github actions",
+        "pipeline"
+      ],
+      "positive_keywords": [
+        "latexmk",
+        "latexindent",
+        "chktex",
+        "submission zip",
+        "latex manuscript",
+        "LaTeX 论文 PDF",
         "编译论文",
         "论文编译",
-        "构建可投稿 PDF",
         "可投稿 PDF"
       ],
       "negative_keywords": [
+        "runtime logs",
+        "translation api failure",
+        "sentry alert",
+        "check ci logs",
+        "线上告警",
         "rebuttal",
         "response to reviewers",
         "cover letter",
@@ -2581,6 +2607,7 @@
         "slidev",
         "ppt"
       ],
+      "requires_positive_keyword_match": true,
       "equivalent_group": "latex-pipeline",
       "canonical_for_task": [
         "coding"

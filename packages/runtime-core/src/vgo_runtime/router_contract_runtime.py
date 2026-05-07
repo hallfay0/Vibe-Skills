@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .custom_admission import load_custom_admission
+from .router_contract_authority import choose_authoritative_route
 from .router_contract_presentation import build_confirm_ui, build_fallback_truth
 from .router_contract_selection import (
     INTERNAL_SELECTION_USABLE,
@@ -524,6 +525,8 @@ def route_prompt(
     confirm_required_threshold = float(threshold_values.get("confirm_required", 0.45))
     fallback_threshold = float(threshold_values.get("fallback_to_legacy_below", 0.45))
     enforce_confirm_on_legacy_fallback = bool(thresholds_cfg.get("safety", {}).get("enforce_confirm_on_legacy_fallback", False))
+    authority_policy = thresholds_cfg.get("authority") or {}
+    minimum_candidate_signal_by_tier = authority_policy.get("minimum_candidate_signal_by_tier") or {}
 
     pack_results: list[dict[str, object]] = []
     packs: list[dict[str, object]] = list(pack_manifest.get("packs") or []) + list(custom_admission.get("admitted_packs") or [])
@@ -578,6 +581,31 @@ def route_prompt(
             route_usable = route_usable and bool(custom_metadata.get(INTERNAL_ROUTE_USABLE, False))
         if weak_fallback:
             route_usable = False
+        pack_authority_tier = normalize_text(pack.get("authority_tier") or "broad_owner") or "broad_owner"
+        minimum_signal = float(
+            minimum_candidate_signal_by_tier.get(
+                pack_authority_tier,
+                minimum_candidate_signal_by_tier.get("broad_owner", 0.0),
+            )
+        )
+        authority_eligible = bool(route_usable and candidate_signal >= minimum_signal)
+        authority_rejection_reasons: list[str] = []
+        if not bool(selection.get(INTERNAL_SELECTION_USABLE, selection.get("selected") is not None)):
+            authority_eligible = False
+            authority_rejection_reasons.append("no_usable_candidate")
+        if weak_fallback:
+            authority_eligible = False
+            authority_rejection_reasons.append("weak_fallback")
+        if candidate_signal < minimum_signal:
+            authority_eligible = False
+            authority_rejection_reasons.append("candidate_signal_below_authority_threshold")
+        top_candidate = next(
+            (row for row in selection["ranking"] if str(row.get("skill") or "") == str(selection["selected"] or "")),
+            None,
+        )
+        if top_candidate and str(top_candidate.get("authority_guard_reason") or "").strip():
+            authority_eligible = False
+            authority_rejection_reasons.append(str(top_candidate["authority_guard_reason"]))
         pack_results.append(
             {
                 "pack_id": normalize_text(pack.get("id")),
@@ -592,16 +620,24 @@ def route_prompt(
                 "candidate_top1_top2_gap": round(float(selection["top1_top2_gap"]), 4),
                 "candidate_signal": candidate_signal,
                 "candidate_filtered_out_by_task": selection["filtered_out_by_task"],
+                "authority_tier": pack_authority_tier,
+                "authority_eligible": authority_eligible,
+                "authority_rejection_reasons": _dedupe_strings(authority_rejection_reasons),
+                "fallback_owner_pack_id": _optional_text(pack.get("fallback_owner_pack_id")),
+                "fallback_owner_skill": _optional_text(pack.get("fallback_owner_skill")),
                 INTERNAL_ROUTE_USABLE: route_usable,
                 "custom_admission": custom_metadata,
             }
         )
 
     ranked = sorted(pack_results, key=lambda row: (-row["score"], row["pack_id"]))
-    authority_ranked = [row for row in ranked if bool(row.get(INTERNAL_ROUTE_USABLE, True))]
-    selectable_ranked = [row for row in ranked if _optional_text(row.get("selected_candidate"))]
-    selection_pool = authority_ranked if authority_ranked else (selectable_ranked if selectable_ranked else ranked)
-    top = selection_pool[0] if selection_pool else None
+    authority_decision = choose_authoritative_route(
+        ranked=ranked,
+        task_type=task_type,
+        requested_canonical=requested_canonical,
+        authority_policy=authority_policy,
+    )
+    top = authority_decision["selected_row"]
     confidence = float(top["score"]) if top else 0.0
     top_gap = float(top["candidate_top1_top2_gap"]) if top else 0.0
     candidate_signal = float(top["candidate_signal"]) if top else 0.0
@@ -673,6 +709,8 @@ def route_prompt(
     selected_skill = (
         str(preferred_selection["skill"])
         if preferred_selection
+        else str(authority_decision["selected_skill"])
+        if authority_decision.get("selected_skill")
         else _optional_text(top.get("selected_candidate"))
         if top
         else None
@@ -720,18 +758,32 @@ def route_prompt(
         },
         "selected": (
             {
-                "pack_id": top["pack_id"],
+                "pack_id": str((top or {}).get("pack_id") or authority_decision["selected_pack_id"] or ""),
                 "skill": selected_skill,
                 "selection_reason": selection_reason,
                 "selection_score": selection_score,
                 "top1_top2_gap": top["candidate_top1_top2_gap"],
                 "candidate_signal": top["candidate_signal"],
                 "filtered_out_by_task": top["candidate_filtered_out_by_task"],
+                "authority": {
+                    "tier": str((top or {}).get("authority_tier") or ""),
+                    "eligible": bool((top or {}).get("authority_eligible", True)),
+                },
             }
             if top
             else None
         ),
         "ranked": [_public_pack_row(row) for row in ranked[:3]],
+        "fallback_applied": bool(authority_decision["fallback_applied"]),
+        "fallback_target": {
+            "pack_id": authority_decision["fallback_target_pack_id"],
+            "skill": authority_decision["fallback_target_skill"],
+        },
+        "pre_fallback_top": {
+            "pack_id": authority_decision["pre_fallback_top_pack_id"],
+            "skill": authority_decision["pre_fallback_top_skill"],
+        },
+        "rejected_specialist_reasons": authority_decision["rejected_specialist_reasons"],
         "intent_contract": intent_contract,
         "deep_discovery_route_filter_applied": deep_discovery_route_filter_applied,
         "deep_discovery_route_mode_override": bool(

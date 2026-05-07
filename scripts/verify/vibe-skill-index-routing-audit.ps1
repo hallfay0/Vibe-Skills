@@ -170,6 +170,7 @@ $cases = @(
     [pscustomobject]@{ Name = "tdd feature test-first"; Prompt = "write failing tests first for this feature"; Grade = "M"; TaskType = "coding"; ExpectedPack = "code-quality"; ExpectedSkill = "tdd-guide" },
     [pscustomobject]@{ Name = "systematic debug"; Prompt = "请做系统化调试和根因定位"; Grade = "M"; TaskType = "debug"; ExpectedPack = "code-quality"; ExpectedSkill = "systematic-debugging" },
     [pscustomobject]@{ Name = "build compile debug"; Prompt = "构建失败，TypeScript compile error，帮我定位"; Grade = "M"; TaskType = "debug"; ExpectedPack = "code-quality"; ExpectedSkill = "systematic-debugging" },
+    [pscustomobject]@{ Name = "debug logs translation api direct owner"; Prompt = "根据错误日志排查翻译接口失败并给出解决方案，检查 runtime pipeline 和 API 请求"; Grade = "XL"; TaskType = "debug"; ExpectedPack = "code-quality"; ExpectedSkill = "systematic-debugging"; ExpectedFallbackApplied = $false },
     [pscustomobject]@{ Name = "general code review"; Prompt = "run code review and quality checks"; Grade = "M"; TaskType = "review"; ExpectedPack = "code-quality"; ExpectedSkill = "code-reviewer" },
     [pscustomobject]@{ Name = "review feedback handling"; Prompt = "收到CodeRabbit评审意见，帮我逐条判断是否要改"; Grade = "M"; TaskType = "review"; ExpectedPack = "code-quality"; ExpectedSkill = "receiving-code-review" },
     [pscustomobject]@{ Name = "completion verification"; Prompt = "准备收尾，确认测试通过并给出验收证据"; Grade = "M"; TaskType = "review"; ExpectedPack = "code-quality"; ExpectedSkill = "verification-before-completion" },
@@ -207,6 +208,7 @@ $cases = @(
     [pscustomobject]@{ Name = "submission checklist rebuttal matrix"; Prompt = "写 cover letter 和 response to reviewers rebuttal matrix"; Grade = "L"; TaskType = "planning"; ExpectedPack = "scholarly-publishing-workflow"; ExpectedSkill = "submission-checklist" },
     [pscustomobject]@{ Name = "manuscript as code reproducible build"; Prompt = "把论文仓库改成 manuscript-as-code，可复现构建 PDF"; Grade = "L"; TaskType = "planning"; ExpectedPack = "scholarly-publishing-workflow"; ExpectedSkill = "manuscript-as-code" },
     [pscustomobject]@{ Name = "latex submission zip build"; Prompt = "配置 latexmk/chktex/latexindent 编译论文 PDF 并打包 submission zip"; Grade = "XL"; TaskType = "coding"; ExpectedPack = "scholarly-publishing-workflow"; ExpectedSkill = "latex-submission-pipeline" },
+    [pscustomobject]@{ Name = "latex submission authority"; Prompt = "配置 latexmk chktex latexindent 编译 LaTeX manuscript PDF 并打包 submission zip"; Grade = "XL"; TaskType = "coding"; ExpectedPack = "scholarly-publishing-workflow"; ExpectedSkill = "latex-submission-pipeline"; ExpectedFallbackApplied = $false },
     [pscustomobject]@{ Name = "venue template anonymous submission"; Prompt = "查 NeurIPS 模板和匿名投稿格式要求"; Grade = "L"; TaskType = "planning"; ExpectedPack = "scholarly-publishing-workflow"; ExpectedSkill = "venue-templates" },
     [pscustomobject]@{ Name = "latex academic poster"; Prompt = "用 beamerposter 做会议学术海报"; Grade = "L"; TaskType = "coding"; ExpectedPack = "scholarly-publishing-workflow"; ExpectedSkill = "latex-posters" },
     [pscustomobject]@{ Name = "paper2web video abstract"; Prompt = "把论文转换成 paper2web 项目主页和视频摘要"; Grade = "L"; TaskType = "planning"; ExpectedPack = "scholarly-publishing-workflow"; ExpectedSkill = "paper-2-web" },
@@ -257,7 +259,15 @@ foreach ($case in $cases) {
     if ($case.PSObject.Properties.Name -contains "BlockedSkill" -and $case.BlockedSkill) {
         $results += Assert-True -Condition ($route.selected.skill -ne $case.BlockedSkill) -Message "[$($case.Name)] blocked skill $($case.BlockedSkill) not selected"
     }
-    $results += Assert-True -Condition ($route.selected.selection_reason -in @("keyword_ranked", "requested_skill", "fallback_first_candidate", "fallback_task_default", "fallback_task_default_after_task_filter", "fallback_first_candidate_after_task_filter", "host_selection_candidate")) -Message "[$($case.Name)] selection reason is valid"
+    if ($case.PSObject.Properties.Name -contains "ExpectedFallbackApplied") {
+        $results += Assert-True -Condition ([bool]$route.fallback_applied -eq [bool]$case.ExpectedFallbackApplied) -Message "[$($case.Name)] fallback_applied is $($case.ExpectedFallbackApplied)"
+    }
+    $selectionReasonValid = if ($route.selected) {
+        $route.selected.selection_reason -in @("keyword_ranked", "requested_skill", "fallback_first_candidate", "fallback_task_default", "fallback_task_default_after_task_filter", "fallback_first_candidate_after_task_filter", "host_selection_candidate", "no_usable_candidate")
+    } else {
+        $route.route_mode -in @("confirm_required", "legacy_fallback", "pack_overlay")
+    }
+    $results += Assert-True -Condition $selectionReasonValid -Message "[$($case.Name)] selection reason is valid"
 }
 
 # Determinism check for per-skill selection.

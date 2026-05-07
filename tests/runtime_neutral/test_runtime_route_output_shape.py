@@ -127,6 +127,19 @@ def run_powershell_old_manifest_candidate_probe(testcase: unittest.TestCase) -> 
 
 
 class RuntimeRouteOutputShapeTests(unittest.TestCase):
+    def test_runtime_route_output_exposes_fallback_audit_fields(self) -> None:
+        result = route_prompt(
+            prompt="根据错误日志排查翻译接口失败并给出解决方案",
+            grade="XL",
+            task_type="debug",
+            repo_root=REPO_ROOT,
+        )
+
+        self.assertIn("fallback_applied", result)
+        self.assertIn("rejected_specialist_reasons", result)
+        self.assertIn("pre_fallback_top", result)
+        self.assertIn("authority", result["selected"])
+
     def test_powershell_pack_skill_candidates_ignore_retired_role_fields(self) -> None:
         self.assertEqual([], run_powershell_old_manifest_candidate_probe(self))
 
