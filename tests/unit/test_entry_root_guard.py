@@ -71,3 +71,27 @@ def test_resolve_entry_repo_root_blocks_when_candidates_are_ambiguous(tmp_path: 
             script_anchor=first_runtime / "packages" / "runtime-core" / "src" / "vgo_runtime" / "canonical_entry.py",
             installed_runtime_roots=(first_runtime, second_runtime),
         )
+
+
+def test_resolve_entry_repo_root_uses_dedicated_error_code_for_missing_repo_root() -> None:
+    with pytest.raises(EntryRootGuardError) as exc_info:
+        resolve_entry_repo_root("   ")
+
+    assert exc_info.value.code == "missing_repo_root"
+
+
+def test_resolve_entry_repo_root_reports_single_candidate_when_autocorrect_is_skipped(tmp_path: Path) -> None:
+    runtime_root = tmp_path / "Vibe-Skills"
+    opaque_dir = tmp_path / "opaque-dir"
+    _write_runtime_root(runtime_root)
+    opaque_dir.mkdir(parents=True, exist_ok=True)
+
+    with pytest.raises(EntryRootGuardError) as exc_info:
+        resolve_entry_repo_root(
+            opaque_dir,
+            script_anchor=runtime_root / "packages" / "runtime-core" / "src" / "vgo_runtime" / "canonical_entry.py",
+        )
+
+    assert exc_info.value.code == "runtime_incomplete"
+    assert exc_info.value.candidates == (runtime_root.resolve(),)
+    assert "candidate runtime root was found" in str(exc_info.value)

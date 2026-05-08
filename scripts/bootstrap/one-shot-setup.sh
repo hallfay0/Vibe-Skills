@@ -263,7 +263,9 @@ fi
 if [[ "${STRICT_OFFLINE}" == "true" ]]; then
   ps_args+=(-StrictOffline)
 fi
-handoff_to_windows_powershell_frontend "${REPO_ROOT}/scripts/bootstrap/one-shot-setup.ps1" "${ps_args[@]}"
+if is_windows_shell_host; then
+  handoff_to_windows_powershell_frontend "${REPO_ROOT}/scripts/bootstrap/one-shot-setup.ps1" "${ps_args[@]}"
+fi
 
 assert_target_root_matches_host_intent() {
   local target_root="$1"

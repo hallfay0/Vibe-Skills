@@ -111,7 +111,9 @@ fi
 if [[ "${DEEP}" == "true" ]]; then
   ps_args+=(-Deep)
 fi
-handoff_to_windows_powershell_frontend "${SCRIPT_DIR}/check.ps1" "${ps_args[@]}"
+if is_windows_shell_host; then
+  handoff_to_windows_powershell_frontend "${SCRIPT_DIR}/check.ps1" "${ps_args[@]}"
+fi
 
 resolve_executable_candidate() {
   local candidate="${1:-}"

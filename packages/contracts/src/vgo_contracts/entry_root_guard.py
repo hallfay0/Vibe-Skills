@@ -80,7 +80,7 @@ def resolve_entry_repo_root(
     original_repo_root = _normalize_path(repo_root)
     if original_repo_root is None:
         raise EntryRootGuardError(
-            "root_role_mismatch",
+            "missing_repo_root",
             "repo_root was empty; pass the real Vibe runtime root instead of a workspace path.",
             original_repo_root=Path.cwd(),
         )
@@ -111,6 +111,18 @@ def resolve_entry_repo_root(
             working_dir_candidate=original_repo_root,
             reason_code="root_role_mismatch_autocorrected",
             auto_corrected=True,
+        )
+
+    if len(candidates) == 1:
+        raise EntryRootGuardError(
+            "runtime_incomplete",
+            (
+                "The provided repo_root does not look like a Vibe runtime root. "
+                f"A candidate runtime root was found at '{candidates[0]}', but the provided path "
+                "did not look like a workspace path, so auto-correction was skipped."
+            ),
+            original_repo_root=original_repo_root,
+            candidates=tuple(candidates),
         )
 
     if len(candidates) > 1:
