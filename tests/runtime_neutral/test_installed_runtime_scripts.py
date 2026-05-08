@@ -1021,6 +1021,35 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
         self.assertNotIn("VGO adapter registry not found", check_result.stdout)
         self.assertNotIn("VGO adapter registry not found", check_result.stderr)
 
+    def test_installed_check_sh_powershell_handoff_on_windows(self) -> None:
+        if os.name != "nt":
+            self.skipTest("Windows-only shell handoff behavior")
+        powershell = resolve_powershell()
+        if powershell is None:
+            self.skipTest("requires PowerShell host")
+
+        self.install_shell_runtime(profile="full")
+        installed_root = self.target_root / "skills" / "vibe"
+        result = subprocess.run(
+            [
+                "bash",
+                str(installed_root / "check.sh"),
+                "--host",
+                "codex",
+                "--profile",
+                "full",
+                "--target-root",
+                str(self.target_root),
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+        combined = (result.stdout or "") + (result.stderr or "")
+        self.assertIn("switching to PowerShell-first supported path", combined)
+        self.assertNotIn("command not found", combined)
+
     def test_powershell_install_quarantines_legacy_agents_duplicate_for_default_codex_root(self) -> None:
         powershell = resolve_powershell()
         if powershell is None:

@@ -28,6 +28,7 @@ if str(CONTRACTS_SRC) not in sys.path:
 
 from vgo_contracts.canonical_vibe_contract import resolve_canonical_vibe_contract
 from vgo_contracts.discoverable_entry_surface import load_discoverable_entry_surface
+from vgo_contracts.entry_root_guard import EntryRootGuardError, resolve_entry_repo_root
 from vgo_contracts.host_launch_receipt import HostLaunchReceipt, read_host_launch_receipt, write_host_launch_receipt
 from vgo_runtime.powershell_bridge import run_powershell_json_command
 from vgo_runtime.router import load_allowed_vibe_entry_ids
@@ -1533,7 +1534,8 @@ def launch_canonical_vibe(
     force_runtime_neutral: bool = False,
 ) -> CanonicalLaunchResult:
     """Launch canonical vibe, verify its artifacts, and return launch metadata."""
-    repo_root_path = Path(repo_root).resolve()
+    decision = resolve_entry_repo_root(repo_root, script_anchor=Path(__file__))
+    repo_root_path = decision.repo_root
     requested_entry_id = _normalize_requested_entry_id(entry_id)
     resolved_artifact_root = _resolve_artifact_root(repo_root_path, artifact_root)
     normalized_host_decision = _normalize_host_decision(host_decision)
@@ -1672,20 +1674,23 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     host_decision = _parse_host_decision_json(args.host_decision_json, args.host_decision_json_file)
 
-    result = launch_canonical_vibe(
-        repo_root=args.repo_root,
-        host_id=args.host_id,
-        entry_id=args.entry_id,
-        prompt=args.prompt,
-        requested_stage_stop=args.requested_stage_stop,
-        requested_grade_floor=args.requested_grade_floor,
-        run_id=args.run_id,
-        artifact_root=args.artifact_root,
-        continue_from_run_id=args.continue_from_run_id,
-        bounded_reentry_token=args.bounded_reentry_token,
-        host_decision=host_decision,
-        force_runtime_neutral=bool(args.force_runtime_neutral),
-    )
+    try:
+        result = launch_canonical_vibe(
+            repo_root=args.repo_root,
+            host_id=args.host_id,
+            entry_id=args.entry_id,
+            prompt=args.prompt,
+            requested_stage_stop=args.requested_stage_stop,
+            requested_grade_floor=args.requested_grade_floor,
+            run_id=args.run_id,
+            artifact_root=args.artifact_root,
+            continue_from_run_id=args.continue_from_run_id,
+            bounded_reentry_token=args.bounded_reentry_token,
+            host_decision=host_decision,
+            force_runtime_neutral=bool(args.force_runtime_neutral),
+        )
+    except EntryRootGuardError as exc:
+        raise SystemExit(str(exc)) from None
     json.dump(result.to_dict(), sys.stdout, ensure_ascii=False, indent=2)
     sys.stdout.write("\n")
     return 0

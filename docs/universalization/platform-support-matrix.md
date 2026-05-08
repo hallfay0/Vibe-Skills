@@ -51,12 +51,13 @@ The platform contract now separates content installation from full governed-runt
 - PowerShell-native governance, doctor, freshness, and parity gates require PowerShell 7 / `pwsh`
 - Linux/macOS without `pwsh` must not be reported as full governed-runtime readiness
 - Windows may fall back to Windows PowerShell only when `pwsh` is unavailable, and that fallback must be visible in the closeout wording
+- Windows shell frontends should hand off to PowerShell-first when a PowerShell host is available.
 
 ## Platform Matrix
 
 | Platform | Install Surface | Check Surface | Governance / Doctor Surface | Current Rating | Notes |
 | --- | --- | --- | --- | --- | --- |
-| Windows | `install.ps1`, `one-shot-setup.ps1` | `check.ps1` | strongest current path for PowerShell-first gates | `full-authoritative` | this is the current reference closure lane |
+| Windows | `install.ps1`, `one-shot-setup.ps1` | `check.ps1` | strongest current path for PowerShell-first gates | `full-authoritative` | this is the current reference closure lane; Windows shell frontends should hand off to PowerShell-first when a PowerShell host is available |
 | Linux + `pwsh` | `install.sh`, `one-shot-setup.sh` | `check.sh` plus PowerShell-capable follow-up | strongest Linux path when `pwsh` is provisioned | `supported-with-constraints` | fresh-machine proof is frozen, but formal promotion is still intentionally withheld |
 | Linux without `pwsh` | `install.sh`, `one-shot-setup.sh` | `check.sh` | PowerShell authority gates may be skipped with warnings | `degraded-but-supported` | usable, but not equal to official Windows closure |
 | macOS + `pwsh` | shell path inferred from bash tooling | partial | likely similar to Linux + `pwsh`, but not frozen | `not-yet-proven` | must not be marketed as full until proved |
