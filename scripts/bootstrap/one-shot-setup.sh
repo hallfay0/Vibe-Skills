@@ -228,6 +228,45 @@ run_powershell_file() {
   "${cmd[@]}" "$@"
 }
 
+is_windows_shell_host() {
+  case "$(uname -s 2>/dev/null || printf '')" in
+    CYGWIN*|MINGW*|MSYS*) return 0 ;;
+  esac
+  [[ -n "${WINDIR:-}" || -n "${SYSTEMROOT:-}" ]]
+}
+
+handoff_to_windows_powershell_frontend() {
+  local script_path="$1"
+  shift
+  if ! is_windows_shell_host; then
+    return 1
+  fi
+  local shell_path=""
+  shell_path="$(pick_powershell || true)"
+  if [[ -z "${shell_path}" ]]; then
+    echo "[FAIL] Windows shell frontend detected, but no pwsh/powershell executable was found." >&2
+    echo "[FAIL] Re-run the matching .ps1 entrypoint from PowerShell, or install PowerShell 7." >&2
+    exit 1
+  fi
+  echo "[INFO] Windows shell frontend detected; switching to PowerShell-first supported path." >&2
+  run_powershell_file "${script_path}" "$@"
+  exit $?
+}
+
+ps_args=(-Profile "${PROFILE}" -HostId "${HOST_ID}")
+if [[ -n "${TARGET_ROOT}" ]]; then
+  ps_args+=(-TargetRoot "${TARGET_ROOT}")
+fi
+if [[ "${SKIP_EXTERNAL_INSTALL}" == "true" ]]; then
+  ps_args+=(-SkipExternalInstall)
+fi
+if [[ "${STRICT_OFFLINE}" == "true" ]]; then
+  ps_args+=(-StrictOffline)
+fi
+if is_windows_shell_host; then
+  handoff_to_windows_powershell_frontend "${REPO_ROOT}/scripts/bootstrap/one-shot-setup.ps1" "${ps_args[@]}"
+fi
+
 assert_target_root_matches_host_intent() {
   local target_root="$1"
   local host_id="$2"

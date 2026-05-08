@@ -15,6 +15,7 @@ if str(RUNTIME_CORE_SRC) not in sys.path:
     sys.path.insert(0, str(RUNTIME_CORE_SRC))
 
 import vgo_runtime.canonical_entry as canonical_entry
+from vgo_contracts.entry_root_guard import EntryRootDecision, EntryRootGuardError
 
 
 def _write_json(path: Path, payload: dict) -> None:
@@ -233,6 +234,21 @@ def _write_bounded_return_summary(
     )
     _write_host_launch_receipt(session_root, run_id=run_id)
     return summary_path
+
+
+@pytest.fixture(autouse=True)
+def _default_entry_root_guard(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_resolve_entry_repo_root(repo_root: str | Path, **_: object) -> EntryRootDecision:
+        resolved = Path(repo_root).resolve()
+        return EntryRootDecision(
+            repo_root=resolved,
+            original_repo_root=resolved,
+            working_dir_candidate=None,
+            reason_code="repo_root_ok",
+            auto_corrected=False,
+        )
+
+    monkeypatch.setattr(canonical_entry, "resolve_entry_repo_root", fake_resolve_entry_repo_root)
 
 
 def test_canonical_entry_writes_host_launch_receipt(
@@ -2085,3 +2101,105 @@ def test_canonical_entry_main_emits_json(monkeypatch: pytest.MonkeyPatch, capsys
     output = json.loads(capsys.readouterr().out)
     assert output["run_id"] == "run-1"
     assert output["host_launch_receipt_path"].endswith("host-launch-receipt.json")
+
+
+def test_launch_canonical_vibe_uses_corrected_repo_root(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    corrected_root = tmp_path / "Vibe-Skills"
+    session_root = tmp_path / "artifacts" / "outputs" / "runtime" / "vibe-sessions" / "run-1"
+    decision = EntryRootDecision(
+        repo_root=corrected_root,
+        original_repo_root=tmp_path / "bj-refinery",
+        working_dir_candidate=tmp_path / "bj-refinery",
+        reason_code="root_role_mismatch_autocorrected",
+        auto_corrected=True,
+    )
+
+    monkeypatch.setattr(canonical_entry, "resolve_entry_repo_root", lambda *args, **kwargs: decision)
+    monkeypatch.setattr(canonical_entry, "_resolve_effective_prompt", lambda **kwargs: "safe prompt")
+    monkeypatch.setattr(canonical_entry, "_resolve_progressive_requested_stage_stop", lambda **kwargs: None)
+    monkeypatch.setattr(canonical_entry, "_validate_bounded_reentry", lambda **kwargs: None)
+    monkeypatch.setattr(
+        canonical_entry,
+        "_inherit_frozen_host_decision_fields_from_bounded_reentry",
+        lambda **kwargs: None,
+    )
+    monkeypatch.setattr(
+        canonical_entry,
+        "_attach_bounded_continuation_context_to_host_decision",
+        lambda **kwargs: None,
+    )
+    monkeypatch.setattr(
+        canonical_entry,
+        "resolve_canonical_vibe_contract",
+        lambda repo_root, host_id: (
+            {"fallback_policy": "blocked", "allow_skill_doc_fallback": False}
+            if repo_root == corrected_root
+            else (_ for _ in ()).throw(AssertionError(repo_root))
+        ),
+    )
+    monkeypatch.setattr(canonical_entry, "write_host_launch_receipt", lambda *args, **kwargs: session_root / "host-launch-receipt.json")
+    monkeypatch.setattr(
+        canonical_entry,
+        "invoke_vibe_runtime_entrypoint",
+        lambda **kwargs: {
+            "run_id": "run-1",
+            "session_root": str(session_root),
+            "summary_path": str(session_root / "runtime-summary.json"),
+            "summary": {},
+        },
+    )
+    monkeypatch.setattr(
+        canonical_entry,
+        "assert_minimum_truth_artifacts",
+        lambda session_root: {
+            "runtime_input_packet": str(Path(session_root) / "runtime-input-packet.json"),
+            "governance_capsule": str(Path(session_root) / "governance-capsule.json"),
+            "stage_lineage": str(Path(session_root) / "stage-lineage.json"),
+        },
+    )
+    monkeypatch.setattr(canonical_entry, "assert_minimum_truth_consistency", lambda **kwargs: None)
+    monkeypatch.setattr(canonical_entry, "_load_json_dict", lambda *args, **kwargs: {})
+
+    result = canonical_entry.launch_canonical_vibe(
+        repo_root=tmp_path / "bj-refinery",
+        host_id="codex",
+        entry_id="vibe",
+        prompt="repair route",
+        artifact_root=tmp_path / "artifacts",
+    )
+
+    assert result.run_id == "run-1"
+
+
+def test_canonical_entry_main_surfaces_guard_error_without_traceback(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(
+        canonical_entry,
+        "launch_canonical_vibe",
+        lambda **kwargs: (_ for _ in ()).throw(
+            EntryRootGuardError(
+                "runtime_incomplete",
+                "The provided repo_root does not look like a Vibe runtime root, and no trusted runtime root could be recovered.",
+                original_repo_root=tmp_path / "bj-refinery",
+            )
+        ),
+    )
+
+    with pytest.raises(SystemExit, match="does not look like a Vibe runtime root"):
+        canonical_entry.main(
+            [
+                "--repo-root",
+                str(tmp_path / "bj-refinery"),
+                "--host-id",
+                "codex",
+                "--entry-id",
+                "vibe",
+                "--prompt",
+                "repair route",
+            ]
+        )

@@ -46,6 +46,9 @@ class ShellEntrypointCompatibilityTests(unittest.TestCase):
             self.assertIn("MCP auto-provision summary", content)
 
     def test_check_sh_rejects_python_below_floor_before_helper_dispatch(self) -> None:
+        if os.name == "nt":
+            self.skipTest("Windows shell frontends now hand off to PowerShell before Python floor checks")
+
         with tempfile.TemporaryDirectory() as tempdir:
             bin_dir = Path(tempdir)
             fake_python = bin_dir / "python3"

@@ -42,6 +42,9 @@
 - Linux / macOS 的 shell 入口现在按 **macOS 自带 Bash 3.2 可运行** 这一基线维护，不能再偷偷引入 `mapfile` 这类 Bash 4+ 专属能力
 - 这些 shell 入口在进入 adapter / doctor / bootstrap Python helper 之前，会先检查 **Python 3.10+**
 - 如果用户在 macOS 的 `zsh` 里运行命令，真正决定成败的不是 `zsh` 本身，而是被调用到的 `bash` / `python3` 可执行文件版本
+- Windows bash frontends are convenience wrappers, not the authoritative lane.
+- 在 Windows 上，`one-shot-setup.sh` 和 `check.sh` 遇到可用的 PowerShell host 时，应优先 hand off 到对应的 `.ps1` 入口。
+- 如果既没有 `pwsh` 也没有 `powershell.exe`，必须直接阻断，并明确提示用户改用 PowerShell 或先安装 PowerShell 7，而不是把 `127` 或原始 traceback 暴露给用户。
 
 ## 规则 6：公开版本名必须映射到真实 profile
 
