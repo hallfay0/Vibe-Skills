@@ -1128,22 +1128,24 @@ fi
 if [[ "${HOST_ID}" == "codex" && "${ADAPTER_CHECK_MODE}" == "governed" && "${PROFILE}" == "full" ]]; then
   PROJECTED_SKILL_NAMES=()
   load_projected_skill_names_for_check "compatibility_skill_projections"
-  projected_wrapper_skill_names=("${PROJECTED_SKILL_NAMES[@]}")
-  for n in "${projected_wrapper_skill_names[@]}"; do
-    check_path "skill/${n}" "$(resolve_skill_descriptor_path "${n}")"
-  done
+  if [[ ${#PROJECTED_SKILL_NAMES[@]} -gt 0 ]]; then
+    for n in "${PROJECTED_SKILL_NAMES[@]}"; do
+      check_path "skill/${n}" "$(resolve_skill_descriptor_path "${n}")"
+    done
+  fi
 fi
 if [[ "${HOST_ID}" == "codex" && "${ADAPTER_CHECK_MODE}" == "governed" ]]; then
   PROJECTED_SKILL_NAMES=()
   load_projected_skill_names_for_check "public_skill_surface"
-  codex_command_names=("${PROJECTED_SKILL_NAMES[@]}")
-  for n in "${codex_command_names[@]}"; do
-    if [[ "${n}" == "vibe-upgrade" ]]; then
-      check_path "skill/${n}" "${TARGET_ROOT}/skills/${n}/SKILL.md"
-    else
-      check_path "codex command/${n}" "${TARGET_ROOT}/commands/${n}.md" false
-    fi
-  done
+  if [[ ${#PROJECTED_SKILL_NAMES[@]} -gt 0 ]]; then
+    for n in "${PROJECTED_SKILL_NAMES[@]}"; do
+      if [[ "${n}" == "vibe-upgrade" ]]; then
+        check_path "skill/${n}" "${TARGET_ROOT}/skills/${n}/SKILL.md"
+      else
+        check_path "codex command/${n}" "${TARGET_ROOT}/commands/${n}.md" false
+      fi
+    done
+  fi
 fi
 if [[ "${HOST_ID}" == "opencode" ]]; then
   if [[ "${ADAPTER_CHECK_MODE}" != "preview-guidance" ]]; then
