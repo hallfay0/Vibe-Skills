@@ -1,5 +1,82 @@
 Set-StrictMode -Version Latest
 
+function Resolve-VibeSkillRootPath {
+    param(
+        [Parameter(Mandatory)] [string]$RawPath,
+        [Parameter(Mandatory)] [string]$TargetRoot
+    )
+
+    $text = ([string]$RawPath).Trim()
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        return $null
+    }
+    $targetRootPath = [System.IO.Path]::GetFullPath($TargetRoot)
+    if ($text -eq '~' -or $text.StartsWith('~/') -or $text.StartsWith('~\')) {
+        $homeRoot = Split-Path -Parent $targetRootPath
+        $suffix = $text.Substring(1).TrimStart('/', '\')
+        if ([string]::IsNullOrWhiteSpace($suffix)) {
+            return [System.IO.Path]::GetFullPath($homeRoot)
+        }
+        return [System.IO.Path]::GetFullPath((Join-Path $homeRoot $suffix))
+    }
+    if ([System.IO.Path]::IsPathRooted($text)) {
+        return [System.IO.Path]::GetFullPath($text)
+    }
+    return [System.IO.Path]::GetFullPath((Join-Path $targetRootPath $text))
+}
+
+function Get-VibeConfiguredSkillRoots {
+    param(
+        [Parameter(Mandatory)] [string]$RepoRoot,
+        [AllowEmptyString()] [string]$TargetRoot = '',
+        [AllowEmptyString()] [string]$HostId = ''
+    )
+
+    $resolvedHostId = if (Get-Command -Name Resolve-VgoHostId -ErrorAction SilentlyContinue) {
+        Resolve-VgoHostId -HostId $HostId
+    } elseif ([string]::IsNullOrWhiteSpace($HostId)) {
+        'codex'
+    } else {
+        ([string]$HostId).Trim().ToLowerInvariant()
+    }
+    $resolvedTargetRoot = if (Get-Command -Name Resolve-VgoTargetRoot -ErrorAction SilentlyContinue) {
+        Resolve-VgoTargetRoot -TargetRoot $TargetRoot -HostId $resolvedHostId
+    } elseif ([string]::IsNullOrWhiteSpace($TargetRoot)) {
+        [System.IO.Path]::GetFullPath('.')
+    } else {
+        [System.IO.Path]::GetFullPath($TargetRoot)
+    }
+    $settingsMapPath = Join-Path $RepoRoot (Join-Path 'adapters' (Join-Path $resolvedHostId 'settings-map.json'))
+    if (-not (Test-Path -LiteralPath $settingsMapPath -PathType Leaf)) {
+        return @()
+    }
+    $settingsMap = Get-Content -LiteralPath $settingsMapPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($null -eq $settingsMap -or -not ($settingsMap.PSObject.Properties.Name -contains 'semantics')) {
+        return @()
+    }
+    $semantics = $settingsMap.semantics
+    $keys = @('vco.skill_roots.global', 'vco.skill_root.global', 'vco.skill_root')
+    $roots = New-Object System.Collections.Generic.List[string]
+    $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($key in $keys) {
+        $property = $semantics.PSObject.Properties[$key]
+        if ($null -eq $property) {
+            continue
+        }
+        foreach ($rawValue in @($property.Value)) {
+            $resolved = Resolve-VibeSkillRootPath -RawPath ([string]$rawValue) -TargetRoot $resolvedTargetRoot
+            if ([string]::IsNullOrWhiteSpace([string]$resolved)) {
+                continue
+            }
+            if ($seen.Add([string]$resolved)) {
+                $roots.Add([string]$resolved) | Out-Null
+            }
+        }
+        break
+    }
+    return [string[]]$roots.ToArray()
+}
+
 function Resolve-VibeSkillUsageSkillPath {
     param(
         [Parameter(Mandatory)] [string]$RepoRoot,
@@ -8,20 +85,14 @@ function Resolve-VibeSkillUsageSkillPath {
         [AllowEmptyString()] [string]$HostId = ''
     )
 
-    $candidates = @(
-        (Join-Path $RepoRoot ("bundled\skills\{0}\SKILL.md" -f $SkillId)),
-        (Join-Path $RepoRoot ("bundled\skills\{0}\SKILL.runtime-mirror.md" -f $SkillId))
-    )
+    $candidates = @()
     if ([string]::Equals($SkillId, 'vibe', [System.StringComparison]::OrdinalIgnoreCase)) {
         $candidates += (Join-Path $RepoRoot 'SKILL.md')
     }
-    if (Get-Command -Name Resolve-VgoInstalledSkillsRoot -ErrorAction SilentlyContinue) {
-        $installedSkillsRoot = Resolve-VgoInstalledSkillsRoot -TargetRoot $TargetRoot -HostId $HostId
+    foreach ($installedSkillsRoot in @(Get-VibeConfiguredSkillRoots -RepoRoot $RepoRoot -TargetRoot $TargetRoot -HostId $HostId)) {
         $candidates += @(
             (Join-Path $installedSkillsRoot (Join-Path $SkillId 'SKILL.md')),
-            (Join-Path $installedSkillsRoot (Join-Path $SkillId 'SKILL.runtime-mirror.md')),
-            (Join-Path $installedSkillsRoot (Join-Path 'custom' (Join-Path $SkillId 'SKILL.md'))),
-            (Join-Path $installedSkillsRoot (Join-Path 'custom' (Join-Path $SkillId 'SKILL.runtime-mirror.md')))
+            (Join-Path $installedSkillsRoot (Join-Path 'custom' (Join-Path $SkillId 'SKILL.md')))
         )
     }
 

@@ -346,7 +346,7 @@ def desired_managed_skill_names(repo_root: Path, packaging: dict) -> set[str]:
     excluded_names = excluded_bundled_skill_names(packaging)
 
     bundled_root = resolve_bundled_skills_root(repo_root, packaging)
-    if bool(packaging.get("copy_bundled_skills")) and bundled_root.exists():
+    if bool(packaging.get("copy_bundled_skills")) and bundled_root is not None and bundled_root.exists():
         managed.update(
             candidate.name
             for candidate in bundled_root.iterdir()
@@ -644,8 +644,12 @@ def install_runtime_core(
     ]
     for entry in copy_directories:
         src_root = repo_root / entry["source"]
-        if entry["target"] == "skills" and entry["source"] == str(packaging.get("bundled_skills_source") or "bundled/skills"):
-            src_root = resolve_bundled_skills_root(repo_root, packaging)
+        bundled_source = str(packaging.get("bundled_skills_source") or "").strip()
+        if entry["target"] == "skills" and bundled_source and entry["source"] == bundled_source:
+            resolved_bundled_root = resolve_bundled_skills_root(repo_root, packaging)
+            if resolved_bundled_root is None:
+                raise SystemExit("Bundled skills source must be explicit for skill copy projection.")
+            src_root = resolved_bundled_root
         dst_root = runtime_root / entry["target"]
         if entry["target"] == "skills":
             copy_skill_roots_without_self_shadow(
@@ -708,7 +712,8 @@ def install_runtime_core(
             record_owned_tree_root=record_owned_tree_root,
         ),
     )
-    record_runtime_root(corpus_target)
+    if corpus_target is not None and corpus_target.exists():
+        record_runtime_root(corpus_target)
     materialize_allowlisted_skills(
         repo_root,
         runtime_root,
@@ -748,7 +753,7 @@ def install_runtime_core(
             external_used,
             missing,
             destination_root=corpus_target,
-            hidden_entrypoints=True,
+            hidden_entrypoints=corpus_target is not None,
             copy_tree_fn=lambda src, dst: copy_tree(
                 src,
                 dst,
@@ -766,7 +771,7 @@ def install_runtime_core(
             external_used,
             missing,
             destination_root=corpus_target,
-            hidden_entrypoints=True,
+            hidden_entrypoints=corpus_target is not None,
             copy_tree_fn=lambda src, dst: copy_tree(
                 src,
                 dst,
@@ -784,7 +789,7 @@ def install_runtime_core(
             external_used,
             missing,
             destination_root=corpus_target,
-            hidden_entrypoints=True,
+            hidden_entrypoints=corpus_target is not None,
             copy_tree_fn=lambda src, dst: copy_tree(
                 src,
                 dst,
@@ -796,7 +801,7 @@ def install_runtime_core(
         raise SystemExit("Missing required vendored skills: " + ", ".join(sorted(missing)))
 
     governance = load_json(repo_root / "config" / "version-governance.json")
-    compatibility_source_root = corpus_target if corpus_target.exists() else runtime_root / "skills"
+    compatibility_source_root = corpus_target if corpus_target is not None and corpus_target.exists() else runtime_root / "skills"
     materialize_generated_nested_compatibility(
         governance,
         runtime_root / target_rel,
@@ -1057,7 +1062,7 @@ def main(argv: list[str] | None = None):
         install_mode=mode,
         canonical_vibe_rel=canonical_vibe_rel,
         managed_skill_names=managed_skill_names,
-        internal_skill_target_relpath=str((packaging.get("internal_skill_corpus") or {}).get("target_relpath") or "skills/vibe/bundled/skills"),
+        internal_skill_target_relpath=str((packaging.get("internal_skill_corpus") or {}).get("target_relpath") or ""),
     )
     ledger_path = target_root / ".vibeskills" / "install-ledger.json"
     track_created_path(ledger_path)

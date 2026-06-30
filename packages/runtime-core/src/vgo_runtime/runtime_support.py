@@ -10,8 +10,12 @@ from typing import Any
 CONTRACTS_SRC = Path(__file__).resolve().parents[4] / "packages" / "contracts" / "src"
 if CONTRACTS_SRC.is_dir() and str(CONTRACTS_SRC) not in os.sys.path:
     os.sys.path.insert(0, str(CONTRACTS_SRC))
+RUNTIME_SRC = Path(__file__).resolve().parents[1]
+if RUNTIME_SRC.is_dir() and str(RUNTIME_SRC) not in os.sys.path:
+    os.sys.path.insert(0, str(RUNTIME_SRC))
 
 from vgo_contracts.discoverable_entry_surface import load_discoverable_entry_surface
+from vgo_runtime.kernel.host_skill_roots import resolve_host_skill_roots
 
 # ponytail: shared repo and skill descriptor helpers live outside router naming.
 
@@ -55,12 +59,9 @@ def load_json(path: Path) -> Any:
 
 def load_router_config_bundle(config_root: Path) -> dict[str, Any]:
     return {
-        "pack_manifest": load_json(config_root / "pack-manifest.json"),
         "alias_map": load_json(config_root / "skill-alias-map.json"),
         "thresholds": load_json(config_root / "router-thresholds.json"),
-        "skill_keyword_index": load_json(config_root / "skill-keyword-index.json"),
         "fallback_policy": load_json(config_root / "fallback-governance.json"),
-        "routing_rules": load_json(config_root / "skill-routing-rules.json"),
     }
 
 
@@ -319,10 +320,24 @@ def resolve_internal_skill_corpus(repo: RepoContext) -> dict[str, Any]:
     packaging = load_runtime_core_packaging(repo.config_root)
     corpus = packaging.get("internal_skill_corpus") or {}
     return {
-        "source": str(corpus.get("source") or packaging.get("bundled_skills_source") or "bundled/skills").strip() or "bundled/skills",
-        "target_relpath": str(corpus.get("target_relpath") or "skills/vibe/catalog/skills").strip() or "skills/vibe/catalog/skills",
-        "entrypoint_filename": str(corpus.get("entrypoint_filename") or "SKILL.runtime-mirror.md").strip() or "SKILL.runtime-mirror.md",
+        "enabled": bool(corpus.get("enabled")),
+        "target_relpath": str(corpus.get("target_relpath") or "").strip(),
+        "entrypoint_filename": str(corpus.get("entrypoint_filename") or "SKILL.md").strip() or "SKILL.md",
     }
+
+
+def _local_skill_descriptor_candidates(repo: RepoContext, skill: str, installed_root: Path, host_id: str | None) -> list[Path]:
+    roots = resolve_host_skill_roots(
+        repo_root=repo.repo_root,
+        host_id=resolve_host_id(host_id),
+        agent_root=installed_root,
+        workspace_root=None,
+    )
+    candidates: list[Path] = []
+    for root in roots:
+        candidates.append(root.path / skill / "SKILL.md")
+        candidates.append(root.path / "custom" / skill / "SKILL.md")
+    return candidates
 
 
 def iter_skill_descriptor_candidates(
@@ -333,30 +348,13 @@ def iter_skill_descriptor_candidates(
 ) -> list[Path]:
     installed_root = resolve_target_root(target_root, host_id)
     public_surface = resolve_public_skill_surface(repo)
-    internal_corpus = resolve_internal_skill_corpus(repo)
-    compatibility_skill_projections = resolve_compatibility_skill_projections(repo)
     canonical_root = installed_root / public_surface["canonical_entrypoint_relpath"]
-    internal_root = installed_root / internal_corpus["target_relpath"]
-    internal_entrypoint = internal_corpus["entrypoint_filename"]
-
-    repo_vibe_root = repo.repo_root
-    repo_internal_root = repo.repo_root / internal_corpus["target_relpath"]
-
-    compatibility_candidates = [
-        installed_root / rel_root / skill / "SKILL.md"
-        for rel_root in compatibility_skill_projections["resolver_roots"]
-    ]
+    canonical_skill_id = Path(public_surface["canonical_entrypoint_relpath"]).name
 
     candidates = [
-        canonical_root / "SKILL.md" if skill == Path(public_surface["canonical_entrypoint_relpath"]).name else None,
-        repo_internal_root / skill / "SKILL.md",
-        repo_internal_root / skill / internal_entrypoint,
-        internal_root / skill / internal_entrypoint,
-        internal_root / skill / "SKILL.md",
-        *compatibility_candidates,
-        installed_root / public_surface["root_relpath"] / "custom" / skill / "SKILL.md",
-        repo_vibe_root / "SKILL.md" if skill == Path(public_surface["canonical_entrypoint_relpath"]).name else None,
-        repo.bundled_skills_root / skill / "SKILL.md",
+        canonical_root / "SKILL.md" if skill == canonical_skill_id else None,
+        *_local_skill_descriptor_candidates(repo, skill, installed_root, host_id),
+        repo.repo_root / "SKILL.md" if skill == canonical_skill_id else None,
     ]
 
     ordered: list[Path] = []

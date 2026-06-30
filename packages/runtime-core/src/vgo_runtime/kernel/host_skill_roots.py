@@ -5,8 +5,8 @@ import json
 from pathlib import Path
 
 
-GLOBAL_SKILL_ROOT_KEYS = ("vco.skill_root.global", "vco.skill_root")
-PROJECT_SKILL_ROOT_KEYS = ("vco.skill_root.project",)
+GLOBAL_SKILL_ROOT_KEYS = ("vco.skill_roots.global", "vco.skill_root.global", "vco.skill_root")
+PROJECT_SKILL_ROOT_KEYS = ("vco.skill_roots.project", "vco.skill_root.project")
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,17 +79,53 @@ def _validate_semantic_string(*, host_id: str, semantic_key: str, settings_map_p
     return value.strip()
 
 
+def _validate_semantic_string_list(*, host_id: str, semantic_key: str, settings_map_path: Path, value: object) -> list[str]:
+    if semantic_key.endswith("s.global") or semantic_key.endswith("s.project"):
+        if not isinstance(value, list) or not value:
+            raise ValueError(
+                "Host skill roots semantic must be a non-empty list for "
+                f"{host_id} (semantic key: {semantic_key}, settings map: {settings_map_path})"
+            )
+        roots = [
+            _validate_semantic_string(
+                host_id=host_id,
+                semantic_key=semantic_key,
+                settings_map_path=settings_map_path,
+                value=item,
+            )
+            for item in value
+        ]
+    else:
+        roots = [
+            _validate_semantic_string(
+                host_id=host_id,
+                semantic_key=semantic_key,
+                settings_map_path=settings_map_path,
+                value=value,
+            )
+        ]
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for root in roots:
+        key = root.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        ordered.append(root)
+    return ordered
+
+
 def _pick_semantic(
     *,
     host_id: str,
     semantics: dict[str, object],
     settings_map_path: Path,
     keys: tuple[str, ...],
-) -> tuple[str, str] | None:
+) -> tuple[str, list[str]] | None:
     for key in keys:
         if key not in semantics:
             continue
-        return key, _validate_semantic_string(
+        return key, _validate_semantic_string_list(
             host_id=host_id,
             semantic_key=key,
             settings_map_path=settings_map_path,
@@ -159,15 +195,16 @@ def resolve_host_skill_roots(
             f"{normalized_host_id}. Expected one of: {expected_keys}. Settings map: {settings_map_path}"
         )
 
-    global_key, global_value = global_root
-    roots.append(
-        HostSkillRoot(
-            host_id=normalized_host_id,
-            root_key="host_global",
-            path=_expand_root_path(global_value, agent_root=agent_root, workspace_root=None),
-            source=_source_text(repo_root, settings_map_path, global_key),
+    global_key, global_values = global_root
+    for global_value in global_values:
+        roots.append(
+            HostSkillRoot(
+                host_id=normalized_host_id,
+                root_key="host_global",
+                path=_expand_root_path(global_value, agent_root=agent_root, workspace_root=None),
+                source=_source_text(repo_root, settings_map_path, global_key),
+            )
         )
-    )
 
     project_root = _pick_semantic(
         host_id=normalized_host_id,
@@ -176,14 +213,15 @@ def resolve_host_skill_roots(
         keys=PROJECT_SKILL_ROOT_KEYS,
     )
     if project_root is not None and workspace_root is not None:
-        project_key, project_value = project_root
-        roots.append(
-            HostSkillRoot(
-                host_id=normalized_host_id,
-                root_key="host_project",
-                path=_expand_root_path(project_value, agent_root=agent_root, workspace_root=workspace_root),
-                source=_source_text(repo_root, settings_map_path, project_key),
+        project_key, project_values = project_root
+        for project_value in project_values:
+            roots.append(
+                HostSkillRoot(
+                    host_id=normalized_host_id,
+                    root_key="host_project",
+                    path=_expand_root_path(project_value, agent_root=agent_root, workspace_root=workspace_root),
+                    source=_source_text(repo_root, settings_map_path, project_key),
+                )
             )
-        )
 
     return tuple(roots)

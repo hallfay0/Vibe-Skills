@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+import hashlib
 from pathlib import Path
 import re
 
@@ -33,6 +34,21 @@ class SkillManifest:
     priority: int = 50
     root_dir: str = ""
     skill_file: str = ""
+
+    def model_dump(self) -> dict[str, object]:
+        return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
+class InstalledSkillManifest:
+    skill_id: str
+    name: str
+    description: str
+    tags: tuple[str, ...] = ()
+    headings: tuple[str, ...] = ()
+    root_dir: str = ""
+    skill_file: str = ""
+    content_sha256: str = ""
 
     def model_dump(self) -> dict[str, object]:
         return asdict(self)
@@ -111,6 +127,99 @@ def _parse_frontmatter(frontmatter_lines: list[str], *, skill_file: Path) -> dic
     return payload
 
 
+def _extract_frontmatter_and_body(skill_file: Path) -> tuple[list[str], list[str]]:
+    lines = skill_file.read_text(encoding="utf-8-sig").splitlines()
+    if not lines or lines[0].strip() != "---":
+        raise ValueError(f"skill file missing frontmatter start: {skill_file}")
+    for index in range(1, len(lines)):
+        if lines[index].strip() == "---":
+            return lines[1:index], lines[index + 1 :]
+    raise ValueError(f"skill file missing frontmatter end: {skill_file}")
+
+
+def _parse_loose_frontmatter(frontmatter_lines: list[str], *, skill_file: Path) -> dict[str, object]:
+    payload: dict[str, object] = {}
+    index = 0
+    while index < len(frontmatter_lines):
+        raw_line = frontmatter_lines[index]
+        stripped = raw_line.strip()
+        if not stripped:
+            index += 1
+            continue
+        if raw_line[:1].isspace():
+            raise ValueError(f"unexpected indentation in skill frontmatter: {skill_file}")
+        if ":" not in raw_line:
+            raise ValueError(f"invalid frontmatter line in {skill_file}: {raw_line}")
+        key, remainder = raw_line.split(":", 1)
+        key = key.strip()
+        if not key:
+            raise ValueError(f"empty frontmatter key in {skill_file}")
+        value_text = remainder.strip()
+        if value_text in {">", "|", ">-", "|-"}:
+            parts: list[str] = []
+            index += 1
+            while index < len(frontmatter_lines):
+                candidate = frontmatter_lines[index]
+                if candidate.strip() and not candidate[:1].isspace():
+                    break
+                parts.append(candidate.strip())
+                index += 1
+            payload[key] = " ".join(part for part in parts if part).strip()
+            continue
+        if value_text:
+            payload[key] = _parse_scalar(value_text)
+            index += 1
+            continue
+        items: list[str] = []
+        index += 1
+        while index < len(frontmatter_lines):
+            candidate = frontmatter_lines[index]
+            if not candidate.strip():
+                index += 1
+                continue
+            if not candidate[:1].isspace():
+                break
+            stripped_candidate = candidate.lstrip()
+            if stripped_candidate.startswith("- "):
+                item_value = stripped_candidate[2:].strip()
+                if not item_value:
+                    raise ValueError(f"empty list item in {skill_file}: {candidate}")
+                items.append(_strip_quotes(item_value))
+            index += 1
+        payload[key] = items
+    return payload
+
+
+def _coerce_string_field(frontmatter: dict[str, object], field_name: str, skill_file: Path) -> str:
+    value = frontmatter.get(field_name)
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"missing required frontmatter field {field_name!r} in {skill_file}")
+    return value.strip()
+
+
+def _coerce_string_list(value: object) -> tuple[str, ...]:
+    if isinstance(value, list):
+        return tuple(str(item).strip() for item in value if str(item).strip())
+    if isinstance(value, str) and value.strip():
+        return tuple(part.strip() for part in value.split(",") if part.strip())
+    return ()
+
+
+def _extract_heading_lines(body_lines: list[str], *, limit: int = 8) -> tuple[str, ...]:
+    headings: list[str] = []
+    for line in body_lines:
+        stripped = line.strip()
+        if not stripped.startswith("#"):
+            continue
+        marker, _, title = stripped.partition(" ")
+        if not title.strip() or len(marker) > 3:
+            continue
+        headings.append(title.strip())
+        if len(headings) >= limit:
+            break
+    return tuple(headings)
+
+
 def validate_skill_manifest(manifest: SkillManifest) -> None:
     for field_name in REQUIRED_STRING_FIELDS:
         value = getattr(manifest, field_name)
@@ -163,3 +272,24 @@ def parse_skill_manifest(skill_file: Path) -> SkillManifest:
     )
     validate_skill_manifest(manifest)
     return manifest
+
+
+def parse_installed_skill_manifest(skill_file: Path, *, skill_id: str | None = None) -> InstalledSkillManifest:
+    resolved_file = skill_file.resolve()
+    frontmatter_lines, body_lines = _extract_frontmatter_and_body(resolved_file)
+    frontmatter = _parse_loose_frontmatter(frontmatter_lines, skill_file=resolved_file)
+    resolved_skill_id = str(skill_id or resolved_file.parent.name).strip()
+    if not resolved_skill_id:
+        raise ValueError(f"skill id cannot be empty for {resolved_file}")
+    name = _coerce_string_field(frontmatter, "name", resolved_file)
+    description = _coerce_string_field(frontmatter, "description", resolved_file)
+    return InstalledSkillManifest(
+        skill_id=resolved_skill_id,
+        name=name,
+        description=description,
+        tags=_coerce_string_list(frontmatter.get("tags")),
+        headings=_extract_heading_lines(body_lines),
+        root_dir=str(resolved_file.parent),
+        skill_file=str(resolved_file),
+        content_sha256=hashlib.sha256(resolved_file.read_bytes()).hexdigest(),
+    )

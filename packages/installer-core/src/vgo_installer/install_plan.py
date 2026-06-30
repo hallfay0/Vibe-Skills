@@ -19,7 +19,7 @@ class InstallPlan:
     canonical_vibe_rel: str
     managed_skill_names: tuple[str, ...]
     previous_managed_skill_names: tuple[str, ...]
-    internal_skill_target_relpath: str
+    internal_skill_target_relpath: str = ''
 
 
 def build_install_plan(
@@ -35,7 +35,7 @@ def build_install_plan(
     canonical_vibe_rel: str = 'skills/vibe',
     managed_skill_names: list[str] | tuple[str, ...] | set[str] | None = None,
     existing_install_ledger: dict | None = None,
-    internal_skill_target_relpath: str = 'skills/vibe/bundled/skills',
+    internal_skill_target_relpath: str = '',
 ) -> InstallPlan:
     target_root_path = Path(target_root).resolve()
     runtime_root_path = Path(runtime_root).resolve() if runtime_root is not None else target_root_path
@@ -63,5 +63,5 @@ def build_install_plan(
         canonical_vibe_rel=normalized_rel,
         managed_skill_names=safe_managed_skill_names,
         previous_managed_skill_names=previous_managed_skill_names,
-        internal_skill_target_relpath=str(internal_skill_target_relpath or 'skills/vibe/bundled/skills'),
+        internal_skill_target_relpath=str(internal_skill_target_relpath or ''),
     )

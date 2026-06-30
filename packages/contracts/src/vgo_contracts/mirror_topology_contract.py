@@ -78,6 +78,8 @@ def resolve_generated_nested_compatibility_suffix(governance: dict[str, Any]) ->
     nested_runtime = generated.get("nested_runtime_root") or {}
     relative_path = _normalize_relpath(nested_runtime.get("relative_path"))
     materialization_mode = str(nested_runtime.get("materialization_mode") or "").strip()
+    if materialization_mode == "disabled":
+        return None
     if relative_path:
         if not materialization_mode:
             materialization_mode = "install_only"

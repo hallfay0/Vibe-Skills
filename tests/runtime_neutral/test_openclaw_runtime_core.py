@@ -91,7 +91,7 @@ class OpenClawRuntimeCoreTests(unittest.TestCase):
             self.assertNotEqual(str(target_root.resolve()), payload["desired_shared_runtime_root"])
             self.assertEqual("legacy-host-root-override", payload["runtime_layout_mode"])
             self.assertTrue((target_root / "skills" / "vibe" / "SKILL.md").exists())
-            self.assertTrue((target_root / "skills" / "vibe" / "bundled" / "skills" / "verification-before-completion" / "SKILL.runtime-mirror.md").exists())
+            self.assertFalse((target_root / "skills" / "vibe" / "bundled" / "skills").exists())
             for name in self.EXPECTED_WRAPPER_SKILLS:
                 self.assertTrue((target_root / "skills" / name / "SKILL.md").exists())
             self.assertFalse((target_root / "skills" / "verification-before-completion").exists())
@@ -177,7 +177,7 @@ class OpenClawRuntimeCoreTests(unittest.TestCase):
             self.assertEqual(str(shared_root.resolve()), payload["desired_shared_runtime_root"])
             self.assertEqual("split-shared-runtime", payload["runtime_layout_mode"])
             self.assertTrue((shared_root / "skills" / "vibe" / "SKILL.md").exists())
-            self.assertTrue((shared_root / "skills" / "vibe" / "bundled" / "skills" / "verification-before-completion" / "SKILL.runtime-mirror.md").exists())
+            self.assertFalse((shared_root / "skills" / "vibe" / "bundled" / "skills").exists())
             self.assertTrue((bridge_root / "skills" / "vibe" / "SKILL.md").exists())
             self.assertFalse((bridge_root / "skills" / "vibe" / "bundled").exists())
 
@@ -187,7 +187,7 @@ class OpenClawRuntimeCoreTests(unittest.TestCase):
 
             self.assertEqual(str(shared_root.resolve()), ledger["runtime_root"])
             self.assertEqual(str((shared_root / "skills" / "vibe").resolve()), ledger["canonical_vibe_root"])
-            self.assertEqual(["skills/vibe", "skills/vibe/bundled/skills"], ledger["runtime_roots"])
+            self.assertEqual(["skills/vibe"], ledger["runtime_roots"])
             self.assertEqual("split-shared-runtime", ledger["runtime_layout_mode"])
             self.assertEqual(str(shared_root.resolve()), closure["runtime_root"])
             self.assertEqual(str((shared_root / "skills" / "vibe" / "SKILL.md").resolve()), closure["runtime_skill_entry"])

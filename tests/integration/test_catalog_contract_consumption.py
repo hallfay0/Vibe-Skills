@@ -28,7 +28,7 @@ def test_catalog_exports_descriptor_without_runtime_imports(tmp_path) -> None:
     assert groups_manifest.endswith('catalog/groups/index.json')
     assert skill_source_root.endswith('catalog/skills')
     assert 'bundled/skills' not in skill_source_root
-    assert (tmp_path / 'catalog' / 'skills' / 'systematic-debugging' / 'SKILL.md').exists()
+    assert not (tmp_path / 'catalog' / 'skills' / 'systematic-debugging' / 'SKILL.md').exists()
     assert not (tmp_path / 'catalog' / 'skills' / 'brainstorming').exists()
     assert not (tmp_path / 'catalog' / 'skills' / 'scikit-learn').exists()
 
@@ -37,7 +37,7 @@ def test_catalog_full_profile_exports_extra_workflow_helpers(tmp_path) -> None:
     descriptor = export_catalog_descriptor(tmp_path, profile='full')
 
     assert Path(descriptor['skill_source_root']).as_posix().endswith('catalog/skills')
-    assert (tmp_path / 'catalog' / 'skills' / 'verification-before-completion' / 'SKILL.md').exists()
+    assert not (tmp_path / 'catalog' / 'skills' / 'verification-before-completion' / 'SKILL.md').exists()
     assert not (tmp_path / 'catalog' / 'skills' / 'brainstorming').exists()
     assert not (tmp_path / 'catalog' / 'skills' / 'scikit-learn').exists()
 
@@ -73,7 +73,7 @@ def test_installer_plan_stays_decoupled_from_catalog_descriptor_metadata(tmp_pat
         managed_skill_names=['vibe', 'brainstorming'],
     )
 
-    assert plan.internal_skill_target_relpath == 'skills/vibe/bundled/skills'
+    assert plan.internal_skill_target_relpath == ''
     assert descriptor['owner'] == 'skill-catalog'
     assert 'bundled/skills' not in str(descriptor['catalog_root'])
     assert 'bundled/skills' not in str(descriptor['skill_source_root'])

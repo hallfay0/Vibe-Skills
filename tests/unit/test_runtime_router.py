@@ -28,8 +28,12 @@ def test_runtime_router_allowed_entry_ids_match_shared_surface_contract() -> Non
 def test_router_script_frames_results_as_candidate_data_only() -> None:
     text = (ROOT / "scripts" / "router" / "resolve-pack-route.ps1").read_text(encoding="utf-8")
 
-    assert "router_contract_mode = 'candidate_discovery_only'" in text
-    assert "work_binding_truth_source = 'kernel'" in text
+    assert "'-m', 'vgo_cli.main'," in text
+    assert "'route'," in text
+    assert "--force-runtime-neutral" in text
+    assert "pack-manifest.json" not in text
+    assert "skill-routing-rules.json" not in text
+    assert "skill-keyword-index.json" not in text
     assert "completion_language_allowed" not in text
     assert "work_binding truth" not in text
 

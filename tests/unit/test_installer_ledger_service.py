@@ -27,15 +27,12 @@ def test_sanitize_managed_skill_names_rejects_traversal() -> None:
 def test_build_install_ledger_tracks_payload_summary(tmp_path) -> None:
     vibe_root = tmp_path / 'skills' / 'vibe'
     brainstorm_root = tmp_path / 'skills' / 'brainstorming'
-    internal_non_core_root = tmp_path / 'skills' / 'vibe' / 'bundled' / 'skills' / 'scikit-learn'
     wrapper_root = tmp_path / 'commands'
     vibe_root.mkdir(parents=True)
     brainstorm_root.mkdir(parents=True)
-    internal_non_core_root.mkdir(parents=True, exist_ok=True)
     wrapper_root.mkdir(parents=True, exist_ok=True)
     (vibe_root / 'SKILL.md').write_text('# vibe\n', encoding='utf-8')
     (brainstorm_root / 'SKILL.md').write_text('# brainstorming\n', encoding='utf-8')
-    (internal_non_core_root / 'SKILL.runtime-mirror.md').write_text('# scikit-learn\n', encoding='utf-8')
     for name in ('vibe',):
         (wrapper_root / f'{name}.md').write_text(f'# {name}\n', encoding='utf-8')
     settings_path = tmp_path / 'settings.json'
@@ -45,12 +42,12 @@ def test_build_install_ledger_tracks_payload_summary(tmp_path) -> None:
         profile='full',
         host_id='codex',
         target_root=tmp_path,
-        managed_skill_names=['vibe', 'brainstorming', 'scikit-learn'],
+        managed_skill_names=['vibe', 'brainstorming'],
     )
     state = MaterializationLedgerState(
         created_paths={tmp_path, settings_path},
         managed_json_paths={settings_path},
-        runtime_roots={vibe_root, tmp_path / 'skills' / 'vibe' / 'bundled' / 'skills'},
+        runtime_roots={vibe_root},
         compatibility_roots={brainstorm_root},
         sidecar_roots={tmp_path / '.vibeskills'},
         specialist_wrapper_paths=[
@@ -67,27 +64,27 @@ def test_build_install_ledger_tracks_payload_summary(tmp_path) -> None:
         timestamp='2026-04-02T00:00:00Z',
     )
 
-    assert ledger['managed_skill_names'] == ['brainstorming', 'scikit-learn', 'vibe']
+    assert ledger['managed_skill_names'] == ['brainstorming', 'vibe']
     assert ledger['canonical_vibe_root'] == str((tmp_path / 'skills' / 'vibe').resolve())
     assert ledger['schema_version'] == 2
     assert ledger['runtime_root'] == str(tmp_path.resolve())
     assert ledger['host_bridge_root'] == str(tmp_path.resolve())
     assert ledger['desired_shared_runtime_root'] == str(tmp_path.resolve())
     assert ledger['runtime_layout_mode'] == 'co-located'
-    assert ledger['payload_summary']['installed_skill_names'] == ['brainstorming', 'scikit-learn', 'vibe']
+    assert ledger['payload_summary']['installed_skill_names'] == ['brainstorming', 'vibe']
     assert ledger['payload_summary']['public_skill_names'] == ['brainstorming', 'vibe']
     assert ledger['payload_summary']['host_visible_entry_names'] == ['vibe']
     assert 'installed_skill_count' not in ledger['payload_summary']
     assert 'public_skill_count' not in ledger['payload_summary']
     assert 'host_visible_entry_count' not in ledger['payload_summary']
-    assert ledger['runtime_roots'] == ['skills/vibe', 'skills/vibe/bundled/skills']
+    assert ledger['runtime_roots'] == ['skills/vibe']
     assert ledger['compatibility_roots'] == ['skills/brainstorming']
     assert ledger['sidecar_roots'] == ['.vibeskills']
     assert ledger['config_rollbacks'][0]['path'] == 'settings.json'
     assert ledger['legacy_cleanup_candidates'] == ['skills/legacy-skill']
     assert 'internal_skill_count' not in ledger['payload_summary']
     assert ledger['payload_summary']['installed_file_count'] >= 3
-    assert ledger['internal_skill_target_relpath'] == 'skills/vibe/bundled/skills'
+    assert ledger['internal_skill_target_relpath'] == ''
     assert 'packaging_manifest' not in ledger
 
 
@@ -167,8 +164,8 @@ def test_build_payload_summary_reads_installed_skills_from_external_runtime_root
     bridge_root = tmp_path / '.openclaw'
     (runtime_root / 'skills' / 'vibe').mkdir(parents=True)
     (runtime_root / 'skills' / 'vibe' / 'SKILL.md').write_text('# vibe\n', encoding='utf-8')
-    (runtime_root / 'skills' / 'vibe' / 'bundled' / 'skills' / 'verification-before-completion').mkdir(parents=True)
-    (runtime_root / 'skills' / 'vibe' / 'bundled' / 'skills' / 'verification-before-completion' / 'SKILL.runtime-mirror.md').write_text(
+    (runtime_root / 'skills' / 'verification-before-completion').mkdir(parents=True)
+    (runtime_root / 'skills' / 'verification-before-completion' / 'SKILL.md').write_text(
         '# verification-before-completion\n',
         encoding='utf-8',
     )
@@ -180,9 +177,9 @@ def test_build_payload_summary_reads_installed_skills_from_external_runtime_root
         {
             'managed_skill_names': ['vibe', 'verification-before-completion'],
             'runtime_root': str(runtime_root.resolve()),
-            'internal_skill_target_relpath': 'skills/vibe/bundled/skills',
+            'internal_skill_target_relpath': '',
             'specialist_wrapper_paths': [str((bridge_root / 'skills' / 'vibe' / 'SKILL.md').resolve())],
-            'runtime_roots': ['skills/vibe', 'skills/vibe/bundled/skills'],
+            'runtime_roots': ['skills/vibe'],
             'compatibility_roots': [],
             'sidecar_roots': [],
             'owned_tree_roots': [],
@@ -195,7 +192,7 @@ def test_build_payload_summary_reads_installed_skills_from_external_runtime_root
     )
 
     assert summary['installed_skill_names'] == ['verification-before-completion', 'vibe']
-    assert summary['public_skill_names'] == ['vibe']
+    assert summary['public_skill_names'] == ['verification-before-completion', 'vibe']
     assert summary['host_visible_entry_names'] == ['vibe']
 
 

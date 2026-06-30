@@ -102,7 +102,6 @@ function Resolve-CustomAdmissionDependencyPath {
     if ($normalizedSkillId -eq 'vibe') {
         $candidates += (Join-Path $RepoRoot 'SKILL.md')
     }
-    $candidates += (Join-Path $RepoRoot (Join-Path 'bundled\skills' (Join-Path $SkillId 'SKILL.md')))
     foreach ($candidate in $candidates) {
         if (Test-Path -LiteralPath $candidate) {
             return [System.IO.Path]::GetFullPath($candidate)

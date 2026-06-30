@@ -62,7 +62,7 @@ Linux 和 macOS 仍然可以使用 `bash` 安装脚本。推荐安装 PowerShell
 | `全量版本 + 可自定义添加治理` | `full` |
 | `仅核心框架 + 可自定义添加治理` | `minimal` |
 
-普通用户默认用 `minimal`。它把默认表面积收得很小，把 `<target-root>/skills/local/<skill-id>/SKILL.md` 保持为正常扩展路径，并只保留 `tdd-guide` 和 `systematic-debugging` 这两个内置 starter helper。只有你还想预装 `verification-before-completion` 时，再选 `full`。
+普通用户默认用 `minimal`。它把默认表面积收得很小，只安装公开的 `vibe` 入口。需要 full-profile 宿主接线时再选 `full`。两个 profile 都不再安装内置 specialist Skills；specialist 只来自本地已安装 roots，例如 `<target-root>/skills/local/<skill-id>/SKILL.md` 和宿主声明的本地 roots。
 
 ## 公开宿主
 

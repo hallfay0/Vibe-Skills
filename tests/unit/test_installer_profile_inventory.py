@@ -35,16 +35,8 @@ def test_profile_inventory_loader_reads_manifest_owned_skill_groups() -> None:
     resident = module.internal_corpus_resident_skill_names(full_manifest)
 
     assert minimal.public_entry_skills == ('vibe',)
-    assert set(minimal.starter_skill_names) == {
-        'tdd-guide',
-        'systematic-debugging',
-    }
+    assert minimal.starter_skill_names == ()
     assert minimal.optional_skill_names == ()
-    assert full.optional_skill_names == (
-        'verification-before-completion',
-    )
-    assert resident == (
-        'ralph-loop',
-        'cancel-ralph',
-    )
+    assert full.optional_skill_names == ()
+    assert resident == ()
     assert set(minimal.default_managed_skill_names).issubset(set(full.desired_managed_skill_names))

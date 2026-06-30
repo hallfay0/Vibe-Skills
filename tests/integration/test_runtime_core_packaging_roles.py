@@ -96,8 +96,8 @@ def test_profile_runtime_core_packaging_projections_match_base_overlay_resolutio
         assert resolved_full['profile'] == 'full'
         assert _resolve_canonical_vibe_target(resolved_minimal['public_skill_surface']) == 'skills/vibe'
         assert _resolve_canonical_vibe_target(resolved_full['public_skill_surface']) == 'skills/vibe'
-        assert resolved_minimal['internal_skill_corpus']['target_relpath'].startswith('skills/vibe/')
-        assert resolved_full['internal_skill_corpus']['target_relpath'].startswith('skills/vibe/')
+        assert resolved_minimal['internal_skill_corpus']['enabled'] is False
+        assert resolved_full['internal_skill_corpus']['enabled'] is False
         assert resolved_minimal == minimal_projection
         assert resolved_full == full_projection
     else:
@@ -120,13 +120,15 @@ def test_profile_runtime_core_packaging_roles_keep_surface_truth_top_level() -> 
     assert 'surface_contracts' not in full['payload_roles']
     if _supports_surface_split(minimal):
         assert minimal['compatibility_skill_projections']['projected_skill_names'] == []
-        assert minimal['internal_skill_corpus']['target_relpath'] == 'skills/vibe/bundled/skills'
+        assert minimal['internal_skill_corpus']['enabled'] is False
+        assert minimal['internal_skill_corpus']['resident_skill_names'] == []
         assert minimal['public_skill_surface']['mode'] == 'discoverable_wrapper_projection'
         assert minimal['public_skill_surface']['discoverable_entry_surface'] == 'config/vibe-entry-surfaces.json'
         assert minimal['public_skill_surface']['projected_skill_names'] == ['vibe', 'vibe-upgrade']
     if _supports_surface_split(full):
         assert full['compatibility_skill_projections']['projected_skill_names'] == []
-        assert full['internal_skill_corpus']['entrypoint_filename'] == 'SKILL.runtime-mirror.md'
+        assert full['internal_skill_corpus']['enabled'] is False
+        assert full['internal_skill_corpus']['resident_skill_names'] == []
         assert full['public_skill_surface']['mode'] == 'discoverable_wrapper_projection'
         assert full['public_skill_surface']['discoverable_entry_surface'] == 'config/vibe-entry-surfaces.json'
         assert full['public_skill_surface']['projected_skill_names'] == ['vibe', 'vibe-upgrade']
@@ -170,9 +172,7 @@ def test_profile_managed_skill_inventory_is_manifest_owned() -> None:
     assert minimal_public_entries == {'vibe'}
     assert minimal_public_entries == full_public_entries
     assert minimal_starter_skills == full_starter_skills
-    assert full_optional_skills == {
-        'verification-before-completion',
-    }
+    assert full_optional_skills == set()
     assert not (minimal_public_entries & minimal_starter_skills)
     assert not (full_public_entries & full_optional_skills)
     assert not (full_starter_skills & full_optional_skills)
@@ -180,19 +180,8 @@ def test_profile_managed_skill_inventory_is_manifest_owned() -> None:
     assert 'skills_allowlist' not in full
     assert 'skills_allowlist' not in resolved_minimal
     assert 'skills_allowlist' not in resolved_full
-    assert set(minimal['internal_skill_corpus']['resident_skill_names']) == {
-        'ralph-loop',
-        'cancel-ralph',
-    }
-    assert set(full['internal_skill_corpus']['resident_skill_names']) == {
-        'ralph-loop',
-        'cancel-ralph',
-    }
-    assert not (set(minimal['internal_skill_corpus']['resident_skill_names']) & minimal_public_entries)
-    assert not (set(minimal['internal_skill_corpus']['resident_skill_names']) & minimal_starter_skills)
-    assert not (set(full['internal_skill_corpus']['resident_skill_names']) & full_public_entries)
-    assert not (set(full['internal_skill_corpus']['resident_skill_names']) & full_starter_skills)
-    assert not (set(full['internal_skill_corpus']['resident_skill_names']) & full_optional_skills)
+    assert minimal['internal_skill_corpus']['resident_skill_names'] == []
+    assert full['internal_skill_corpus']['resident_skill_names'] == []
 
 
 def test_surface_split_semantics_are_declared_when_available() -> None:

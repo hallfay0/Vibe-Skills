@@ -8,7 +8,6 @@
     "skills/**",
     "commands/**",
     "config/upstream-lock.json",
-    "config/skills-lock.json",
     "canonical vibe mirror under skills/vibe/**",
     "host-root global_workflows/** when commands exist",
     "host-root .vibeskills/host-closure.json",
@@ -36,7 +35,6 @@
       "skills/**",
       "commands/**",
       "config/upstream-lock.json",
-      "config/skills-lock.json",
       "canonical vibe mirror under skills/vibe/**",
       "host-root global_workflows/** when commands exist"
     ],

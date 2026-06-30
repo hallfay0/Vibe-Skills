@@ -117,9 +117,10 @@ def runtime_core_inventory(repo_root: Path) -> set[str]:
 
     internal_corpus = packaging.get("internal_skill_corpus") or {}
     if bool(internal_corpus.get("enabled")):
-        source_root = repo_root / str(internal_corpus.get("source") or "bundled/skills")
-        target_prefix = normalize_relpath(str(internal_corpus.get("target_relpath") or "skills/vibe/bundled/skills"))
-        if source_root.exists() and target_prefix:
+        source_value = str(internal_corpus.get("source") or "").strip()
+        target_prefix = normalize_relpath(str(internal_corpus.get("target_relpath") or ""))
+        source_root = repo_root / source_value if source_value else None
+        if source_root is not None and source_root.exists() and target_prefix:
             for candidate in source_root.iterdir():
                 if not candidate.is_dir() or candidate.name in exclude_bundled_skill_names:
                     continue
@@ -128,9 +129,11 @@ def runtime_core_inventory(repo_root: Path) -> set[str]:
     projections = packaging.get("compatibility_skill_projections") or {}
     projection_root = normalize_relpath(str(projections.get("target_root") or "skills")) or "skills"
     projected_names = compatibility_projection_names(packaging, host_id=None)
-    bundled_source = repo_root / str(packaging.get("bundled_skills_source") or "bundled/skills")
+    bundled_source_value = str(packaging.get("bundled_skills_source") or "").strip()
+    bundled_source = repo_root / bundled_source_value if bundled_source_value else None
     for name in projected_names:
-        inventory.update(collect_file_inventory(bundled_source / name, f"{projection_root}/{name}"))
+        if bundled_source is not None:
+            inventory.update(collect_file_inventory(bundled_source / name, f"{projection_root}/{name}"))
 
     target_rel = normalize_relpath(
         (packaging.get("canonical_vibe_payload") or {}).get("target_relpath")

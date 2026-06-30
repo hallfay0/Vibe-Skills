@@ -6,8 +6,8 @@ The next version should be a small local work kernel, not a router-centered plat
 
 The public story for this pass is intentionally narrow:
 
-- host-managed external skill folders are the main reference surface
-- the built-in starter set is a small fallback
+- declared local skill roots are the only specialist reference surface
+- a skill must have a readable `SKILL.md` before it can be selected
 - `work_binding` stays the first runtime truth for what was actually selected
 
 This is a practical next step, not a claim that the final architecture is complete.
@@ -19,7 +19,7 @@ The old shape asked the router to do too much. It tried to decide intent, choose
 The new cut is simpler:
 
 - the kernel owns process
-- user-owned and host-managed external skills own capability
+- user-owned installed skills own capability
 - discovery only finds candidates
 - planning chooses bounded work
 - `work_binding` records what was actually bound
@@ -37,30 +37,24 @@ This keeps problems local. If discovery quality is weak, we improve discovery. I
 
 - Install into the agent directory and treat that location as the runtime home.
 - Prefer convention over configuration.
-- Treat host-managed external skill folders and other user-owned skill folders as the main reference surface.
-- Keep the starter set small and clearly secondary.
+- Treat host-declared local skill roots as the only specialist source.
+- Exclude controller entries such as `vibe` and `vibe-upgrade` from the specialist pool.
 - Keep `work_binding` as the first runtime truth surface.
 - Use generated catalog and index files only as derived artifacts.
 - Do not require a central skill registry for ordinary skills.
 - Do not let an arbitrary directory become active just because it exists.
 - Do not let PowerShell own task semantics.
-- Do not describe the repo-owned bundled corpus as the main extension story.
+- Do not describe the repo-owned bundled corpus as an extension or fallback story.
 
 ## Terminology
 
-### Host-Managed External Skill Root
+### Host-Declared Local Skill Root
 
-A skill root declared by the current host adapter. It is read-only from the kernel's point of view and is part of the normal discovery path.
+A skill root declared by the current host adapter. It is read-only from the kernel's point of view and is the normal discovery path for specialist skills.
 
 ### User-Owned Skill Folder
 
-A skill folder the user or host manages directly. This can live under a host-declared external root or under the installed local root.
-
-### Starter Set
-
-A small built-in fallback set. It is useful for first-run coverage and thin baseline help. It is not the main product story.
-
-For the current package contract, `minimal` keeps exactly two starter helpers: `tdd-guide` and `systematic-debugging`. `full` adds `verification-before-completion` on top of the same small kernel. The repo may still contain many more bundled directories on disk, but they are not counted as the default starter surface unless the packaging inventory says they are live.
+A skill folder the user or host manages directly. This can live under a host-declared root or under the installed local root.
 
 ### Skill Catalog
 
@@ -94,9 +88,6 @@ The installed runtime should look like this:
           SKILL.md
           examples/
           tests/
-      starter/
-        <skill-id>/
-          SKILL.md
     generated/
       skills-catalog.json
       skills-index.json
@@ -109,18 +100,15 @@ The installed runtime should look like this:
         verification.json
 ```
 
-Host-managed external skill roots may live outside `<agent_root>`. They are referenced by discovery and catalog artifacts, not copied into a repo-owned central corpus first.
+Host-declared local skill roots may live outside `<agent_root>`. They are referenced by discovery and catalog artifacts, not copied into a repo-owned central corpus first.
 
 ### Meaning Of Each Area
 
 - `kernel/` is the semantic core. It owns process and bounded work.
 - `skills/local/` is a normal user-owned surface inside the install root.
-- `skills/starter/` is the small built-in fallback set.
 - `generated/` contains derived catalog and index artifacts.
 - `runs/` contains execution records, including `work_binding`.
-- host-managed external roots are the main reference surface when the host declares them.
-
-See [bundled skill retention matrix](../governance/bundled-skill-retention-matrix.md) for the current keep/reference/archive split behind this repo shape.
+- host-declared local roots are the specialist reference surface.
 
 ## Discovery Rules
 
@@ -128,25 +116,25 @@ The system should discover skills by fixed declared roots, not by a layered rout
 
 ### Required Rules
 
-1. Resolve workspace or agent-local user-owned skill roots that belong to the installed runtime.
-2. Resolve host-managed external skill roots declared by the current host adapter.
-3. Scan the user-owned and host-managed external roots before the starter set.
-4. Scan `skills/starter/*/SKILL.md` only as fallback coverage.
-5. Read frontmatter from each discovered `SKILL.md`.
-6. Validate the frontmatter against the declared contract.
+1. Resolve host-declared global skill roots in priority order.
+2. Resolve host-declared project skill roots only when the host contract declares them.
+3. Scan `<root>/<skill-id>/SKILL.md` and `<root>/custom/<skill-id>/SKILL.md`.
+4. Read frontmatter from each discovered `SKILL.md`.
+5. Validate that each usable entry has at least a name and description.
+6. Record invalid entries and inactive duplicates as diagnostics.
 7. Build `generated/skills-catalog.json` as the full discovered view.
-8. Project the active entries into `generated/skills-index.json`.
+8. Project the active entries into `generated/skills-index.json` with schema `local_skill_index_v2`.
 9. Use `work_binding` as the runtime truth for what was actually selected.
 
 ### Precedence
 
 The intended precedence for this pass is:
 
-1. workspace or agent-local user-owned skill roots
-2. host-managed external skill roots
-3. `skills/starter/`
+1. Codex: `~/.agents/skills`
+2. Codex: `~/.codex/skills`
+3. Claude Code: `~/.claude/skills`
 
-This ordering is about discovery preference, not about claiming the system automatically orchestrates every installed skill.
+This ordering is about duplicate resolution. It does not make any missing or unreadable skill selectable.
 
 ### Forbidden Rules
 
@@ -225,7 +213,7 @@ Turns a user request into a task card.
 
 ### Finder Module
 
-Retrieves candidate skills from the active index, with external and user-owned roots ahead of the starter fallback.
+Retrieves candidate skills from the active index. The active index contains only usable local skills from declared roots.
 
 ### Planner Module
 
@@ -308,7 +296,7 @@ capture -> clarify -> find_skills -> plan -> execute -> verify -> close
 
 - `capture`: create the first task card from the user request
 - `clarify`: fill missing information when the task card is incomplete
-- `find_skills`: retrieve candidate skills from declared user-owned and host-managed external roots first, then starter fallback
+- `find_skills`: retrieve candidate skills from declared local roots only
 - `plan`: generate work units
 - `execute`: perform the work
 - `verify`: compare outputs against completion criteria
@@ -379,11 +367,10 @@ This does not mean every old file must disappear on day one. It means those file
 - stop adding new routing rules for ordinary skill admission
 - keep the old runtime working, but do not deepen it
 
-### Phase 2: Add External-First Discovery
+### Phase 2: Add Local-Only Discovery
 
-- resolve host-managed external skill roots
+- resolve host-declared local skill roots
 - keep `skills/local/` as a normal user-owned surface
-- keep `skills/starter/` as a small fallback
 - add `generated/skills-catalog.json`
 - add `generated/skills-index.json`
 
@@ -403,8 +390,8 @@ This does not mean every old file must disappear on day one. It means those file
 
 ### Phase 5: Keep The Public Story Small
 
-- keep only a small starter set
-- move public value toward external or user-owned skill composition
+- install only the controller and public entries
+- move public value toward user-owned installed skill composition
 - keep docs focused on how to install, inspect, and extend the kernel without a bigger central catalog
 
 ## Non-Negotiable Outcome

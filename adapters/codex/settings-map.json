@@ -3,7 +3,10 @@
   "template": "config/settings.template.codex.json",
   "target": "~/.agents/settings.json",
   "semantics": {
-    "vco.skill_root": "~/.agents/skills",
+    "vco.skill_roots.global": [
+      "~/.agents/skills",
+      "~/.codex/skills"
+    ],
     "vco.rules_root": "~/.agents/rules",
     "env.OPENAI_API_KEY": "provider credential, required for provider-assisted routing/runtime features",
     "env.OPENAI_BASE_URL": "OpenAI-compatible endpoint binding, not canonical router truth",

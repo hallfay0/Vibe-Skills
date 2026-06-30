@@ -959,7 +959,7 @@ function Get-VgoBundledSkillsRoot {
     $sourceRel = if ($Packaging.PSObject.Properties.Name -contains 'bundled_skills_source' -and -not [string]::IsNullOrWhiteSpace([string]$Packaging.bundled_skills_source)) {
         [string]$Packaging.bundled_skills_source
     } else {
-        'bundled\skills'
+        ''
     }
 
     $candidates = New-Object System.Collections.Generic.List[string]
@@ -969,7 +969,9 @@ function Get-VgoBundledSkillsRoot {
     if ($Packaging.PSObject.Properties.Name -contains 'catalog_root' -and -not [string]::IsNullOrWhiteSpace([string]$Packaging.catalog_root)) {
         $candidates.Add((Join-Path ([string]$Packaging.catalog_root) 'skills')) | Out-Null
     }
-    $candidates.Add((Join-Path $RepoRoot $sourceRel)) | Out-Null
+    if (-not [string]::IsNullOrWhiteSpace($sourceRel)) {
+        $candidates.Add((Join-Path $RepoRoot $sourceRel)) | Out-Null
+    }
     $repoParent = Split-Path -Parent $RepoRoot
     if ((Split-Path -Leaf $repoParent) -eq 'skills') {
         $candidates.Add($repoParent) | Out-Null
@@ -988,7 +990,7 @@ function Get-VgoBundledSkillsRoot {
             return $resolvedCandidate
         }
     }
-    return [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $sourceRel))
+    return $null
 }
 
 function Sync-VgoInternalSkillCorpus {
@@ -1012,10 +1014,13 @@ function Sync-VgoInternalSkillCorpus {
     $targetRel = if ($corpus.PSObject.Properties.Name -contains 'target_relpath' -and -not [string]::IsNullOrWhiteSpace([string]$corpus.target_relpath)) {
         [string]$corpus.target_relpath
     } else {
-        'skills\vibe\bundled\skills'
+        throw "Internal skill corpus target path must be explicit when internal corpus packaging is enabled."
     }
     $destinationRoot = Join-Path $TargetRoot $targetRel
     $bundledRoot = Get-VgoBundledSkillsRoot -RepoRoot $RepoRoot -Packaging $Packaging
+    if ([string]::IsNullOrWhiteSpace([string]$bundledRoot)) {
+        throw "Internal skill corpus source must be explicit when internal corpus packaging is enabled."
+    }
     if (-not (Test-Path -LiteralPath $bundledRoot -PathType Container)) {
         throw "Bundled skills source missing for internal corpus packaging: $bundledRoot"
     }
@@ -1136,7 +1141,7 @@ function Get-GeneratedNestedCompatibilitySuffix {
 
     $legacy = if ($Governance.PSObject.Properties.Name -contains 'source_of_truth') { $Governance.source_of_truth } else { $null }
     if ([string]::IsNullOrWhiteSpace($bundledPath)) {
-        $bundledPath = if ($null -ne $legacy -and $legacy.PSObject.Properties.Name -contains 'bundled_root') { [string]$legacy.bundled_root } else { 'bundled/skills/vibe' }
+        $bundledPath = if ($null -ne $legacy -and $legacy.PSObject.Properties.Name -contains 'bundled_root') { [string]$legacy.bundled_root } else { $null }
     }
     if ([string]::IsNullOrWhiteSpace($nestedPath)) {
         $nestedPath = if ($null -ne $legacy -and $legacy.PSObject.Properties.Name -contains 'nested_bundled_root') { [string]$legacy.nested_bundled_root } else { $null }

@@ -62,7 +62,7 @@ Other pages in this folder are reference docs, compatibility notes, or host-spec
 | `Full Version + Customizable Governance` | `full` |
 | `Framework Only + Customizable Governance` | `minimal` |
 
-Use `minimal` for the normal VibeSkills experience. It keeps the default surface small, leaves local skills under `<target-root>/skills/local/<skill-id>/SKILL.md` as the normal extension path, and keeps only `tdd-guide` and `systematic-debugging` as built-in starter helpers. Choose `full` only when you also want `verification-before-completion` preinstalled.
+Use `minimal` for the normal VibeSkills experience. It keeps the default surface small and installs the public `vibe` entries. Choose `full` when you need the full-profile host wiring. Neither profile installs repo-shipped specialist Skills; specialists come from local installed roots such as `<target-root>/skills/local/<skill-id>/SKILL.md` and the roots declared by the host.
 
 ## Public Hosts
 

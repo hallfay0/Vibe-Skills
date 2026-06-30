@@ -37,7 +37,7 @@ def _write_settings_map(repo_root: Path, host_id: str, payload: str) -> Path:
     return settings_map_path
 
 
-def test_resolve_host_skill_roots_returns_codex_global_root() -> None:
+def test_resolve_host_skill_roots_returns_codex_global_roots_in_priority_order() -> None:
     agent_root = Path("D:/tmp/test-home/.agents")
 
     roots = resolve_host_skill_roots(
@@ -52,7 +52,33 @@ def test_resolve_host_skill_roots_returns_codex_global_root() -> None:
             host_id="codex",
             root_key="host_global",
             path=(agent_root / "skills").resolve(),
-            source="adapters/codex/settings-map.json:semantics.vco.skill_root",
+            source="adapters/codex/settings-map.json:semantics.vco.skill_roots.global",
+        ),
+        HostSkillRoot(
+            host_id="codex",
+            root_key="host_global",
+            path=Path("D:/tmp/test-home/.codex/skills").resolve(),
+            source="adapters/codex/settings-map.json:semantics.vco.skill_roots.global",
+        ),
+    )
+
+
+def test_resolve_host_skill_roots_returns_claude_code_global_root() -> None:
+    agent_root = Path("D:/tmp/test-home/.claude")
+
+    roots = resolve_host_skill_roots(
+        repo_root=REPO_ROOT,
+        host_id="claude-code",
+        agent_root=agent_root,
+        workspace_root=None,
+    )
+
+    assert roots == (
+        HostSkillRoot(
+            host_id="claude-code",
+            root_key="host_global",
+            path=(agent_root / "skills").resolve(),
+            source="adapters/claude-code/settings-map.json:semantics.vco.skill_roots.global",
         ),
     )
 
@@ -87,13 +113,13 @@ def test_resolve_host_skill_roots_returns_opencode_global_then_project_root(tmp_
             host_id="opencode",
             root_key="host_global",
             path=(tmp_path / ".config" / "opencode" / "skills").resolve(),
-            source="adapters/opencode/settings-map.json:semantics.vco.skill_root.global",
+            source="adapters/opencode/settings-map.json:semantics.vco.skill_roots.global",
         ),
         HostSkillRoot(
             host_id="opencode",
             root_key="host_project",
             path=(workspace_root / ".opencode" / "skills").resolve(),
-            source="adapters/opencode/settings-map.json:semantics.vco.skill_root.project",
+            source="adapters/opencode/settings-map.json:semantics.vco.skill_roots.project",
         ),
     )
 
@@ -139,7 +165,7 @@ def test_resolve_host_skill_roots_skips_project_root_without_workspace() -> None
             host_id="opencode",
             root_key="host_global",
             path=Path("D:/tmp/test-home/.config/opencode/skills").resolve(),
-            source="adapters/opencode/settings-map.json:semantics.vco.skill_root.global",
+            source="adapters/opencode/settings-map.json:semantics.vco.skill_roots.global",
         ),
     )
 
@@ -212,7 +238,7 @@ def test_resolve_host_skill_roots_requires_declared_skill_root_key(tmp_path: Pat
         ValueError,
         match=(
             "Host skill root semantic is missing for missing-skill-root. "
-            "Expected one of: vco.skill_root.global, vco.skill_root. "
+            "Expected one of: vco.skill_roots.global, vco.skill_root.global, vco.skill_root. "
             "Settings map: "
             + str(settings_map_path.resolve()).replace("\\", "\\\\")
         ),
@@ -366,6 +392,6 @@ def test_resolve_host_skill_roots_allows_existing_host_outside_old_manual_list()
             host_id="openclaw",
             root_key="host_global",
             path=(agent_root / "skills").resolve(),
-            source="adapters/openclaw/settings-map.json:semantics.vco.skill_root",
+            source="adapters/openclaw/settings-map.json:semantics.vco.skill_roots.global",
         ),
     )

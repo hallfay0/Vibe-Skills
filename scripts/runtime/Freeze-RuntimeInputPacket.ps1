@@ -88,7 +88,7 @@ function Invoke-VibeFrozenRoute {
 
     $routeInvocation = Invoke-VgoPowerShellFile -ScriptPath $RouterScriptPath -ArgumentList $routeArgs -NoProfile
     if ([int]$routeInvocation.exit_code -ne 0) {
-        throw ("Failed to freeze runtime input packet because internal specialist recommender exited with code {0}." -f [int]$routeInvocation.exit_code)
+        throw ("Failed to freeze runtime input packet because local installed skill recommender exited with code {0}." -f [int]$routeInvocation.exit_code)
     }
 
     $routeJson = (@($routeInvocation.output) -join [Environment]::NewLine).Trim()
@@ -548,8 +548,16 @@ function Get-VibeSpecialistRecommendations {
             continue
         }
 
-        $customMetadata = if ($customAdmissionIndex.ContainsKey($skillId)) { $customAdmissionIndex[$skillId] } else { $null }
-        $reason = "top ranked specialist candidate from pack '{0}' via {1}" -f ([string]$ranked.pack_id), $candidateSelectionReason
+        $rankedMetadata = [pscustomobject]@{
+            skill_md_path = if ($ranked.PSObject.Properties.Name -contains 'native_skill_entrypoint') { [string]$ranked.native_skill_entrypoint } else { '' }
+            native_skill_entrypoint = if ($ranked.PSObject.Properties.Name -contains 'native_skill_entrypoint') { [string]$ranked.native_skill_entrypoint } else { '' }
+            skill_root = if ($ranked.PSObject.Properties.Name -contains 'skill_root') { [string]$ranked.skill_root } else { '' }
+            description = if ($ranked.PSObject.Properties.Name -contains 'description') { [string]$ranked.description } else { '' }
+            source_root = if ($ranked.PSObject.Properties.Name -contains 'source_root') { [string]$ranked.source_root } else { '' }
+            source_kind = if ($ranked.PSObject.Properties.Name -contains 'source_kind') { [string]$ranked.source_kind } else { '' }
+        }
+        $customMetadata = if ($customAdmissionIndex.ContainsKey($skillId)) { $customAdmissionIndex[$skillId] } else { $rankedMetadata }
+        $reason = "top ranked local installed specialist candidate via {0}" -f $candidateSelectionReason
         $recommendations += (New-VibeSpecialistRecommendation `
             -RepoRoot $RepoRoot `
             -Task $Task `
@@ -594,8 +602,16 @@ function Get-VibeSpecialistRecommendations {
                 continue
             }
 
-            $customMetadata = if ($customAdmissionIndex.ContainsKey($siblingSkillId)) { $customAdmissionIndex[$siblingSkillId] } else { $null }
-            $reason = "additional XL ranked specialist candidate from pack '{0}'" -f ([string]$ranked.pack_id)
+            $siblingMetadata = [pscustomobject]@{
+                skill_md_path = if ($sibling.PSObject.Properties.Name -contains 'native_skill_entrypoint') { [string]$sibling.native_skill_entrypoint } else { '' }
+                native_skill_entrypoint = if ($sibling.PSObject.Properties.Name -contains 'native_skill_entrypoint') { [string]$sibling.native_skill_entrypoint } else { '' }
+                skill_root = if ($sibling.PSObject.Properties.Name -contains 'skill_root') { [string]$sibling.skill_root } else { '' }
+                description = if ($sibling.PSObject.Properties.Name -contains 'description') { [string]$sibling.description } else { '' }
+                source_root = if ($sibling.PSObject.Properties.Name -contains 'source_root') { [string]$sibling.source_root } else { '' }
+                source_kind = if ($sibling.PSObject.Properties.Name -contains 'source_kind') { [string]$sibling.source_kind } else { '' }
+            }
+            $customMetadata = if ($customAdmissionIndex.ContainsKey($siblingSkillId)) { $customAdmissionIndex[$siblingSkillId] } else { $siblingMetadata }
+            $reason = "additional XL ranked local installed specialist candidate"
             $recommendations += (New-VibeSpecialistRecommendation `
                 -RepoRoot $RepoRoot `
                 -Task $Task `
@@ -664,14 +680,26 @@ function Get-VibeSpecialistRecommendations {
         -not [string]::Equals($RouterSelectedSkill, $RuntimeSelectedSkill, [System.StringComparison]::OrdinalIgnoreCase) -and
         -not $seen.ContainsKey($RouterSelectedSkill) -and
         @($recommendations).Count -lt $limit) {
-        $customMetadata = if ($customAdmissionIndex.ContainsKey($RouterSelectedSkill)) { $customAdmissionIndex[$RouterSelectedSkill] } else { $null }
+        $routeSelectedMetadata = if ($RouteResult.PSObject.Properties.Name -contains 'selected' -and $null -ne $RouteResult.selected) {
+            [pscustomobject]@{
+                skill_md_path = if ($RouteResult.selected.PSObject.Properties.Name -contains 'native_skill_entrypoint') { [string]$RouteResult.selected.native_skill_entrypoint } else { '' }
+                native_skill_entrypoint = if ($RouteResult.selected.PSObject.Properties.Name -contains 'native_skill_entrypoint') { [string]$RouteResult.selected.native_skill_entrypoint } else { '' }
+                skill_root = if ($RouteResult.selected.PSObject.Properties.Name -contains 'skill_root') { [string]$RouteResult.selected.skill_root } else { '' }
+                description = if ($RouteResult.selected.PSObject.Properties.Name -contains 'description') { [string]$RouteResult.selected.description } else { '' }
+                source_root = if ($RouteResult.selected.PSObject.Properties.Name -contains 'source_root') { [string]$RouteResult.selected.source_root } else { '' }
+                source_kind = if ($RouteResult.selected.PSObject.Properties.Name -contains 'source_kind') { [string]$RouteResult.selected.source_kind } else { '' }
+            }
+        } else {
+            $null
+        }
+        $customMetadata = if ($customAdmissionIndex.ContainsKey($RouterSelectedSkill)) { $customAdmissionIndex[$RouterSelectedSkill] } else { $routeSelectedMetadata }
         $recommendations += (New-VibeSpecialistRecommendation `
             -RepoRoot $RepoRoot `
             -Task $Task `
             -SkillId $RouterSelectedSkill `
             -Source 'route_selected' `
             -TaskType $TaskType `
-            -Reason 'internal specialist recommender selected a bounded specialist candidate for governed execution' `
+            -Reason 'local installed skill recommender selected a bounded specialist candidate for governed execution' `
             -PackId $null `
             -Confidence 0.0 `
             -Rank (@($recommendations).Count + 1) `

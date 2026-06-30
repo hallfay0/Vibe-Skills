@@ -31,7 +31,7 @@ Linux 和 macOS 仍然可以使用 `bash` 安装入口。推荐安装 PowerShell
 - `全量版本 + 可自定义添加治理` -> `full`
 - `仅核心框架 + 可自定义添加治理` -> `minimal`
 
-默认推荐直接选 `minimal`。它把工作内核保持得很小，把 `<target-root>/skills/local/<skill-id>/SKILL.md` 保持为正常扩展路径，并只预装 `tdd-guide` 和 `systematic-debugging` 这两个 starter helper。只有你还想多带 `verification-before-completion` 时，再选 `full`。
+默认推荐直接选 `minimal`。它把工作内核保持得很小，只安装公开的 `vibe` 入口。需要 full-profile 宿主接线时再选 `full`。两个 profile 都不随包安装 specialist corpus；specialist 只来自本地已安装 roots，例如 `<target-root>/skills/local/<skill-id>/SKILL.md` 和宿主声明的本地 roots。
 
 ## 复制一段提示词
 

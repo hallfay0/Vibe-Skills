@@ -86,7 +86,6 @@ def test_runtime_config_manifest_groups_separate_runtime_domains() -> None:
     assert distribution_and_lock == {
         "config/plugins-manifest.codex.json",
         "config/settings.template.codex.json",
-        "config/skills-lock.json",
         "config/upstream-lock.json",
     }
     assert opencode_preview == {
@@ -95,6 +94,15 @@ def test_runtime_config_manifest_groups_separate_runtime_domains() -> None:
         if path.is_file()
     }
     assert all(path.startswith("config/") for path in set().union(*groups))
+    removed_pack_files = {
+        "config/pack-manifest.json",
+        "config/skill-keyword-index.json",
+        "config/skill-routing-rules.json",
+        "config/skills-lock.json",
+    }
+    assert removed_pack_files.isdisjoint(manifest["files"])
+    for group in file_groups.values():
+        assert removed_pack_files.isdisjoint(group)
 
 
 def test_runtime_config_manifest_avoids_broad_directory_projection() -> None:

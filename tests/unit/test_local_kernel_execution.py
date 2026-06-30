@@ -24,18 +24,15 @@ from vgo_runtime.kernel.verifier import verify_run
 def _with_source_metadata(
     entry: dict[str, object],
     *,
-    source_kind: str = "local",
+    source_kind: str = "vibe_local",
     source_order: int = 0,
 ) -> dict[str, object]:
     root_dir = str(entry["root_dir"])
     skill_file = str(entry["skill_file"])
     base_path = "C:/agent/vibe"
-    if source_kind == "local":
+    if source_kind == "vibe_local":
         source_root = "skills/local"
-        source_priority = 0
-    elif source_kind == "starter":
-        source_root = "skills/starter"
-        source_priority = 2
+        source_priority = source_order
     else:
         raise AssertionError(f"unsupported source kind in test fixture: {source_kind}")
     return {
@@ -56,7 +53,7 @@ def _index_payload() -> dict[str, object]:
     return {
         "version": 1,
         "generated_at": "2026-06-20T00:00:00Z",
-        "roots": ["skills/local", "skills/starter"],
+        "roots": ["skills/local"],
         "skills": [
             _with_source_metadata({
                 "id": "code-review",
@@ -428,10 +425,13 @@ enabled: true
     assert catalog_path.name == "skills-catalog.json"
     assert catalog_path.is_file()
     catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
-    assert catalog["host_roots"] == [str((agent_root / "skills").resolve())]
-    assert catalog["catalog_source_kinds"] == ["local", "host_external", "starter"]
+    assert catalog["host_roots"] == [
+        str((agent_root / "skills").resolve()),
+        str((agent_root.parent / ".codex" / "skills").resolve()),
+    ]
+    assert catalog["catalog_source_kinds"] == ["host_installed", "vibe_local"]
     assert any(
-        entry["id"] == "write-report" and entry["source_kind"] == "host_external" and entry["active"] is True
+        entry["id"] == "write-report" and entry["source_kind"] == "host_installed" and entry["active"] is True
         for entry in catalog["entries"]
     )
     assert result["work_dossier"]["artifact_paths"]["skills_catalog"].endswith("skills-catalog.json")
@@ -664,13 +664,16 @@ enabled: true
     assert Path(inspected["artifacts"]["skills_catalog"]).is_file()
     unit = inspected["work_binding"]["units"][0]
     assert unit["bound_skill"] == "write-report"
-    assert unit["provenance"]["source_kind"] == "host_external"
-    assert unit["skill_source_kind"] == "host_external"
+    assert unit["provenance"]["source_kind"] == "host_installed"
+    assert unit["skill_source_kind"] == "host_installed"
     assert [row["binding_profile"] for row in inspected["work_binding"]["units"]] == [
-        "declared_output_owner",
+        "general_support_owner",
     ]
     assert inspected["work_dossier"]["artifact_paths"]["skills_catalog"].endswith("skills-catalog.json")
-    assert inspected["skills_catalog"]["host_roots"] == [str((agent_root / "skills").resolve())]
+    assert inspected["skills_catalog"]["host_roots"] == [
+        str((agent_root / "skills").resolve()),
+        str((agent_root.parent / ".codex" / "skills").resolve()),
+    ]
 
 
 def test_inspect_local_run_validates_requested_host_context(tmp_path: Path) -> None:
@@ -773,9 +776,9 @@ def test_inspect_main_passes_host_context_to_inspect_local_run(
 def test_run_local_kernel_does_not_reuse_work_when_selected_skill_source_changes(tmp_path: Path) -> None:
     agent_root = tmp_path / "agent-root" / ".agents"
     workspace_root = tmp_path / "workspace"
-    starter_skill_dir = agent_root / "vibe" / "skills" / "starter" / "write-report"
-    starter_skill_dir.mkdir(parents=True, exist_ok=True)
-    (starter_skill_dir / "SKILL.md").write_text(
+    vibe_local_skill_dir = agent_root / "vibe" / "skills" / "local" / "write-report"
+    vibe_local_skill_dir.mkdir(parents=True, exist_ok=True)
+    (vibe_local_skill_dir / "SKILL.md").write_text(
         """---
 id: write-report
 name: Write Report
@@ -799,7 +802,7 @@ enabled: true
         run_id="source-shift-run",
     )
 
-    assert first["work_binding"]["units"][0]["provenance"]["source_kind"] == "starter"
+    assert first["work_binding"]["units"][0]["provenance"]["source_kind"] == "vibe_local"
     assert first["reused_work_units"] == []
 
     host_skill_dir = agent_root / "skills" / "write-report"
@@ -831,7 +834,7 @@ enabled: true
     )
 
     assert resumed["reused_work_units"] == []
-    assert resumed["work_binding"]["units"][0]["provenance"]["source_kind"] == "host_external"
+    assert resumed["work_binding"]["units"][0]["provenance"]["source_kind"] == "host_installed"
     assert resumed["work_results"]["work_results"][0]["reused_from_work_unit_id"] is None
 
 

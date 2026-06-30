@@ -148,13 +148,15 @@ def derive_managed_skill_names_from_ledger(target_root: Path | str, ledger: dict
 
 
 def _internal_skill_target_relpath_from_ledger(ledger: dict) -> str:
-    direct_relpath = str(ledger.get('internal_skill_target_relpath') or '').strip() if isinstance(ledger, dict) else ''
-    if direct_relpath:
+    if not isinstance(ledger, dict):
+        return ''
+    if 'internal_skill_target_relpath' in ledger:
+        direct_relpath = str(ledger.get('internal_skill_target_relpath') or '').strip()
         return direct_relpath
 
     packaging_manifest = ledger.get('packaging_manifest') if isinstance(ledger, dict) else None
     if not isinstance(packaging_manifest, dict):
-        return 'skills/vibe/bundled/skills'
+        return ''
 
     legacy_direct_relpath = str(packaging_manifest.get('internal_skill_target_relpath') or '').strip()
     if legacy_direct_relpath:
@@ -167,7 +169,7 @@ def _internal_skill_target_relpath_from_ledger(ledger: dict) -> str:
         if legacy_relpath:
             return legacy_relpath
 
-    return 'skills/vibe/bundled/skills'
+    return ''
 
 
 def build_payload_summary(target_root: Path | str, ledger: dict) -> dict[str, object]:
@@ -176,14 +178,18 @@ def build_payload_summary(target_root: Path | str, ledger: dict) -> dict[str, ob
     runtime_root_path = Path(str(ledger.get('runtime_root') or target_root_path)).resolve(strict=False)
     managed_skill_names = derive_managed_skill_names_from_ledger(target_root_path, ledger)
     internal_target_relpath = _internal_skill_target_relpath_from_ledger(ledger)
-    internal_skills_root = (runtime_root_path / internal_target_relpath).resolve(strict=False)
+    internal_skills_root = (
+        (runtime_root_path / internal_target_relpath).resolve(strict=False)
+        if internal_target_relpath
+        else None
+    )
     installed_skill_names = sorted(
         name
         for name in managed_skill_names
         if not name.startswith('.')
         and (
             (runtime_root_path / 'skills' / name).is_dir()
-            or (internal_skills_root / name).is_dir()
+            or (internal_skills_root is not None and (internal_skills_root / name).is_dir())
         )
     )
     public_skill_names = sorted(
@@ -347,7 +353,7 @@ def build_install_ledger(
         config_rollbacks=config_rollbacks,
         legacy_cleanup_candidates=legacy_cleanup_candidates,
     )
-    internal_skill_target_relpath = str(plan.internal_skill_target_relpath or 'skills/vibe/bundled/skills')
+    internal_skill_target_relpath = str(plan.internal_skill_target_relpath or '')
     ledger = {
         'schema_version': 2,
         'host_id': plan.host_id,

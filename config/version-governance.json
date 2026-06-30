@@ -66,8 +66,8 @@
                                           },
                       "generated_compatibility":  {
                                                       "nested_runtime_root":  {
-                                                                                  "relative_path":  "bundled/skills/vibe",
-                                                                                  "materialization_mode":  "install_only"
+                                                                                  "relative_path":  "",
+                                                                                  "materialization_mode":  "disabled"
                                                                               }
                                                   },
                       "manifests":  [

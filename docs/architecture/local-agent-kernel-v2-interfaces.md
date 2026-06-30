@@ -6,8 +6,8 @@ The next implementation step is not a brand-new platform. It is a clearer contra
 
 For this pass, the public interface story should stay simple:
 
-- host-managed external roots are the main reference surface
-- the starter set is a small fallback
+- host-declared local skill roots are the only specialist source
+- a skill must have a readable `SKILL.md` before it can be selected
 - `skills-catalog.json` and `skills-index.json` are derived discovery artifacts
 - `work_binding` is the first runtime truth for what was actually selected
 
@@ -20,7 +20,7 @@ The current runtime package already has useful building blocks. The goal is not 
 The practical result should be:
 
 - a small kernel slice under the existing runtime package
-- host-aware discovery inputs
+- host-aware local discovery inputs
 - a catalog artifact for the full discovered surface
 - an active index for fast lookup
 - a `work_binding` artifact with selected source details and provenance
@@ -86,8 +86,8 @@ packages/runtime-core/src/vgo_runtime/
 ## Interface Principles
 
 - ordinary skills should remain self-describing through `SKILL.md`
-- host-managed external roots should be declared by the host, not guessed
-- starter skills should remain small fallback coverage
+- local skill roots should be declared by the host, not guessed
+- controller entries such as `vibe` and `vibe-upgrade` should stay out of the specialist pool
 - catalog and index artifacts should describe discovery, not replace runtime truth
 - `work_binding` should carry the selected source details and provenance needed for inspection
 - the public CLI should stay narrow and match real operator actions
@@ -127,7 +127,7 @@ def resolve_host_skill_roots(
 - `workspace_root` allows hosts with project-scoped skill roots to contribute them explicitly
 - the returned roots are read-only discovery inputs from the kernel's point of view
 
-Host-managed external roots are the main reference surface for this pass. The kernel should not describe the repo-owned bundled corpus as the main extension path.
+Host-declared local roots are the only specialist reference surface for this pass. The kernel should not describe the repo-owned bundled corpus as an extension or fallback path.
 
 ## Skill Manifest Interface
 
@@ -225,16 +225,15 @@ def load_skill_index(agent_root: Path) -> dict[str, object]: ...
 
 ### Required Discovery Story
 
-1. resolve workspace or agent-local user-owned roots
-2. resolve host-managed external roots
-3. scan those user-owned and host external roots first
-4. scan `skills/starter/` as fallback
-5. build `skills-catalog.json`
-6. project active entries into `skills-index.json`
+1. resolve host-declared global roots in priority order
+2. resolve host-declared project roots only when the host contract declares them
+3. scan `<root>/<skill-id>/SKILL.md` and `<root>/custom/<skill-id>/SKILL.md`
+4. build `skills-catalog.json`
+5. project active entries into `skills-index.json` with schema `local_skill_index_v2`
 
 ### Required Wording Boundary
 
-This design should not be described as automatic orchestration of all installed skills. It is an external-first discovery contract with a starter fallback and a bounded runtime truth surface.
+This design should not be described as automatic orchestration of all installed skills. It is a local-skill-only discovery contract with a bounded runtime truth surface.
 
 ## Finder Interface
 
@@ -282,11 +281,11 @@ def find_skill_candidates(
 
 The current intended precedence is:
 
-1. local user-owned roots
-2. host external roots
-3. starter
+1. Codex `~/.agents/skills`
+2. Codex `~/.codex/skills`
+3. Claude Code `~/.claude/skills`
 
-This rule should stay visible in the interface contract so operators can understand why a starter helper lost to a host-managed external skill.
+This rule should stay visible in the interface contract so operators can understand which duplicate skill entry stays active.
 
 ## Work Plan Interface
 
@@ -426,10 +425,10 @@ vgo inspect-run --agent-root <path> --run-id <id> --host-id <host> --workspace-r
 
 ### Required Input Meaning
 
-- `--host-id` chooses which host contract declares eligible external roots
+- `--host-id` chooses which host contract declares eligible local roots
 - `--workspace-root` lets project-scoped host roots participate explicitly
 
-These inputs matter because host-managed external roots are the main reference surface in this pass. They are not optional narrative details.
+These inputs matter because host-declared local roots are the only specialist source in this pass. They are not optional narrative details.
 
 ## Agent Root Contract
 
@@ -437,14 +436,13 @@ The install root should still look like this:
 
 ```text
 <agent_root>/
-  vibe/
+    vibe/
     skills/local/
-    skills/starter/
     generated/
     runs/
 ```
 
-Host-managed external roots may live outside this tree, but the generated artifacts inside `<agent_root>/vibe/generated/` should still describe them clearly.
+Host-declared local roots may live outside this tree, but the generated artifacts inside `<agent_root>/vibe/generated/` should still describe them clearly.
 
 ## Run Artifact Surface
 
@@ -502,7 +500,7 @@ Keep it as a thin state helper if useful, but do not let it pull discovery autho
 
 - add source-aware candidate ranking
 - add selected source details to `work_binding`
-- keep starter as fallback, not as the main story
+- keep unusable or duplicate skills in diagnostics, not in selected work
 
 ### Slice 3
 

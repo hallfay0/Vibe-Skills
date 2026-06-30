@@ -11,7 +11,6 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 MINIMAL_MANIFEST = REPO_ROOT / "config" / "runtime-core-packaging.minimal.json"
 FULL_MANIFEST = REPO_ROOT / "config" / "runtime-core-packaging.full.json"
 
-REPRESENTATIVE_FULL_ONLY_SKILL = "verification-before-completion"
 DIRECT_RUNTIME_PUBLIC_SKILLS = {
     "vibe",
     "vibe-upgrade",
@@ -19,10 +18,6 @@ DIRECT_RUNTIME_PUBLIC_SKILLS = {
 HOST_VISIBLE_DISCOVERABLE_ENTRIES = {
     "vibe",
     "vibe-upgrade",
-}
-HIDDEN_INTERNAL_RESIDENT_SKILLS = {
-    "ralph-loop",
-    "cancel-ralph",
 }
 
 
@@ -82,9 +77,10 @@ class InstallProfileDifferentiationTests(unittest.TestCase):
         self.assertEqual("skills/vibe", minimal["canonical_vibe_payload"]["target_relpath"])
         self.assertNotIn("copy_bundled_skills", full)
         self.assertNotIn("copy_bundled_skills", minimal)
-        self.assertEqual("skills/vibe/bundled/skills", full["internal_skill_corpus"]["target_relpath"])
-        self.assertEqual(sorted(HIDDEN_INTERNAL_RESIDENT_SKILLS), sorted(full["internal_skill_corpus"]["resident_skill_names"]))
-        self.assertEqual(sorted(HIDDEN_INTERNAL_RESIDENT_SKILLS), sorted(minimal["internal_skill_corpus"]["resident_skill_names"]))
+        self.assertFalse(full["internal_skill_corpus"]["enabled"])
+        self.assertEqual("", full["internal_skill_corpus"].get("target_relpath", ""))
+        self.assertEqual([], full["internal_skill_corpus"]["resident_skill_names"])
+        self.assertEqual([], minimal["internal_skill_corpus"]["resident_skill_names"])
         self.assertEqual([], full["compatibility_skill_projections"]["projected_skill_names"])
         self.assertNotIn("skills_allowlist", full)
 
@@ -99,22 +95,13 @@ class InstallProfileDifferentiationTests(unittest.TestCase):
                 for candidate in (target_root / "skills").iterdir()
                 if candidate.is_dir()
             }
-            hidden_required_skill = target_root / "skills" / "vibe" / "bundled" / "skills" / "systematic-debugging" / "SKILL.runtime-mirror.md"
-            hidden_resident_skills = {
-                name
-                for name in HIDDEN_INTERNAL_RESIDENT_SKILLS
-                if (target_root / "skills" / "vibe" / "bundled" / "skills" / name / "SKILL.runtime-mirror.md").exists()
-            }
 
             self.assertEqual(DIRECT_RUNTIME_PUBLIC_SKILLS, installed_skills)
-            self.assertTrue(hidden_required_skill.exists())
-            self.assertEqual(HIDDEN_INTERNAL_RESIDENT_SKILLS, hidden_resident_skills)
-            self.assertNotIn(REPRESENTATIVE_FULL_ONLY_SKILL, installed_skills)
+            self.assertFalse((target_root / "skills" / "vibe" / "bundled" / "skills").exists())
             self.assertEqual("minimal", ledger["profile"])
             self.assertEqual(sorted(MINIMAL_INSTALLED_SKILLS), ledger["payload_summary"]["installed_skill_names"])
             self.assertEqual(sorted(DIRECT_RUNTIME_PUBLIC_SKILLS), ledger["payload_summary"]["public_skill_names"])
             self.assertEqual(sorted(HOST_VISIBLE_DISCOVERABLE_ENTRIES), ledger["payload_summary"]["host_visible_entry_names"])
-            self.assertTrue(HIDDEN_INTERNAL_RESIDENT_SKILLS.isdisjoint(set(ledger["payload_summary"]["installed_skill_names"])))
             self.assertNotIn("installed_skill_count", ledger["payload_summary"])
             self.assertNotIn("public_skill_count", ledger["payload_summary"])
             self.assertNotIn("host_visible_entry_count", ledger["payload_summary"])
@@ -145,24 +132,16 @@ class InstallProfileDifferentiationTests(unittest.TestCase):
                 for candidate in (full_root / "skills").iterdir()
                 if candidate.is_dir()
             }
-            hidden_full_skill = full_root / "skills" / "vibe" / "bundled" / "skills" / REPRESENTATIVE_FULL_ONLY_SKILL / "SKILL.runtime-mirror.md"
-            hidden_resident_skills = {
-                name
-                for name in HIDDEN_INTERNAL_RESIDENT_SKILLS
-                if (full_root / "skills" / "vibe" / "bundled" / "skills" / name / "SKILL.runtime-mirror.md").exists()
-            }
 
             self.assertEqual(DIRECT_RUNTIME_PUBLIC_SKILLS, full_skills)
-            self.assertTrue(hidden_full_skill.exists())
-            self.assertEqual(HIDDEN_INTERNAL_RESIDENT_SKILLS, hidden_resident_skills)
-            self.assertGreater(
+            self.assertFalse((full_root / "skills" / "vibe" / "bundled" / "skills").exists())
+            self.assertEqual(
                 len(full_ledger["payload_summary"]["installed_skill_names"]),
                 len(minimal_ledger["payload_summary"]["installed_skill_names"]),
             )
             self.assertEqual(sorted(DIRECT_RUNTIME_PUBLIC_SKILLS), full_ledger["payload_summary"]["public_skill_names"])
             self.assertEqual(sorted(HOST_VISIBLE_DISCOVERABLE_ENTRIES), full_ledger["payload_summary"]["host_visible_entry_names"])
             self.assertEqual(sorted(FULL_INSTALLED_SKILLS), full_ledger["payload_summary"]["installed_skill_names"])
-            self.assertTrue(HIDDEN_INTERNAL_RESIDENT_SKILLS.isdisjoint(set(full_ledger["payload_summary"]["installed_skill_names"])))
             self.assertEqual([], full_ledger["compatibility_roots"])
 
     def test_full_skill_only_hosts_do_not_leak_codex_wrapper_skill_projections(self) -> None:
@@ -199,11 +178,10 @@ class InstallProfileDifferentiationTests(unittest.TestCase):
             }
 
             self.assertEqual({"vibe", "vibe-upgrade"}, installed_skills)
-            self.assertNotIn(REPRESENTATIVE_FULL_ONLY_SKILL, installed_skills)
             self.assertEqual(sorted(MINIMAL_REQUIRED_SKILLS), ledger["managed_skill_names"])
             self.assertEqual(sorted(MINIMAL_INSTALLED_SKILLS), ledger["payload_summary"]["installed_skill_names"])
             self.assertFalse(
-                (target_root / "skills" / "vibe" / "bundled" / "skills" / REPRESENTATIVE_FULL_ONLY_SKILL / "SKILL.runtime-mirror.md").exists()
+                (target_root / "skills" / "vibe" / "bundled" / "skills").exists()
             )
 
     def test_payload_summary_ignores_preexisting_foreign_host_content(self) -> None:

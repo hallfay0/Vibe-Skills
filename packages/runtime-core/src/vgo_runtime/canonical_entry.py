@@ -1638,10 +1638,7 @@ def _launch_local_agent_kernel(
 
 def _looks_like_local_agent_root(path: Path) -> bool:
     resolved = path.resolve()
-    return (
-        (resolved / "vibe" / "skills" / "local").is_dir()
-        or (resolved / "vibe" / "skills" / "starter").is_dir()
-    )
+    return (resolved / "vibe" / "skills" / "local").is_dir()
 
 
 def _auto_local_agent_root_candidate(

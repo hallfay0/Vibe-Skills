@@ -20,7 +20,7 @@ VibeSkills focuses on five practical problems:
 | Agents skip requirements, planning, or testing | `vibe` moves work through bounded stages |
 | Users keep saying "plan first" or "verify it" | You provide the goal; the harness absorbs more of the control burden |
 | Long work loses context across sessions | Requirements, plans, decisions, and evidence are stored in structured places |
-| New domain Skills are hard to integrate | The core stays user-owned and external-skill-friendly, so host-managed external skill folders or local skills can plug into the same workflow without turning the product into a bigger central catalog |
+| New domain Skills are hard to integrate | The core uses the Skills installed in declared local roots, so users can add capability without turning the product into a bigger central catalog |
 
 If you remember one line:
 
@@ -36,7 +36,7 @@ Choose three things on that page:
 
 1. Host: `codex`, `claude-code`, `cursor`, `windsurf`, `openclaw`, or `opencode`
 2. Action: choose `install` for a first install, or `update` if VibeSkills is already installed
-3. Version: use `minimal` for the recommended default, or `full` if you want a few extra built-in workflow helpers on top of the same small kernel
+3. Version: use `minimal` for the recommended default, or `full` if you need the full-profile host wiring. Specialist Skills still come only from local installed roots.
 
 Then copy the matching prompt into the AI app where you want VibeSkills installed, and let it run the install and checks.
 

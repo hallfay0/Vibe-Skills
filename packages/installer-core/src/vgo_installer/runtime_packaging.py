@@ -91,7 +91,7 @@ def public_skill_projection_names(packaging: dict[str, Any]) -> list[str]:
 def internal_skill_corpus_target_relpath(packaging: dict[str, Any]) -> str:
     corpus = packaging.get('internal_skill_corpus') or {}
     target = str(corpus.get('target_relpath') or '').strip()
-    return target or 'skills/vibe/bundled/skills'
+    return target
 
 
 def resolve_runtime_core_projection_path(repo_root: Path, profile: str) -> Path:
@@ -114,7 +114,6 @@ def resolve_runtime_core_packaging(repo_root: Path, profile: str) -> dict[str, A
         merged = _deep_merge(merged, profile_overlay)
         merged.setdefault('profile', profile)
         merged['_repo_root'] = str(repo_root)
-        merged.setdefault('bundled_skills_source', 'bundled/skills')
         merged.setdefault('public_skill_surface', {})
         merged.setdefault('internal_skill_corpus', {})
         merged.setdefault('compatibility_skill_projections', {'projection_mode': 'explicit_projection_only', 'projected_skill_names': []})
@@ -130,7 +129,6 @@ def resolve_runtime_core_packaging(repo_root: Path, profile: str) -> dict[str, A
     packaging = load_json(projection_path)
     packaging.setdefault('profile', profile)
     packaging['_repo_root'] = str(repo_root)
-    packaging.setdefault('bundled_skills_source', 'bundled/skills')
     packaging.setdefault('public_skill_surface', {})
     packaging.setdefault('internal_skill_corpus', {})
     packaging.setdefault('compatibility_skill_projections', {'projection_mode': 'explicit_projection_only', 'projected_skill_names': []})

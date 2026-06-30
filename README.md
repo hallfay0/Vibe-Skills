@@ -23,7 +23,7 @@ Install VibeSkills, type `vibe`, and let the kernel handle the real job: underst
 &nbsp;
 *You bring the goal. VibeSkills helps the agent move from idea to plan, from plan to work, and from work to verified delivery. The point is not more menu entries. The point is a smaller core that can organize skills into finished work.*
 
-Host-managed external skills are part of the main user-owned reference surface, and local user-owned overrides still win when the same skill id appears in more than one place. The starter set is only a small fallback, and `work_binding` stays the runtime truth for what was actually selected and run.
+Installed local skills are the only specialist reference surface. Codex scans `~/.agents/skills` before `~/.codex/skills`; Claude Code scans `~/.claude/skills`. When the same skill id appears more than once, the earlier root wins, and `work_binding` stays the runtime truth for what was actually selected and run.
 
 For this runtime boundary, Python owns task semantics, `work_binding`, specialist decision truth, and runtime summary data. PowerShell stays only as a thin host wrapper for launch, host receipts, shell-native checks, and leaf execution. A future full-Python runtime is optional, not required for this version.
 
@@ -121,7 +121,7 @@ For this runtime boundary, Python owns task semantics, `work_binding`, specialis
 | **Skill** | A focused expert capability, such as `tdd-guide`, `code-review`, data analysis, writing, or research support. |
 | **Vibe / VCO** | The canonical runtime that runs the harness. Public entrypoints are `vibe` and `vibe-upgrade`. |
 | **Bound skill composition** | The kernel calls different Skills only where they help the current work unit move forward. |
-| **External-skill-first reference plane** | The kernel treats declared host external and other user-owned skill folders as the main reference surface before it falls back to a small starter set. If the same skill exists in more than one place, local user-owned overrides still win. |
+| **Local-skill-only reference plane** | The kernel treats declared local skill roots as the only specialist source. A skill must have a readable `SKILL.md` before it can be selected. |
 | **TDD / verified delivery** | Work should be backed by tests, checks, artifacts, or explicit manual-review notes before completion is claimed. |
 | **Workspace memory** | Structured project information, decisions, and evidence are stored so later sessions can continue without starting over. |
 | **Work binding truth** | The final record of what skill was actually bound lives in `work_binding`, not in a discovery cache or a broad product claim. |
@@ -138,7 +138,7 @@ For this runtime boundary, Python owns task semantics, `work_binding`, specialis
 > VibeSkills packages that rhythm into one work-kernel entry. It gives the agent a clear path to follow, pushes work toward tests and evidence, and keeps useful context for the next session.
 >
 > **Install it, call `vibe`, and your agent gets a better way to move.**
-> The current public story is narrower and more practical: host-managed external or other user-owned skill folders are the main reference surface, local user-owned overrides still win duplicate conflicts, the built-in starter set is a small fallback, and `work_binding` remains the runtime truth for what the kernel actually bound. This is a next-step architecture story, not a claim that the final architecture is complete.
+> The current public story is narrower and more practical: installed local skill roots are the only specialist source, duplicate skill ids are resolved by host root priority, and `work_binding` remains the runtime truth for what the kernel actually bound. This is a next-step architecture story, not a claim that the final architecture is complete.
 
 <br/>
 
@@ -150,7 +150,7 @@ For this runtime boundary, Python owns task semantics, `work_binding`, specialis
 
 ## 🛰️ Runtime at a Glance
 
-VibeSkills is simple to use because `vibe` owns the flow. You bring the intent; the harness turns it into staged work, treats host-managed external or other user-owned skill folders as the main reference surface, still lets local user-owned overrides win when they intentionally replace the same skill id, binds only the Skills that fit the bounded work, checks the result, and keeps the context for the next session.
+VibeSkills is simple to use because `vibe` owns the flow. You bring the intent; the harness turns it into staged work, scans the local skill roots declared by the host, resolves duplicate skill ids by root priority, binds only the Skills that fit the bounded work, checks the result, and keeps the context for the next session.
 
 ```mermaid
 flowchart LR
@@ -162,7 +162,7 @@ flowchart LR
     freeze["Freeze<br/>Requirement"]
     plan["Build<br/>Work Model"]
     route["Bind Skills<br/>Late"]
-    skills["Host-managed external Skills first<br/>starter set only when needed"]
+    skills["Installed local Skills only<br/>real SKILL.md required"]
     future["User-owned skill folders grow<br/>without a new central catalog"]
     verify["Verify<br/>Tests + Evidence"]
     memory["Remember<br/>Workspace Context"]
@@ -188,7 +188,7 @@ flowchart LR
 |:---|:---|
 | `one entry` | Start with `vibe`; keep `vibe-upgrade` for updates. |
 | `late skill binding` | Skills are attached after the work shape is clear, not used as the control plane. |
-| `external-skill-first reference plane` | The kernel checks declared host external roots and other user-owned skill folders before it reaches for starter helpers, while still letting local user-owned overrides beat duplicate external entries. |
+| `local-skill-only reference plane` | The kernel checks declared local skill roots and only considers entries with a readable `SKILL.md`. Duplicate skill ids keep the highest-priority root active. |
 | `work_binding truth` | The runtime truth for selected skill provenance lives in `work_binding`, even when discovery or benchmark artifacts are also written. |
 | `proof trail` | Tests, checks, artifacts, or manual-review state support delivery claims. |
 | `memory plane` | Requirements, plans, decisions, and evidence survive the chat window. |
@@ -257,7 +257,7 @@ VibeSkills builds on that same direction, but pushes the package shape further:
 >
 > **A work entry says:** "Here is how the work should run."
 
-VibeSkills is the second kind. It wraps the workflow, expert Skills, verification, and workspace memory into one portable work-kernel entry. More importantly, it gives host-managed external and other user-owned skill folders a place to plug in: the same `vibe` entry can keep the work staged, checked, and easy to continue as the skill set grows, while the built-in starter set stays small.
+VibeSkills is the second kind. It wraps the workflow, expert Skills, verification, and workspace memory into one portable work-kernel entry. More importantly, it organizes the Skills the user has actually installed: the same `vibe` entry can keep the work staged, checked, and easy to continue as the local skill set grows, without shipping a central specialist corpus.
 
 <div align="center">
 
@@ -355,8 +355,8 @@ The core point is simple: the Skills are not the product by themselves. The work
 
 The discovery story stays intentionally narrow:
 
-- host-managed external or other user-owned skill folders are the main reference surface, while local user-owned overrides still win duplicate conflicts
-- the built-in starter set is only a small fallback
+- installed local skill roots are the only specialist source
+- a skill without a readable `SKILL.md` can be diagnostic only, never selected or locked
 - `work_binding` is still the first runtime truth for what was actually selected
 
 <div align="center">
@@ -496,7 +496,7 @@ The runtime core behind **VibeSkills** is **VCO**. It is not trying to be a smar
 
 |                           🧩 Skill Materials                            |                              ✅ Work Loop                               |                             ⚖️ Boundary Discipline                             |
 | :-------------------------------------------------------------------: | :--------------------------------------------------------------------: | :------------------------------------------------------------------------: |
-| <h2>Composable</h2>Host-managed external and user-owned Skills first<br/>with a thin starter fallback | <h2>Practical</h2>Goals become bounded work<br/>then tests, checks, and artifacts | <h2>Thin</h2>Small kernel and clear boundaries<br/>so extension stays cheaper than router surgery |
+| <h2>Composable</h2>Installed local Skills only<br/>with real entry files required | <h2>Practical</h2>Goals become bounded work<br/>then tests, checks, and artifacts | <h2>Thin</h2>Small kernel and clear boundaries<br/>so extension stays cheaper than router surgery |
 
 </div>
 
@@ -517,7 +517,7 @@ This is the shortest path. Choose three things, then copy one prompt into the AI
 
 1. Pick your host: `codex`, `claude-code`, `cursor`, `windsurf`, `openclaw`, or `opencode`.
 2. Pick your action: `install` for a first install, `update` if VibeSkills is already installed.
-3. Pick your version: `minimal` is the recommended default. It gives you the small work kernel plus the two thin built-in starter helpers `tdd-guide` and `systematic-debugging`. Choose `full` only when you also want `verification-before-completion` on top of the same small kernel.
+3. Pick your version: `minimal` is the recommended default. It gives you the small work kernel and public `vibe` entries. Choose `full` when you need the full-profile host wiring; specialist Skills still come only from local installed roots.
 4. Open the install entry:
    [Prompt-based install (recommended)](docs/install/one-click-install-release-copy.en.md)
 5. Copy the matching prompt into your AI app and let it run the install and check steps.
@@ -549,9 +549,8 @@ The normal closeout path should stay small: run the governed runtime contract ga
 
 ### `full` or `minimal`?
 
-- Choose `minimal` if you want the normal work-first kernel, declared host or user-owned skill folders to stay the main reference surface, local user-owned overrides to remain first for duplicate skill ids, and only the two built-in starter helpers `tdd-guide` and `systematic-debugging`.
-- Choose `full` only if you also want `verification-before-completion` preinstalled on top of that same small work kernel.
-- Use the [bundled skill retention matrix](docs/governance/bundled-skill-retention-matrix.md) if you need the current boundary in one place. It shows which built-in helpers stay in the starter set, which repo-owned bundled directories are only reference corpus, and why a large on-disk corpus should not be read as the public extension story.
+- Choose `minimal` if you want the normal work-first kernel and local installed skills as the only specialist source.
+- Choose `full` if you want the same local-skill-only runtime with the broader full-profile host wiring. Neither profile installs a repo-shipped specialist corpus.
 
 ### What install will not ask you to configure
 
@@ -581,10 +580,9 @@ Only read this part if you are configuring paths by hand, debugging install stat
 
 - public runtime entry: `<target-root>/skills/vibe`
 - normal local extension path: `<target-root>/skills/local/<skill-id>/SKILL.md`
-- internal bundled corpus: `<target-root>/skills/vibe/bundled/skills/*`
 - compatibility helper files: only when a host explicitly needs them
 
-When the host declares additional user-owned skill folders, the kernel treats those external roots as part of the main reference surface before it falls back to the starter set, while still letting local user-owned overrides win duplicate skill ids. The bundled corpus is not the public extension story. In the current package contract, `minimal` defaults to two starter helpers and `full` adds one verification helper; the large repo-owned bundled tree that still exists on disk is reference or migration material unless the packaging inventory explicitly includes it.
+When the host declares local skill roots, the kernel scans only those governed roots plus the installed `skills/local` path. Duplicate skill ids are recorded, but only the highest-priority entry stays active. The package no longer ships a specialist corpus.
 
 The `.vibeskills` folders are split on purpose:
 
