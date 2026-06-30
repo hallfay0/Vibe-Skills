@@ -2,9 +2,15 @@
 
 This path is for team and organization delivery. The goal is not only to say "it installed", but also to prove what was installed, what gaps remain, who owns them, and how rollback should work.
 
+Even in enterprise rollout, the product shape should stay small:
+
+- the deployed runtime is still the same small work kernel, not a bigger catalog
+- the normal extension path after install is still `skills/local/<skill-id>/SKILL.md`
+- host-specific rollout detail must not be mistaken for a second control plane
+
 Relevant distribution surfaces:
 
-- `dist/manifests/vibeskills-codex.json` (Codex lane, supported-with-constraints)
+- `dist/manifests/vibeskills-codex.json` (Codex path, supported-with-constraints)
 - `dist/manifests/vibeskills-core.json` (contract layer)
 
 And this path must still follow the anti-overcommit rules in `docs/universalization/platform-parity-contract.md`.
@@ -22,7 +28,7 @@ And this path must still follow the anti-overcommit rules in `docs/universalizat
 3. split ownership: repo-governed closure and host-managed provisioning must be accepted separately
 4. platforms are not equivalent: the Windows authoritative lane and Linux/macOS degraded lanes must be written into the delivery wording
 
-## Recommended Execution Order (Codex Lane)
+## Recommended Execution Order (Codex Path)
 
 ### Step 0: Record Version And Environment State
 
@@ -68,7 +74,7 @@ compatibility wiring rather than repo-tracked mirror parity.
 According to `docs/universalization/host-capability-matrix.md` and `adapters/*/host-profile.json`, your internal checklist should at least include the following items with clear ownership:
 
 - whether host-side plugins are enabled and version-controlled
-- whether MCP registration and authorization are complete, especially for plugin-backed MCP
+- whether host-side plugin or online capability authorization is complete
 - provider-secret distribution, rotation, and permission policy
 - whether external CLIs such as `node`, `npm`, and `gh` are consistent across target machines or images
 

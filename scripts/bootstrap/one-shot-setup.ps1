@@ -1,6 +1,6 @@
 param(
     [ValidateSet('minimal', 'full')]
-    [string]$Profile = 'full',
+    [string]$Profile = 'minimal',
     [string]$HostId = '',
     [string]$TargetRoot = '',
     [switch]$SkipExternalInstall,
@@ -70,60 +70,8 @@ Assert-VgoTargetRootMatchesHostIntent -TargetRoot $TargetRoot -HostId $HostId
 $repoRoot = Resolve-VgoRepoRoot -StartPath $PSCommandPath
 $Adapter = Resolve-VgoAdapterEntry -StartPath $repoRoot -HostId $HostId
 
-function Write-McpAutoProvisionSummary {
-    param(
-        [Parameter(Mandatory)] [string]$TargetRoot
-    )
-
-    $receiptPath = Join-Path $TargetRoot '.vibeskills\mcp-auto-provision.json'
-    $activePath = Join-Path $TargetRoot 'mcp\servers.active.json'
-    Write-Host 'MCP auto-provision summary'
-    if (-not (Test-Path -LiteralPath $receiptPath)) {
-        Write-Host '- receipt: missing' -ForegroundColor Yellow
-        return
-    }
-
-    $payload = Get-Content -LiteralPath $receiptPath -Raw -Encoding UTF8 | ConvertFrom-Json
-    $activeServers = @{}
-    if (Test-Path -LiteralPath $activePath) {
-        try {
-            $activePayload = Get-Content -LiteralPath $activePath -Raw -Encoding UTF8 | ConvertFrom-Json
-            if ($null -ne $activePayload -and $activePayload.PSObject.Properties.Name -contains 'servers' -and $null -ne $activePayload.servers) {
-                foreach ($serverProp in $activePayload.servers.PSObject.Properties) {
-                    $activeServers[[string]$serverProp.Name] = $serverProp.Value
-                }
-            }
-        } catch {
-        }
-    }
-    Write-Host ("- installed_locally: {0}" -f ([string]($payload.install_state -eq 'installed_locally')).ToLowerInvariant())
-    Write-Host ("- mcp_auto_provision_attempted: {0}" -f ([string][bool]$payload.mcp_auto_provision_attempted).ToLowerInvariant())
-    $manualFollowUp = @()
-    foreach ($item in @($payload.mcp_results)) {
-        if ($null -eq $item) { continue }
-        $name = [string]$item.name
-        $status = [string]$item.status
-        $nextStep = [string]$item.next_step
-        if ($status -eq 'local_tool_present' -and $activeServers.ContainsKey($name)) {
-            $activeServer = $activeServers[$name]
-            $mode = if ($null -ne $activeServer -and $activeServer.PSObject.Properties.Name -contains 'mode') { [string]$activeServer.mode } else { '' }
-            $commandName = if ($null -ne $activeServer -and $activeServer.PSObject.Properties.Name -contains 'command') { [string]$activeServer.command } else { '' }
-            if ($mode -eq 'stdio' -and (Test-NonEmptyString -Value $commandName) -and (Get-Command $commandName -ErrorAction SilentlyContinue)) {
-                $status = 'ready'
-                $nextStep = 'none'
-            }
-        }
-        Write-Host ("- {0}: status={1} next_step={2}" -f $name, $status, $nextStep)
-        if ($status -ne 'ready') {
-            $manualFollowUp += $name
-        }
-    }
-    Write-Host ("- manual_follow_up: {0}" -f $(if ($manualFollowUp.Count -gt 0) { $manualFollowUp -join ', ' } else { 'none' }))
-}
-
 $installPath = Join-Path $repoRoot 'install.ps1'
 $checkPath = Join-Path $repoRoot 'check.ps1'
-$materializePath = Join-Path $repoRoot 'scripts\setup\materialize-codex-mcp-profile.ps1'
 $claudeScaffoldPath = Join-Path $repoRoot 'scripts\bootstrap\scaffold-claude-preview.ps1'
 
 Write-Host '=== VCO One-Shot Setup ===' -ForegroundColor Cyan
@@ -137,7 +85,7 @@ Write-Host ("SkipExternalInstall : {0}" -f ([bool]$SkipExternalInstall))
 Write-Host ("SyncUserEnv         : {0}" -f ([bool]$SyncUserEnv))
 
 if (-not $SkipExternalInstall) {
-    Write-Host 'External CLI install is enabled. npm-based steps such as claude-flow may take several minutes, and deprecated warnings are advisory unless the command exits non-zero.' -ForegroundColor DarkYellow
+    Write-Host 'External CLI install is enabled for optional toolchains; deprecated warnings are advisory unless the command exits non-zero.' -ForegroundColor DarkYellow
 }
 
 $installArgs = @{
@@ -176,8 +124,7 @@ switch ([string]$Adapter.bootstrap_mode) {
             Write-Host '[3/5] User environment sync skipped.' -ForegroundColor DarkGray
         }
 
-        Write-Host '[4/5] Materializing MCP profile...' -ForegroundColor Yellow
-        & $materializePath -TargetRoot $TargetRoot -Force | Out-Null
+        Write-Host '[4/5] No extra host integration surface is materialized during public install.' -ForegroundColor DarkGray
         Write-Host '[5/5] Running deep health check...' -ForegroundColor Yellow
         & $checkPath -Profile $Profile -HostId $HostId -TargetRoot $TargetRoot -Deep
     }
@@ -206,7 +153,6 @@ switch ([string]$Adapter.bootstrap_mode) {
 }
 
 Write-Host ''
-Write-McpAutoProvisionSummary -TargetRoot $TargetRoot
 Write-Host 'One-shot setup completed.' -ForegroundColor Green
 $checkShellPath = Get-VgoPowerShellCommand
 $checkShellLeaf = [System.IO.Path]::GetFileName($checkShellPath).ToLowerInvariant()
@@ -225,6 +171,6 @@ $checkCommand = ($checkCommandParts | ForEach-Object {
 }) -join ' '
 Write-Host ('- Re-run deep doctor anytime with: {0}' -f $checkCommand)
 if ($Adapter.bootstrap_mode -eq 'governed') {
-    Write-Host ('- MCP active file: {0}' -f (Join-Path $TargetRoot 'mcp\servers.active.json'))
+    Write-Host '- Additional host integration surfaces: none materialized by public install'
 }
 Write-Host ('- Doctor artifacts: {0}' -f (Join-Path $repoRoot 'outputs\verify'))

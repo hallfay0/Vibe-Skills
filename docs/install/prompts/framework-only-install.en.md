@@ -18,10 +18,10 @@ Install rules:
 2. If I choose the framework version, map it to the real profile `minimal`.
 3. Detect the OS first; use `bash` for the Linux/macOS shell install path and `pwsh` for the PowerShell command surface. PowerShell 7 / `pwsh` is the documented default for governed verification parity.
 4. Execute the matching install and check commands for the selected host.
-For `codex`, if the install must be immediately callable through `$vibe`, default to the real host root `~/.codex`:
-     - Linux / macOS: `CODEX_HOME="$HOME/.codex" bash ./install.sh --host codex --profile minimal` and `CODEX_HOME="$HOME/.codex" bash ./check.sh --host codex --profile minimal`
-     - Windows: first set `CODEX_HOME` to `%USERPROFILE%\\.codex`, then run `pwsh -NoProfile -File .\\install.ps1 -HostId codex -Profile minimal` and `pwsh -NoProfile -File .\\check.ps1 -HostId codex -Profile minimal`
-     - use `~/.vibeskills/targets/codex` only when I explicitly ask for an isolated target root
+For `codex`, default to the shared root `~/.agents` so every host can reuse the same install:
+     - Linux / macOS: `bash ./install.sh --host codex --profile minimal` and `bash ./check.sh --host codex --profile minimal`
+     - Windows: run `pwsh -NoProfile -File .\\install.ps1 -HostId codex -Profile minimal` and `pwsh -NoProfile -File .\\check.ps1 -HostId codex -Profile minimal`
+     - set `VIBE_AGENTS_HOME` only when I explicitly ask for a different shared root
 For `opencode`, prefer the thinner direct install/check path by default:
      - Windows: `pwsh -NoProfile -File .\install.ps1 -HostId opencode -Profile minimal` and `pwsh -NoProfile -File .\check.ps1 -HostId opencode -Profile minimal`
      - Linux / macOS: `bash ./install.sh --host opencode --profile minimal` and `bash ./check.sh --host opencode --profile minimal`
@@ -31,8 +31,8 @@ For `opencode`, prefer the thinner direct install/check path by default:
 6. Never ask me to paste secrets, URLs, or model names into chat.
 7. Do not recommend built-in online enhancement provider, credential, URL, or model configuration for now; that path is not part of the public install steps, and missing values there are not a base install failure.
 8. Remind me that this installs the governance foundation first, not the full default workflow-core experience.
-9. During installation, attempt these MCP surfaces when the host can support them: `github`, `context7`, `serena`, `scrapling`, and `claude-flow`.
-10. MCP completion means visibility in the host's real native MCP surface. `$vibe` or `/vibe` is not MCP completion. Repo templates, manifests, examples, sidecars, or commands on PATH are not enough.
-11. If native MCP registration fails or is not stably automatable for the host, say `not host-visible`. Continue the base install and summarize the MCP gaps at the end.
-12. End with a concise final install report that separates: `installed locally`, `vibe host-ready`, `mcp native auto-provision attempted`, per-MCP `host-visible readiness`, `online-ready`, commands executed, and manual follow-up.
+9. During installation, keep the public contract narrow: host plugins, providers, and online enhancement remain host-managed.
+10. `$vibe` or `/vibe` is governed runtime entry only and does not prove host plugins, providers, or online enhancement are complete.
+11. Repo templates, manifests, examples, sidecars, or commands on PATH are not enough to prove online-ready.
+12. End with a concise final install report that separates: `installed locally`, `vibe host-ready`, `online-ready`, commands executed, and manual follow-up.
 ```

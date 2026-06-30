@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from .core_bridge import run_canonical_entry_core, run_installer_core, run_router_core, run_uninstaller_core
+from .core_bridge import run_canonical_entry_core, run_compatibility_exit_core, run_entry_locator_core, run_inspect_run_core, run_installer_core, run_local_kernel_core, run_router_core, run_skill_index_core, run_uninstaller_core
 from .errors import CliError
 from .external import maybe_install_external_dependencies
 from .hosts import (
@@ -112,6 +112,75 @@ def upgrade_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def index_command(args: argparse.Namespace) -> int:
+    repo_root = Path(args.repo_root).resolve()
+    command = ['--agent-root', args.agent_root]
+    if getattr(args, 'host_id', None):
+        command.extend(['--host-id', args.host_id])
+    if getattr(args, 'workspace_root', None):
+        command.extend(['--workspace-root', args.workspace_root])
+    if getattr(args, 'json', False):
+        command.append('--json')
+    result = run_skill_index_core(repo_root, command)
+    print_process_output(result)
+    return int(result.returncode)
+
+
+def run_command(args: argparse.Namespace) -> int:
+    repo_root = Path(args.repo_root).resolve()
+    command = [
+        '--agent-root', args.agent_root,
+        '--prompt', args.prompt,
+    ]
+    if getattr(args, 'run_id', None):
+        command.extend(['--run-id', args.run_id])
+    if getattr(args, 'host_id', None):
+        command.extend(['--host-id', args.host_id])
+    if getattr(args, 'workspace_root', None):
+        command.extend(['--workspace-root', args.workspace_root])
+    if getattr(args, 'json', False):
+        command.append('--json')
+    result = run_local_kernel_core(repo_root, command)
+    print_process_output(result)
+    return int(result.returncode)
+
+
+def inspect_run_command(args: argparse.Namespace) -> int:
+    repo_root = Path(args.repo_root).resolve()
+    command = [
+        '--agent-root', args.agent_root,
+        '--run-id', args.run_id,
+    ]
+    if getattr(args, 'host_id', None):
+        command.extend(['--host-id', args.host_id])
+    if getattr(args, 'workspace_root', None):
+        command.extend(['--workspace-root', args.workspace_root])
+    result = run_inspect_run_core(repo_root, command)
+    print_process_output(result)
+    return int(result.returncode)
+
+
+def locate_entry_command(args: argparse.Namespace) -> int:
+    repo_root = Path(args.repo_root).resolve()
+    command = [
+        '--repo-root', str(repo_root),
+        '--change-kind', args.change_kind,
+    ]
+    result = run_entry_locator_core(repo_root, command)
+    print_process_output(result)
+    return int(result.returncode)
+
+
+def compatibility_exit_command(args: argparse.Namespace) -> int:
+    repo_root = Path(args.repo_root).resolve()
+    command = [
+        '--repo-root', str(repo_root),
+    ]
+    result = run_compatibility_exit_core(repo_root, command)
+    print_process_output(result)
+    return int(result.returncode)
+
+
 def route_command(args: argparse.Namespace) -> int:
     repo_root = Path(args.repo_root).resolve()
 
@@ -151,6 +220,8 @@ def canonical_entry_command(args: argparse.Namespace) -> int:
         command.extend(['--run-id', args.run_id])
     if args.artifact_root:
         command.extend(['--artifact-root', args.artifact_root])
+    if getattr(args, 'local_agent_root', None):
+        command.extend(['--local-agent-root', args.local_agent_root])
     if getattr(args, 'continue_from_run_id', None):
         command.extend(['--continue-from-run-id', args.continue_from_run_id])
     if getattr(args, 'bounded_reentry_token', None):

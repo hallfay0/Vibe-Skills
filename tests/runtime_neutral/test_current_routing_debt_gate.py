@@ -44,7 +44,7 @@ def powershell() -> str:
 
 def run_gate(*args: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [powershell(), "-NoLogo", "-NoProfile", "-File", str(GATE), *args],
+        [powershell(), "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(GATE), *args],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -90,7 +90,7 @@ def copy_debt_gate_policy_fixture(repo_root: Path, *, current_paths: list[str]) 
 
 def run_fixture_gate(gate: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [powershell(), "-NoLogo", "-NoProfile", "-File", str(gate), "-Json"],
+        [powershell(), "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(gate), "-Json"],
         cwd=gate.parents[2],
         capture_output=True,
         text=True,
@@ -100,7 +100,7 @@ def run_fixture_gate(gate: Path) -> subprocess.CompletedProcess[str]:
 
 def run_fixture_gate_with_args(gate: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [powershell(), "-NoLogo", "-NoProfile", "-File", str(gate), *args],
+        [powershell(), "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(gate), *args],
         cwd=gate.parents[2],
         capture_output=True,
         text=True,
@@ -288,7 +288,7 @@ def test_repo_relative_path_requires_path_segment_boundary(tmp_path: Path) -> No
     )
 
     result = subprocess.run(
-        [powershell(), "-NoLogo", "-NoProfile", "-File", str(script)],
+        [powershell(), "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script)],
         cwd=tmp_path,
         capture_output=True,
         text=True,

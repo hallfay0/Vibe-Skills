@@ -28,21 +28,20 @@ User instructions remain highest priority. If CLAUDE.md, GEMINI.md, AGENTS.md,
 or the direct user request narrows or forbids a workflow such as TDD, follow the
 user's instruction while preserving canonical launch and proof rules.
 
-## Canonical Launch SOP
+## Canonical Bootstrap
+
+`vibe` is a host-syntax-neutral skill contract.
 
 Before canonical launch, do only the minimum needed to launch:
 
-- Resolve `skill_root`: the directory containing this `SKILL.md`.
-- Resolve `workspace_root`: the task workspace where governed artifacts should
-  be written.
-- Resolve `host_id`: `codex`, `claude-code`, `cursor`, `windsurf`, `openclaw`,
-  or `opencode`.
-- Extract core intent as keyword text. Do not pass the raw prompt, full chat
-  history, or mixed-language filler to the router.
+- Resolve `skill_root`, `workspace_root`, and `host_id`.
+- Extract core intent as keyword text. Do not pass the raw prompt, full chat history, or mixed-language filler to the router.
 
-Do not inspect repository files, protocol docs, previous run outputs, or old
-proof artifacts before canonical launch returns. Reading this file, a wrapper,
-or an AGENTS/CLAUDE bootstrap block is not proof of canonical entry.
+Do not search the current workspace, repository, or install root for canonical proof files before launch.
+Do not inspect the repo, protocol docs, or prior run outputs before canonical launch returns.
+Do not simulate stages, claim canonical entry from reading this file or wrapper text, or treat wrapper or AGENTS text as proof.
+Do not manually create `outputs/runtime/vibe-sessions/<run-id>/`.
+Do not use the Vibe installation root as the governed artifact root.
 
 Internal specialist recommendation router: `scripts/router/resolve-pack-route.ps1`
 
@@ -52,9 +51,7 @@ This recommender runs inside canonical `vibe`; it may suggest specialist skills,
 
 - Include work type, domain/technology, deliverable, and explicit constraints.
 - Reuse verified frozen requirement/plan facts when continuing a run.
-- If the router returns `confirm_required`, surface the machine-readable route
-  contract and convert the user's natural-language reply into a structured route
-  decision.
+- If the router returns `confirm_required`, surface the machine-readable route contract and convert the user's natural-language reply into a structured route decision.
 - If the router fails, report `blocked` with the concrete failure reason.
 
 Canonical entry command shape:
@@ -69,13 +66,15 @@ py -3 -m vgo_cli.main canonical-entry `
   --prompt "<extracted keyword intent text>"
 ```
 
+For PowerShell, do not place `$env:PYTHONPATH=...` inside a double-quoted `-Command` string; host interpolation may corrupt it to `:PYTHONPATH`.
+
 Bash-like hosts, including Claude Code, should avoid Bash-wrapped PowerShell.
-Set `PYTHONPATH` in the outer shell and call Python directly:
+Set `PYTHONPATH` in the outer shell and call Python directly. If `py -3` is unavailable, try `python` instead. If `python` is unavailable, try `python3`.
 
 ```bash
 REPO_ROOT='<skill_root>'
 WORKSPACE_ROOT="${WORKSPACE_ROOT:-$PWD}"
-PYTHONPATH="$REPO_ROOT/apps/vgo-cli/src" py -3 -m vgo_cli.main canonical-entry \
+PYTHONPATH="$REPO_ROOT/apps/vgo-cli/src" python -m vgo_cli.main canonical-entry \
   --repo-root "$REPO_ROOT" \
   --artifact-root "$WORKSPACE_ROOT" \
   --host-id "<host_id>" \
@@ -83,13 +82,8 @@ PYTHONPATH="$REPO_ROOT/apps/vgo-cli/src" py -3 -m vgo_cli.main canonical-entry \
   --prompt "<extracted keyword intent text>"
 ```
 
-After canonical-entry returns a `session_root`, validate proof artifacts only
-inside that launched session:
-
-- `host-launch-receipt.json`
-- `runtime-input-packet.json`
-- `governance-capsule.json`
-- `stage-lineage.json`
+Only validate canonical proof artifacts after canonical-entry returns a `session_root`.
+Proof of canonical launch is post-launch and requires: `host-launch-receipt.json`, `runtime-input-packet.json`, `governance-capsule.json`, and `stage-lineage.json` under the returned `session_root`.
 
 ## Bounded Stop And Re-entry
 
@@ -152,7 +146,7 @@ stage without asking the user for a separate approval first:
 Route confirmations must stay inside surfaced confirm options. Bounded approvals
 or revisions must stay inside the surfaced bounded-stage action contract.
 
-## Runtime Contract Summary
+## Unified Runtime Contract
 
 Canonical `vibe` owns one runtime authority and one visible requirement/plan
 surface. The fixed state machine is:

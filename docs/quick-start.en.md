@@ -4,11 +4,11 @@
 
 If this is your first time in the repository, you do not need to read every document first.
 
-Think of VibeSkills as a **Super Skill Harness** for AI agents:
+Think of VibeSkills as a **work-kernel entry** for AI agents:
 
-> You bring the goal. `vibe` manages the work rhythm: clarify the requirement, split the work into stages, call the right expert Skills, push toward testing and verification, and preserve the useful context.
+> You bring the goal. `vibe` manages the work rhythm: clarify the requirement, build a work model, bind the right Skills where they help, push toward testing and verification, and preserve the useful context.
 
-It is not a long tool menu that leaves the user to choose every step. It is a plug-in workflow package that helps Skills-capable agents start faster, stay more disciplined, and handle work across phases.
+It is not a long tool menu that leaves the user to choose every step. It is one portable work loop that helps Skills-capable agents start faster, stay more disciplined, and handle work across phases.
 
 ## 1. What problem does it solve?
 
@@ -16,15 +16,15 @@ VibeSkills focuses on five practical problems:
 
 | Problem | What VibeSkills does |
 |:---|:---|
-| Too many Skills, unclear which one to call | The harness orchestrates expert Skills by task and phase |
-| Agents skip requirements, planning, or testing | `vibe` moves work through governed stages |
+| Too many Skills, unclear which one to call | The kernel binds relevant Skills after the work shape is clear |
+| Agents skip requirements, planning, or testing | `vibe` moves work through bounded stages |
 | Users keep saying "plan first" or "verify it" | You provide the goal; the harness absorbs more of the control burden |
 | Long work loses context across sessions | Requirements, plans, decisions, and evidence are stored in structured places |
-| New domain Skills are hard to integrate | The Skills bundle is the core package, so future domain Skills can plug into the same workflow |
+| New domain Skills are hard to integrate | The core stays user-owned and external-skill-friendly, so host-managed external skill folders or local skills can plug into the same workflow without turning the product into a bigger central catalog |
 
 If you remember one line:
 
-> **VibeSkills packages expert Skills, automatic orchestration, verification, and cross-session memory into one portable Super Skill that is easy to install and easy to start using.**
+> **VibeSkills packages skill binding, verification, and cross-session memory into one portable work-kernel entry that is easy to install and easy to start using.**
 
 ## 2. Start fast
 
@@ -36,7 +36,7 @@ Choose three things on that page:
 
 1. Host: `codex`, `claude-code`, `cursor`, `windsurf`, `openclaw`, or `opencode`
 2. Action: choose `install` for a first install, or `update` if VibeSkills is already installed
-3. Version: use `full` for the normal experience, or `minimal` only if you want the smaller framework foundation
+3. Version: use `minimal` for the recommended default, or `full` if you want a few extra built-in workflow helpers on top of the same small kernel
 
 Then copy the matching prompt into the AI app where you want VibeSkills installed, and let it run the install and checks.
 
@@ -86,15 +86,16 @@ Pick by intent:
 | Using OpenCode | [`install/opencode-path.en.md`](./install/opencode-path.en.md) |
 | Using OpenClaw | [`install/openclaw-path.en.md`](./install/openclaw-path.en.md) |
 | Manual/offline install | [`install/manual-copy-install.en.md`](./install/manual-copy-install.en.md) |
-| Custom Skills onboarding | [`install/custom-workflow-onboarding.en.md`](./install/custom-workflow-onboarding.en.md) |
+| Normal skill extension path after install | [`install/README.en.md`](./install/README.en.md) |
+| Advanced manifest-driven custom workflow onboarding | [`install/custom-workflow-onboarding.en.md`](./install/custom-workflow-onboarding.en.md) |
 | Why the project exists | [`manifesto.en.md`](./manifesto.en.md) |
 
 ## 5. Common confusion
 
-- `$vibe` or `/vibe` only enters the governed runtime. It is not proof that MCP is fully configured.
-- Install reports should separate `installed locally`, `vibe host-ready`, `mcp native auto-provision attempted`, per-MCP `host-visible readiness`, and `online-ready`.
+- `$vibe` or `/vibe` only enters the governed runtime. It does not by itself prove that host plugins, providers, or online enhancement are fully configured.
+- Install reports should separate `installed locally`, `vibe host-ready`, and `online-ready`.
 - VibeSkills is a Skills-format runtime, not a standalone CLI you run directly in a terminal.
-- `full` is the recommended default for normal users; `minimal` is for users who deliberately want the smaller governance framework.
+- `minimal` is the recommended default; choose `full` only when you want a few extra built-in workflow helpers on top of the same small kernel.
 
 ## Recommended reading order
 

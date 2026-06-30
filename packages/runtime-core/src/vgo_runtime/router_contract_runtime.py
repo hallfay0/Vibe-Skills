@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from .custom_admission import load_custom_admission
-from .router_contract_authority import choose_authoritative_route
-from .router_contract_presentation import build_confirm_ui, build_fallback_truth
 from .router_contract_selection import (
     INTERNAL_SELECTION_USABLE,
     get_pack_default_candidate,
@@ -12,7 +11,7 @@ from .router_contract_selection import (
     public_candidate_rows,
     select_pack_candidate,
 )
-from .router_contract_support import (
+from .runtime_support import (
     RepoContext,
     candidate_name_score,
     keyword_ratio,
@@ -28,6 +27,13 @@ from .router_contract_support import (
     resolve_skill_md_path,
     resolve_target_root,
 )
+
+
+CONFIRM_UI_BATCH_PROMPT = "Please answer the following questions in one reply when possible:"
+CONFIRM_UI_ROUTE_PREFIX = "Work confirmation required: current bounded skill pack"
+CONFIRM_UI_ROUTE_OVERLAY_PREFIX = "Bounded work suggested skill options: current primary pack"
+CONFIRM_UI_COMBINED_INSTRUCTION = "You can answer the questions above and select a skill in the same reply by entering an option number or `$<skill>`. If you do not specify one, the host may use the current primary choice."
+CONFIRM_UI_SIMPLE_INSTRUCTION = "Reply with an option number or `$<skill>` to make the selection explicit. If you do not specify one, the host may use the current primary choice."
 
 
 def _dedupe_strings(values: list[str]) -> list[str]:
@@ -75,19 +81,25 @@ def _workspace_signal_score(prompt_lower: str, requested_canonical: str | None, 
 
 def _build_deep_discovery_advice(repo: RepoContext, prompt_lower: str, grade: str, task_type: str) -> dict[str, object] | None:
     policy_path = repo.config_root / "deep-discovery-policy.json"
-    catalog_path = repo.config_root / "capability-catalog.json"
-    if not policy_path.exists() or not catalog_path.exists():
+    if not policy_path.exists():
         return None
 
     policy = load_json(policy_path)
-    catalog = load_json(catalog_path)
-    if not isinstance(policy, dict) or not isinstance(catalog, dict):
+    if not isinstance(policy, dict):
         return None
     if not bool(policy.get("enabled", False)):
         return None
 
     mode = str(policy.get("mode") or "off").strip() or "off"
     if mode == "off":
+        return None
+
+    catalog_path = repo.config_root / "capability-catalog.json"
+    if not catalog_path.exists():
+        return None
+
+    catalog = load_json(catalog_path)
+    if not isinstance(catalog, dict):
         return None
 
     scope = policy.get("scope") or {}
@@ -415,6 +427,120 @@ def _public_admitted_candidates(rows: object) -> list[dict[str, object]]:
     return public_rows
 
 
+def _row_by_pack_id(ranked: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    return {
+        normalize_text(row.get("pack_id") or ""): row
+        for row in ranked
+        if normalize_text(row.get("pack_id") or "")
+    }
+
+
+def _first_requested_route_usable_row(ranked: list[dict[str, Any]]) -> dict[str, Any] | None:
+    for row in ranked:
+        selected_skill = str(row.get("selected_candidate") or "").strip()
+        route_usable = bool(row.get(INTERNAL_ROUTE_USABLE, bool(selected_skill)))
+        if route_usable and selected_skill:
+            return row
+    return None
+
+
+def choose_authoritative_route(
+    ranked: list[dict[str, Any]],
+    task_type: str,
+    requested_canonical: str | None,
+    authority_policy: dict[str, Any],
+) -> dict[str, Any]:
+    top = ranked[0] if ranked else None
+    if not top:
+        return {
+            "selected_pack_id": None,
+            "selected_skill": None,
+            "selected_row": None,
+            "fallback_applied": False,
+            "fallback_target_pack_id": None,
+            "fallback_target_skill": None,
+            "pre_fallback_top_pack_id": None,
+            "pre_fallback_top_skill": None,
+            "rejected_specialist_reasons": [],
+        }
+
+    if requested_canonical:
+        requested_row = _first_requested_route_usable_row(ranked) or top
+        return {
+            "selected_pack_id": str((requested_row or {}).get("pack_id") or ""),
+            "selected_skill": str((requested_row or {}).get("selected_candidate") or ""),
+            "selected_row": requested_row,
+            "fallback_applied": False,
+            "fallback_target_pack_id": None,
+            "fallback_target_skill": None,
+            "pre_fallback_top_pack_id": str(top.get("pack_id") or ""),
+            "pre_fallback_top_skill": str(top.get("selected_candidate") or ""),
+            "rejected_specialist_reasons": [],
+        }
+
+    if bool(top.get("authority_eligible", False)):
+        return {
+            "selected_pack_id": str(top.get("pack_id") or ""),
+            "selected_skill": str(top.get("selected_candidate") or ""),
+            "selected_row": top,
+            "fallback_applied": False,
+            "fallback_target_pack_id": None,
+            "fallback_target_skill": None,
+            "pre_fallback_top_pack_id": str(top.get("pack_id") or ""),
+            "pre_fallback_top_skill": str(top.get("selected_candidate") or ""),
+            "rejected_specialist_reasons": [],
+        }
+
+    rows_by_pack = _row_by_pack_id(ranked)
+    fallback_by_task = authority_policy.get("global_safe_fallback_by_task") or {}
+    task_fallback = fallback_by_task.get(task_type) or {}
+    top_authority_tier = normalize_text(str(top.get("authority_tier") or ""))
+    top_pack_fallback_pack_id = (
+        normalize_text(top.get("fallback_owner_pack_id") or "")
+        if top_authority_tier == "narrow_specialist"
+        else ""
+    )
+    top_pack_fallback_skill = (
+        str(top.get("fallback_owner_skill") or "").strip()
+        if top_authority_tier == "narrow_specialist"
+        else ""
+    )
+    fallback_pack_id = normalize_text(task_fallback.get("pack_id") or top_pack_fallback_pack_id or "")
+    fallback_skill = str(task_fallback.get("skill") or top_pack_fallback_skill or "").strip()
+    fallback_row = rows_by_pack.get(fallback_pack_id)
+
+    if fallback_row:
+        selected_pack_id = str(fallback_row.get("pack_id") or "")
+        selected_skill = fallback_skill or str(fallback_row.get("selected_candidate") or "")
+        selected_row = fallback_row
+    else:
+        broad_owner = next(
+            (
+                row
+                for row in ranked
+                if normalize_text(str(row.get("authority_tier") or "")) == "broad_owner"
+                and bool(row.get("authority_eligible", False))
+            ),
+            None,
+        )
+        selected_row = broad_owner
+        selected_pack_id = str((broad_owner or {}).get("pack_id") or "")
+        selected_skill = str((broad_owner or {}).get("selected_candidate") or "")
+
+    fallback_applied = bool(selected_row or selected_pack_id or selected_skill)
+    return {
+        "selected_pack_id": selected_pack_id or None,
+        "selected_skill": selected_skill or None,
+        "selected_row": selected_row,
+        "fallback_applied": fallback_applied,
+        "fallback_target_pack_id": selected_pack_id or None,
+        "fallback_target_skill": selected_skill or None,
+        "pre_fallback_top_pack_id": str(top.get("pack_id") or ""),
+        "pre_fallback_top_skill": str(top.get("selected_candidate") or ""),
+        "rejected_specialist_reasons": [str(item) for item in (top.get("authority_rejection_reasons") or [])],
+    }
+
+
 def _get_preferred_host_selection(pack_row: dict[str, object] | None) -> dict[str, object] | None:
     if not pack_row:
         return None
@@ -474,6 +600,278 @@ def _get_preferred_host_selection(pack_row: dict[str, object] | None) -> dict[st
         preferred.values(),
         key=lambda item: (-float(item["score"]), -int(bool(item["is_selected"])), int(item["ordinal"])),
     )[0]
+
+
+def _build_route_decision_contract(
+    *,
+    selected_pack: str,
+    selected_skill: str,
+    options: list[dict[str, Any]],
+) -> dict[str, Any]:
+    return {
+        "protocol_version": "v1",
+        "decision_kind": "route_selection",
+        "decision_context": "routing_confirmation",
+        "selected_pack": selected_pack,
+        "primary_skill": selected_skill,
+        "allowed_decision_actions": ["accept_primary", "select_skill"],
+        "allowed_skill_ids": [
+            str(option.get("skill") or "").strip()
+            for option in options
+            if str(option.get("skill") or "").strip()
+        ],
+        "options": [
+            {
+                "option_id": option.get("option_id"),
+                "skill": option.get("skill"),
+                "pack_id": option.get("pack_id"),
+                "is_primary": bool(option.get("is_primary")),
+            }
+            for option in options
+        ],
+        "preferred_payload": {
+            "decision_kind": "route_selection",
+            "decision_action": "accept_primary",
+            "selected_pack": selected_pack,
+            "selected_skill": selected_skill,
+        },
+        "selection_payload_template": {
+            "decision_kind": "route_selection",
+            "decision_action": "select_skill",
+            "selected_pack": selected_pack,
+            "selected_skill": "<allowed-skill>",
+        },
+    }
+
+
+def _collect_clarification_questions(route_result: dict[str, Any], max_items: int = 6) -> list[str]:
+    deep_discovery_advice = route_result.get("deep_discovery_advice") or {}
+    llm_acceleration_advice = route_result.get("llm_acceleration_advice") or {}
+    prompt_asset_boost_advice = route_result.get("prompt_asset_boost_advice") or {}
+    clarification_required = bool(
+        deep_discovery_advice.get("confirm_required")
+        or llm_acceleration_advice.get("confirm_required")
+        or prompt_asset_boost_advice.get("confirm_required")
+    )
+    if not clarification_required:
+        return []
+
+    cap = min(max_items, 6)
+    questions: list[str] = []
+    sources = [
+        deep_discovery_advice.get("interview_questions", []),
+        llm_acceleration_advice.get("confirm_questions", []),
+        prompt_asset_boost_advice.get("confirm_questions", []),
+    ]
+
+    for source in sources:
+        for item in source or []:
+            question = str(item).strip()
+            if not question or question in questions:
+                continue
+            questions.append(question)
+            if len(questions) >= cap:
+                return questions[:cap]
+
+    return questions[:cap]
+
+
+def _confirm_ui_requested_skill_mismatch(route_result: dict[str, Any]) -> bool:
+    selected = route_result.get("selected") or {}
+    alias = route_result.get("alias") or {}
+    requested = str(alias.get("requested_canonical") or "").strip()
+    selected_skill = str(selected.get("skill") or "").strip()
+    return bool(requested and selected_skill and requested.lower() != selected_skill.lower())
+
+
+def _confirm_ui_requires_human_review(
+    route_result: dict[str, Any],
+    clarification_questions: list[str],
+) -> bool:
+    selected = route_result.get("selected") or {}
+    if not selected:
+        return False
+    if route_result.get("hazard_alert_required"):
+        return True
+    if clarification_questions:
+        return True
+    return bool(
+        selected.get("destructive")
+        or str(selected.get("recommended_promotion_action") or "").strip() == "require_confirmation"
+    )
+
+
+def _order_confirm_ranking(
+    *,
+    route_result: dict[str, Any],
+    selected_skill: str,
+    ranking: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    if not selected_skill:
+        return [row for row in ranking if isinstance(row, dict)]
+
+    selected_row: dict[str, Any] | None = None
+    normalized_ranking: list[dict[str, Any]] = []
+    seen_skills: set[str] = set()
+
+    for row in ranking:
+        if not isinstance(row, dict):
+            continue
+        skill = str(row.get("skill") or "").strip()
+        if not skill or skill in seen_skills:
+            continue
+        if skill == selected_skill and selected_row is None:
+            selected_row = row
+        normalized_ranking.append(row)
+        seen_skills.add(skill)
+
+    if selected_row is None:
+        selected_row = {"skill": selected_skill, "score": route_result["selected"].get("selection_score")}
+
+    ordered = [selected_row]
+    ordered.extend(
+        row for row in normalized_ranking if str(row.get("skill") or "").strip() != selected_skill
+    )
+    return ordered
+
+
+def build_confirm_ui(
+    repo: RepoContext,
+    route_result: dict[str, Any],
+    target_root: str | None,
+    host_id: str | None = None,
+) -> dict[str, Any] | None:
+    if not route_result.get("selected"):
+        return None
+
+    selected = route_result["selected"]
+    clarification_questions = _collect_clarification_questions(route_result)
+    requires_human_review = _confirm_ui_requires_human_review(route_result, clarification_questions)
+    requested_skill_mismatch = _confirm_ui_requested_skill_mismatch(route_result)
+    if not (requires_human_review or requested_skill_mismatch):
+        return None
+    ranking = []
+    for row in route_result.get("ranked", []):
+        if row["pack_id"] == selected["pack_id"]:
+            ranking = row.get("candidate_ranking", [])
+            break
+    if not ranking:
+        ranking = [{"skill": selected["skill"], "score": selected["selection_score"]}]
+    ranking = _order_confirm_ranking(
+        route_result=route_result,
+        selected_skill=str(selected["skill"] or ""),
+        ranking=list(ranking),
+    )
+
+    options = []
+    for index, row in enumerate(ranking[:5], start=1):
+        descriptor = read_skill_descriptor(repo, row["skill"], target_root, host_id)
+        options.append(
+            {
+                "option_id": index,
+                "skill": row["skill"],
+                "pack_id": selected["pack_id"],
+                "is_primary": str(row["skill"] or "").strip() == str(selected["skill"] or "").strip(),
+                "score": row.get("score"),
+                "description": descriptor["description"],
+                "skill_md_path": descriptor["skill_md_path"],
+            }
+        )
+
+    rendered: list[str] = []
+    if route_result.get("hazard_alert_required") and route_result.get("hazard_alert"):
+        hazard = route_result["hazard_alert"]
+        rendered.append(str(hazard.get("title") or "FALLBACK HAZARD ALERT"))
+        rendered.append(str(hazard.get("message") or "This result came from a fallback or degraded path and is not equivalent to standard success."))
+        if hazard.get("reason"):
+            rendered.append(f"Trigger reason: `{hazard['reason']}`.")
+        if hazard.get("recovery_action"):
+            rendered.append(str(hazard["recovery_action"]))
+        rendered.append("")
+    if clarification_questions:
+        rendered.append(CONFIRM_UI_BATCH_PROMPT)
+        for index, question in enumerate(clarification_questions, start=1):
+            rendered.append(f"Q{index}. {question}")
+        rendered.append("")
+    route_prefix = CONFIRM_UI_ROUTE_PREFIX if requires_human_review else CONFIRM_UI_ROUTE_OVERLAY_PREFIX
+    rendered.append(f"{route_prefix} `{selected['pack_id']}`.")
+    for option in options:
+        score = option["score"]
+        score_text = f" (score={round(float(score), 4)})" if score is not None else ""
+        if option["description"]:
+            rendered.append(f"{option['option_id']}. `{option['skill']}`{score_text} - {option['description']}")
+        else:
+            rendered.append(f"{option['option_id']}. `{option['skill']}`{score_text}")
+    if clarification_questions:
+        rendered.append(CONFIRM_UI_COMBINED_INSTRUCTION)
+    else:
+        rendered.append(CONFIRM_UI_SIMPLE_INSTRUCTION)
+    rendered.append("The host may translate your natural-language reply into a structured route decision. Fixed keywords are not required.")
+
+    return {
+        "enabled": True,
+        "pack_id": selected["pack_id"],
+        "selected_skill": selected["skill"],
+        "options": options,
+        "route_decision_contract": _build_route_decision_contract(
+            selected_pack=str(selected["pack_id"]),
+            selected_skill=str(selected["skill"]),
+            options=options,
+        ),
+        "clarification_questions": clarification_questions,
+        "rendered_text": "\n".join(rendered),
+        "hazard_alert_required": bool(route_result.get("hazard_alert_required")),
+        "truth_level": route_result.get("truth_level"),
+        "degradation_state": route_result.get("degradation_state"),
+        "hazard_alert": route_result.get("hazard_alert"),
+    }
+
+
+def build_fallback_truth(route_result: dict[str, Any], fallback_policy: dict[str, Any] | None) -> dict[str, Any]:
+    policy = fallback_policy or {}
+    truth_contract = policy.get("truth_contract", {}) if isinstance(policy, dict) else {}
+    fallback_active = bool(
+        route_result.get("route_mode") == "legacy_fallback"
+        or route_result.get("route_reason") == "legacy_fallback_guard"
+        or route_result.get("legacy_fallback_guard_applied")
+    )
+    degradation_state = (
+        truth_contract.get("fallback_guarded_state", "fallback_guarded")
+        if route_result.get("legacy_fallback_guard_applied")
+        else truth_contract.get("fallback_degradation_state", "fallback_active")
+        if fallback_active
+        else "standard"
+    )
+    truth_level = (
+        truth_contract.get("fallback_truth_level", "non_authoritative")
+        if fallback_active
+        else truth_contract.get("standard_truth_level", "authoritative")
+    )
+    hazard_alert_required = bool(policy.get("require_hazard_alert", True) and fallback_active)
+    hazard_alert = None
+    if hazard_alert_required:
+        hazard_alert = {
+            "title": policy.get("hazard_alert_title", "FALLBACK HAZARD ALERT"),
+            "severity": policy.get("hazard_alert_severity", "critical"),
+            "reason": route_result.get("legacy_fallback_original_reason") or route_result.get("route_reason"),
+            "message": policy.get(
+                "hazard_summary",
+                "This result came from a fallback or degraded path and is not equivalent to standard success.",
+            ),
+            "recovery_action": policy.get(
+                "hazard_recovery_action",
+                "Repair the primary path or restore missing dependencies before claiming authoritative success.",
+            ),
+            "manual_review_required": bool(truth_contract.get("manual_review_required", True)),
+        }
+    return {
+        "fallback_active": fallback_active,
+        "hazard_alert_required": hazard_alert_required,
+        "truth_level": truth_level,
+        "degradation_state": degradation_state,
+        "non_authoritative": truth_level != "authoritative",
+        "hazard_alert": hazard_alert,
+    }
 
 
 def route_prompt(

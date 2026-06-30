@@ -25,6 +25,15 @@ def test_runtime_router_allowed_entry_ids_match_shared_surface_contract() -> Non
     assert load_allowed_vibe_entry_ids() == expected
 
 
+def test_router_script_frames_results_as_candidate_data_only() -> None:
+    text = (ROOT / "scripts" / "router" / "resolve-pack-route.ps1").read_text(encoding="utf-8")
+
+    assert "router_contract_mode = 'candidate_discovery_only'" in text
+    assert "work_binding_truth_source = 'kernel'" in text
+    assert "completion_language_allowed" not in text
+    assert "work_binding truth" not in text
+
+
 def test_runtime_router_rejects_entries_outside_shared_surface_contract() -> None:
     try:
         route_runtime_task('plan this change', requested_skill='vibe-xl')
@@ -32,6 +41,49 @@ def test_runtime_router_rejects_entries_outside_shared_surface_contract() -> Non
         assert True
     else:
         raise AssertionError('expected unsupported entry id failure')
+
+
+def test_runtime_router_uses_requested_entry_as_router_selection() -> None:
+    route = route_runtime_task('implement the approved plan', requested_skill='vibe-do-it')
+
+    assert route.requested_skill == 'vibe-do-it'
+    assert route.router_selected_skill == 'vibe-do-it'
+    assert route.runtime_selected_skill == 'vibe'
+
+
+def test_runtime_router_prefers_planning_entry_for_architecture_prompt() -> None:
+    route = route_runtime_task('design the architecture and write an implementation plan')
+
+    assert route.router_selected_skill == 'vibe-how-do-we-do'
+    assert route.runtime_selected_skill == 'vibe'
+
+
+def test_runtime_router_prefers_upgrade_entry_for_upgrade_prompt() -> None:
+    route = route_runtime_task('upgrade the local vibe runtime installation')
+
+    assert route.router_selected_skill == 'vibe-upgrade'
+    assert route.runtime_selected_skill == 'vibe'
+
+
+def test_runtime_router_uses_kernel_plan_preference_for_runtime_refactor_prompt() -> None:
+    route = route_runtime_task('design the runtime router refactor and write an implementation plan')
+
+    assert route.router_selected_skill == 'vibe-how-do-we-do'
+    assert route.task_type == 'planning'
+
+
+def test_runtime_router_uses_kernel_resolved_task_type_for_plan_like_coding_prompt() -> None:
+    route = route_runtime_task('need a plan')
+
+    assert route.router_selected_skill == 'vibe-how-do-we-do'
+    assert route.task_type == 'planning'
+
+
+def test_runtime_router_respects_requested_planning_entry_for_task_type() -> None:
+    route = route_runtime_task('implement the approved plan', requested_skill='vibe-how-do-we-do')
+
+    assert route.router_selected_skill == 'vibe-how-do-we-do'
+    assert route.task_type == 'planning'
 
 
 def test_runtime_router_infers_debug_from_keyword_style_router_prompt() -> None:

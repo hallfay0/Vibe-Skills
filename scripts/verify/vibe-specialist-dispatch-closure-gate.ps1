@@ -93,6 +93,19 @@ function New-ClosureDelegationEnvelopeForGate {
     return $envelopePath
 }
 
+function Get-SelectedSkillIdsForGate {
+    param(
+        [AllowNull()] [object]$RuntimeInputPacket = $null
+    )
+
+    $projection = Get-VibeRuntimeSelectedSkillExecutionProjection -RuntimeInputPacket $RuntimeInputPacket
+    if ($null -ne $projection -and $projection.PSObject.Properties.Name -contains 'selected_skill_ids') {
+        return @($projection.selected_skill_ids | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+    }
+
+    return @()
+}
+
 $context = Get-VgoGovernanceContext -ScriptPath $PSCommandPath -EnforceExecutionContext
 $repoRoot = $context.repoRoot
 $results = @()
@@ -109,8 +122,14 @@ try {
         -RunId ('closure-official-' + [System.Guid]::NewGuid().ToString('N').Substring(0, 8)) `
         -ArtifactRoot $artifactRoot `
         -RuntimeConfig $context.runtimeConfig
+    $officialRuntimeInput = Get-Content -LiteralPath $official.summary.artifacts.runtime_input_packet -Raw -Encoding UTF8 | ConvertFrom-Json
     $officialExecutionManifest = Get-Content -LiteralPath $official.summary.artifacts.execution_manifest -Raw -Encoding UTF8 | ConvertFrom-Json
+    $officialBoundSkillIds = @(Get-VibeWorkBindingBoundSkillIds -RuntimeInputPacket $officialRuntimeInput)
+    $officialSelectedSkillIds = @(Get-SelectedSkillIdsForGate -RuntimeInputPacket $officialRuntimeInput)
 
+    Add-Assertion -Results ([ref]$results) -Condition ($officialRuntimeInput.PSObject.Properties.Name -contains 'work_binding') -Message 'official smoke runtime packet includes work_binding'
+    Add-Assertion -Results ([ref]$results) -Condition (@($officialBoundSkillIds).Count -ge 1) -Message 'official smoke work_binding carries bounded skill truth'
+    Add-Assertion -Results ([ref]$results) -Condition ((@($officialSelectedSkillIds).Count -eq 0) -or ((@($officialSelectedSkillIds) | Where-Object { $_ -in @($officialBoundSkillIds) }).Count -eq @($officialSelectedSkillIds).Count)) -Message 'official smoke compatibility selected skills stay subordinate to work_binding'
     Add-Assertion -Results ([ref]$results) -Condition ([bool]$officialExecutionManifest.dispatch_integrity.proof_passed) -Message 'official smoke dispatch integrity proof passes'
     Add-Assertion -Results ([ref]$results) -Condition ([bool]$officialExecutionManifest.dispatch_integrity.executed_specialists_subset_of_approved_dispatch) -Message 'official smoke executes no unapproved specialist'
     Add-Assertion -Results ([ref]$results) -Condition ([bool]$officialExecutionManifest.dispatch_integrity.native_contract_complete_for_approved_dispatch) -Message 'official smoke approved specialist dispatch keeps native contract metadata'
@@ -161,15 +180,22 @@ try {
             -ArtifactRoot $artifactRoot `
             -ApprovedSpecialistSkillIds @('genomics-qc-flow') `
             -RuntimeConfig $context.runtimeConfig
+        $customRuntimeInput = Get-Content -LiteralPath $custom.summary.artifacts.runtime_input_packet -Raw -Encoding UTF8 | ConvertFrom-Json
         $customExecutionManifest = Get-Content -LiteralPath $custom.summary.artifacts.execution_manifest -Raw -Encoding UTF8 | ConvertFrom-Json
+        $customBoundSkillIds = @(Get-VibeWorkBindingBoundSkillIds -RuntimeInputPacket $customRuntimeInput)
+        $customSelectedSkillIds = @(Get-SelectedSkillIdsForGate -RuntimeInputPacket $customRuntimeInput)
 
+        Add-Assertion -Results ([ref]$results) -Condition ($customRuntimeInput.PSObject.Properties.Name -contains 'work_binding') -Message 'custom smoke runtime packet includes work_binding'
+        Add-Assertion -Results ([ref]$results) -Condition (@($customBoundSkillIds).Count -ge 1) -Message 'custom smoke work_binding carries bounded skill truth'
+        Add-Assertion -Results ([ref]$results) -Condition ((@($customSelectedSkillIds).Count -eq 0) -or ((@($customSelectedSkillIds) | Where-Object { $_ -in @($customBoundSkillIds) }).Count -eq @($customSelectedSkillIds).Count)) -Message 'custom smoke compatibility selected skills stay subordinate to work_binding'
         Add-Assertion -Results ([ref]$results) -Condition ([bool]$customExecutionManifest.dispatch_integrity.proof_passed) -Message 'custom smoke dispatch integrity proof passes'
         $customResolvedSkillIds = @(
+            @($customBoundSkillIds) +
             @($customExecutionManifest.dispatch_integrity.executed_specialist_skill_ids) +
             @($customExecutionManifest.dispatch_integrity.direct_routed_specialist_skill_ids) +
             @($customExecutionManifest.dispatch_integrity.resolved_specialist_skill_ids)
         ) | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique
-        Add-Assertion -Results ([ref]$results) -Condition ($customResolvedSkillIds -contains 'genomics-qc-flow') -Message 'custom smoke resolves admitted custom specialist'
+        Add-Assertion -Results ([ref]$results) -Condition ($customResolvedSkillIds -contains 'genomics-qc-flow') -Message 'custom smoke work_binding resolves admitted custom specialist'
         Add-Assertion -Results ([ref]$results) -Condition ([bool]$customExecutionManifest.dispatch_integrity.native_contract_complete_for_approved_dispatch) -Message 'custom smoke approved dispatch carries native entrypoint metadata'
     } finally {
         $env:VCO_HOST_ID = $originalHostId
@@ -178,18 +204,17 @@ try {
 
     $root = Invoke-ClosureScenario `
         -RepoRoot $repoRoot `
-        -Task 'Root specialist dispatch seed for child escalation closure checks.' `
+        -Task 'Root bounded work seed for child escalation closure checks.' `
         -RunId ('closure-root-' + [System.Guid]::NewGuid().ToString('N').Substring(0, 8)) `
         -ArtifactRoot $artifactRoot `
         -RuntimeConfig $context.runtimeConfig
     $rootRuntimeInput = Get-Content -LiteralPath $root.summary.artifacts.runtime_input_packet -Raw -Encoding UTF8 | ConvertFrom-Json
-    $rootSelectedSkillExecution = Get-VibeRuntimeSelectedSkillExecutionProjection -RuntimeInputPacket $rootRuntimeInput
-    $rootApprovedDispatch = if ($null -ne $rootSelectedSkillExecution -and $rootSelectedSkillExecution.PSObject.Properties.Name -contains 'selected_skill_execution') {
-        @($rootSelectedSkillExecution.selected_skill_execution)
-    } else {
-        @()
-    }
-    $approvedSkillIds = @($rootApprovedDispatch | Select-Object -First 1 | ForEach-Object { [string]$_.skill_id } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    $rootBoundSkillIds = @(Get-VibeWorkBindingBoundSkillIds -RuntimeInputPacket $rootRuntimeInput)
+    $rootSelectedSkillIds = @(Get-SelectedSkillIdsForGate -RuntimeInputPacket $rootRuntimeInput)
+    Add-Assertion -Results ([ref]$results) -Condition ($rootRuntimeInput.PSObject.Properties.Name -contains 'work_binding') -Message 'root closure seed includes work_binding'
+    Add-Assertion -Results ([ref]$results) -Condition (@($rootBoundSkillIds).Count -ge 1) -Message 'root closure seed keeps bounded skill truth in work_binding'
+    Add-Assertion -Results ([ref]$results) -Condition ((@($rootSelectedSkillIds).Count -eq 0) -or ((@($rootSelectedSkillIds) | Where-Object { $_ -in @($rootBoundSkillIds) }).Count -eq @($rootSelectedSkillIds).Count)) -Message 'root closure seed keeps compatibility selected skills subordinate to work_binding'
+    $approvedSkillIds = @($rootBoundSkillIds | Select-Object -First 1 | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
 
     $childRunId = 'closure-child-' + [System.Guid]::NewGuid().ToString('N').Substring(0, 8)
     $childParentUnitId = 'closure-child-unit'
@@ -213,8 +238,26 @@ try {
         -DelegationEnvelopePath $childDelegationEnvelopePath `
         -ApprovedSpecialistSkillIds $approvedSkillIds `
         -RuntimeConfig $context.runtimeConfig
+    $childRuntimeInput = Get-Content -LiteralPath $child.summary.artifacts.runtime_input_packet -Raw -Encoding UTF8 | ConvertFrom-Json
     $childExecutionManifest = Get-Content -LiteralPath $child.summary.artifacts.execution_manifest -Raw -Encoding UTF8 | ConvertFrom-Json
+    $childBoundSkillIds = @(Get-VibeWorkBindingBoundSkillIds -RuntimeInputPacket $childRuntimeInput)
+    $childSelectedSkillIds = @(Get-SelectedSkillIdsForGate -RuntimeInputPacket $childRuntimeInput)
+    $childLocalSuggestionIds = if (
+        $childRuntimeInput.PSObject.Properties.Name -contains 'specialist_decision' -and
+        $null -ne $childRuntimeInput.specialist_decision -and
+        $childRuntimeInput.specialist_decision.PSObject.Properties.Name -contains 'local_suggestion_skill_ids'
+    ) {
+        @($childRuntimeInput.specialist_decision.local_suggestion_skill_ids | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+    } else {
+        @()
+    }
 
+    Add-Assertion -Results ([ref]$results) -Condition ($childRuntimeInput.PSObject.Properties.Name -contains 'work_binding') -Message 'child closure smoke runtime packet includes work_binding'
+    Add-Assertion -Results ([ref]$results) -Condition (@($childBoundSkillIds).Count -ge 1) -Message 'child closure smoke keeps inherited bounded work in work_binding'
+    Add-Assertion -Results ([ref]$results) -Condition ((@($childSelectedSkillIds).Count -eq 0) -or ((@($childSelectedSkillIds) | Where-Object { $_ -in @($childBoundSkillIds) }).Count -eq @($childSelectedSkillIds).Count)) -Message 'child closure smoke keeps compatibility selected skills subordinate to work_binding'
+    foreach ($skillId in @($childLocalSuggestionIds)) {
+        Add-Assertion -Results ([ref]$results) -Condition (-not (@($childBoundSkillIds) -contains $skillId)) -Message ("child closure smoke residual local suggestion does not mutate work_binding: {0}" -f $skillId)
+    }
     Add-Assertion -Results ([ref]$results) -Condition ([bool]$childExecutionManifest.dispatch_integrity.proof_passed) -Message 'child smoke dispatch integrity proof passes'
     Add-Assertion -Results ([ref]$results) -Condition ([bool]$childExecutionManifest.dispatch_integrity.local_suggestions_contained) -Message 'child smoke does not execute advisory-only local suggestions'
     Add-Assertion -Results ([ref]$results) -Condition ([bool]$childExecutionManifest.dispatch_integrity.executed_specialists_subset_of_approved_dispatch) -Message 'child smoke executes only root-approved specialists'

@@ -33,11 +33,27 @@ def ps_quote(value: str) -> str:
     return "'" + value.replace("'", "''") + "'"
 
 
+def build_phase_decomposition_payload() -> dict[str, object]:
+    return {
+        "phases": [
+            {
+                "phase_id": "phase-requirement-refresh",
+                "stage_order": 10,
+                "stage_type": "planning",
+                "stage_label": "Requirement Refresh",
+                "goal": "Refresh the bounded requirement state before resuming work.",
+                "acceptance_checks": ["bounded requirement context refreshed"],
+            }
+        ]
+    }
+
+
 def build_host_decision_json() -> str:
     return json.dumps(
         {
             "decision_kind": "approval_response",
             "decision_action": "approve_requirement",
+            "phase_decomposition": build_phase_decomposition_payload(),
             "continuation_context": {
                 "structured_bounded_reentry": True,
                 "source_run_id": "prior-run",
@@ -61,6 +77,7 @@ def build_host_revision_decision_json() -> str:
             "decision_kind": "approval_response",
             "decision_action": "revise_requirement",
             "approval_decision": "revise",
+            "phase_decomposition": build_phase_decomposition_payload(),
             "revision_delta": [
                 "Add one public small/medium face dataset downloaded locally.",
                 "Require a polished LaTeX paper and compiled PDF.",
@@ -98,6 +115,8 @@ def run_freeze(*, artifact_root: Path, host_decision_json: str) -> dict[str, obj
         shell,
         "-NoLogo",
         "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
         "-Command",
         (
             "& { "
@@ -120,7 +139,13 @@ def run_freeze(*, artifact_root: Path, host_decision_json: str) -> dict[str, obj
         check=True,
         env={**os.environ, "VGO_DISABLE_NATIVE_SPECIALIST_EXECUTION": "1"},
     )
-    return json.loads(completed.stdout)
+    payload = json.loads(completed.stdout)
+    if payload is None:
+        raise AssertionError(
+            "Freeze-RuntimeInputPacket.ps1 returned null. "
+            f"stderr was: {completed.stderr.strip()}"
+        )
+    return payload
 
 
 def run_runtime(
@@ -138,6 +163,8 @@ def run_runtime(
         shell,
         "-NoLogo",
         "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
         "-Command",
         (
             "& { "
@@ -161,7 +188,13 @@ def run_runtime(
         check=True,
         env={**os.environ, "VGO_DISABLE_NATIVE_SPECIALIST_EXECUTION": "1"},
     )
-    return json.loads(completed.stdout)
+    payload = json.loads(completed.stdout)
+    if payload is None:
+        raise AssertionError(
+            "invoke-vibe-runtime.ps1 returned null. "
+            f"stderr was: {completed.stderr.strip()}"
+        )
+    return payload
 
 
 def run_common_script(script: str) -> dict[str, object]:
@@ -173,6 +206,8 @@ def run_common_script(script: str) -> dict[str, object]:
         shell,
         "-NoLogo",
         "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
         "-Command",
         (
             "& { "
@@ -190,7 +225,13 @@ def run_common_script(script: str) -> dict[str, object]:
         errors="replace",
         check=True,
     )
-    return json.loads(completed.stdout)
+    payload = json.loads(completed.stdout)
+    if payload is None:
+        raise AssertionError(
+            "VibeRuntime.Common.ps1 helper returned null. "
+            f"stderr was: {completed.stderr.strip()}"
+        )
+    return payload
 
 
 def run_confirm_ui_script(script: str) -> dict[str, object]:
@@ -202,6 +243,8 @@ def run_confirm_ui_script(script: str) -> dict[str, object]:
         shell,
         "-NoLogo",
         "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
         "-Command",
         (
             "& { "
@@ -219,7 +262,13 @@ def run_confirm_ui_script(script: str) -> dict[str, object]:
         errors="replace",
         check=True,
     )
-    return json.loads(completed.stdout)
+    payload = json.loads(completed.stdout)
+    if payload is None:
+        raise AssertionError(
+            "46-confirm-ui.ps1 helper returned null. "
+            f"stderr was: {completed.stderr.strip()}"
+        )
+    return payload
 
 
 class StructuredBoundedReentryContinuationTests(unittest.TestCase):
@@ -271,6 +320,8 @@ class StructuredBoundedReentryContinuationTests(unittest.TestCase):
             shell,
             "-NoLogo",
             "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
             "-Command",
             (
                 "& { "
@@ -420,12 +471,15 @@ class StructuredBoundedReentryContinuationTests(unittest.TestCase):
             )
             packet = payload["packet"]
 
-            self.assertEqual("research", packet["canonical_router"]["task_type"])
+            self.assertEqual("research", packet["route_snapshot"]["task_type"])
             self.assertIn("continuation_context", packet)
             self.assertTrue(packet["continuation_context"]["structured_bounded_reentry"])
             self.assertTrue(packet["continuation_context"]["control_only_prompt"])
-            self.assertEqual("approval_response", packet["host_decision"]["decision_kind"])
-            self.assertEqual("approve_requirement", packet["host_decision"]["decision_action"])
+            self.assertIn("phase_decomposition", packet["host_decision"])
+            self.assertNotIn("decision_kind", packet["host_decision"])
+            self.assertNotIn("decision_action", packet["host_decision"])
+            self.assertNotIn("continuation_context", packet["host_decision"])
+            self.assertNotIn("execution_phase_decomposition", packet)
 
     def test_freeze_preserves_structured_revision_delta_for_same_stage_refreeze(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
@@ -436,17 +490,22 @@ class StructuredBoundedReentryContinuationTests(unittest.TestCase):
             )
             packet = payload["packet"]
 
-            self.assertEqual("research", packet["canonical_router"]["task_type"])
-            self.assertEqual("revise", packet["host_reentry_action"])
-            self.assertEqual("requirement_doc", packet["host_revision_target_stage"])
+            self.assertEqual("research", packet["route_snapshot"]["task_type"])
+            self.assertEqual("revise", packet["continuation_context"]["reentry_action"])
+            self.assertEqual("requirement_doc", packet["continuation_context"]["revision_target_stage"])
             self.assertEqual(
                 [
                     "Add one public small/medium face dataset downloaded locally.",
                     "Require a polished LaTeX paper and compiled PDF.",
                 ],
-                packet["host_revision_delta"],
+                packet["continuation_context"]["revision_delta"],
             )
-            self.assertEqual("revise_requirement", packet["host_decision"]["decision_action"])
+            self.assertNotIn("decision_action", packet["host_decision"])
+            self.assertNotIn("revision_delta", packet["host_decision"])
+            self.assertNotIn("continuation_context", packet["host_decision"])
+            self.assertNotIn("host_reentry_action", packet)
+            self.assertNotIn("host_revision_target_stage", packet)
+            self.assertNotIn("host_revision_delta", packet)
 
     def test_stale_host_skill_execution_decision_is_safely_shrunk(self) -> None:
         shell = resolve_powershell()
@@ -457,6 +516,8 @@ class StructuredBoundedReentryContinuationTests(unittest.TestCase):
             shell,
             "-NoLogo",
             "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
             "-Command",
             (
                 "& { "

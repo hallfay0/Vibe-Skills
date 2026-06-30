@@ -45,6 +45,8 @@ def run_governed_runtime(task: str, artifact_root: Path, env: dict[str, str] | N
         shell,
         "-NoLogo",
         "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
         "-Command",
         (
             "& { "
@@ -107,7 +109,7 @@ def run_write_requirement_doc(
     ps_command += "$result | ConvertTo-Json -Depth 20 }"
 
     completed = subprocess.run(
-        [shell, "-NoLogo", "-NoProfile", "-Command", ps_command],
+        [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_command],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -159,7 +161,7 @@ def run_write_xl_plan(
     ps_command += "$result | ConvertTo-Json -Depth 20 }"
 
     completed = subprocess.run(
-        [shell, "-NoLogo", "-NoProfile", "-Command", ps_command],
+        [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_command],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -203,7 +205,7 @@ def run_selected_memory_capsules(read_actions: list[dict[str, object]]) -> list[
     )
 
     completed = subprocess.run(
-        [shell, "-NoLogo", "-NoProfile", "-Command", ps_command],
+        [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_command],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -253,7 +255,7 @@ def run_progressive_disclosure_context_pack(
     )
 
     completed = subprocess.run(
-        [shell, "-NoLogo", "-NoProfile", "-Command", ps_command],
+        [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_command],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,

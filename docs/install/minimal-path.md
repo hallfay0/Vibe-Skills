@@ -1,23 +1,24 @@
 # 安装路径：最小可用（truth-first / 可接受降级）
 
-本路径的目标是：**尽快把仓库自己负责的最小闭环跑通**，并且如实暴露哪些能力仍然属于 **host-managed surfaces**（宿主侧手工 provision），而不是把“能跑”伪装成“满血等价”。
+本路径的目标是：**尽快把仓库自己负责的最小闭环和小工作内核跑通**，并且如实暴露哪些能力仍然属于 **host-managed surfaces**（宿主侧手工 provision），而不是把“能跑”伪装成“满血等价”。
+
+一旦这条路径装起来，正常扩展方式仍然是本地 skill：`skills/local/<skill-id>/SKILL.md`，而不是再长一层额外路由或技能目录。
 
 对应分发面：`dist/manifests/vibeskills-core.json` +（如果你在 Codex）`dist/manifests/vibeskills-codex.json`。
 
 ## 适合谁
 
 - 第一次接触本仓库、只想验证 “repo-governed surfaces 是否闭环” 的用户
-- 能接受最终状态落在 `manual_actions_pending`（例如缺 host plugins / MCP / provider secrets）
+- 能接受最终状态落在 `manual_actions_pending`（例如缺 host plugins / provider secrets）
 - 不准备在当前阶段补齐所有外部依赖的人
 
 ## 你不要期待什么（避免过度承诺）
 
 - 不保证宿主侧插件已启用
-- 不保证 plugin-backed MCP 已注册/授权
-- 不保证任何 MCP 已进入对应宿主真实使用的 **宿主原生 MCP 配置面**
+- 不保证宿主侧插件或在线增强已经注册/授权
 - 不保证暂未开放的内置在线增强能力已准备好
 
-`$vibe` 或 `/vibe` 只说明 governed runtime 入口可用，不等于 MCP 完成；repo template、manifest、sidecar、`*.json.example` 和 PATH 上已有命令也都不能单独算 host-visible MCP ready。
+`$vibe` 或 `/vibe` 只说明 governed runtime 入口可用；repo template、manifest、sidecar、`*.json.example` 和 PATH 上已有命令也都不能单独证明在线增强已就绪。
 
 ## Host / 平台先决判断
 

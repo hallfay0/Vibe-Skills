@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from .mcp_provision import provision_required_mcp
 from .external import report_external_fallback_usage
 from .install_gates import run_offline_gate, run_runtime_freshness_gate
 from .installer_bridge import refresh_install_ledger_payload
@@ -36,13 +35,6 @@ def reconcile_install_postconditions(
         skip_gate=skip_runtime_freshness_gate,
         include_frontmatter=include_frontmatter,
     )
-    mcp_receipt = provision_required_mcp(
-        repo_root=repo_root,
-        target_root=target_root,
-        host_id=host_id,
-        profile=profile,
-        allow_scripted_install=install_external and not strict_offline,
-    )
     official_repo = get_official_self_repo_metadata(repo_root)
     release = get_local_release_metadata(repo_root)
     save_upgrade_status(
@@ -68,9 +60,7 @@ def reconcile_install_postconditions(
             profile=profile,
             target_root=target_root,
             install_receipt=install_receipt,
-            mcp_receipt=mcp_receipt,
         )
     return {
         'install_receipt': install_receipt,
-        'mcp_receipt': mcp_receipt,
     }

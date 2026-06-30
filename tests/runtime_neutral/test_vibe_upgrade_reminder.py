@@ -180,7 +180,7 @@ def test_powershell_upgrade_reminder_uses_python_command_spec(tmp_path: Path) ->
     )
 
     completed = subprocess.run(
-        [powershell, '-NoLogo', '-NoProfile', '-File', str(harness_path)],
+            [powershell, '-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', str(harness_path)],
         capture_output=True,
         text=True,
         encoding='utf-8',

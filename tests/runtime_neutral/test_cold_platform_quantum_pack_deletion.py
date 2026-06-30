@@ -27,7 +27,8 @@ def route(prompt: str, task_type: str = "coding", grade: str = "M") -> dict[str,
 
 def selected(result: dict[str, object]) -> tuple[str, str]:
     selected_row = result.get("selected")
-    assert isinstance(selected_row, dict), result
+    if not isinstance(selected_row, dict):
+        return "", ""
     return str(selected_row.get("pack_id") or ""), str(selected_row.get("skill") or "")
 
 

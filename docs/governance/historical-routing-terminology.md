@@ -1,6 +1,6 @@
 # Historical Routing Terminology
 
-> Historical / Retired Note: This document is an index for retired routing language. The current routing model is `skill_candidates -> skill_routing.selected -> selected_skill_execution -> skill_usage`.
+> Historical / Retired Note: This document is an index for retired routing language. The current routing model is `skill_candidates -> skill_routing.selected -> skill_execution_lock -> selected_skill_execution -> skill_usage`.
 
 This page exists so old routing vocabulary has one small place to live. It is not
 a runtime contract, and it does not add another routing layer.
@@ -16,6 +16,7 @@ Current state names:
 
 - `skill_candidates`
 - `skill_routing.selected`
+- `skill_execution_lock`
 - `selected_skill_execution`
 - `skill_usage.used`
 - `skill_usage.unused`

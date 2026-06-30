@@ -24,11 +24,6 @@
       "install_hint": "Provision prompts.chat MCP/API integration in Codex runtime; optional, used by prompt-lookup/prompt-overlay."
     },
     {
-      "name": "claude-flow",
-      "install_mode": "scripted",
-      "install": "npm install -g claude-flow"
-    },
-    {
       "name": "xan",
       "install_mode": "manual-codex",
       "install_hint": "Install xan CLI manually (recommended on Windows: scoop install xan) for large CSV acceleration."

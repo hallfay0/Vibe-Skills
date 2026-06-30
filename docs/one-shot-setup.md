@@ -10,19 +10,13 @@
 
 如果你的目标只是拿到更薄的预览安装路径，`opencode` 仍然可以直接走 `install.* + check.*`。但这不代表 one-shot 不能用于 `opencode`；它只是一个统一 wrapper，会按当前宿主的 `bootstrap_mode` 走对应分支。
 
-## MCP Auto-Provision Contract
+## Public Install Boundary
 
-one-shot 现在会把 MCP auto-provision 视为安装流程的一部分，但它是非阻塞的：
+one-shot 不再把宿主侧插件或在线能力接入视为公开安装流程的一部分。
 
-- 会尝试：`github`、`context7`、`serena`、`scrapling`、`claude-flow`
-- 这些 MCP 的默认完成目标必须是对应宿主当前真实使用的 **宿主原生 MCP 配置面**
-- `$vibe` 或 `/vibe` 只代表 governed runtime 入口，不等于 MCP 完成
-- repo template、manifest、`*.json.example`、`.vibeskills/*` sidecar，以及“命令已在 PATH 上”都不能单独算 host-visible ready
-- `github` / `context7` / `serena` 优先走 host-native registration
-- `scrapling` / `claude-flow` 优先走 scripted CLI / stdio
-- 如果宿主原生自动注册失败，或当前宿主没有稳定、官方可支持的自动注册接口，最终报告必须明确写出尚未进入宿主原生 MCP 配置面，而不是把 `$vibe`、模板或 sidecar 伪装成 ready
-- 如果尝试失败，不会中途刷屏阻塞你，而是在最后一段报告里统一写出 `manual follow-up`
-- 最终报告会明确区分 `installed locally`、`vibe host-ready`、`mcp native auto-provision attempted`、每个 MCP 的 `host-visible readiness`、以及 `online-ready`
+- `$vibe` 或 `/vibe` 只代表 governed runtime 入口，不代表宿主插件、provider 或在线增强已经完成
+- repo template、manifest、`*.json.example`、`.vibeskills/*` sidecar，以及“命令已在 PATH 上”都不能单独算 online-ready
+- 最终报告会明确区分 `installed locally`、`vibe host-ready`、以及 `online-ready`
 
 如果你还不知道自己应该走哪种安装方式，先看：
 
@@ -76,7 +70,6 @@ Linux / macOS without `pwsh` still gets the shipped content and the runtime-neut
 ### `governed`：当前是 `codex`
 
 - 会安装 governed runtime 并执行完整检查
-- 会物化启用中的 MCP profile 到 `<target-root>/mcp/servers.active.json`
 - 会运行 `check.* --deep`
 
 ### `preview-guidance`：当前是 `claude-code`、`cursor`、`opencode`
@@ -98,14 +91,14 @@ Linux / macOS without `pwsh` still gets the shipped content and the runtime-neut
 - shared runtime payload
 - 当前宿主模式允许的 scaffold 或 sidecar 状态
 - runtime freshness / coherence verification
-- 可脚本安装的部分外部 CLI，例如 `claude-flow`
+- 可脚本安装的部分外部 CLI
 
 ## What It Cannot Finish Automatically
 
 以下部分不会被 repo 静默“装完”，而是会在 doctor 报告里明确标成待处理：
 
 - 用户 API keys / provider secrets
-- 大多数 host-native settings / plugin / MCP trust 决策
+- 大多数 host-native settings / plugin / 在线能力授权决策
 - 宿主登录态、账号状态与平台权限
 - 不在当前宿主模式承诺范围内的 hook / host takeover 行为
 
@@ -121,11 +114,11 @@ Linux / macOS without `pwsh` still gets the shipped content and the runtime-neut
 
 | 宿主 | 真实路径 | 应该怎么处理 |
 | --- | --- | --- |
-| `codex` | `<target-root>/settings.json`，默认 `~/.codex/settings.json` | 只确认 VibeSkills 受管节点和宿主边界，不要求用户补内置在线增强配置 |
+| `codex` | `<target-root>/settings.json`，默认 `~/.agents/settings.json` | 只确认 VibeSkills 受管节点和宿主边界，不要求用户补内置在线增强配置 |
 | `claude-code` | `~/.claude/settings.json` | 增量合并 VibeSkills 受管节点，不覆盖其他 Claude 设置 |
 | `cursor` | `~/.cursor/settings.json` | 不覆盖无关的 Cursor 原生设置 |
-| `windsurf` | 查看 `<target-root>/.vibeskills/host-settings.json`；默认目标根目录是 `WINDSURF_HOME` 或 `~/.vibeskills/targets/windsurf` | 这里只是 repo sidecar 状态；真正的登录、provider、模型权限继续在 Windsurf 宿主侧完成 |
-| `openclaw` | 查看 `<target-root>/.vibeskills/host-settings.json`；默认目标根目录是 `OPENCLAW_HOME` 或 `~/.vibeskills/targets/openclaw` | 这里只是 repo sidecar 状态；真正的登录、provider、模型和编辑器设置继续在 OpenClaw 宿主侧完成 |
+| `windsurf` | 查看 `<target-root>/.vibeskills/host-settings.json`；默认目标根目录是 `~/.agents`，需要改共享根时再设置 `VIBE_AGENTS_HOME` | 这里只是 repo sidecar 状态；真正的登录、provider、模型权限继续在 Windsurf 宿主侧完成 |
+| `openclaw` | 查看 `<target-root>/.vibeskills/host-settings.json`；默认目标根目录是 `~/.agents`，需要改共享根时再设置 `VIBE_AGENTS_HOME` | 这里只是 repo sidecar 状态；真正的登录、provider、模型和编辑器设置继续在 OpenClaw 宿主侧完成 |
 | `opencode` | 编辑真实宿主文件 `~/.config/opencode/opencode.json`；用 `<target-root>/opencode.json.example` 当参考 | 手动把需要的 permission / command / provider 结构复制到真实宿主文件；repo 不会覆盖真实 `opencode.json` |
 
 补充说明：
@@ -153,7 +146,7 @@ bash ./check.sh --profile full --host <host> --deep
 - settings / secret readiness
 - plugin readiness classification
 - external CLI availability
-- MCP enabled server readiness
+- online capability readiness
 - overall `readiness_state`
 
 ## Readiness States
@@ -171,7 +164,7 @@ bash ./check.sh --profile full --host <host> --deep
 
 1. 先确认目标宿主的真实根目录和本地 settings 边界
 2. 再确认 `vibe` / `vibe-upgrade` 是否 host-ready
-3. 再补 plugin-backed MCP surfaces 或外部服务
+3. 再补宿主侧插件能力或外部服务
 4. 只在你确实需要时再做更重的 host-local enhancement
 
 如果是 Claude Code，继续按本地 `~/.claude/settings.json` 的增量方式补全；如果是 Windsurf / OpenClaw / OpenCode，继续保持 host-managed 边界，不要把 one-shot 误解成全面接管宿主。

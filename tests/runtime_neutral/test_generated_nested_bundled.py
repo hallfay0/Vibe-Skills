@@ -21,17 +21,7 @@ CLI_SRC = REPO_ROOT / "apps" / "vgo-cli" / "src"
 PS_INSTALLER = REPO_ROOT / "scripts" / "install" / "Install-VgoAdapter.ps1"
 SYNC_SCRIPT = REPO_ROOT / "scripts" / "governance" / "sync-bundled-vibe.ps1"
 INSTALL_REQUIRED_SKILLS = (
-    "dialectic",
-    "local-vco-roles",
-    "spec-kit-vibe-compat",
-    "superclaude-framework-compat",
-    "ralph-loop",
-    "cancel-ralph",
     "tdd-guide",
-    "think-harder",
-    "brainstorming",
-    "writing-plans",
-    "subagent-driven-development",
     "systematic-debugging",
 )
 MIRROR_DIRECTORIES = ["config", "templates", "scripts", "mcp"]
@@ -318,7 +308,6 @@ class InstallTimeGeneratedNestedBundledTests(unittest.TestCase):
                     "exclude_bundled_skill_names": ["vibe"],
                     "canonical_vibe_payload": {"enabled": True, "target_relpath": "skills/vibe"},
                     "copy_bundled_skills": False,
-                    "skills_allowlist": list(INSTALL_REQUIRED_SKILLS),
                     "internal_skill_corpus": {
                         "enabled": True,
                         "source": "bundled/skills",
@@ -334,9 +323,9 @@ class InstallTimeGeneratedNestedBundledTests(unittest.TestCase):
                         "resolver_roots": ["skills"],
                     },
                     "managed_skill_inventory": {
-                        "required_runtime_skills": ["vibe", "dialectic", "local-vco-roles", "spec-kit-vibe-compat", "superclaude-framework-compat", "ralph-loop", "cancel-ralph", "tdd-guide", "think-harder"],
-                        "required_workflow_skills": ["brainstorming", "writing-plans", "subagent-driven-development", "systematic-debugging"],
-                        "optional_workflow_skills": []
+                        "public_entry_skills": ["vibe"],
+                        "starter_skill_names": ["tdd-guide", "systematic-debugging"],
+                        "optional_skill_names": []
                     },
                 },
                 indent=2,
@@ -391,8 +380,6 @@ class InstallTimeGeneratedNestedBundledTests(unittest.TestCase):
         self._write("config/sample.json", json.dumps({"version": 1}, indent=2) + "\n")
         self._write("templates/template.txt", "template\n")
         self._write("scripts/runtime/sample.ps1", "Write-Host 'sample'\n")
-        self._write("mcp/servers.template.json", json.dumps({"servers": []}, indent=2) + "\n")
-
         vibe_root = self.repo_root / "bundled" / "skills" / "vibe"
         vibe_root.mkdir(parents=True, exist_ok=True)
         for rel in ("SKILL.md", "check.ps1", "check.sh", "install.ps1", "install.sh"):
@@ -417,7 +404,7 @@ class InstallTimeGeneratedNestedBundledTests(unittest.TestCase):
         installed_root = self.target_root / "skills" / "vibe"
         nested_root = installed_root / "bundled" / "skills" / "vibe"
         self.assertTrue((installed_root / "SKILL.md").exists())
-        self.assertTrue((installed_root / "bundled" / "skills" / "brainstorming" / "SKILL.runtime-mirror.md").exists())
+        self.assertTrue((installed_root / "bundled" / "skills" / "systematic-debugging" / "SKILL.runtime-mirror.md").exists())
         self.assertFalse((nested_root / "SKILL.md").exists())
         self.assertTrue((nested_root / "SKILL.runtime-mirror.md").exists())
         self.assertEqual(
@@ -559,12 +546,11 @@ class InstallTimeGeneratedNestedBundledTests(unittest.TestCase):
         packaging = json.loads(packaging_path.read_text(encoding="utf-8"))
         packaging["skill_source_root"] = str(in_place_root)
         packaging["copy_bundled_skills"] = False
-        packaging["skills_allowlist"] = ["brainstorming"]
         packaging["internal_skill_corpus"]["target_relpath"] = "internal-corpus"
         packaging["managed_skill_inventory"] = {
-            "required_runtime_skills": [],
-            "required_workflow_skills": [],
-            "optional_workflow_skills": [],
+            "public_entry_skills": [],
+            "starter_skill_names": ["brainstorming"],
+            "optional_skill_names": [],
         }
         packaging_path.write_text(json.dumps(packaging, indent=2) + "\n", encoding="utf-8", newline="\n")
 

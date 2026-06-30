@@ -32,17 +32,19 @@ class RoutingTerminologyHardCleanupTests(unittest.TestCase):
         self.assertTrue(CONTRACT_DOC.exists(), "current runtime field contract must exist")
         text = CONTRACT_DOC.read_text(encoding="utf-8")
 
-        self.assertIn(
-            "skill_candidates -> skill_routing.selected -> selected_skill_execution -> "
-            "skill_usage.used / skill_usage.unused",
-            text,
-        )
+        self.assertIn("## Work-First Truth", text)
+        self.assertIn("runtime input truth: work_binding + specialist_decision", text)
+        self.assertIn("later work-loop truth: task_card -> work_plan -> work_binding -> work_results -> verification", text)
         for required in [
+            "## Runtime Input Truth",
+            "## Work-Run Truth",
+            "## Compatibility Mirrors",
             "## Routing Layer",
             "## Usage Layer",
             "## Execution Layer",
             "## Retired Layer",
-            "`skill_routing.selected`",
+            "`work_binding`",
+            "`specialist_decision`",
             "`skill_usage.used`",
             "`skill_usage.unused`",
             "`skill_usage.evidence`",
@@ -69,7 +71,7 @@ class RoutingTerminologyHardCleanupTests(unittest.TestCase):
             self.skipTest("PowerShell executable not available")
 
         completed = subprocess.run(
-            [shell, "-NoLogo", "-NoProfile", "-File", str(HARD_SCAN), "-Json"],
+            [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(HARD_SCAN), "-Json"],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,

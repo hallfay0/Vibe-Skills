@@ -9,7 +9,7 @@ RUNTIME_SRC = ROOT / "packages" / "runtime-core" / "src"
 if str(RUNTIME_SRC) not in sys.path:
     sys.path.insert(0, str(RUNTIME_SRC))
 
-from vgo_runtime.router_contract_authority import choose_authoritative_route
+from vgo_runtime.router_contract_runtime import choose_authoritative_route
 
 
 def test_ineligible_narrow_top_pack_falls_back_to_broad_owner() -> None:

@@ -22,7 +22,7 @@
 
 ## 宿主根目录提示
 
-- `codex` -> 默认把 `CODEX_HOME` 指到真实 `~/.codex`；如果你希望复制后当前 Codex 直接发现 `$vibe`，不要默认落到 `~/.vibeskills/targets/codex`
+- `codex` -> 默认复制到 `~/.agents`；只有你明确要改共享根目录时，才额外设置 `VIBE_AGENTS_HOME`
 - `claude-code` -> 默认把 `CLAUDE_HOME` 指到真实 `~/.claude`
 - `cursor` -> 默认把 `CURSOR_HOME` 指到真实 `~/.cursor`
 - `windsurf` -> `WINDSURF_HOME` 或真实宿主根目录 `~/.codeium/windsurf`
@@ -32,7 +32,7 @@
 如果目标是 `windsurf`，还要额外注意：
 
 - 如需与当前脚本安装结果严格对齐，优先重新运行 `install.* --host windsurf`
-- 当前公开合同下，宿主侧 sidecar 以 `.vibeskills/host-settings.json` 与 `.vibeskills/host-closure.json` 为准，而不是 `mcp_config.json` / `global_workflows/`
+- 当前公开合同下，宿主侧 sidecar 以 `.vibeskills/host-settings.json` 与 `.vibeskills/host-closure.json` 为准，不再依赖旧的额外宿主配置镜像
 
 如果目标是 `opencode`，请改用 OpenCode 预览载荷：
 
@@ -49,20 +49,20 @@
 
 ### Codex
 
-- 维护 `~/.codex/settings.json`
-- 手动复制不会自动完成宿主 provider、插件或 MCP 授权
+- 默认检查 `~/.agents/settings.json`
+- 手动复制不会自动完成宿主 provider、插件或在线能力授权
 - 公开手动安装暂时不引导配置内置在线增强能力
 
 ### Claude Code
 
 - 维护 `~/.claude/settings.json`
-- 手动复制不会自动完成 Claude 宿主侧 provider、插件或 MCP 授权
+- 手动复制不会自动完成 Claude 宿主侧 provider、插件或在线能力授权
 - 公开手动安装暂时不引导配置内置在线增强能力
 
 ### Cursor
 
 - 维护 `~/.cursor/settings.json`
-- 视需要补本地 provider / MCP 配置
+- 视需要补本地 provider 与宿主侧能力配置
 
 ### Windsurf
 
@@ -79,7 +79,7 @@
 
 - 确认 `OPENCODE_HOME` 或真实宿主根目录 `~/.config/opencode` 下的 preview payload
 - 真实 `~/.config/opencode/opencode.json` 仍由宿主侧维护
-- 真实 `opencode.json`、provider 凭据、plugin 安装和 MCP 信任仍需宿主侧本地完成
+- 真实 `opencode.json`、provider 凭据、plugin 安装和在线能力授权仍需宿主侧本地完成
 - 如需项目内隔离安装结果，对齐 `./.opencode`
 
 ## 这条路径不会自动完成什么

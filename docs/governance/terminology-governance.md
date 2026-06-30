@@ -16,7 +16,7 @@ messages:
 | Current term | Meaning |
 | --- | --- |
 | `skill_candidates` | Candidate skills available to a pack or route decision. |
-| `skill_routing.selected` | The selected skill decisions produced by routing. |
+| `skill_routing.selected` | The compatibility-facing selection rows that preserve which skills were bound into the current work. |
 | `skill_execution_lock` | Current execution-obligation field that preserves approved specialists across bounded re-entry; not evidence of material skill use. |
 | `selected_skill_execution` | The current execution-intent projection shown to users and hosts. |
 | `skill_usage.used` | Skills materially used in the run. |

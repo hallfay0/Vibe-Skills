@@ -24,6 +24,10 @@ from vgo_contracts.mirror_topology_contract import (
 
 from .ledger_service import MaterializationLedgerState
 from .discoverable_wrappers import materialize_host_visible_wrappers as _materialize_host_visible_wrappers
+from .profile_inventory import (
+    allowlisted_bundled_skill_names,
+    internal_corpus_resident_skill_names,
+)
 
 TrackCreatedPath = Callable[[Path | str], None]
 RecordOwnedTreeRoot = Callable[[Path | str], None]
@@ -397,8 +401,8 @@ def materialize_allowlisted_skills(
     *,
     copy_dir_replace_fn: Callable[[Path, Path], None],
 ) -> None:
-    skills_allowlist = compatibility_projection_names(packaging, host_id=host_id)
-    if not skills_allowlist:
+    projected_skill_names = compatibility_projection_names(packaging, host_id=host_id)
+    if not projected_skill_names:
         return
 
     bundled_root = resolve_bundled_skills_root(repo_root, packaging)
@@ -408,7 +412,7 @@ def materialize_allowlisted_skills(
     canonical_vibe_rel = canonical_vibe_target_relpath(packaging)
     canonical_vibe_name = Path(canonical_vibe_rel).name
     target_skills_root = destination_root or (target_root / "skills")
-    for name in sorted({str(value).strip() for value in skills_allowlist if str(value).strip()}):
+    for name in sorted({str(value).strip() for value in projected_skill_names if str(value).strip()}):
         if name == canonical_vibe_name:
             continue
         source = bundled_root / name
@@ -459,9 +463,14 @@ def materialize_internal_skill_corpus(
     else:
         selected_names.update(
             name
-            for name in (str(raw).strip() for raw in packaging.get("skills_allowlist") or [])
+            for name in allowlisted_bundled_skill_names(packaging)
             if name and name not in excluded
         )
+    selected_names.update(
+        name
+        for name in internal_corpus_resident_skill_names(packaging)
+        if name and name not in excluded
+    )
 
     if in_place_corpus:
         for existing in sorted(destination_root.iterdir(), key=lambda item: item.name):
@@ -548,8 +557,6 @@ def install_codex_payload(
     track_created_path(target_root / "rules")
     copy_tree_fn(repo_root / "agents" / "templates", target_root / "agents" / "templates")
     track_created_path(target_root / "agents" / "templates")
-    copy_tree_fn(repo_root / "mcp", target_root / "mcp")
-    track_created_path(target_root / "mcp")
     (target_root / "config").mkdir(parents=True, exist_ok=True)
     track_created_path(target_root / "config")
     copy_file_fn(repo_root / "config" / "plugins-manifest.codex.json", target_root / "config" / "plugins-manifest.codex.json")
@@ -606,10 +613,3 @@ def install_runtime_core_mode_payload(
     if commands_root.exists():
         copy_tree_fn(commands_root, target_root / "global_workflows")
         track_created_path(target_root / "global_workflows")
-
-    mcp_template = repo_root / "mcp" / "servers.template.json"
-    mcp_config = target_root / "mcp_config.json"
-    if mcp_template.exists() and not mcp_config.exists():
-        copy_file_fn(mcp_template, mcp_config)
-        record_generated_from_template(mcp_config)
-    track_created_path(mcp_config)

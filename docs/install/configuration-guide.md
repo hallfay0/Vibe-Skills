@@ -14,7 +14,7 @@
 
 `installed locally` 不等于 `online-ready`。
 
-`$vibe` 或 `/vibe` 只说明 governed runtime 入口可用；它不等于 MCP 完成，也不能证明 provider、插件、凭据或宿主原生 MCP 面都已经配置好。
+`$vibe` 或 `/vibe` 只说明 governed runtime 入口可用；它不能单独证明 provider、插件、凭据或在线增强都已经配置好。
 
 ## 安装助手应该怎么报告
 
@@ -22,8 +22,6 @@
 
 - `installed locally`
 - `vibe host-ready`
-- `mcp native auto-provision attempted`
-- 每个 MCP 的 `host-visible readiness`
 - `online-ready`
 - 仍需用户手动处理的宿主侧事项
 
@@ -43,15 +41,15 @@
 
 ### Codex
 
-- 目标根目录：如果目标是安装后就让当前 Codex 直接发现 `$vibe`，默认把 `CODEX_HOME` 设为真实 `~/.codex`
-- 只有显式隔离安装时才使用 `~/.vibeskills/targets/codex`
-- 宿主登录态、provider、插件和 MCP 信任仍由 Codex 侧维护
+- 目标根目录：默认共享安装根目录是 `~/.agents`；在 Windows 上对应 `%USERPROFILE%\\.agents`
+- 只有显式要求改共享根目录时，才额外设置 `VIBE_AGENTS_HOME`
+- 宿主登录态、provider、插件和在线能力授权仍由 Codex 侧维护
 
 ### Claude Code
 
 - 默认把 `CLAUDE_HOME` 设为真实 `~/.claude`
 - 安装器只合并受控的 VibeSkills 设置面
-- 更广的 Claude settings、插件、凭据和 MCP 注册仍由宿主侧维护
+- 更广的 Claude settings、插件、凭据和宿主本地能力配置仍由宿主侧维护
 
 ### Cursor
 
@@ -76,7 +74,7 @@
 - 目标根目录：`OPENCODE_HOME` 或真实宿主根目录 `~/.config/opencode`
 - 真实宿主配置目录仍是 `~/.config/opencode`
 - `<target-root>/opencode.json.example` 只是参考脚手架，不是 live host config
-- 真实宿主配置文件是 `~/.config/opencode/opencode.json`；provider 凭据、plugin 安装和 MCP 信任仍由 OpenCode 宿主侧维护
+- 真实宿主配置文件是 `~/.config/opencode/opencode.json`；provider 凭据、plugin 安装和在线能力授权仍由 OpenCode 宿主侧维护
 
 ## 卸载
 

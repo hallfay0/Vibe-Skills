@@ -20,7 +20,7 @@ You still end up asking:
 
 I did not want to solve that from scratch every time.
 
-So the project slowly became an integration effort: collecting skills, projects, plugins, pitfalls, workflow norms, safety boundaries, verification habits, and maintenance lessons into one more coherent system.
+So the project slowly became an integration effort: collecting useful skills, projects, plugins, pitfalls, workflow norms, work boundaries, verification habits, and maintenance lessons into one smaller work kernel.
 
 It is not trying to prove some grand theory.
 It is trying to make AI easier to use, steadier in practice, and less likely to drag people into a black box.
@@ -51,7 +51,7 @@ That is why I care more about “clarify first, execute second, verify third” 
 ### 3. Integration matters more than accumulation
 
 The point of this project is not to keep collecting more things.
-The point is to integrate the useful things so they can work together more naturally.
+The point is to integrate the useful things so they can work together through a smaller core.
 
 ### 4. Traceability, boundaries, and rollback matter more than looking clever
 

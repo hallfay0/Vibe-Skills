@@ -11,11 +11,8 @@ from pathlib import Path
 
 # Import UI constants for testing
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "packages" / "runtime-core" / "src"))
-from vgo_runtime.router_contract_presentation import (
-    build_confirm_ui,
-)
-from vgo_runtime.router_contract_runtime import route_prompt
-from vgo_runtime.router_contract_support import RepoContext
+from vgo_runtime.router_contract_runtime import build_confirm_ui, route_prompt
+from vgo_runtime.runtime_support import RepoContext
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -101,7 +98,9 @@ class RouterBridgeTests(unittest.TestCase):
             bundled_skills_root=REPO_ROOT / "bundled" / "skills",
         )
         route_result = {
-            "route_mode": "confirm_required",
+            "alias": {
+                "requested_canonical": "vibe",
+            },
             "selected": {
                 "pack_id": "synthetic-pack",
                 "skill": "selected-skill",

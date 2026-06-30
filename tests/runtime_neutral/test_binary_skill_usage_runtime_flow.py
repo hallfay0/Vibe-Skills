@@ -46,6 +46,8 @@ class BinarySkillUsageRuntimeFlowTests(unittest.TestCase):
                     shell,
                     "-NoLogo",
                     "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
                     "-File",
                     str(REPO_ROOT / "scripts" / "runtime" / script_name),
                     "-Task",
@@ -61,7 +63,7 @@ class BinarySkillUsageRuntimeFlowTests(unittest.TestCase):
 
             session_root = next(artifact_root.rglob(run_id))
             packet = json.loads((session_root / "runtime-input-packet.json").read_text(encoding="utf-8"))
-            selected_skill = packet["route_snapshot"]["selected_skill"]
+            selected_skill = packet["work_binding"]["units"][0]["bound_skill"]
             usage_path = session_root / "skill-usage.json"
             usage = json.loads(usage_path.read_text(encoding="utf-8"))
             requirement_receipt = json.loads((session_root / "requirement-doc-receipt.json").read_text(encoding="utf-8"))
@@ -99,6 +101,8 @@ class BinarySkillUsageRuntimeFlowTests(unittest.TestCase):
                     shell,
                     "-NoLogo",
                     "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
                     "-File",
                     str(REPO_ROOT / "scripts" / "runtime" / script_name),
                     "-Task",
@@ -117,9 +121,8 @@ class BinarySkillUsageRuntimeFlowTests(unittest.TestCase):
             execution_manifest = json.loads((session_root / "execution-manifest.json").read_text(encoding="utf-8"))
             phase_execute = json.loads((session_root / "phase-execute.json").read_text(encoding="utf-8"))
             cleanup = json.loads((session_root / "cleanup-receipt.json").read_text(encoding="utf-8"))
-            selected_skill = json.loads((session_root / "runtime-input-packet.json").read_text(encoding="utf-8"))[
-                "route_snapshot"
-            ]["selected_skill"]
+            runtime_packet = json.loads((session_root / "runtime-input-packet.json").read_text(encoding="utf-8"))
+            selected_skill = runtime_packet["work_binding"]["units"][0]["bound_skill"]
 
             self.assertIn(selected_skill, usage["used_skills"])
             self.assertEqual(usage["used_skills"], execution_manifest["skill_usage"]["used_skills"])

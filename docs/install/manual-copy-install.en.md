@@ -22,7 +22,7 @@ Copy these into the target root:
 
 ## Default Host Roots
 
-- `codex` -> default `CODEX_HOME` to the real `~/.codex`; if you want the current Codex to discover `$vibe` after the copy, do not default to `~/.vibeskills/targets/codex`
+- `codex` -> copy into `~/.agents` by default; set `VIBE_AGENTS_HOME` only when you explicitly want a different shared root
 - `claude-code` -> default `CLAUDE_HOME` to the real `~/.claude`
 - `cursor` -> default `CURSOR_HOME` to the real `~/.cursor`
 - `windsurf` -> `WINDSURF_HOME` or the real host root `~/.codeium/windsurf`
@@ -32,7 +32,7 @@ Copy these into the target root:
 If the target is `windsurf`, also note:
 
 - if you need exact parity with the current scripted result, prefer rerunning `install.* --host windsurf`
-- the current public contract uses `.vibeskills/host-settings.json` and `.vibeskills/host-closure.json` as the host sidecars instead of `mcp_config.json` / `global_workflows/`
+- the current public contract uses `.vibeskills/host-settings.json` and `.vibeskills/host-closure.json` as the host sidecars and no longer relies on the older extra host-config mirrors
 
 If the target is `opencode`, switch to the OpenCode preview payload:
 
@@ -49,20 +49,20 @@ Then use [`opencode-path.en.md`](./opencode-path.en.md) for the preview-adapter 
 
 ### Codex
 
-- maintain `~/.codex/settings.json`
-- manual copy does not complete host-side provider, plugin, or MCP authorization
+- inspect `~/.agents/settings.json` by default
+- manual copy does not complete host-side provider, plugin, or online capability authorization
 - the public manual path does not currently guide built-in online enhancement configuration
 
 ### Claude Code
 
 - maintain `~/.claude/settings.json`
-- manual copy does not complete Claude-side provider, plugin, or MCP authorization
+- manual copy does not complete Claude-side provider, plugin, or online capability authorization
 - the public manual path does not currently guide built-in online enhancement configuration
 
 ### Cursor
 
 - maintain `~/.cursor/settings.json`
-- add local provider / MCP configuration as needed
+- add local provider and host-side capability configuration as needed
 
 ### Windsurf
 
@@ -79,7 +79,7 @@ Then use [`opencode-path.en.md`](./opencode-path.en.md) for the preview-adapter 
 
 - confirm the preview payload under `OPENCODE_HOME` or the real host root `~/.config/opencode`
 - the real `~/.config/opencode/opencode.json` remains host-managed
-- keep the real `opencode.json`, provider credentials, plugin installation, and MCP trust host-managed
+- keep the real `opencode.json`, provider credentials, plugin installation, and online capability authorization host-managed
 - use `./.opencode` when you want a project-local isolated target
 
 ## What This Path Does Not Complete Automatically

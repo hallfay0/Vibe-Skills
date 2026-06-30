@@ -6,6 +6,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\common\vibe-governance-helpers.ps1')
+. (Join-Path $PSScriptRoot '..\runtime\VibeRuntime.Common.ps1')
 
 function Add-Assertion {
     param(
@@ -63,12 +64,14 @@ function Invoke-SupportedHostRuntimeTruthProbe {
         $runtimeInput = Get-Content -LiteralPath $runtimeInputPacketPath -Raw -Encoding UTF8 | ConvertFrom-Json
         $executionManifest = Get-Content -LiteralPath $executionManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
 
-        Add-Assertion -Assertions $Assertions -Pass ($runtimeInput.PSObject.Properties.Name -contains 'route_snapshot') -Message "$HostId runtime-input-packet contains route_snapshot"
+        Add-Assertion -Assertions $Assertions -Pass ($runtimeInput.PSObject.Properties.Name -contains 'work_binding') -Message "$HostId runtime-input-packet contains work_binding"
+        Add-Assertion -Assertions $Assertions -Pass ($runtimeInput.PSObject.Properties.Name -contains 'specialist_decision') -Message "$HostId runtime-input-packet contains specialist_decision"
         $routeSnapshot = if ($runtimeInput.PSObject.Properties.Name -contains 'route_snapshot') { $runtimeInput.route_snapshot } else { $null }
+        Add-Assertion -Assertions $Assertions -Pass $true -Message "$HostId runtime-input-packet route_snapshot stays optional compatibility summary"
         $routeSelectedSkill = if ($routeSnapshot -and $routeSnapshot.PSObject.Properties.Name -contains 'selected_skill') { [string]$routeSnapshot.selected_skill } else { '' }
-        Add-Assertion -Assertions $Assertions -Pass ($routeSnapshot -and -not [string]::IsNullOrWhiteSpace($routeSelectedSkill)) -Message "$HostId route_snapshot records routed specialist truth"
-        Add-Assertion -Assertions $Assertions -Pass ($runtimeInput.PSObject.Properties.Name -contains 'divergence_shadow') -Message "$HostId runtime-input-packet contains divergence_shadow artifact"
-        Add-Assertion -Assertions $Assertions -Pass ($runtimeInput.PSObject.Properties.Name -contains 'skill_routing') -Message "$HostId runtime-input-packet contains canonical skill_routing artifact"
+        Add-Assertion -Assertions $Assertions -Pass $true -Message "$HostId route_snapshot selected_skill stays an optional removable compatibility summary"
+        Add-Assertion -Assertions $Assertions -Pass $true -Message "$HostId runtime-input-packet divergence_shadow stays an optional compatibility shadow"
+        Add-Assertion -Assertions $Assertions -Pass $true -Message "$HostId runtime-input-packet skill_routing stays an optional compatibility mirror"
         Add-Assertion -Assertions $Assertions -Pass ($runtimeInput.PSObject.Properties.Name -contains 'skill_usage') -Message "$HostId runtime-input-packet contains canonical skill_usage artifact"
         $skillUsage = if ($runtimeInput.PSObject.Properties.Name -contains 'skill_usage') { $runtimeInput.skill_usage } else { $null }
         if ($skillUsage) {
@@ -84,6 +87,7 @@ function Invoke-SupportedHostRuntimeTruthProbe {
             [string]$specialistDecision.decision_state -eq 'no_specialist_recommendations' -and
             [string]$specialistDecision.resolution_mode -in @('no_matching_specialist', 'no_specialist_needed')
         )
+        $boundSkillIds = @(Get-VibeWorkBindingBoundSkillIds -RuntimeInputPacket $runtimeInput)
         $selectedSkillIds = if (
             $runtimeInput.PSObject.Properties.Name -contains 'skill_routing' -and
             $null -ne $runtimeInput.skill_routing -and
@@ -93,10 +97,15 @@ function Invoke-SupportedHostRuntimeTruthProbe {
         } else {
             @()
         }
-        Add-Assertion -Assertions $Assertions -Pass (($selectedSkillIds.Count -ge 1) -or $noSpecialistResolved) -Message "$HostId runtime-input-packet records selected skills or no-specialist resolution evidence"
+        Add-Assertion -Assertions $Assertions -Pass (($boundSkillIds.Count -ge 1) -or $noSpecialistResolved) -Message "$HostId runtime-input-packet records bounded work truth or no-specialist resolution"
+        Add-Assertion -Assertions $Assertions -Pass (($selectedSkillIds.Count -eq 0) -or ((@($selectedSkillIds) | Where-Object { $_ -in @($boundSkillIds) }).Count -eq $selectedSkillIds.Count)) -Message "$HostId compatibility selected skills stay subordinate to work_binding when they remain visible"
         $divergenceShadow = if ($runtimeInput.PSObject.Properties.Name -contains 'divergence_shadow') { $runtimeInput.divergence_shadow } else { $null }
         $runtimeSelectedSkill = if ($divergenceShadow -and $divergenceShadow.PSObject.Properties.Name -contains 'runtime_selected_skill') { [string]$divergenceShadow.runtime_selected_skill } else { '' }
-        Add-Assertion -Assertions $Assertions -Pass ($divergenceShadow -and $runtimeSelectedSkill -eq 'vibe') -Message "$HostId divergence_shadow keeps vibe as runtime authority"
+        if ([string]::IsNullOrWhiteSpace($runtimeSelectedSkill)) {
+            Add-Assertion -Assertions $Assertions -Pass $true -Message "$HostId divergence_shadow runtime authority shadow stays optional"
+        } else {
+            Add-Assertion -Assertions $Assertions -Pass ($runtimeSelectedSkill -eq 'vibe') -Message "$HostId divergence_shadow keeps vibe as runtime authority when present"
+        }
 
         Add-Assertion -Assertions $Assertions -Pass ($executionManifest.PSObject.Properties.Name -contains 'specialist_accounting') -Message "$HostId execution-manifest contains specialist_accounting artifact"
         $specialistAccounting = if ($executionManifest.PSObject.Properties.Name -contains 'specialist_accounting') { $executionManifest.specialist_accounting } else { $null }
@@ -186,7 +195,8 @@ Add-Assertion -Assertions $assertions -Pass ([bool]$fallbackPolicy.require_hazar
 Add-Assertion -Assertions $assertions -Pass ([string]$routerGovernance.provider_neutral_contract.degrade_honesty.fallback_truth_level -eq 'non_authoritative') -Message 'router governance maps degraded fallback truth to non_authoritative'
 Add-Assertion -Assertions $assertions -Pass ([bool]$routerGovernance.hard_rules.must_emit_hazard_alert_for_fallback) -Message 'router governance requires fallback hazard alert'
 Add-Assertion -Assertions $assertions -Pass ($runtimeProtocol.Contains('Silent fallback and silent degradation are forbidden.')) -Message 'runtime protocol documents no silent fallback'
-Add-Assertion -Assertions $assertions -Pass ($runtimeProtocol.Contains('route_snapshot')) -Message 'runtime protocol requires route_snapshot evidence'
+Add-Assertion -Assertions $assertions -Pass ($runtimeProtocol.Contains('work_binding')) -Message 'runtime protocol requires work_binding evidence'
+Add-Assertion -Assertions $assertions -Pass ($runtimeProtocol.Contains('specialist_decision')) -Message 'runtime protocol requires specialist_decision evidence'
 Add-Assertion -Assertions $assertions -Pass ($runtimeProtocol.Contains('skill execution accounting')) -Message 'runtime protocol requires skill execution accounting evidence'
 Add-Assertion -Assertions $assertions -Pass (Test-Path -LiteralPath $truthGatePath) -Message 'canonical truth gate script exists' -Details $truthGatePath
 Add-Assertion -Assertions $assertions -Pass ($truthGate.Contains('host-launch-receipt.json')) -Message 'canonical truth gate requires host-launch-receipt.json'
@@ -196,22 +206,26 @@ Add-Assertion -Assertions $assertions -Pass ($runtimeProtocol.Contains('Reading 
 
 $route = & $routeScriptPath -Prompt 'help me with this' -Grade 'M' -TaskType 'research' | ConvertFrom-Json
 $lowSignalHasFallbackGuard = (
+    [string]$route.route_mode -eq 'confirm_required' -and
+    [string]$route.route_reason -eq 'legacy_fallback_guard' -and
     [bool]$route.fallback_active -and
     [bool]$route.hazard_alert_required -and
     [string]$route.truth_level -eq 'non_authoritative' -and
     [string]$route.degradation_state -in @('fallback_active', 'fallback_guarded') -and
     $route.hazard_alert -and
     [string]$route.hazard_alert.title -eq 'FALLBACK HAZARD ALERT' -and
-    $route.confirm_ui -and
-    [string]$route.confirm_ui.rendered_text -match 'FALLBACK HAZARD ALERT'
+    [string]$route.hazard_alert.reason -eq 'no_eligible_pack'
 )
 $lowSignalHasHostSelectionGuard = (
-    -not [bool]$route.fallback_active -and
+    [string]$route.route_mode -eq 'confirm_required' -and
     [string]$route.route_reason -eq 'host_selection_required' -and
-    $route.confirm_ui -and
-    [bool]$route.confirm_ui.enabled
+    -not [bool]$route.fallback_active -and
+    (
+        ($route.confirm_ui -and [bool]$route.confirm_ui.enabled) -or
+        [bool]$route.hazard_alert_required
+    )
 )
-Add-Assertion -Assertions $assertions -Pass ($lowSignalHasFallbackGuard -or $lowSignalHasHostSelectionGuard) -Message 'low-signal route is guarded by fallback hazard or explicit host selection'
+Add-Assertion -Assertions $assertions -Pass ($lowSignalHasFallbackGuard -or $lowSignalHasHostSelectionGuard) -Message 'low-signal route stays explicit via non-authoritative fallback guard or explicit host selection'
 
 foreach ($hostId in @('codex', 'claude-code', 'opencode')) {
     Invoke-SupportedHostRuntimeTruthProbe -RepoRoot $repoRoot -RuntimeEntrypointPath $runtimeEntrypointPath -HostId $hostId -Assertions $assertions

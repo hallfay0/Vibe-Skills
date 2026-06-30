@@ -37,7 +37,7 @@ def run_ps_json(script: str) -> dict[str, object]:
     if shell is None:
         raise unittest.SkipTest("PowerShell executable not available")
     result = subprocess.run(
-        [shell, "-NoLogo", "-NoProfile", "-Command", script],
+        [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -151,6 +151,8 @@ class BinarySkillUsageContractTests(unittest.TestCase):
                 shell,
                 "-NoLogo",
                 "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
                 "-File",
                 str(REPO_ROOT / "scripts" / "runtime" / "Freeze-RuntimeInputPacket.ps1"),
                 "-Task",
@@ -166,7 +168,7 @@ class BinarySkillUsageContractTests(unittest.TestCase):
 
             packet_path = next(artifact_root.rglob("runtime-input-packet.json"))
             packet = json.loads(packet_path.read_text(encoding="utf-8"))
-            selected_skill = packet["route_snapshot"]["selected_skill"]
+            selected_skill = packet["work_binding"]["units"][0]["bound_skill"]
             usage = packet["skill_usage"]
 
             self.assertEqual("binary_used_unused", usage["state_model"])

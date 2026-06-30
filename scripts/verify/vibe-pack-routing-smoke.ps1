@@ -78,7 +78,6 @@ $results += Assert-True -Condition (Test-Path -LiteralPath $thresholdPath) -Mess
 $results += Assert-True -Condition (Test-Path -LiteralPath $skillKeywordIndexPath) -Message "skill-keyword-index.json exists"
 $results += Assert-True -Condition (Test-Path -LiteralPath $routingRulesPath) -Message "skill-routing-rules.json exists"
 $results += Assert-True -Condition (Test-Path -LiteralPath $deepDiscoveryPolicyPath) -Message "deep-discovery-policy.json exists"
-$results += Assert-True -Condition (Test-Path -LiteralPath $capabilityCatalogPath) -Message "capability-catalog.json exists"
 $results += Assert-True -Condition (Test-Path -LiteralPath $heartbeatPolicyPath) -Message "heartbeat-policy.json exists"
 $results += Assert-True -Condition (Test-Path -LiteralPath $dialecticTeamPolicyPath) -Message "dialectic-team-policy.json exists"
 $results += Assert-True -Condition (Test-Path -LiteralPath $dailyDialecticGuardPath) -Message "daily-dialectic-guard.json exists"
@@ -135,7 +134,13 @@ $deletedSkillIds = @(
     "bgpt-paper-search"
 )
 $deepDiscoveryPolicy = Get-Content -LiteralPath $deepDiscoveryPolicyPath -Raw -Encoding UTF8 | ConvertFrom-Json
-$capabilityCatalog = Get-Content -LiteralPath $capabilityCatalogPath -Raw -Encoding UTF8 | ConvertFrom-Json
+$deepDiscoveryEnabled = [bool]($deepDiscoveryPolicy.enabled -ne $false -and [string]$deepDiscoveryPolicy.mode -ne "off")
+$capabilityCatalog = if ($deepDiscoveryEnabled -and (Test-Path -LiteralPath $capabilityCatalogPath)) {
+    Get-Content -LiteralPath $capabilityCatalogPath -Raw -Encoding UTF8 | ConvertFrom-Json
+} else {
+    $null
+}
+$results += Assert-True -Condition ((-not $deepDiscoveryEnabled) -or (Test-Path -LiteralPath $capabilityCatalogPath)) -Message "capability-catalog.json exists when deep discovery is active"
 $heartbeatPolicy = Get-Content -LiteralPath $heartbeatPolicyPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $dialecticTeamPolicy = Get-Content -LiteralPath $dialecticTeamPolicyPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $dailyDialecticGuard = Get-Content -LiteralPath $dailyDialecticGuardPath -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -234,7 +239,11 @@ foreach ($skill in $deletedSkillIds) {
     $results += Assert-True -Condition (-not ($routingRules.skills.PSObject.Properties.Name -contains $skill)) -Message "deleted skill '$skill' absent from routing rules"
 }
 $results += Assert-True -Condition ($deepDiscoveryPolicy.mode -ne $null) -Message "deep discovery mode configured"
-$results += Assert-True -Condition ((@($capabilityCatalog.capabilities).Count -gt 0)) -Message "capability catalog contains entries"
+if ($deepDiscoveryEnabled) {
+    $results += Assert-True -Condition ((@($capabilityCatalog.capabilities).Count -gt 0)) -Message "capability catalog contains entries when deep discovery is active"
+} else {
+    $results += Assert-True -Condition $true -Message "capability catalog not required when deep discovery is off"
+}
 $results += Assert-True -Condition ($heartbeatPolicy.mode -ne $null) -Message "heartbeat mode configured"
 $results += Assert-True -Condition ($heartbeatPolicy.timers.hard_stall_silence_sec -ne $null) -Message "heartbeat hard stall threshold configured"
 $results += Assert-True -Condition ($heartbeatPolicy.timers.user_brief_interval_sec -ne $null) -Message "heartbeat brief interval configured"

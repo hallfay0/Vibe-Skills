@@ -1152,11 +1152,7 @@ $skillUsage = if ($runtimeInputPacket -and $runtimeInputPacket.PSObject.Properti
 } else {
     Read-VibeSkillUsageArtifact -SessionRoot $sessionRoot -Fallback $null
 }
-$selectedUsageSkill = if ($runtimeInputPacket -and $runtimeInputPacket.route_snapshot) {
-    [string]$runtimeInputPacket.route_snapshot.selected_skill
-} else {
-    ''
-}
+$selectedUsageSkill = Get-VibePrimaryBoundSkillId -RuntimeInputPacket $runtimeInputPacket
 if ($skillUsage -and -not [string]::IsNullOrWhiteSpace($selectedUsageSkill)) {
     $skillUsage = Update-VibeSkillUsageArtifactImpact `
         -SkillUsage $skillUsage `
@@ -1276,7 +1272,7 @@ if ($hasCanonicalSelectedSkills) {
         auto_absorb_gate = [pscustomobject]@{
             enabled = $false
             receipt_path = $null
-            reason = if ($hasActiveSkillExecutionLock) { 'skill_execution_lock_is_authority' } else { 'skill_routing_selected_is_authority' }
+            reason = if ($hasActiveSkillExecutionLock) { 'skill_execution_lock_is_authority' } else { 'preselected_bounded_work_is_authority' }
         }
         escalation_required = $false
         approval_owner = 'root'
@@ -2067,7 +2063,6 @@ $executionManifest = [pscustomobject]@{
         auto_selected_skill_execution = @($autoSelectedSkillExecution)
         skill_execution_lock = $skillExecutionLock
         skill_execution_lock_active = [bool]$hasActiveSkillExecutionLock
-        skill_execution_lock_summary = New-VibeSkillExecutionLockSummaryProjection -SkillExecutionLock $skillExecutionLock
         specialist_lock_resolution = $specialistLockResolution
         requested_host_adapter_id = $runtimePacketHostAdapterIdentity.requested_host_id
         effective_host_adapter_id = $runtimePacketHostAdapterIdentity.effective_host_id

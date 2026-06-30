@@ -51,7 +51,7 @@ class DiscoverableWrapperHostVisibilityTests(unittest.TestCase):
                     names = payload_summary.get("host_visible_entry_names") or []
                     self.assertGreaterEqual(len(names), 1, host_id)
                     self.assertIn("vibe", names, host_id)
-                    self.assertEqual(int(payload_summary.get("host_visible_entry_count") or 0), len(names), host_id)
+                    self.assertNotIn("host_visible_entry_count", payload_summary, host_id)
                     self.assertTrue(EXPECTED_DISCOVERABLE_ENTRIES.issubset(set(names)), host_id)
                     self.assertTrue((target_root / "skills" / "vibe-upgrade" / "SKILL.md").exists(), host_id)
                     self.assertFalse((target_root / "commands" / "vibe-upgrade.md").exists(), host_id)

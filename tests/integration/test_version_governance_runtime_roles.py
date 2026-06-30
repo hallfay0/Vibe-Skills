@@ -96,7 +96,7 @@ def test_required_runtime_marker_groups_keep_owners_separate_from_compatibility(
     assert "apps/vgo-cli/src/vgo_cli/skill_surface.py" in semantic_owners
     assert "apps/vgo-cli/src/vgo_cli/core_bridge.py" in semantic_owners
     assert "packages/installer-core/src/vgo_installer/install_runtime.py" in semantic_owners
-    assert "packages/runtime-core/src/vgo_runtime/router_bridge.py" in semantic_owners
+    assert "packages/runtime-core/src/vgo_runtime/runtime_bridge.py" in semantic_owners
 
     assert "scripts/runtime/Invoke-SkeletonCheck.ps1" in runtime_support
     assert "scripts/runtime/Invoke-DeepInterview.ps1" in runtime_support

@@ -39,10 +39,10 @@ def test_run_optional_install_uses_bounded_timeout_and_does_not_raise(
 
     monkeypatch.setattr(cli_external.subprocess, 'run', fake_run)
 
-    cli_external._run_optional_install(['npm', 'install', '-g', 'claude-flow'])
+    cli_external._run_optional_install(['npm', 'install', '-g', '@th0rgal/ralph-wiggum'])
 
     assert recorded == {
-        'command': ['npm', 'install', '-g', 'claude-flow'],
+        'command': ['npm', 'install', '-g', '@th0rgal/ralph-wiggum'],
         'capture_output': True,
         'text': True,
         'timeout': cli_external.OPTIONAL_INSTALL_TIMEOUT_SECONDS,

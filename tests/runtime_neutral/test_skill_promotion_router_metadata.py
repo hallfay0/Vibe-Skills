@@ -53,6 +53,8 @@ def run_route(prompt: str, *, repo_root: Path = REPO_ROOT) -> dict[str, object]:
             shell,
             "-NoLogo",
             "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
             "-File",
             str(route_script),
             "-Prompt",
@@ -82,6 +84,8 @@ def run_helper_json(script_body: str) -> dict[str, object]:
             shell,
             "-NoLogo",
             "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
             "-Command",
             script_body,
         ],
@@ -151,13 +155,7 @@ class SkillPromotionRouterMetadataTests(unittest.TestCase):
         self.assertFalse(selected["rollback_possible"])
         self.assertTrue(selected["contract_complete"])
         self.assertEqual("auto_dispatch", selected["recommended_promotion_action"])
-
-        option = get_selected_option(route)
-        self.assertEqual("scikit-learn", option["skill"])
-        self.assertTrue(option["promotion_eligible"])
-        self.assertFalse(option["destructive"])
-        self.assertTrue(option["contract_complete"])
-        self.assertEqual("auto_dispatch", option["recommended_promotion_action"])
+        self.assertNotIn("confirm_ui", route)
 
     def test_destructive_prompt_exposes_confirmation_gated_promotion_metadata(self) -> None:
         route = run_route(DESTRUCTIVE_PROMPT)

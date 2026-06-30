@@ -24,7 +24,7 @@
 
 - `enabled`, `mode`（`off|shadow|soft|strict`）
 - `activation.explicit_vibe_only`
-- `scope.{grade_allow, task_allow, route_mode_allow}`
+- `scope.{grade_allow, task_allow}`
 - `trigger.{require_prompt_signal, require_explicit_intent, max_queries, max_candidates}`
 - `provider`（OpenAI Responses/ChatCompletions：`model/base_url/timeout/max_output_tokens`）
 - `output.max_prompt_chars_per_candidate`（避免上下文腐烂）

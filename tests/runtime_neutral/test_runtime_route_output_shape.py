@@ -112,7 +112,7 @@ def run_powershell_old_manifest_candidate_probe(testcase: unittest.TestCase) -> 
         "$result | ConvertTo-Json -Depth 5"
     )
     completed = subprocess.run(
-        [shell, "-NoLogo", "-NoProfile", "-Command", script],
+        [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -210,6 +210,8 @@ class RuntimeRouteOutputShapeTests(unittest.TestCase):
                         shell,
                         "-NoLogo",
                         "-NoProfile",
+                        "-ExecutionPolicy",
+                        "Bypass",
                         "-File",
                         str(script_path),
                         "-Prompt",

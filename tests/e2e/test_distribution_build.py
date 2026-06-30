@@ -32,12 +32,17 @@ def test_distribution_build_creates_generated_outputs(tmp_path) -> None:
     manifest = assembler.assemble_distribution(dist_out, host_id='codex', profile='minimal')
     assert manifest_path.exists()
     payload = json.loads(manifest_path.read_text(encoding='utf-8'))
+    runtime_core_manifest = Path(payload['inputs']['runtime_core_manifest']).as_posix()
+    runtime_script_manifest = Path(payload['inputs']['runtime_script_manifest']).as_posix()
+    runtime_config_manifest = Path(payload['inputs']['runtime_config_manifest']).as_posix()
+    skill_source_root = Path(payload['inputs']['skill_source_root']).as_posix()
+    runtime_config_source_manifest = Path(payload['runtime_config_payload_roles']['source_manifest']).as_posix()
     assert payload['generated'] is True
-    assert payload['inputs']['runtime_core_manifest'].endswith('config/runtime-core-packaging.minimal.json')
-    assert payload['inputs']['runtime_script_manifest'].endswith('config/runtime-script-manifest.json')
-    assert payload['inputs']['runtime_config_manifest'].endswith('config/runtime-config-manifest.json')
+    assert runtime_core_manifest.endswith('config/runtime-core-packaging.minimal.json')
+    assert runtime_script_manifest.endswith('config/runtime-script-manifest.json')
+    assert runtime_config_manifest.endswith('config/runtime-config-manifest.json')
     assert payload['inputs']['skill_catalog_owner'] == 'skill-catalog'
-    assert payload['inputs']['skill_source_root'].endswith('catalog/skills')
+    assert skill_source_root.endswith('catalog/skills')
     role_dirs = payload['runtime_payload_roles']['role_groups']['directories']
     role_files = payload['runtime_payload_roles']['role_groups']['files']
     assert 'packages/runtime-core' in role_dirs['semantic_owners']
@@ -67,7 +72,7 @@ def test_distribution_build_creates_generated_outputs(tmp_path) -> None:
     } == set(role_files['compatibility_shim_files'])
     assert payload['runtime_payload_roles']['notes']['flat_projection_contract']
     config_role_groups = payload['runtime_config_payload_roles']['role_groups']
-    assert payload['runtime_config_payload_roles']['source_manifest'].endswith('config/runtime-config-manifest.json')
+    assert runtime_config_source_manifest.endswith('config/runtime-config-manifest.json')
     assert config_role_groups['directories']['managed_runtime_config_roots'] == []
     assert {
         'config/runtime-config-manifest.json',
@@ -79,11 +84,14 @@ def test_distribution_build_creates_generated_outputs(tmp_path) -> None:
     assert payload['runtime_config_payload_roles']['notes']['flat_projection_contract']
     governance_roles = payload['governance_runtime_roles']
     assert governance_roles['runtime_payload_roles']['notes']['flat_projection_contract']
-    assert 'packages/runtime-core/src/vgo_runtime/router_bridge.py' in governance_roles['required_runtime_marker_groups']['semantic_owners']
+    assert 'packages/runtime-core/src/vgo_runtime/runtime_bridge.py' in governance_roles['required_runtime_marker_groups']['semantic_owners']
     runtime_core_roles = payload['runtime_core_payload_roles']['payload_roles']
-    assert runtime_core_roles['delivery_model']['bundled_skill_mode'] == 'hidden_allowlist_internal_corpus_plus_canonical_vibe'
+    assert 'surface_contracts' not in runtime_core_roles
+    assert runtime_core_roles['copy_directories']['active_sources'] == [{'source': 'commands', 'target': 'commands'}]
     assert (dist_out / 'catalog' / 'profiles' / 'index.json').exists()
-    assert (dist_out / 'catalog' / 'skills' / 'brainstorming' / 'SKILL.md').exists()
+    assert (dist_out / 'catalog' / 'skills' / 'systematic-debugging' / 'SKILL.md').exists()
+    assert not (dist_out / 'catalog' / 'skills' / 'brainstorming').exists()
+    assert not (dist_out / 'catalog' / 'skills' / 'scikit-learn').exists()
 
     bundle = bundle_builder.build_release_bundle(manifest_path, tmp_path / 'bundle-out')
     assert bundle_path.exists()
@@ -94,5 +102,5 @@ def test_distribution_build_creates_generated_outputs(tmp_path) -> None:
     assert bundle_payload['runtime_config_payload_roles']['notes']['flat_projection_contract']
     assert bundle_payload['runtime_config_payload_roles']['role_groups']['directories']['preview_host_config_roots'] == []
     assert bundle_payload['governance_runtime_roles']['required_runtime_marker_notes']['flat_projection_contract']
-    assert bundle_payload['runtime_core_payload_roles']['payload_roles']['delivery_model']['bundled_skill_mode'] == 'hidden_allowlist_internal_corpus_plus_canonical_vibe'
+    assert 'surface_contracts' not in bundle_payload['runtime_core_payload_roles']['payload_roles']
     assert bundle['host_id'] == manifest['host_id']

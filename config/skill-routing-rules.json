@@ -3163,13 +3163,18 @@
         "frontend implementation",
         "Figma 设计稿",
         "figma设计稿",
+        "Figma MCP",
+        "figma mcp",
+        "node id",
         "设计稿还原",
+        "设计稿实现",
         "还原设计稿",
         "还原为可运行代码",
         "可运行代码",
         "设计转代码",
         "按figma开发",
         "按 Figma 开发",
+        "前端组件",
         "UI还原"
       ],
       "negative_keywords": [

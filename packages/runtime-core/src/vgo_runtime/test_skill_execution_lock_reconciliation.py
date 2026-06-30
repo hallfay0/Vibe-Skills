@@ -283,7 +283,7 @@ def test_previous_locked_skill_ids_without_dispatch_are_preserved():
     assert dispatch["reconciliation_state"] == "inherited_not_currently_surfaced"
 
 
-def test_lock_summary_derives_ids_from_locked_dispatch_when_id_list_missing():
+def test_locked_skill_ids_derive_from_locked_dispatch_when_id_list_missing():
     result = _run_projection(
         r"""
         $lock = [pscustomobject]@{
@@ -294,11 +294,12 @@ def test_lock_summary_derives_ids_from_locked_dispatch_when_id_list_missing():
             )
             resolution_required = $true
         }
-        $summary = New-VibeSkillExecutionLockSummaryProjection -SkillExecutionLock $lock
-        $summary | ConvertTo-Json -Depth 20
+        [pscustomobject]@{
+            active = Test-VibeSkillExecutionLockActive -SkillExecutionLock $lock
+            locked_skill_ids = @(Get-VibeSkillExecutionLockSkillIds -SkillExecutionLock $lock)
+        } | ConvertTo-Json -Depth 20
         """
     )
 
     assert result["active"] is True
-    assert result["locked_skill_count"] == 1
     assert result["locked_skill_ids"] == ["scientific-writing"]

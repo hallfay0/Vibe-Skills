@@ -124,6 +124,8 @@ def run_workspace_memory_common_json(
             shell,
             "-NoLogo",
             "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
             "-Command",
             (
                 "& { "
@@ -300,6 +302,8 @@ class WorkspaceSharedMemoryPlaneTests(unittest.TestCase):
                 shell,
                 "-NoLogo",
                 "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
                 "-Command",
                 (
                     "& { "
@@ -380,6 +384,8 @@ class WorkspaceSharedMemoryPlaneTests(unittest.TestCase):
                     shell,
                     "-NoLogo",
                     "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
                     "-Command",
                     (
                         "& { "

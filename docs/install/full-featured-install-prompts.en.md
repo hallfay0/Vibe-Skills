@@ -27,7 +27,7 @@ If you are installing or updating now, go back to the single public entry first:
 ## About Follow-Up Configuration
 
 - the base install can be used directly once it succeeds
-- if you later add online providers, MCP, CLI helpers, or host-local settings, treat them as optional enhancements rather than proof that the base install failed
+- if you later add online providers, host-side enhancements, CLI helpers, or host-local settings, treat them as optional enhancements rather than proof that the base install failed
 - the prompt docs and references still describe truthfully which capabilities remain host-managed
 
 ## Related Docs

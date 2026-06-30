@@ -31,6 +31,8 @@ def _run_truth_gate(session_root: Path) -> subprocess.CompletedProcess[str]:
             powershell,
             "-NoLogo",
             "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
             "-File",
             str(TRUTH_GATE),
             "-SessionRoot",
@@ -48,10 +50,37 @@ def _write_valid_canonical_entry_artifacts(
     entry_intent_id: str = "vibe",
     canonical_router_requested_skill: str | None = None,
     router_selected_skill: str = "systematic-debugging",
+    route_task_type: str = "debug",
     requested_stage_stop: str = "phase_cleanup",
     interactive_pause: dict[str, object] | None = None,
     terminal_stage: str | None = None,
 ) -> None:
+    canonical_router = {
+        "host_id": "codex",
+        "prompt": "validate proof",
+        "route_script_path": "scripts/router/resolve-pack-route.ps1",
+        "target_root": "/tmp/target",
+        "unattended": False,
+    }
+    if canonical_router_requested_skill is not None:
+        canonical_router["requested_skill"] = canonical_router_requested_skill
+
+    route_snapshot = {
+        "selected_pack": "vibe",
+        "task_type": route_task_type,
+        "route_mode": "governed",
+        "route_reason": "explicit vibe invocation",
+        "confirm_required": False,
+        "confidence": 1.0,
+        "truth_level": "authoritative",
+        "degradation_state": "none",
+        "non_authoritative": False,
+        "fallback_active": False,
+        "hazard_alert_required": False,
+        "unattended_override_applied": False,
+        "custom_admission_status": "not_required",
+    }
+
     _write_json(
         session_root / "host-launch-receipt.json",
         {
@@ -73,35 +102,33 @@ def _write_valid_canonical_entry_artifacts(
             "entry_intent_id": entry_intent_id,
             "requested_stage_stop": requested_stage_stop,
             "interactive_pause": interactive_pause,
-            "canonical_router": {
-                "host_id": "codex",
-                "prompt": "validate proof",
-                "requested_skill": canonical_router_requested_skill,
-                "route_script_path": "scripts/router/resolve-pack-route.ps1",
-                "target_root": "/tmp/target",
-                "task_type": "debug",
-                "unattended": False,
-            },
-            "route_snapshot": {
-                "selected_pack": "vibe",
-                "selected_skill": router_selected_skill,
-                "route_mode": "governed",
-                "route_reason": "explicit vibe invocation",
-                "confirm_required": False,
-                "confidence": 1.0,
-                "truth_level": "authoritative",
-                "degradation_state": "none",
-                "non_authoritative": False,
-                "fallback_active": False,
-                "hazard_alert_required": False,
-                "unattended_override_applied": False,
-                "custom_admission_status": "not_required",
-            },
+            "canonical_router": canonical_router,
+            "route_snapshot": route_snapshot,
             "skill_routing": {
                 "schema_version": "simplified_skill_routing_v1",
                 "candidates": [{"skill_id": router_selected_skill}],
                 "selected": [{"skill_id": router_selected_skill, "skill_md_path": "skills/systematic-debugging/SKILL.md"}],
                 "rejected": [],
+            },
+            "work_binding": {
+                "schema_version": "runtime_work_binding_v1",
+                "source": "approved_dispatch",
+                "task": "validate proof",
+                "run_id": "pytest-truth-gate",
+                "unit_count": 1,
+                "status": "projected_from_approved_dispatch",
+                "units": [
+                    {
+                        "work_unit_id": "runtime-bound-skill-1",
+                        "bound_skill": router_selected_skill,
+                        "task_slice": "Use systematic-debugging for bounded specialist work.",
+                        "skill_md_path": "skills/systematic-debugging/SKILL.md",
+                        "native_skill_entrypoint": None,
+                        "dispatch_phase": "in_execution",
+                        "bounded_role": "selected_skill",
+                        "binding_profile": "selected_skill",
+                    }
+                ],
             },
             "skill_usage": {
                 "state_model": "binary_used_unused",
@@ -119,8 +146,6 @@ def _write_valid_canonical_entry_artifacts(
             },
             "divergence_shadow": {
                 "skill_mismatch": entry_intent_id != "vibe",
-                "router_selected_skill": router_selected_skill,
-                "runtime_selected_skill": "vibe",
                 "confirm_required": False,
                 "governance_scope_mismatch": False,
                 "explicit_runtime_override_applied": False,
@@ -223,11 +248,26 @@ def test_truth_gate_rejects_missing_runtime_packet_proof_fields(tmp_path: Path) 
     combined = result.stdout + result.stderr
     assert result.returncode != 0
     assert "route_snapshot" in combined
-    assert "skill_routing" in combined
-    assert "divergence_shadow" in combined
+    assert "work_binding" in combined
+    assert "specialist_decision" in combined
 
 
-def test_truth_gate_reports_missing_route_snapshot_without_unbound_selected_skill_crash(tmp_path: Path) -> None:
+def test_truth_gate_rejects_missing_specialist_decision(tmp_path: Path) -> None:
+    session_root = tmp_path / "session"
+    _write_valid_canonical_entry_artifacts(session_root)
+    runtime_packet_path = session_root / "runtime-input-packet.json"
+    runtime_packet = json.loads(runtime_packet_path.read_text(encoding="utf-8"))
+    runtime_packet.pop("specialist_decision", None)
+    _write_json(runtime_packet_path, runtime_packet)
+
+    result = _run_truth_gate(session_root)
+
+    combined = result.stdout + result.stderr
+    assert result.returncode != 0
+    assert "specialist_decision" in combined
+
+
+def test_truth_gate_accepts_missing_route_snapshot_packet_summary(tmp_path: Path) -> None:
     session_root = tmp_path / "session"
     _write_valid_canonical_entry_artifacts(session_root)
     runtime_packet_path = session_root / "runtime-input-packet.json"
@@ -237,11 +277,22 @@ def test_truth_gate_reports_missing_route_snapshot_without_unbound_selected_skil
 
     result = _run_truth_gate(session_root)
 
-    combined = result.stdout + result.stderr
-    assert result.returncode != 0
-    assert "route_snapshot" in combined
-    assert "cannot be retrieved because it has not been set" not in combined
-    assert "selectedSkill" not in combined
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "[PASS] runtime packet route_snapshot stays optional compatibility control summary" in result.stdout
+
+
+def test_truth_gate_accepts_missing_canonical_router_compatibility_mirror(tmp_path: Path) -> None:
+    session_root = tmp_path / "session"
+    _write_valid_canonical_entry_artifacts(session_root)
+    runtime_packet_path = session_root / "runtime-input-packet.json"
+    runtime_packet = json.loads(runtime_packet_path.read_text(encoding="utf-8"))
+    runtime_packet.pop("canonical_router", None)
+    _write_json(runtime_packet_path, runtime_packet)
+
+    result = _run_truth_gate(session_root)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "[PASS] runtime packet canonical_router stays optional compatibility mirror" in result.stdout
 
 
 def test_truth_gate_rejects_missing_entry_intent_id(tmp_path: Path) -> None:
@@ -306,7 +357,7 @@ def test_truth_gate_accepts_verified_canonical_entry_session(tmp_path: Path) -> 
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert "[PASS] host-launch-receipt.json exists" in result.stdout
-    assert "[PASS] runtime packet includes route_snapshot" in result.stdout
+    assert "[PASS] runtime packet route_snapshot stays an optional compatibility control summary" in result.stdout
 
 
 def test_truth_gate_accepts_current_skill_routing_without_legacy_fields(tmp_path: Path) -> None:
@@ -316,8 +367,9 @@ def test_truth_gate_accepts_current_skill_routing_without_legacy_fields(tmp_path
     result = _run_truth_gate(session_root)
 
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "[PASS] runtime packet includes skill_routing" in result.stdout
-    assert "[PASS] runtime packet exposes canonical skill_routing.selected" in result.stdout
+    assert "[PASS] runtime packet skill_routing stays an optional compatibility shell" in result.stdout
+    assert "[PASS] runtime packet includes work_binding" in result.stdout
+    assert "[PASS] runtime packet exposes kernel-native work_binding" in result.stdout
 
 
 def test_truth_gate_accepts_fallback_skill_usage_shape(tmp_path: Path) -> None:
@@ -339,6 +391,20 @@ def test_truth_gate_accepts_fallback_skill_usage_shape(tmp_path: Path) -> None:
     assert "[PASS] runtime packet skill_usage includes used/unused or used_skills/unused_skills" in result.stdout
 
 
+def test_truth_gate_accepts_missing_skill_usage_packet_mirror(tmp_path: Path) -> None:
+    session_root = tmp_path / "session"
+    _write_valid_canonical_entry_artifacts(session_root)
+    runtime_packet_path = session_root / "runtime-input-packet.json"
+    runtime_packet = json.loads(runtime_packet_path.read_text(encoding="utf-8"))
+    runtime_packet.pop("skill_usage", None)
+    _write_json(runtime_packet_path, runtime_packet)
+
+    result = _run_truth_gate(session_root)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "[PASS] runtime packet skill_usage stays optional packet proof mirror" in result.stdout
+
+
 def test_truth_gate_accepts_presentational_entry_intent_with_canonical_authority(tmp_path: Path) -> None:
     session_root = tmp_path / "session"
     _write_valid_canonical_entry_artifacts(
@@ -350,6 +416,87 @@ def test_truth_gate_accepts_presentational_entry_intent_with_canonical_authority
     result = _run_truth_gate(session_root)
 
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "[PASS] runtime packet canonical_router keeps routing authority on canonical vibe" in result.stdout
+    assert "[PASS] runtime packet canonical_router stays an optional compatibility host-launch mirror" in result.stdout
     assert "[PASS] runtime packet preserves entry_intent_id independently from router authority" in result.stdout
-    assert "[PASS] runtime packet route_snapshot records routed specialist truth" in result.stdout
+
+
+def test_truth_gate_accepts_legacy_canonical_router_requested_skill_when_work_truth_is_intact(
+    tmp_path: Path,
+) -> None:
+    session_root = tmp_path / "session"
+    _write_valid_canonical_entry_artifacts(
+        session_root,
+        canonical_router_requested_skill="scientific-reporting",
+    )
+
+    result = _run_truth_gate(session_root)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "[PASS] runtime packet canonical_router stays an optional compatibility host-launch mirror" in result.stdout
+
+
+def test_truth_gate_accepts_missing_route_snapshot_task_type_when_work_truth_is_intact(
+    tmp_path: Path,
+) -> None:
+    session_root = tmp_path / "session"
+    _write_valid_canonical_entry_artifacts(session_root)
+    runtime_packet_path = session_root / "runtime-input-packet.json"
+    runtime_packet = json.loads(runtime_packet_path.read_text(encoding="utf-8"))
+    runtime_packet["route_snapshot"]["task_type"] = ""
+    _write_json(runtime_packet_path, runtime_packet)
+
+    result = _run_truth_gate(session_root)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "[PASS] runtime packet route_snapshot stays an optional compatibility control summary" in result.stdout
+
+
+def test_truth_gate_accepts_missing_route_snapshot_selected_skill_when_skill_routing_preserves_selection(
+    tmp_path: Path,
+) -> None:
+    session_root = tmp_path / "session"
+    _write_valid_canonical_entry_artifacts(session_root)
+    runtime_packet_path = session_root / "runtime-input-packet.json"
+    runtime_packet = json.loads(runtime_packet_path.read_text(encoding="utf-8"))
+    runtime_packet["route_snapshot"]["selected_skill"] = ""
+    _write_json(runtime_packet_path, runtime_packet)
+
+    result = _run_truth_gate(session_root)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "[PASS] runtime packet skill_routing stays an optional compatibility shell" in result.stdout
+    assert "[PASS] runtime packet route_snapshot selected_skill stays a removable optional compatibility summary" in result.stdout
+
+
+def test_truth_gate_accepts_missing_skill_routing_when_work_binding_preserves_selection(
+    tmp_path: Path,
+) -> None:
+    session_root = tmp_path / "session"
+    _write_valid_canonical_entry_artifacts(session_root)
+    runtime_packet_path = session_root / "runtime-input-packet.json"
+    runtime_packet = json.loads(runtime_packet_path.read_text(encoding="utf-8"))
+    runtime_packet.pop("skill_routing", None)
+    _write_json(runtime_packet_path, runtime_packet)
+
+    result = _run_truth_gate(session_root)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "[PASS] runtime packet includes work_binding" in result.stdout
+    assert "[PASS] runtime packet records work_binding or no-specialist resolution" in result.stdout
+    assert "[PASS] runtime packet skill_routing stays optional compatibility mirror" in result.stdout
+
+
+def test_truth_gate_accepts_missing_divergence_shadow_compatibility_mirror(
+    tmp_path: Path,
+) -> None:
+    session_root = tmp_path / "session"
+    _write_valid_canonical_entry_artifacts(session_root)
+    runtime_packet_path = session_root / "runtime-input-packet.json"
+    runtime_packet = json.loads(runtime_packet_path.read_text(encoding="utf-8"))
+    runtime_packet.pop("divergence_shadow", None)
+    _write_json(runtime_packet_path, runtime_packet)
+
+    result = _run_truth_gate(session_root)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "[PASS] runtime packet divergence_shadow stays optional compatibility shadow" in result.stdout

@@ -746,7 +746,6 @@ function Set-VgoManagedHostSettings {
         $commandsRoot = Join-Path $TargetRoot 'commands'
         $agentsRoot = Join-Path $TargetRoot 'agents'
         $workflowRoot = Join-Path $TargetRoot 'global_workflows'
-        $mcpConfigPath = Join-Path $TargetRoot 'mcp_config.json'
         if (Test-Path -LiteralPath $commandsRoot -PathType Container) {
             $payload.commands_root = [System.IO.Path]::GetFullPath($commandsRoot)
         }
@@ -755,9 +754,6 @@ function Set-VgoManagedHostSettings {
         }
         if (Test-Path -LiteralPath $workflowRoot -PathType Container) {
             $payload.workflow_root = [System.IO.Path]::GetFullPath($workflowRoot)
-        }
-        if (Test-Path -LiteralPath $mcpConfigPath -PathType Leaf) {
-            $payload.mcp_config = [System.IO.Path]::GetFullPath($mcpConfigPath)
         }
         $payload | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $settingsPath -Encoding UTF8
         Add-VgoCreatedPath -Path $settingsPath
@@ -799,7 +795,6 @@ function Write-VgoHostClosure {
         runtime_skill_entry = [System.IO.Path]::GetFullPath((Join-Path $TargetRoot 'skills\vibe\SKILL.md'))
         commands_root = [System.IO.Path]::GetFullPath($commandsRoot)
         global_workflows_root = [System.IO.Path]::GetFullPath((Join-Path $TargetRoot 'global_workflows'))
-        mcp_config_path = [System.IO.Path]::GetFullPath((Join-Path $TargetRoot 'mcp_config.json'))
         host_closure_state = $closureState
         commands_materialized = (Test-Path -LiteralPath $commandsRoot -PathType Container)
         settings_materialized = @($settingsMaterialized)
@@ -1052,8 +1047,21 @@ function Sync-VgoInternalSkillCorpus {
                 $selected.Add($skillDir.Name) | Out-Null
             }
         }
-    } elseif ($Packaging.PSObject.Properties.Name -contains 'skills_allowlist' -and $null -ne $Packaging.skills_allowlist) {
-        foreach ($name in @($Packaging.skills_allowlist)) {
+    } elseif ($Packaging.PSObject.Properties.Name -contains 'managed_skill_inventory' -and $null -ne $Packaging.managed_skill_inventory) {
+        foreach ($group in @(
+            @($Packaging.managed_skill_inventory.public_entry_skills),
+            @($Packaging.managed_skill_inventory.starter_skill_names),
+            @($Packaging.managed_skill_inventory.optional_skill_names)
+        )) {
+            foreach ($name in $group) {
+                if (-not [string]::IsNullOrWhiteSpace([string]$name) -and -not $excluded.Contains([string]$name)) {
+                    $selected.Add([string]$name) | Out-Null
+                }
+            }
+        }
+    }
+    if ($null -ne $corpus -and $corpus.PSObject.Properties.Name -contains 'resident_skill_names') {
+        foreach ($name in @($corpus.resident_skill_names)) {
             if (-not [string]::IsNullOrWhiteSpace([string]$name) -and -not $excluded.Contains([string]$name)) {
                 $selected.Add([string]$name) | Out-Null
             }
@@ -1329,32 +1337,32 @@ function Install-RuntimeCorePayload {
         return @($sources | Select-Object -Unique)
     }
 
-    $requiredCore = @()
-    $requiredWorkflow = @()
-    $optionalWorkflow = @()
+    $publicEntrySkills = @()
+    $starterSkills = @()
+    $optionalSkills = @()
     if ($packaging.PSObject.Properties.Name -contains 'managed_skill_inventory' -and $null -ne $packaging.managed_skill_inventory) {
-        $requiredCore = @($packaging.managed_skill_inventory.required_runtime_skills)
-        $requiredWorkflow = @($packaging.managed_skill_inventory.required_workflow_skills)
-        $optionalWorkflow = @($packaging.managed_skill_inventory.optional_workflow_skills)
+        $publicEntrySkills = @($packaging.managed_skill_inventory.public_entry_skills)
+        $starterSkills = @($packaging.managed_skill_inventory.starter_skill_names)
+        $optionalSkills = @($packaging.managed_skill_inventory.optional_skill_names)
     }
 
     $externalFallbackUsed = New-Object System.Collections.Generic.List[string]
     $missingRequiredSkills = New-Object System.Collections.Generic.List[string]
 
-    foreach ($name in $requiredCore) {
+    foreach ($name in $publicEntrySkills) {
         Ensure-SkillPresent -Name $name -Required $true -FallbackSources @(
             (New-SkillFallbackSources -Name $name -Roots @($bundledSkillsRoot, $canonicalSkillsRoot, $workspaceSkillsRoot, $workspaceSuperpowersRoot, $bundledSuperpowersRoot))
         ) -DestinationRoot $skillDestinationRoot -HiddenEntryPoints:$hiddenSkillEntrypoints -ExternalFallbackUsed $externalFallbackUsed -MissingRequiredSkills $missingRequiredSkills
     }
 
-    foreach ($name in $requiredWorkflow) {
+    foreach ($name in $starterSkills) {
         Ensure-SkillPresent -Name $name -Required $true -FallbackSources @(
             (New-SkillFallbackSources -Name $name -Roots @($bundledSkillsRoot, $workspaceSkillsRoot, $workspaceSuperpowersRoot, $bundledSuperpowersRoot, $canonicalSkillsRoot))
         ) -DestinationRoot $skillDestinationRoot -HiddenEntryPoints:$hiddenSkillEntrypoints -ExternalFallbackUsed $externalFallbackUsed -MissingRequiredSkills $missingRequiredSkills
     }
 
     if ($Profile -eq 'full') {
-        foreach ($name in $optionalWorkflow) {
+        foreach ($name in $optionalSkills) {
             Ensure-SkillPresent -Name $name -Required $false -FallbackSources @(
                 (New-SkillFallbackSources -Name $name -Roots @($bundledSkillsRoot, $workspaceSkillsRoot, $workspaceSuperpowersRoot, $bundledSuperpowersRoot, $canonicalSkillsRoot))
             ) -DestinationRoot $skillDestinationRoot -HiddenEntryPoints:$hiddenSkillEntrypoints -ExternalFallbackUsed $externalFallbackUsed -MissingRequiredSkills $missingRequiredSkills
@@ -1375,7 +1383,6 @@ function Install-RuntimeCorePayload {
 function Install-GovernedCodexPayload {
     Copy-DirContent -Source (Join-Path $RepoRoot 'rules') -Destination (Join-Path $TargetRoot 'rules')
     Copy-DirContent -Source (Join-Path $RepoRoot 'agents\templates') -Destination (Join-Path $TargetRoot 'agents\templates')
-    Copy-DirContent -Source (Join-Path $RepoRoot 'mcp') -Destination (Join-Path $TargetRoot 'mcp')
     New-Item -ItemType Directory -Force -Path (Join-Path $TargetRoot 'config') | Out-Null
     Add-VgoCreatedPath -Path (Join-Path $TargetRoot 'config')
     Copy-Item -LiteralPath (Join-Path $RepoRoot 'config\plugins-manifest.codex.json') -Destination (Join-Path $TargetRoot 'config\plugins-manifest.codex.json') -Force
@@ -1415,15 +1422,6 @@ function Install-RuntimeCoreModePayload {
         $workflowRoot = Join-Path $TargetRoot 'global_workflows'
         Copy-DirContent -Source $commandsRoot -Destination $workflowRoot
         Add-VgoCreatedPath -Path $workflowRoot
-    }
-
-    $mcpTemplate = Join-Path $RepoRoot 'mcp\servers.template.json'
-    $mcpConfigPath = Join-Path $TargetRoot 'mcp_config.json'
-    if ((Test-Path -LiteralPath $mcpTemplate) -and -not (Test-Path -LiteralPath $mcpConfigPath)) {
-        Copy-Item -LiteralPath $mcpTemplate -Destination $mcpConfigPath -Force
-        Add-VgoCreatedPath -Path $mcpConfigPath
-        Add-VgoManagedJsonPath -Path $mcpConfigPath
-        Add-VgoTemplateGeneratedPath -Path $mcpConfigPath
     }
 }
 

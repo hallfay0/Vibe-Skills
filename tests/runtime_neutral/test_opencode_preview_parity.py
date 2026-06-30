@@ -33,8 +33,8 @@ class OpenCodePreviewParityTests(unittest.TestCase):
         )
         payload = json.loads(result.stdout)
         self.assertEqual("opencode", payload["id"])
-        self.assertEqual(".config/opencode", payload["default_target_root"]["rel"])
-        self.assertEqual("host-home", payload["default_target_root"]["kind"])
+        self.assertEqual(".agents", payload["default_target_root"]["rel"])
+        self.assertEqual("shared-home", payload["default_target_root"]["kind"])
 
     def test_python_installer_materializes_opencode_preview_wrappers(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:

@@ -32,7 +32,7 @@ def test_resolve_codex_duplicate_skill_root_only_applies_to_codex_home(tmp_path:
     codex_root = tmp_path / '.codex'
     codex_root.mkdir()
 
-    assert resolve_codex_duplicate_skill_root(codex_root, 'codex') == tmp_path / '.agents' / 'skills' / 'vibe'
+    assert resolve_codex_duplicate_skill_root(codex_root, 'codex') is None
     assert resolve_codex_duplicate_skill_root(tmp_path / '.cursor', 'codex') is None
     assert resolve_codex_duplicate_skill_root(codex_root, 'cursor') is None
 

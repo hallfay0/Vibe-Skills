@@ -92,9 +92,10 @@ if ($hasSummary) {
     $governanceCapsule = Get-Content -LiteralPath $summary.summary.artifacts.governance_capsule -Raw -Encoding UTF8 | ConvertFrom-Json
     $stageLineage = Get-Content -LiteralPath $summary.summary.artifacts.stage_lineage -Raw -Encoding UTF8 | ConvertFrom-Json
     $expectedStageIds = @($runtimeContract.stages | ForEach-Object { [string]$_.id })
+    $boundSkillIds = @(Get-VibeWorkBindingBoundSkillIds -RuntimeInputPacket $runtimeInputPacket)
 
     Add-Assertion -Results ([ref]$results) -Condition ($summary.mode -eq 'interactive_governed') -Message 'hierarchy smoke runs interactive_governed mode'
-    Add-Assertion -Results ([ref]$results) -Condition (-not [string]::IsNullOrWhiteSpace([string]$runtimeInputPacket.route_snapshot.selected_skill)) -Message 'root hierarchy smoke records routed skill separately from runtime authority'
+    Add-Assertion -Results ([ref]$results) -Condition (@($boundSkillIds).Count -ge 1) -Message 'root hierarchy smoke records bounded specialist skill in work_binding'
     Add-Assertion -Results ([ref]$results) -Condition ($runtimeInputPacket.authority_flags.explicit_runtime_skill -eq 'vibe') -Message 'root hierarchy smoke keeps vibe as runtime authority'
     Add-Assertion -Results ([ref]$results) -Condition ($governanceCapsule.runtime_selected_skill -eq 'vibe') -Message 'root hierarchy smoke governance capsule keeps vibe authority'
     Add-Assertion -Results ([ref]$results) -Condition ((

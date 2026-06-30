@@ -50,21 +50,28 @@ It does not redefine:
 | `runtime_mode` | `required` | effective mode after normalization |
 | `internal_grade` | `required` | selected execution grade |
 | `hierarchy` | `required` | shared hierarchy projection |
-| `canonical_router` | `required` | frozen router entry context |
 | `host_adapter` | `required` | requested/effective host adapter projection |
-| `route_snapshot` | `required` | frozen router truth used by runtime |
-| `specialist_recommendations` | `required` | bounded specialist recommendation set |
-| `specialist_dispatch` | `required` | approved/local suggestion split |
-| `overlay_decisions` | `required` | router overlay decisions frozen into runtime |
+| `work_binding` | `required` | kernel-facing bounded work truth |
+| `specialist_decision` | `required` | bounded specialist decision truth, including no-specialist resolution |
 | `authority_flags` | `required` | runtime authority projection |
-| `divergence_shadow` | `required` | router/runtime mismatch observability |
 | `provenance` | `required` | proof/source-of-truth metadata |
+| `canonical_router` | `optional_compatibility` | historical router-entry mirror; current bounded-work truth no longer depends on it |
+| `route_snapshot` | `optional_compatibility` | compatibility control summary; current bounded-work truth lives elsewhere |
+| `skill_routing` | `optional_compatibility` | compatibility mirror of selected bounded skills |
+| `skill_usage` | `optional_compatibility` | packet-level proof mirror for used/unused skill evidence |
+| `custom_admission` | `optional_compatibility` | may be `null` when no custom manifests participate |
+| `divergence_shadow` | `optional_compatibility` | router/runtime mismatch observability shadow |
 
 ### Optional compatibility fields
 
 | Field | Status | Notes |
 |---|---|---|
-| `custom_admission` | `optional_compatibility` | may be `null` when no custom manifests participate |
+| `continuation_context` | `optional_compatibility` | may be `null` when no bounded re-entry context is present |
+| `host_decision` | `optional_compatibility` | structured host decision mirror when present |
+| `code_task_tdd_decision` | `optional_compatibility` | code-task TDD decision mirror when present |
+| `host_skill_execution_decision` | `optional_compatibility` | host curation decision mirror when present |
+| `skill_execution_lock` | `optional_compatibility` | execution-obligation lock mirror when present |
+| `storage` | `derived_summary` | workspace and artifact-root projection for runtime surfaces |
 
 ## Execution Manifest
 

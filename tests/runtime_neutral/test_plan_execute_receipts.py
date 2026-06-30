@@ -355,7 +355,7 @@ class PlanExecuteReceiptTests(unittest.TestCase):
         )
 
         completed = subprocess.run(
-            [powershell, "-NoLogo", "-NoProfile", "-Command", ps_script],
+            [powershell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
@@ -424,7 +424,7 @@ class PlanExecuteReceiptTests(unittest.TestCase):
         )
 
         completed = subprocess.run(
-            [powershell, "-NoLogo", "-NoProfile", "-Command", ps_script],
+            [powershell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
@@ -470,7 +470,7 @@ class PlanExecuteReceiptTests(unittest.TestCase):
         )
 
         completed = subprocess.run(
-            [powershell, "-NoLogo", "-NoProfile", "-Command", ps_script],
+            [powershell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
@@ -510,7 +510,7 @@ class PlanExecuteReceiptTests(unittest.TestCase):
         )
 
         completed = subprocess.run(
-            [powershell, "-NoLogo", "-NoProfile", "-Command", ps_script],
+            [powershell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
@@ -569,7 +569,7 @@ class PlanExecuteReceiptTests(unittest.TestCase):
             )
 
             completed = subprocess.run(
-                [powershell, "-NoLogo", "-NoProfile", "-Command", ps_script],
+                [powershell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
                 cwd=REPO_ROOT,
                 capture_output=True,
                 text=True,
@@ -691,6 +691,8 @@ class PlanExecuteReceiptTests(unittest.TestCase):
                     powershell,
                     "-NoLogo",
                     "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
                     "-Command",
                     f"& '{script_path.as_posix()}' -LaneSpecPath '{lane_spec_path.as_posix()}'",
                 ],
@@ -768,7 +770,7 @@ class PlanExecuteReceiptTests(unittest.TestCase):
                 )
 
                 completed = subprocess.run(
-                    [powershell, "-NoLogo", "-NoProfile", "-Command", ps_script],
+                    [powershell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
                     cwd=REPO_ROOT,
                     capture_output=True,
                     text=True,
@@ -841,7 +843,7 @@ class PlanExecuteReceiptTests(unittest.TestCase):
             )
 
             completed = subprocess.run(
-                [powershell, "-NoLogo", "-NoProfile", "-Command", ps_script],
+                [powershell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
                 cwd=REPO_ROOT,
                 capture_output=True,
                 text=True,
@@ -918,7 +920,7 @@ class PlanExecuteReceiptTests(unittest.TestCase):
             )
 
             completed = subprocess.run(
-                [powershell, "-NoLogo", "-NoProfile", "-Command", ps_script],
+                [powershell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
                 cwd=REPO_ROOT,
                 capture_output=True,
                 text=True,

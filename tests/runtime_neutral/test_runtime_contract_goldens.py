@@ -42,6 +42,8 @@ def run_runtime(task: str, artifact_root: Path, *, extra_env: dict[str, str] | N
             shell,
             "-NoLogo",
             "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
             "-Command",
             (
                 "& { "
@@ -101,19 +103,9 @@ def normalize_runtime_input_packet(packet: dict[str, object]) -> dict[str, objec
             "closure_path": "<host_closure_path>" if host_adapter["closure_path"] else None,
         },
         "route_snapshot": {
-            "selected_pack": packet["route_snapshot"]["selected_pack"],
-            "selected_skill": packet["route_snapshot"]["selected_skill"],
+            "task_type": packet["route_snapshot"]["task_type"],
             "route_mode": packet["route_snapshot"]["route_mode"],
-            "route_reason": packet["route_snapshot"]["route_reason"],
             "confirm_required": packet["route_snapshot"]["confirm_required"],
-            "confidence": packet["route_snapshot"]["confidence"],
-            "truth_level": packet["route_snapshot"]["truth_level"],
-            "degradation_state": packet["route_snapshot"]["degradation_state"],
-            "non_authoritative": packet["route_snapshot"]["non_authoritative"],
-            "fallback_active": packet["route_snapshot"]["fallback_active"],
-            "hazard_alert_required": packet["route_snapshot"]["hazard_alert_required"],
-            "unattended_override_applied": packet["route_snapshot"]["unattended_override_applied"],
-            "custom_admission_status": packet["route_snapshot"]["custom_admission_status"],
         },
         "authority_flags": {
             "runtime_entry": packet["authority_flags"]["runtime_entry"],
@@ -171,6 +163,9 @@ class RuntimeContractGoldenTests(unittest.TestCase):
             summary = payload["summary"]
             runtime_input_packet = load_json(summary["artifacts"]["runtime_input_packet"])
             execution_manifest = load_json(summary["artifacts"]["execution_manifest"])
+            self.assertEqual("runtime_input_freeze", runtime_input_packet["stage"])
+            self.assertIsInstance(runtime_input_packet["work_binding"], dict)
+            self.assertIsInstance(runtime_input_packet["specialist_decision"], dict)
 
         actual = {
             "runtime_input_packet": normalize_runtime_input_packet(runtime_input_packet),

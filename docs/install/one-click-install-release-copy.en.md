@@ -4,7 +4,7 @@ This is the public install entry. If you are new here, start with the defaults:
 
 - Host: the AI app you actually use
 - Action: `install`
-- Version: `Full Version + Customizable Governance`
+- Version: `Framework Only + Customizable Governance`
 
 ## Before You Start
 
@@ -24,14 +24,14 @@ Linux and macOS can still use the `bash` install entrypoints. PowerShell 7 is re
 |:---|:---|:---|
 | Host | `codex`, `claude-code`, `cursor`, `windsurf`, `openclaw`, `opencode` | the app you use |
 | Action | `install`, `update` | `install` |
-| Version | `Full Version + Customizable Governance`, `Framework Only + Customizable Governance` | `Full Version + Customizable Governance` |
+| Version | `Full Version + Customizable Governance`, `Framework Only + Customizable Governance` | `Framework Only + Customizable Governance` |
 
 Public version mapping:
 
 - `Full Version + Customizable Governance` -> `full`
 - `Framework Only + Customizable Governance` -> `minimal`
 
-Use `full` unless you intentionally want the smaller framework-only install.
+Use `minimal` as the recommended default. It keeps the work kernel small, leaves local skills under `<target-root>/skills/local/<skill-id>/SKILL.md` as the normal extension path, and keeps only `tdd-guide` and `systematic-debugging` as built-in starter helpers. Choose `full` only when you also want `verification-before-completion`.
 
 ## Copy One Prompt
 
@@ -39,9 +39,9 @@ Pick the one matching your action and version, then paste it into your AI app:
 
 | Need | Prompt |
 |:---|:---|
-| First install, recommended | [`prompts/full-version-install.en.md`](./prompts/full-version-install.en.md) |
+| First install, recommended | [`prompts/framework-only-install.en.md`](./prompts/framework-only-install.en.md) |
 | First install, framework only | [`prompts/framework-only-install.en.md`](./prompts/framework-only-install.en.md) |
-| Update existing full install | [`prompts/full-version-update.en.md`](./prompts/full-version-update.en.md) |
+| Update existing minimal install | [`prompts/framework-only-update.en.md`](./prompts/framework-only-update.en.md) |
 | Update existing framework install | [`prompts/framework-only-update.en.md`](./prompts/framework-only-update.en.md) |
 
 ## What The Prompt Will Do
@@ -49,13 +49,13 @@ Pick the one matching your action and version, then paste it into your AI app:
 The prompt asks the assistant to:
 
 1. confirm host and public version before running install commands;
-2. install into the real host root by default, for example `~/.codex` for Codex so `$vibe` is discoverable;
+2. install into the shared root `~/.agents` by default so different hosts can reuse the same install;
 3. run the matching install and check commands;
 4. keep secrets, URLs, and model names out of chat;
 5. avoid guiding users through built-in online enhancement configuration that is not publicly open yet;
-6. report these states separately: `installed locally`, `vibe host-ready`, `mcp native auto-provision attempted`, per-MCP `host-visible readiness`, and `online-ready`.
+6. report these states separately: `installed locally`, `vibe host-ready`, and `online-ready`.
 
-`$vibe` or `/vibe` means the governed runtime entry is available. It is not MCP completion and not proof that every MCP is host-visible.
+`$vibe` or `/vibe` means the governed runtime entry is available. It does not by itself prove that host plugins, providers, or online enhancement are fully configured.
 
 ## Read More Only If Needed
 
@@ -64,7 +64,7 @@ The prompt asks the assistant to:
 - OpenClaw details: [`openclaw-path.en.md`](./openclaw-path.en.md)
 - OpenCode details: [`opencode-path.en.md`](./opencode-path.en.md)
 - Offline/manual install: [`manual-copy-install.en.md`](./manual-copy-install.en.md)
-- Custom Skills after install: [`custom-workflow-onboarding.en.md`](./custom-workflow-onboarding.en.md)
+- Advanced custom workflow onboarding after install: [`custom-workflow-onboarding.en.md`](./custom-workflow-onboarding.en.md)
 - Post-install configuration boundaries: [`configuration-guide.en.md`](./configuration-guide.en.md)
 
 ## Uninstall

@@ -3,7 +3,7 @@ name: vibe-upgrade
 description: Upgrade the local Vibe-Skills installation to the latest official default-branch state.
 ---
 
-This is an upgrade operation, not a normal staged `vibe` task.
+This is an upgrade operation owned by the canonical `vibe` runtime and its only governed runtime authority, not a normal staged `vibe` task.
 
 Do not run the router for this entry. Do not relaunch this request as `entry_id = vibe`.
 Do not freeze a requirement document or execution plan for this entry.

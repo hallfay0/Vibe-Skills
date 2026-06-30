@@ -46,6 +46,8 @@ def run_runtime(
         shell,
         "-NoLogo",
         "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
         "-Command",
         (
             "& { "

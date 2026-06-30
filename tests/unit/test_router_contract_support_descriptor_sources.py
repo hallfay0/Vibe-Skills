@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-MODULE_PATH = REPO_ROOT / 'packages' / 'runtime-core' / 'src' / 'vgo_runtime' / 'router_contract_support.py'
+MODULE_PATH = REPO_ROOT / 'packages' / 'runtime-core' / 'src' / 'vgo_runtime' / 'runtime_support.py'
 
 
 def _load_module():

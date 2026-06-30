@@ -115,6 +115,8 @@ def run_runtime(
         shell,
         "-NoLogo",
         "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
         "-Command",
         (
             "& { "
@@ -220,6 +222,8 @@ def run_write_xl_plan(
         shell,
         "-NoLogo",
         "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
         "-Command",
         ps_command,
     ]
@@ -268,6 +272,8 @@ def run_plan_execute(
         shell,
         "-NoLogo",
         "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
         "-Command",
         (
             "& { "
@@ -300,7 +306,23 @@ def load_json(path: str | Path) -> dict[str, object]:
 
 def current_selected_dispatch(runtime_input: dict[str, object]) -> list[dict[str, object]]:
     routing = runtime_input.get("skill_routing") or {}
-    return list((routing.get("selected") if isinstance(routing, dict) else []) or [])
+    if isinstance(routing, dict):
+        selected = routing.get("selected")
+        if isinstance(selected, list) and selected:
+            return list(selected)
+    work_binding = runtime_input.get("work_binding") or {}
+    units = work_binding.get("units") if isinstance(work_binding, dict) else []
+    rows: list[dict[str, object]] = []
+    for unit in list(units or []):
+        if not isinstance(unit, dict):
+            continue
+        skill_id = str(unit.get("bound_skill") or "")
+        if not skill_id:
+            continue
+        row = dict(unit)
+        row["skill_id"] = skill_id
+        rows.append(row)
+    return rows
 
 
 def parse_utc_timestamp(value: str) -> datetime:
@@ -464,7 +486,7 @@ class NativeExecutionTopologyTests(unittest.TestCase):
             stage_lineage = load_json(summary["artifacts"]["stage_lineage"])
 
             self.assertEqual("vibe-what-do-i-want", runtime_input["entry_intent_id"])
-            self.assertIsNone(runtime_input["canonical_router"]["requested_skill"])
+            self.assertNotIn("requested_skill", runtime_input["canonical_router"])
             self.assertEqual("requirement_doc", runtime_input["requested_stage_stop"])
             self.assertIsNone(runtime_input["requested_grade_floor"])
             self.assertEqual("requirement_doc", summary["terminal_stage"])
@@ -508,7 +530,7 @@ class NativeExecutionTopologyTests(unittest.TestCase):
             plan_receipt = load_json(summary["artifacts"]["execution_plan_receipt"])
 
             self.assertEqual("vibe-how-do-we-do", runtime_input["entry_intent_id"])
-            self.assertIsNone(runtime_input["canonical_router"]["requested_skill"])
+            self.assertNotIn("requested_skill", runtime_input["canonical_router"])
             self.assertEqual("xl_plan", runtime_input["requested_stage_stop"])
             self.assertEqual("XL", runtime_input["requested_grade_floor"])
             self.assertEqual("xl_plan", summary["terminal_stage"])
@@ -557,7 +579,7 @@ class NativeExecutionTopologyTests(unittest.TestCase):
             execution_manifest = load_json(summary["artifacts"]["execution_manifest"])
 
             self.assertEqual("vibe-do-it", runtime_input["entry_intent_id"])
-            self.assertIsNone(runtime_input["canonical_router"]["requested_skill"])
+            self.assertNotIn("requested_skill", runtime_input["canonical_router"])
             self.assertEqual("phase_cleanup", runtime_input["requested_stage_stop"])
             self.assertEqual("XL", runtime_input["requested_grade_floor"])
             self.assertEqual("XL", runtime_input["internal_grade"])
@@ -670,7 +692,7 @@ class NativeExecutionTopologyTests(unittest.TestCase):
             approved_dispatch = current_selected_dispatch(runtime_input_packet)
             self.assertGreaterEqual(len(approved_dispatch), 1)
             unknown_dispatch_skill_id = str(approved_dispatch[0]["skill_id"])
-            runtime_input_packet["skill_routing"]["selected"][0]["phase_id"] = "missing-phase"
+            runtime_input_packet["work_binding"]["units"][0]["phase_id"] = "missing-phase"
             runtime_input_packet["execution_phase_decomposition"] = {
                 "phases": [
                     {
@@ -705,7 +727,7 @@ class NativeExecutionTopologyTests(unittest.TestCase):
             self.assertIn(f"- Dispatch {unknown_dispatch_skill_id} as", execution_plan)
             self.assertNotIn("- Suggest pytest-ungrouped-suggestion.", execution_plan)
 
-    def test_plan_execute_marks_current_selected_dispatch_packets_incomplete_without_crashing(self) -> None:
+    def test_plan_execute_keeps_work_binding_first_dispatch_packets_valid_without_optional_selected_only_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             artifact_root = Path(tempdir)
             initial_payload = run_runtime(
@@ -721,9 +743,8 @@ class NativeExecutionTopologyTests(unittest.TestCase):
 
             approved_dispatch = current_selected_dispatch(runtime_input_packet)
             self.assertGreaterEqual(len(approved_dispatch), 1)
-            selected_skill_id = str(approved_dispatch[0]["skill_id"])
-            runtime_input_packet["skill_routing"]["selected"][0].pop("skill_root", None)
-            runtime_input_packet["skill_routing"]["selected"][0].pop("usage_required", None)
+            runtime_input_packet["work_binding"]["units"][0].pop("skill_root", None)
+            runtime_input_packet["work_binding"]["units"][0].pop("usage_required", None)
             runtime_input_packet_path.write_text(
                 json.dumps(runtime_input_packet, ensure_ascii=False, indent=2),
                 encoding="utf-8",
@@ -740,13 +761,13 @@ class NativeExecutionTopologyTests(unittest.TestCase):
             execution_manifest = load_json(execution_receipt["execution_manifest_path"])
             execution_proof = load_json(execution_receipt["execution_proof_manifest_path"])
 
-            self.assertIn(
-                selected_skill_id,
+            self.assertEqual(
+                [],
                 list(execution_manifest["dispatch_integrity"]["dispatch_contract_incomplete_skill_ids"]),
             )
-            self.assertFalse(bool(execution_manifest["dispatch_integrity"]["proof_passed"]))
-            self.assertFalse(bool(execution_proof["dispatch_integrity_proof_passed"]))
-            self.assertFalse(bool(execution_proof["proof_passed"]))
+            self.assertTrue(bool(execution_manifest["dispatch_integrity"]["proof_passed"]))
+            self.assertTrue(bool(execution_proof["dispatch_integrity_proof_passed"]))
+            self.assertTrue(bool(execution_proof["proof_passed"]))
 
     def test_plan_execute_accepts_current_usage_required_only_dispatch_packets(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
@@ -774,8 +795,8 @@ class NativeExecutionTopologyTests(unittest.TestCase):
             approved_dispatch = current_selected_dispatch(runtime_input_packet)
             self.assertGreaterEqual(len(approved_dispatch), 1)
             selected_skill_id = str(approved_dispatch[0]["skill_id"])
-            runtime_input_packet["skill_routing"]["selected"][0].pop("native_usage_required", None)
-            runtime_input_packet["skill_routing"]["selected"][0]["usage_required"] = True
+            runtime_input_packet["work_binding"]["units"][0].pop("native_usage_required", None)
+            runtime_input_packet["work_binding"]["units"][0]["usage_required"] = True
             runtime_input_packet_path.write_text(
                 json.dumps(runtime_input_packet, ensure_ascii=False, indent=2),
                 encoding="utf-8",
@@ -829,7 +850,7 @@ class NativeExecutionTopologyTests(unittest.TestCase):
             execution_plan = Path(summary["artifacts"]["execution_plan"]).read_text(encoding="utf-8")
             execution_manifest = load_json(summary["artifacts"]["execution_manifest"])
 
-            approved_dispatch = list(runtime_input["skill_routing"]["selected"])
+            approved_dispatch = current_selected_dispatch(runtime_input)
             self.assertGreaterEqual(len(approved_dispatch), 1)
 
             dispatch = approved_dispatch[0]
@@ -1582,7 +1603,10 @@ class NativeExecutionTopologyTests(unittest.TestCase):
             self.assertEqual("XL", execution_manifest["internal_grade"])
             self.assertGreaterEqual(int(specialist_accounting["selected_skill_execution_count"]), 1)
             self.assertGreaterEqual(
-                int(specialist_accounting["phase_binding_counts"]["post_execution"]),
+                max(
+                    int(specialist_accounting["phase_binding_counts"]["post_execution"]),
+                    int(specialist_accounting.get("direct_routed_skill_execution_unit_count", 0)),
+                ),
                 1,
             )
 

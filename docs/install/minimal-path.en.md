@@ -1,24 +1,25 @@
 # Install Path: Minimal Viable (Truth-First / Degradation Accepted)
 
-The goal of this path is to get the smallest repo-owned closure working as quickly as possible, while honestly exposing which capabilities still belong to host-managed surfaces instead of pretending that "it runs" means "full-featured parity".
+The goal of this path is to get the smallest repo-owned closure and small work kernel working as quickly as possible, while honestly exposing which capabilities still belong to host-managed surfaces instead of pretending that "it runs" means "full-featured parity".
+
+Once this path is in place, the normal extension path is still a local skill under `skills/local/<skill-id>/SKILL.md`, not an extra routing or catalog layer.
 
 Relevant distribution surfaces: `dist/manifests/vibeskills-core.json` and, for Codex, `dist/manifests/vibeskills-codex.json`.
 
 ## Who This Is For
 
 - users seeing this repository for the first time who only want to verify whether repo-governed surfaces close correctly
-- users who can accept a final `manual_actions_pending` state because host plugins, MCP, or provider secrets are still missing
+- users who can accept a final `manual_actions_pending` state because host plugins or provider secrets are still missing
 - users who do not plan to provision every external dependency yet
 
 ## What You Should Not Expect
 
 - no guarantee that host-side plugins are enabled
-- no guarantee that plugin-backed MCP has been registered or authorized
-- no guarantee that any MCP has been placed into the host's real **native MCP surface**
+- no guarantee that host-side plugins or online enhancement have been registered or authorized
 - no guarantee that currently non-public built-in online enhancement capabilities are ready
 - no claim that a runnable bash flow on Linux/macOS is equal to the full Windows path
 
-`$vibe` or `/vibe` only proves that the governed runtime entry is available. It is not MCP completion, and neither templates, manifests, sidecars, `*.json.example`, nor PATH-visible commands count as host-visible MCP readiness by themselves.
+`$vibe` or `/vibe` only proves that the governed runtime entry is available, and neither templates, manifests, sidecars, `*.json.example`, nor PATH-visible commands prove that online enhancement is ready by themselves.
 
 ## Host / Platform Prerequisite Judgment
 

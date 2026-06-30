@@ -69,6 +69,8 @@ def run_runtime(task: str, artifact_root: Path) -> dict[str, object]:
             shell,
             "-NoLogo",
             "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
             "-Command",
             (
                 "& { "
@@ -94,7 +96,10 @@ def run_runtime(task: str, artifact_root: Path) -> dict[str, object]:
             "VGO_NATIVE_SPECIALIST_EXECUTION_MODE": "",
         },
     )
-    return json.loads(completed.stdout)
+    payload = json.loads(completed.stdout)
+    if payload is None:
+        raise AssertionError(f"runtime helper returned null stdout; stderr was: {completed.stderr}")
+    return payload
 
 
 def assert_current_text_clean(testcase: unittest.TestCase, text: str, *, label: str) -> None:
@@ -197,7 +202,7 @@ class CurrentRoutingContractCleanupTests(unittest.TestCase):
             "}"
         )
         completed = subprocess.run(
-            [shell, "-NoLogo", "-NoProfile", "-Command", script],
+            [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
@@ -266,7 +271,7 @@ class CurrentRoutingContractCleanupTests(unittest.TestCase):
                 "}"
             )
             completed = subprocess.run(
-                [shell, "-NoLogo", "-NoProfile", "-Command", script],
+                [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
                 cwd=REPO_ROOT,
                 capture_output=True,
                 text=True,
@@ -315,7 +320,7 @@ class CurrentRoutingContractCleanupTests(unittest.TestCase):
                 "}"
             )
             completed = subprocess.run(
-                [shell, "-NoLogo", "-NoProfile", "-Command", script],
+                [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
                 cwd=REPO_ROOT,
                 capture_output=True,
                 text=True,
@@ -349,7 +354,7 @@ class CurrentRoutingContractCleanupTests(unittest.TestCase):
             "}"
         )
         completed = subprocess.run(
-            [shell, "-NoLogo", "-NoProfile", "-Command", script],
+            [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
@@ -366,11 +371,19 @@ class CurrentRoutingContractCleanupTests(unittest.TestCase):
         path = REPO_ROOT / "docs" / "governance" / "current-routing-contract.md"
         text = path.read_text(encoding="utf-8")
 
+        self.assertIn("This is not the start-here explanation of the system.", text)
+        self.assertIn("current-runtime-field-contract.md", text)
+        self.assertIn("You usually do not need this file unless a compatibility reader still exposes", text)
+        self.assertIn("work_binding", text)
+        self.assertIn("Default reading stop for most runs:", text)
+        self.assertIn("Compatibility Follow-On Chain", text)
         self.assertIn(
             "skill_candidates -> skill_routing.selected -> skill_execution_lock -> selected_skill_execution -> skill_usage.used / skill_usage.unused",
             text,
         )
+        self.assertIn("This is not a workflow to follow.", text)
         for required in [
+            "`work_binding`",
             "`candidate`",
             "`selected`",
             "`used`",
@@ -389,6 +402,7 @@ class CurrentRoutingContractCleanupTests(unittest.TestCase):
             "auxiliary expert",
         ]:
             self.assertNotIn(forbidden, active_section.lower())
+        self.assertNotIn("This is the only model current user-facing docs and generated runtime outputs should teach.", text)
 
     def test_retired_consultation_field_reads_live_outside_current_runtime_common(self) -> None:
         current_text = RUNTIME_COMMON.read_text(encoding="utf-8")

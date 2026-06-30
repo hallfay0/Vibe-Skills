@@ -59,14 +59,14 @@
 - `ruc-nlpir` 这类外部 upstream/runtime 需要单独 venv，它不是公开安装器本体的同义词
 - 不要把 “外部 runtime 可能偏好 3.11” 说成 “整个仓库安装器硬要求 3.11”
 
-## 规则 7：Codex 按默认推荐路径描述
+## 规则 7：Codex 按统一共享根目录描述
 
 如果用户选择 `codex`：
 
 - 运行 `--host codex`
-- 在 Linux / macOS 上默认使用 `CODEX_HOME="$HOME/.codex"`，在 Windows 上默认把 `CODEX_HOME` 设为真实宿主根目录 `%USERPROFILE%\\.codex`
-- 明确说明这是当前最完整的 governed 路径；如果目标是安装后就能被当前 Codex 直接发现 `$vibe`，默认必须落到真实 `~/.codex`
-- `~/.vibeskills/targets/codex` 只能在用户显式要求隔离安装，或 Codex 已经明确指向该目录时使用
+- 默认共享安装根目录是 `~/.agents`；在 Windows 上默认是 `%USERPROFILE%\\.agents`
+- 明确说明这是当前最简化的公共安装口径；不同宿主默认复用同一份 `.agents` 安装
+- 只有用户显式要求改共享根时，才额外设置 `VIBE_AGENTS_HOME`
 - hook 当前因兼容性问题被冻结；这不是安装失败
 - 暂时不要在公开安装流程里引导用户配置内置在线增强能力的 provider、凭据、URL 或模型
 - 不能把宿主基础在线能力偷换成“治理 AI online readiness 已完成”
@@ -80,7 +80,7 @@
 - 在 Linux / macOS 上默认使用 `CLAUDE_HOME="$HOME/.claude"`，在 Windows 上默认把 `CLAUDE_HOME` 设为真实宿主根目录 `%USERPROFILE%\\.claude`
 - 明确说明安装器会在保留现有 `~/.claude/settings.json` 内容的前提下，补入受约束的 `vibeskills` 节点
 - 不要宣传成 official runtime、Codex 满血等价或跨平台 proof 已闭环
-- 引导用户继续把 `env`、plugin enablement、MCP 注册和 provider credentials 放在 Claude 宿主侧本地维护
+- 引导用户继续把 `env`、plugin enablement、宿主本地能力配置和 provider credentials 放在 Claude 宿主侧本地维护
 
 ## 规则 9：Cursor 也按“支持的安装与使用路径”口径描述
 
@@ -121,7 +121,7 @@
 - 默认目标根目录是 `OPENCODE_HOME`，否则是实际宿主根目录 `~/.config/opencode`
 - 真实宿主配置目录就是 `~/.config/opencode`
 - direct install/check 会写入 skills、`.vibeskills/*` sidecar 与 `opencode.json.example`
-- 真实 `opencode.json`、provider 凭据、plugin 安装和 MCP 信任仍由宿主侧本地完成
+- 真实 `opencode.json`、provider 凭据、plugin 安装和在线能力授权仍由宿主侧本地完成
 
 ## 规则 13：暂不公开引导内置在线增强配置
 
@@ -137,28 +137,13 @@
 
 对六个支持宿主，都不要要求用户把密钥、URL 或 model 直接粘贴到聊天里。公开安装当前也不要引导用户为内置在线增强能力补这些配置。
 
-## 规则 15：MCP 默认必须以宿主原生 MCP 配置面为完成目标
-
-对六个支持宿主，都必须优先把 MCP 自动接入到宿主当前真实使用的 **宿主原生 MCP 配置面**。
-
-明确禁止把以下内容当作 MCP 完成证据：
-
-- `$vibe` / `/vibe` / `skills/vibe` 的可发现性
-- `mcp/servers.template.json`
-- plugin manifest
-- `*.json.example`
-- `.vibeskills/*` sidecar
-- 仅仅“命令已经在 PATH 上”
-
-如果原生自动注册失败，或当前宿主没有稳定、官方可支持的自动注册接口，必须明确报告“尚未进入宿主原生 MCP 配置面 / not host-visible”，不能伪装成 ready。
-
-## 规则 16：区分“本地安装完成”“vibe host-ready”和“在线能力就绪”
+## 规则 15：区分“本地安装完成”“vibe host-ready”和“在线能力就绪”
 
 如果本地 provider 字段没有配置好，就不能把环境描述成“online ready”。
 
-同时也不能把 `$vibe` 可调用偷换成 “MCP 已安装完成”。
+同时也不能把 `$vibe` 可调用偷换成 “宿主插件或在线能力都已完成”。
 
-## 规则 17：输出安装或更新结果时必须说清楚
+## 规则 16：输出安装或更新结果时必须说清楚
 
 结果摘要至少应包含：
 
@@ -168,16 +153,15 @@
 - 实际执行的命令
 - `installed locally`
 - `vibe host-ready`
-- `mcp native auto-provision attempted`
-- 每个 MCP 的 `host-visible readiness`
 - `online-ready`
 - 已完成的部分
 - 仍需用户手动处理的部分
 
-## 规则 18：框架版本不是开箱即用全量体验
+## 规则 17：框架版本不是开箱即用全量体验
 
 如果用户选择 `仅核心框架 + 可自定义添加治理` / `minimal`，必须额外提醒：
 
-- 这表示先安装治理框架底座
-- 不等于默认 workflow core 已齐备
-- 如果后续要接入自己的 workflow，请继续走 [`custom-workflow-onboarding.md`](./custom-workflow-onboarding.md)
+- 这表示先安装小工作内核与治理框架底座
+- 安装后的正常扩展路径是本地 skill：`skills/local/<skill-id>/SKILL.md`
+- 不等于所有可选 workflow core 或高级 admitted custom surface 都已齐备
+- 如果普通本地 skill 不够，后续又真的需要高级 manifest 驱动 custom workflow，再继续走 [`custom-workflow-onboarding.md`](./custom-workflow-onboarding.md)

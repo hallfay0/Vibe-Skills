@@ -14,20 +14,9 @@ CLI_SRC = REPO_ROOT / "apps" / "vgo-cli" / "src"
 CONTRACTS_SRC = REPO_ROOT / "packages" / "contracts" / "src"
 INSTALLER_CORE_SRC = REPO_ROOT / "packages" / "installer-core" / "src"
 
-REQUIRED_CORE = [
-    "dialectic",
-    "local-vco-roles",
-    "spec-kit-vibe-compat",
-    "superclaude-framework-compat",
-    "ralph-loop",
-    "cancel-ralph",
-    "tdd-guide",
-    "think-harder",
-]
+REQUIRED_CORE = []
 REQUIRED_WORKFLOW = [
-    "brainstorming",
-    "writing-plans",
-    "subagent-driven-development",
+    "tdd-guide",
     "systematic-debugging",
 ]
 MIRROR_DIRECTORIES = ["config", "templates", "scripts", "mcp"]
@@ -95,7 +84,6 @@ class InstallGeneratedNestedBundledTests(unittest.TestCase):
                     "exclude_bundled_skill_names": ["vibe"],
                     "canonical_vibe_payload": {"enabled": True, "target_relpath": "skills/vibe"},
                     "copy_bundled_skills": False,
-                    "skills_allowlist": REQUIRED_CORE + REQUIRED_WORKFLOW,
                     "internal_skill_corpus": {
                         "enabled": True,
                         "source": "bundled/skills",
@@ -111,9 +99,9 @@ class InstallGeneratedNestedBundledTests(unittest.TestCase):
                         "resolver_roots": ["skills"],
                     },
                     "managed_skill_inventory": {
-                        "required_runtime_skills": ["vibe", "dialectic", "local-vco-roles", "spec-kit-vibe-compat", "superclaude-framework-compat", "ralph-loop", "cancel-ralph", "tdd-guide", "think-harder"],
-                        "required_workflow_skills": ["brainstorming", "writing-plans", "subagent-driven-development", "systematic-debugging"],
-                        "optional_workflow_skills": []
+                        "public_entry_skills": ["vibe"],
+                        "starter_skill_names": ["tdd-guide", "systematic-debugging"],
+                        "optional_skill_names": []
                     },
                 },
                 indent=2,
@@ -207,7 +195,7 @@ class InstallGeneratedNestedBundledTests(unittest.TestCase):
         installed_root = self.target_root / "skills" / "vibe"
         nested_root = installed_root / "bundled" / "skills" / "vibe"
         self.assertTrue(installed_root.exists())
-        self.assertTrue((installed_root / "bundled" / "skills" / "brainstorming" / "SKILL.runtime-mirror.md").exists())
+        self.assertTrue((installed_root / "bundled" / "skills" / "systematic-debugging" / "SKILL.runtime-mirror.md").exists())
         self.assertTrue(nested_root.exists())
         self.assertFalse((nested_root / "SKILL.md").exists())
         self.assertTrue((nested_root / "SKILL.runtime-mirror.md").exists())
@@ -238,7 +226,7 @@ class InstallGeneratedNestedBundledTests(unittest.TestCase):
         installed_root = self.target_root / "skills" / "vibe"
         nested_root = installed_root / "bundled" / "skills" / "vibe"
         self.assertTrue(installed_root.exists())
-        self.assertTrue((installed_root / "bundled" / "skills" / "brainstorming" / "SKILL.runtime-mirror.md").exists())
+        self.assertTrue((installed_root / "bundled" / "skills" / "systematic-debugging" / "SKILL.runtime-mirror.md").exists())
         self.assertTrue(nested_root.exists())
         self.assertFalse((nested_root / "SKILL.md").exists())
         self.assertTrue((nested_root / "SKILL.runtime-mirror.md").exists())

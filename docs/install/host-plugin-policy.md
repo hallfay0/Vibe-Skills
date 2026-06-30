@@ -32,7 +32,7 @@
 ## Codex
 
 - 当前最完整路径
-- 围绕本地 settings、MCP 和可选 CLI 做建议
+- 围绕本地 settings、可选 CLI 和宿主侧增强边界做建议
 - hook 当前冻结；这不是安装失败
 
 ## Claude Code
@@ -40,7 +40,7 @@
 - 提供支持的安装与使用路径
 - 不靠“补一堆宿主插件”来完成接入
 - 会在保留真实 `~/.claude/settings.json` 的前提下，增量合并受约束的 `vibeskills` 设置面
-- plugin enablement、MCP 注册、凭据与更广的 Claude 行为仍由宿主侧管理
+- plugin enablement、宿主侧能力配置、凭据与更广的 Claude 行为仍由宿主侧管理
 
 ## Cursor
 
@@ -69,7 +69,7 @@
 - 提供支持的安装与使用路径
 - 默认目标根目录是 `OPENCODE_HOME` 或真实宿主根目录 `~/.config/opencode`
 - direct install/check 会写入 skills、`.vibeskills/*` sidecar 与 `opencode.json.example`
-- 真实 `opencode.json`、provider 凭据、plugin 安装与 MCP 信任仍按宿主自身方式管理
+- 真实 `opencode.json`、provider 凭据、plugin 安装与在线能力授权仍按宿主自身方式管理
 
 ## 推荐的社区表述
 

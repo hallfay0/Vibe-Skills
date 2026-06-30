@@ -26,9 +26,16 @@ def _load_module(module_name: str, module_path: Path):
     return module
 
 
-def run_package_install(*, host: str, target_root: Path, profile: str = "full") -> tuple[subprocess.CompletedProcess[str], dict[str, object]]:
+def run_package_install(
+    *,
+    host: str,
+    target_root: Path,
+    profile: str = "full",
+    extra_env: dict[str, str] | None = None,
+) -> tuple[subprocess.CompletedProcess[str], dict[str, object]]:
     env = os.environ.copy()
     env["PYTHONPATH"] = os.pathsep.join([str(CONTRACTS_SRC), str(INSTALLER_CORE_SRC), env.get("PYTHONPATH", "")]).strip(os.pathsep)
+    env.update(extra_env or {})
     result = subprocess.run(
         [
             sys.executable,
@@ -59,8 +66,8 @@ class WindsurfRuntimeCoreTests(unittest.TestCase):
         payload = registry.resolve_adapter(REPO_ROOT, "windsurf")
         self.assertEqual("windsurf", payload["id"])
         self.assertEqual("runtime-core", payload["install_mode"])
-        self.assertEqual(".codeium/windsurf", payload["default_target_root"]["rel"])
-        self.assertEqual("host-home", payload["default_target_root"]["kind"])
+        self.assertEqual(".agents", payload["default_target_root"]["rel"])
+        self.assertEqual("shared-home", payload["default_target_root"]["kind"])
 
     def test_python_installer_uses_runtime_core_without_codex_host_state(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
@@ -70,11 +77,15 @@ class WindsurfRuntimeCoreTests(unittest.TestCase):
             self.assertEqual("windsurf", payload["host_id"])
             self.assertEqual("runtime-core", payload["install_mode"])
             self.assertIn("host_closure_path", payload)
+            self.assertEqual(str(target_root.resolve()), payload["runtime_root"])
+            self.assertEqual(str(target_root.resolve()), payload["host_bridge_root"])
+            self.assertNotEqual(str(target_root.resolve()), payload["desired_shared_runtime_root"])
+            self.assertEqual("legacy-host-root-override", payload["runtime_layout_mode"])
             self.assertTrue((target_root / "skills" / "vibe" / "SKILL.md").exists())
-            self.assertTrue((target_root / "skills" / "vibe" / "bundled" / "skills" / "brainstorming" / "SKILL.runtime-mirror.md").exists())
+            self.assertTrue((target_root / "skills" / "vibe" / "bundled" / "skills" / "verification-before-completion" / "SKILL.runtime-mirror.md").exists())
             for name in self.EXPECTED_WRAPPER_SKILLS:
                 self.assertTrue((target_root / "skills" / name / "SKILL.md").exists())
-            self.assertFalse((target_root / "skills" / "brainstorming").exists())
+            self.assertFalse((target_root / "skills" / "verification-before-completion").exists())
             self.assertTrue((target_root / ".vibeskills" / "host-settings.json").exists())
             self.assertTrue((target_root / ".vibeskills" / "host-closure.json").exists())
             self.assertFalse((target_root / "commands").exists())
@@ -132,8 +143,38 @@ class WindsurfRuntimeCoreTests(unittest.TestCase):
             self.assertIn("[OK] host closure manifest", check_result.stdout)
             closure = json.loads((target_root / ".vibeskills" / "host-closure.json").read_text(encoding="utf-8"))
             self.assertEqual("closed_ready", closure["host_closure_state"])
+            self.assertEqual(str(target_root.resolve()), closure["runtime_root"])
+            self.assertEqual(str(target_root.resolve()), closure["host_bridge_root"])
+            self.assertNotEqual(str(target_root.resolve()), closure["desired_shared_runtime_root"])
+            self.assertEqual("legacy-host-root-override", closure["runtime_layout_mode"])
             self.assertNotIn("[FAIL] settings.json", check_result.stdout)
             self.assertNotIn("[FAIL] mcp_config.json", check_result.stdout)
+
+    def test_python_installer_can_split_runtime_root_into_shared_agents_home(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            bridge_root = Path(tempdir) / "host-root"
+            shared_root = Path(tempdir) / "shared-agents"
+            _, payload = run_package_install(
+                host="windsurf",
+                target_root=bridge_root,
+                extra_env={"VIBE_AGENTS_HOME": str(shared_root)},
+            )
+
+            self.assertEqual(str(shared_root.resolve()), payload["runtime_root"])
+            self.assertEqual(str(bridge_root.resolve()), payload["host_bridge_root"])
+            self.assertEqual(str(shared_root.resolve()), payload["desired_shared_runtime_root"])
+            self.assertEqual("split-shared-runtime", payload["runtime_layout_mode"])
+            self.assertTrue((shared_root / "skills" / "vibe" / "SKILL.md").exists())
+            self.assertTrue((bridge_root / "skills" / "vibe" / "SKILL.md").exists())
+            self.assertFalse((bridge_root / "skills" / "vibe" / "bundled").exists())
+
+            ledger = json.loads((bridge_root / ".vibeskills" / "install-ledger.json").read_text(encoding="utf-8"))
+            closure = json.loads((bridge_root / ".vibeskills" / "host-closure.json").read_text(encoding="utf-8"))
+
+            self.assertEqual(str(shared_root.resolve()), ledger["runtime_root"])
+            self.assertEqual(str((shared_root / "skills" / "vibe").resolve()), ledger["canonical_vibe_root"])
+            self.assertEqual("split-shared-runtime", ledger["runtime_layout_mode"])
+            self.assertEqual(str(shared_root.resolve()), closure["runtime_root"])
 
 
 if __name__ == "__main__":

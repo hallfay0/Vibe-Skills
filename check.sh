@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROFILE="full"
+PROFILE="minimal"
 HOST_ID="codex"
 TARGET_ROOT=""
 SKIP_RUNTIME_FRESHNESS_GATE="false"
@@ -49,12 +49,8 @@ run_powershell_command() {
   shell_path="$(pick_powershell || true)"
   [[ -n "${shell_path}" ]] || return 127
 
-  local leaf="${shell_path##*/}"
-  leaf="$(printf '%s' "${leaf}" | tr '[:upper:]' '[:lower:]')"
   local cmd=("${shell_path}" "-NoProfile")
-  if [[ "${leaf}" == "powershell" || "${leaf}" == "powershell.exe" ]]; then
-    cmd+=("-ExecutionPolicy" "Bypass")
-  fi
+  cmd+=("-ExecutionPolicy" "Bypass")
   cmd+=("-Command" "${command_text}")
   "${cmd[@]}" "$@"
 }
@@ -66,12 +62,8 @@ run_powershell_file() {
   shell_path="$(pick_powershell || true)"
   [[ -n "${shell_path}" ]] || return 127
 
-  local leaf="${shell_path##*/}"
-  leaf="$(printf '%s' "${leaf}" | tr '[:upper:]' '[:lower:]')"
   local cmd=("${shell_path}" "-NoProfile")
-  if [[ "${leaf}" == "powershell" || "${leaf}" == "powershell.exe" ]]; then
-    cmd+=("-ExecutionPolicy" "Bypass")
-  fi
+  cmd+=("-ExecutionPolicy" "Bypass")
   cmd+=("-File" "${script_path}")
   "${cmd[@]}" "$@"
 }
@@ -100,20 +92,6 @@ handoff_to_windows_powershell_frontend() {
   run_powershell_file "${script_path}" "$@"
   exit $?
 }
-
-ps_args=(-Profile "${PROFILE}" -HostId "${HOST_ID}")
-if [[ -n "${TARGET_ROOT}" ]]; then
-  ps_args+=(-TargetRoot "${TARGET_ROOT}")
-fi
-if [[ "${SKIP_RUNTIME_FRESHNESS_GATE}" == "true" ]]; then
-  ps_args+=(-SkipRuntimeFreshnessGate)
-fi
-if [[ "${DEEP}" == "true" ]]; then
-  ps_args+=(-Deep)
-fi
-if is_windows_shell_host; then
-  handoff_to_windows_powershell_frontend "${SCRIPT_DIR}/check.ps1" "${ps_args[@]}"
-fi
 
 resolve_executable_candidate() {
   local candidate="${1:-}"
@@ -282,25 +260,43 @@ if [[ -z "${TARGET_ROOT}" ]]; then
 fi
 assert_target_root_matches_host_intent "${TARGET_ROOT}" "${HOST_ID}"
 
+if is_windows_shell_host; then
+  runtime_target_rel="skills/vibe"
+  repo_governance_path="${SCRIPT_DIR}/config/version-governance.json"
+  if [[ -f "$repo_governance_path" ]]; then
+    configured_runtime_target_rel="$(json_query_scalar_from_file "$repo_governance_path" 'runtime.installed_runtime.target_relpath' 2>/dev/null || true)"
+    if [[ -n "$configured_runtime_target_rel" ]]; then
+      runtime_target_rel="$configured_runtime_target_rel"
+    fi
+  fi
+
+  resolved_installed_root="${TARGET_ROOT}/${runtime_target_rel}"
+  if [[ -f "${TARGET_ROOT}/config/version-governance.json" && -f "${TARGET_ROOT}/SKILL.md" ]]; then
+    resolved_installed_root="${TARGET_ROOT}"
+  fi
+
+  if [[ ! -r "${resolved_installed_root}/config/runtime-core-packaging.${PROFILE}.json" && ! -r "${resolved_installed_root}/config/runtime-core-packaging.json" ]]; then
+    printf '[FAIL] Required packaging manifest missing or unreadable: %s (fallback checked: %s)\n' \
+      "${resolved_installed_root}/config/runtime-core-packaging.${PROFILE}.json" \
+      "${resolved_installed_root}/config/runtime-core-packaging.json" >&2
+    exit 1
+  fi
+
+  ps_args=(-Profile "${PROFILE}" -HostId "${HOST_ID}")
+  if [[ -n "${TARGET_ROOT}" ]]; then
+    ps_args+=(-TargetRoot "${TARGET_ROOT}")
+  fi
+  if [[ "${SKIP_RUNTIME_FRESHNESS_GATE}" == "true" ]]; then
+    ps_args+=(-SkipRuntimeFreshnessGate)
+  fi
+  if [[ "${DEEP}" == "true" ]]; then
+    ps_args+=(-Deep)
+  fi
+  handoff_to_windows_powershell_frontend "${SCRIPT_DIR}/check.ps1" "${ps_args[@]}"
+fi
+
 resolve_codex_duplicate_skill_root() {
-  if [[ "${HOST_ID}" != "codex" ]]; then
-    return 1
-  fi
-
-  local leaf=""
-  leaf="$(basename "${TARGET_ROOT}")"
-  leaf="$(printf '%s' "${leaf}" | tr '[:upper:]' '[:lower:]')"
-  if [[ "${leaf}" != ".codex" ]]; then
-    return 1
-  fi
-
-  local parent=""
-  parent="$(safe_parent_dir "${TARGET_ROOT}")"
-  if [[ -z "${parent}" ]]; then
-    return 1
-  fi
-
-  printf '%s' "${parent}/.agents/skills/vibe"
+  return 1
 }
 
 test_vibe_skill_dir() {
@@ -378,6 +374,27 @@ warn_note() {
   local message="$1"
   echo "[WARN] ${message}"
   WARN=$((WARN+1))
+}
+
+deep_discovery_catalog_required() {
+  local policy_path="$1"
+  if [[ ! -f "${policy_path}" ]]; then
+    return 0
+  fi
+
+  local enabled_raw="" mode_raw=""
+  enabled_raw="$(json_query_scalar_from_file "${policy_path}" "enabled" 2>/dev/null || true)"
+  mode_raw="$(json_query_scalar_from_file "${policy_path}" "mode" 2>/dev/null || true)"
+  enabled_raw="$(printf '%s' "${enabled_raw}" | tr '[:upper:]' '[:lower:]')"
+  mode_raw="$(printf '%s' "${mode_raw}" | tr '[:upper:]' '[:lower:]')"
+
+  if [[ "${enabled_raw}" == "false" ]]; then
+    return 1
+  fi
+  if [[ -z "${mode_raw}" || "${mode_raw}" == "off" ]]; then
+    return 1
+  fi
+  return 0
 }
 
 info_note() {
@@ -681,6 +698,65 @@ load_projected_skill_names_for_check() {
       PROJECTED_SKILL_NAMES+=("${projected_skill_name}")
     done <<<"${output}"
   fi
+}
+
+managed_skill_inventory_group_for_check() {
+  local group_name="$1"
+  local manifest_path=""
+  manifest_path="$(resolve_packaging_manifest_path)" || return 1
+
+  local inventory_output=""
+  local inventory_status=0
+  inventory_output="$(json_query_lines_from_file "${manifest_path}" "managed_skill_inventory.${group_name}" 2>/dev/null)" || inventory_status=$?
+  if [[ ${inventory_status} -eq 1 ]]; then
+    echo "[FAIL] Unable to parse ${manifest_path} while reading managed_skill_inventory.${group_name}" >&2
+    return 1
+  elif [[ ${inventory_status} -gt 2 ]]; then
+    echo "[FAIL] Unable to read managed_skill_inventory.${group_name} from ${manifest_path}" >&2
+    return 1
+  fi
+  printf '%s\n' "${inventory_output}"
+}
+
+load_managed_skill_inventory_group_for_check() {
+  local group_name="$1"
+  local output=""
+  output="$(managed_skill_inventory_group_for_check "${group_name}")" || return 1
+
+  case "${group_name}" in
+    public_entry_skills)
+      PUBLIC_ENTRY_SKILLS=()
+      ;;
+    starter_skill_names)
+      STARTER_SKILLS=()
+      ;;
+    optional_skill_names)
+      OPTIONAL_SKILLS=()
+      ;;
+    *)
+      echo "[FAIL] Unknown managed skill inventory group: ${group_name}" >&2
+      return 1
+      ;;
+  esac
+
+  if [[ -z "${output}" ]]; then
+    return 0
+  fi
+
+  local skill_name=""
+  while IFS= read -r skill_name; do
+    case "${group_name}" in
+      public_entry_skills)
+        PUBLIC_ENTRY_SKILLS+=("${skill_name}")
+        ;;
+      starter_skill_names)
+        STARTER_SKILLS+=("${skill_name}")
+        ;;
+      optional_skill_names)
+        OPTIONAL_SKILLS+=("${skill_name}")
+        ;;
+    esac
+  done <<<"${output}"
 }
 
 pick_python() {
@@ -1079,8 +1155,14 @@ resolve_skill_descriptor_path() {
   printf '%s\n' "${hidden_plain}"
 }
 
-for n in vibe dialectic local-vco-roles spec-kit-vibe-compat superclaude-framework-compat ralph-loop cancel-ralph tdd-guide think-harder; do
-  check_path "skill/${n}" "$(resolve_skill_descriptor_path "${n}")"
+PUBLIC_ENTRY_SKILLS=()
+STARTER_SKILLS=()
+OPTIONAL_SKILLS=()
+load_managed_skill_inventory_group_for_check "public_entry_skills"
+load_managed_skill_inventory_group_for_check "starter_skill_names"
+load_managed_skill_inventory_group_for_check "optional_skill_names"
+for n in "${PUBLIC_ENTRY_SKILLS[@]}"; do
+  check_path "public entry/${n}" "$(resolve_skill_descriptor_path "${n}")"
 done
 check_path "vibe router script" "${runtime_skill_root}/scripts/router/resolve-pack-route.ps1"
 check_path "vibe memory governance config" "${runtime_skill_root}/config/memory-governance.json"
@@ -1095,7 +1177,12 @@ check_path "vibe observability policy config" "${runtime_skill_root}/config/obse
 check_path "vibe heartbeat policy config" "${runtime_skill_root}/config/heartbeat-policy.json"
 check_path "vibe deep discovery policy config" "${runtime_skill_root}/config/deep-discovery-policy.json"
 check_path "vibe llm acceleration policy config" "${runtime_skill_root}/config/llm-acceleration-policy.json"
-check_path "vibe capability catalog config" "${runtime_skill_root}/config/capability-catalog.json"
+if deep_discovery_catalog_required "${runtime_skill_root}/config/deep-discovery-policy.json"; then
+  check_path "vibe capability catalog config" "${runtime_skill_root}/config/capability-catalog.json"
+else
+  echo "[OK] vibe capability catalog config skipped when deep discovery is off"
+  PASS=$((PASS+1))
+fi
 check_path "vibe retrieval policy config" "${runtime_skill_root}/config/retrieval-policy.json"
 check_path "vibe retrieval intent profiles config" "${runtime_skill_root}/config/retrieval-intent-profiles.json"
 check_path "vibe retrieval source registry config" "${runtime_skill_root}/config/retrieval-source-registry.json"
@@ -1117,11 +1204,11 @@ else
   echo "[OK] vibe nested bundled config checks skipped (target absent; policy=optional)"
   PASS=$((PASS+1))
 fi
-for n in brainstorming writing-plans subagent-driven-development systematic-debugging; do
-  check_path "workflow/${n}" "$(resolve_skill_descriptor_path "${n}")"
+for n in "${STARTER_SKILLS[@]}"; do
+  check_path "starter/${n}" "$(resolve_skill_descriptor_path "${n}")"
 done
 if [[ "${PROFILE}" == "full" ]]; then
-  for n in requesting-code-review receiving-code-review verification-before-completion; do
+  for n in "${OPTIONAL_SKILLS[@]}"; do
     check_path "optional/${n}" "$(resolve_skill_descriptor_path "${n}")" false
   done
 fi
@@ -1162,7 +1249,6 @@ if [[ "${HOST_ID}" == "opencode" ]]; then
 fi
 if [[ "${ADAPTER_CHECK_MODE}" == "governed" ]]; then
   check_path "rules/common" "${TARGET_ROOT}/rules/common/agents.md"
-  check_path "mcp template" "${TARGET_ROOT}/mcp/servers.template.json"
 fi
 
 show_installed_runtime_upgrade_hint
@@ -1174,7 +1260,7 @@ if [[ "${ADAPTER_CHECK_MODE}" == "governed" ]] && command -v npm >/dev/null 2>&1
   echo "[OK] npm"
   PASS=$((PASS+1))
 elif [[ "${ADAPTER_CHECK_MODE}" == "governed" ]]; then
-  echo "[WARN] npm not found (needed for claude-flow)"
+  echo "[WARN] npm not found (needed for optional external CLI installs)"
   WARN=$((WARN+1))
 else
   echo "[OK] npm check skipped for non-governed adapter mode"

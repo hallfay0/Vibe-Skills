@@ -6,6 +6,12 @@
 - 这份专页不是替代通用安装提示词，而是补充 OpenCode 宿主特有说明
 - 单独拆出本页，是因为 OpenCode 还需要展开 direct install/check、默认目标根目录、项目内隔离安装、实际写入内容与宿主侧本地边界；这些内容如果全部塞进公共安装文档，会让多宿主安装入口变得过重
 
+这里的产品形态同样保持很小：
+
+- 主要工作入口仍然是 `vibe`
+- 正常扩展路径仍然是 `skills/local/<skill-id>/SKILL.md`
+- OpenCode 多出来的 command / agent 只是围绕同一个 work kernel 的宿主辅助入口，不是第二套公开产品菜单
+
 ## 当前仓库会安装
 
 - 仓库分发内容
@@ -20,7 +26,7 @@
 - 真正的 `~/.config/opencode/opencode.json`
 - provider 凭证
 - plugin 安装
-- MCP 信任决策
+- 在线能力授权决策
 
 ## 全局安装
 
@@ -76,9 +82,12 @@ PowerShell 对应参数为 `-TargetRoot .\.opencode`。
 
 ## 使用方式
 
-安装后的推荐入口：
+安装后，先把 `vibe` 当作主要工作入口：
 
 - `/vibe`
+
+OpenCode 也可能物化一些围绕同一个内核的宿主辅助入口：
+
 - `/vibe-implement`
 - `/vibe-review`
 
@@ -89,7 +98,7 @@ PowerShell 对应参数为 `-TargetRoot .\.opencode`。
 - `Use the vibe skill to plan this change.`
 - `Use the vibe skill to implement the approved plan.`
 
-安装后的自定义 agent：
+安装后的宿主辅助 agent：
 
 - `vibe-plan`
 - `vibe-implement`

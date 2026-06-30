@@ -29,17 +29,17 @@
 ## Codex
 
 ```bash
-CODEX_HOME="$HOME/.codex" bash ./scripts/bootstrap/one-shot-setup.sh --host codex --profile full
-CODEX_HOME="$HOME/.codex" bash ./check.sh --host codex --profile full --deep
+bash ./scripts/bootstrap/one-shot-setup.sh --host codex --profile full
+bash ./check.sh --host codex --profile full --deep
 ```
 
-如果你的目标是安装后当前 Codex 能直接发现 `$vibe`，这里默认就是把目标根设到真实 `~/.codex`。
-只有在你明确要求隔离安装时，才改用 `~/.vibeskills/targets/codex`。
+如果你的目标是默认走一份全局共享安装，这里就直接装到 `~/.agents`，安装后当前宿主应从这份共享根里发现 `$vibe`。
+只有在你明确要求改共享根目录时，才额外设置 `VIBE_AGENTS_HOME`。
 
 你会得到：
 
 - governed runtime payload
-- 可选的 Codex 本地 settings / MCP guidance
+- 共享的 Codex runtime payload
 - deep health check
 
 你不会得到：

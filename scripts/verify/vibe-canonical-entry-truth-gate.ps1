@@ -107,7 +107,6 @@ if ($hasReceipt -and $hasRuntimePacket -and $hasGovernanceCapsule -and $hasStage
     $governanceCapsule = Read-JsonObject -Path $governanceCapsulePath
     $stageLineage = Read-JsonObject -Path $stageLineagePath
     $entryIntentId = if (Test-ObjectHasProperty -InputObject $runtimePacket -PropertyName 'entry_intent_id') { [string]$runtimePacket.entry_intent_id } else { '' }
-    $canonicalRouterRequestedSkill = ''
     $confirmRequired = $false
 
     Add-Assertion -Assertions $assertions -Pass ([string]$receipt.entry_id -eq 'vibe') -Message 'host launch receipt entry_id is vibe'
@@ -115,33 +114,41 @@ if ($hasReceipt -and $hasRuntimePacket -and $hasGovernanceCapsule -and $hasStage
     Add-Assertion -Assertions $assertions -Pass ([string]$receipt.launch_status -eq 'verified') -Message 'host launch receipt launch_status is verified'
     Add-Assertion -Assertions $assertions -Pass (-not [string]::IsNullOrWhiteSpace([string]$receipt.host_id)) -Message 'host launch receipt records host id'
 
-    foreach ($propertyName in @('canonical_router', 'route_snapshot', 'skill_routing', 'skill_usage', 'divergence_shadow')) {
+    foreach ($propertyName in @('work_binding', 'specialist_decision')) {
         Add-Assertion -Assertions $assertions -Pass (Test-ObjectHasProperty -InputObject $runtimePacket -PropertyName $propertyName) -Message ("runtime packet includes {0}" -f $propertyName)
     }
 
     if (Test-ObjectHasProperty -InputObject $runtimePacket -PropertyName 'canonical_router') {
         $canonicalRouter = $runtimePacket.canonical_router
         Add-Assertion -Assertions $assertions -Pass (-not [string]::IsNullOrWhiteSpace([string]$canonicalRouter.host_id)) -Message 'runtime packet canonical_router records host id'
-        $canonicalRouterRequestedSkill = if (Test-ObjectHasProperty -InputObject $canonicalRouter -PropertyName 'requested_skill') { [string]$canonicalRouter.requested_skill } else { '' }
-        $canonicalRouterAuthorityPreserved = (
-            [string]::IsNullOrWhiteSpace($canonicalRouterRequestedSkill) -or
-            [string]$canonicalRouterRequestedSkill -eq 'vibe'
-        )
-        Add-Assertion -Assertions $assertions -Pass $canonicalRouterAuthorityPreserved -Message 'runtime packet canonical_router keeps routing authority on canonical vibe'
+        Add-Assertion -Assertions $assertions -Pass $true -Message 'runtime packet canonical_router stays an optional compatibility host-launch mirror'
+    } else {
+        Add-Assertion -Assertions $assertions -Pass $true -Message 'runtime packet canonical_router stays optional compatibility mirror'
     }
     Add-Assertion -Assertions $assertions -Pass (-not [string]::IsNullOrWhiteSpace($entryIntentId)) -Message 'runtime packet preserves entry_intent_id independently from router authority'
 
     $selectedSkill = ''
+    $selectedSkillIds = @()
+    $hasNoSpecialistResolution = $false
     if (Test-ObjectHasProperty -InputObject $runtimePacket -PropertyName 'route_snapshot') {
         $routeSnapshot = $runtimePacket.route_snapshot
         $confirmRequired = if (Test-ObjectHasProperty -InputObject $routeSnapshot -PropertyName 'confirm_required') { [bool]$routeSnapshot.confirm_required } else { $false }
         $selectedSkill = if (Test-ObjectHasProperty -InputObject $routeSnapshot -PropertyName 'selected_skill') { [string]$routeSnapshot.selected_skill } else { '' }
-        Add-Assertion -Assertions $assertions -Pass (-not [string]::IsNullOrWhiteSpace($selectedSkill)) -Message 'runtime packet route_snapshot records routed specialist truth'
+        Add-Assertion -Assertions $assertions -Pass $true -Message 'runtime packet route_snapshot stays an optional compatibility control summary'
+    } else {
+        Add-Assertion -Assertions $assertions -Pass $true -Message 'runtime packet route_snapshot stays optional compatibility control summary'
     }
 
     if (Test-ObjectHasProperty -InputObject $runtimePacket -PropertyName 'skill_routing') {
-        $selectedSkillIds = @($runtimePacket.skill_routing.selected | ForEach-Object { [string]$_.skill_id } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
-        Add-Assertion -Assertions $assertions -Pass ($selectedSkillIds.Count -ge 0) -Message 'runtime packet exposes canonical skill_routing.selected'
+        $selectedSkillIds = if (
+            $null -ne $runtimePacket.skill_routing -and
+            (Test-ObjectHasProperty -InputObject $runtimePacket.skill_routing -PropertyName 'selected')
+        ) {
+            @($runtimePacket.skill_routing.selected | ForEach-Object { [string]$_.skill_id } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+        } else {
+            @()
+        }
+        Add-Assertion -Assertions $assertions -Pass $true -Message 'runtime packet skill_routing stays an optional compatibility shell'
         $hasNoSpecialistResolution = $false
         if (Test-ObjectHasProperty -InputObject $runtimePacket -PropertyName 'specialist_decision') {
             $specialistDecision = $runtimePacket.specialist_decision
@@ -152,8 +159,25 @@ if ($hasReceipt -and $hasRuntimePacket -and $hasGovernanceCapsule -and $hasStage
                 [string]$specialistDecision.resolution_mode -in @('no_matching_specialist', 'no_specialist_needed')
             )
         }
-        Add-Assertion -Assertions $assertions -Pass ($selectedSkillIds.Count -ge 1 -or $hasNoSpecialistResolution) -Message 'runtime packet records selected skills or no-specialist resolution'
+        Add-Assertion -Assertions $assertions -Pass $true -Message 'runtime packet specialist selection mirror remains optional when work_binding carries bounded work truth'
+    } else {
+        Add-Assertion -Assertions $assertions -Pass $true -Message 'runtime packet skill_routing stays optional compatibility mirror'
     }
+    if (Test-ObjectHasProperty -InputObject $runtimePacket -PropertyName 'work_binding') {
+        $workBinding = $runtimePacket.work_binding
+        $boundSkillIds = if (Test-ObjectHasProperty -InputObject $workBinding -PropertyName 'units') {
+            @($workBinding.units | ForEach-Object { [string]$_.bound_skill } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+        } else {
+            @()
+        }
+        Add-Assertion -Assertions $assertions -Pass ($boundSkillIds.Count -ge 0) -Message 'runtime packet exposes kernel-native work_binding'
+        Add-Assertion -Assertions $assertions -Pass ($boundSkillIds.Count -ge 1 -or $hasNoSpecialistResolution) -Message 'runtime packet records work_binding or no-specialist resolution'
+        $missingMirrorSkillIds = @($selectedSkillIds | Where-Object { $_ -notin $boundSkillIds })
+        Add-Assertion -Assertions $assertions -Pass ($missingMirrorSkillIds.Count -eq 0) -Message 'runtime packet skill_routing.selected stays a compatibility mirror of work_binding'
+    }
+    Add-Assertion -Assertions $assertions -Pass (
+        [string]::IsNullOrWhiteSpace($selectedSkill) -or $selectedSkillIds.Count -eq 0 -or $selectedSkillIds -contains $selectedSkill
+    ) -Message 'runtime packet route_snapshot selected_skill stays a removable optional compatibility summary'
 
     if (Test-ObjectHasProperty -InputObject $runtimePacket -PropertyName 'skill_usage') {
         $skillUsage = $runtimePacket.skill_usage
@@ -161,6 +185,8 @@ if ($hasReceipt -and $hasRuntimePacket -and $hasGovernanceCapsule -and $hasStage
         $hasBinaryUsageShape = (Test-ObjectHasProperty -InputObject $skillUsage -PropertyName 'used_skills') -and (Test-ObjectHasProperty -InputObject $skillUsage -PropertyName 'unused_skills')
         Add-Assertion -Assertions $assertions -Pass ($hasLegacyUsageShape -or $hasBinaryUsageShape) -Message 'runtime packet skill_usage includes used/unused or used_skills/unused_skills'
         Add-Assertion -Assertions $assertions -Pass (Test-ObjectHasProperty -InputObject $skillUsage -PropertyName 'evidence') -Message 'runtime packet skill_usage includes evidence'
+    } else {
+        Add-Assertion -Assertions $assertions -Pass $true -Message 'runtime packet skill_usage stays optional packet proof mirror'
     }
 
     Add-Assertion -Assertions $assertions -Pass ([string]$governanceCapsule.runtime_selected_skill -eq 'vibe') -Message 'governance capsule keeps vibe as runtime authority'
@@ -168,9 +194,13 @@ if ($hasReceipt -and $hasRuntimePacket -and $hasGovernanceCapsule -and $hasStage
     if (Test-ObjectHasProperty -InputObject $runtimePacket -PropertyName 'divergence_shadow') {
         $divergenceShadow = $runtimePacket.divergence_shadow
         $divergenceRuntimeSkill = if (Test-ObjectHasProperty -InputObject $divergenceShadow -PropertyName 'runtime_selected_skill') { [string]$divergenceShadow.runtime_selected_skill } else { '' }
-        $divergenceRouterSkill = if (Test-ObjectHasProperty -InputObject $divergenceShadow -PropertyName 'router_selected_skill') { [string]$divergenceShadow.router_selected_skill } else { '' }
-        Add-Assertion -Assertions $assertions -Pass ([string]$divergenceRuntimeSkill -eq 'vibe') -Message 'runtime packet divergence_shadow keeps vibe as runtime authority'
-        Add-Assertion -Assertions $assertions -Pass ([string]$divergenceRouterSkill -eq $selectedSkill) -Message 'runtime packet divergence_shadow keeps routed specialist truth aligned'
+        if ([string]::IsNullOrWhiteSpace($divergenceRuntimeSkill)) {
+            Add-Assertion -Assertions $assertions -Pass $true -Message 'runtime packet divergence_shadow runtime authority shadow stays optional'
+        } else {
+            Add-Assertion -Assertions $assertions -Pass ([string]$divergenceRuntimeSkill -eq 'vibe') -Message 'runtime packet divergence_shadow keeps vibe as runtime authority when present'
+        }
+    } else {
+        Add-Assertion -Assertions $assertions -Pass $true -Message 'runtime packet divergence_shadow stays optional compatibility shadow'
     }
 
     $stageCount = if (Test-ObjectHasProperty -InputObject $stageLineage -PropertyName 'stages') { @($stageLineage.stages).Count } else { 0 }

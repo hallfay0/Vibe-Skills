@@ -104,11 +104,10 @@ def test_cli_canonical_entry_proves_runtime_backed_truth_for_supported_hosts() -
             assert stage_lineage_path.exists(), host_id
 
             runtime_packet = json.loads(runtime_packet_path.read_text(encoding="utf-8"))
-            assert "route_snapshot" in runtime_packet, host_id
-            assert runtime_packet["route_snapshot"]["selected_skill"], host_id
             governance_capsule = json.loads(governance_capsule_path.read_text(encoding="utf-8"))
             assert governance_capsule["runtime_selected_skill"] == "vibe", host_id
-            assert "skill_routing" in runtime_packet, host_id
+            assert "work_binding" in runtime_packet, host_id
+            assert "specialist_decision" in runtime_packet, host_id
             assert "specialist_dispatch" not in runtime_packet, host_id
             assert "specialist_recommendations" not in runtime_packet, host_id
             specialist_decision = runtime_packet.get("specialist_decision") or {}
@@ -116,5 +115,11 @@ def test_cli_canonical_entry_proves_runtime_backed_truth_for_supported_hosts() -
                 specialist_decision.get("decision_state") == "no_specialist_recommendations"
                 and specialist_decision.get("resolution_mode") in {"no_matching_specialist", "no_specialist_needed"}
             )
-            selected = runtime_packet["skill_routing"].get("selected") or []
-            assert len(selected) >= 1 or no_specialist_resolved, host_id
+            bound_units = (runtime_packet.get("work_binding") or {}).get("units") or []
+            bound_skill_ids = [unit.get("bound_skill") for unit in bound_units if isinstance(unit, dict) and unit.get("bound_skill")]
+            selected = ((runtime_packet.get("skill_routing") or {}).get("selected") or [])
+            assert len(bound_skill_ids) >= 1 or no_specialist_resolved, host_id
+            assert (
+                len(selected) == 0
+                or all(item.get("skill_id") in bound_skill_ids for item in selected if isinstance(item, dict))
+            ), host_id

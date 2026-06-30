@@ -31,6 +31,13 @@ This protocol defines the user-facing runtime path that all host syntaxes share.
 It does not create a second router or second runtime surface.
 It defines what must happen after `$vibe` enters the governed runtime.
 
+When you need to explain a run or inspect artifacts, use this reading order:
+
+1. start with `current-runtime-field-contract.md` plus the run's work artifacts such as `work_dossier`, `work_binding`, `work_results`, and `verification`
+2. for most normal runs, stop there and read the work truth rather than a compatibility chain
+3. use this protocol to understand stage order and runtime lifecycle
+4. read `current-routing-contract.md` only if you still need the compatibility selection or execution chain
+
 ## Runtime Identity
 
 `vibe` is one skill contract across all hosts:
@@ -272,7 +279,7 @@ Expected runtime artifacts:
 
 - `outputs/runtime/vibe-sessions/<run-id>/skeleton-receipt.json`
 - `outputs/runtime/vibe-sessions/<run-id>/intent-contract.json`
-- `outputs/runtime/vibe-sessions/<run-id>/runtime-input-packet.json` with non-empty `route_snapshot` and selected skill execution surfaces
+- `outputs/runtime/vibe-sessions/<run-id>/runtime-input-packet.json` with first-class `work_binding` and `specialist_decision`, plus selected skill execution surfaces when bounded skill help exists
 - requirement document
 - execution plan
 - phase receipts
@@ -297,4 +304,4 @@ The governed runtime is considered healthy only when:
 - downstream delivery truth is evaluated separately from runtime/process truth before full completion wording is allowed
 - no fallback or degraded path is presented as equivalent success
 - any fallback or degraded path emits a standalone hazard alert
-- no run claims canonical vibe entry without verified `host-launch-receipt.json`, `runtime-input-packet.json` (including `route_snapshot` and selected skill execution surfaces), `governance-capsule.json`, `stage-lineage.json`, and required skill execution accounting artifacts
+- no run claims canonical vibe entry without verified `host-launch-receipt.json`, `runtime-input-packet.json` (including `work_binding`, `specialist_decision`, and selected skill execution surfaces when bounded skill help exists), `governance-capsule.json`, `stage-lineage.json`, and required skill execution accounting artifacts

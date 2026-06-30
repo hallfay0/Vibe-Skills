@@ -47,6 +47,8 @@ def freeze_runtime_packet(task: str, artifact_root: Path) -> dict[str, object]:
             shell,
             "-NoLogo",
             "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
             "-Command",
             (
                 "& { "
@@ -65,7 +67,13 @@ def freeze_runtime_packet(task: str, artifact_root: Path) -> dict[str, object]:
         check=True,
         env=dict(os.environ),
     )
-    return json.loads(completed.stdout)
+    payload = json.loads(completed.stdout)
+    if payload is None:
+        raise AssertionError(
+            "Freeze-RuntimeInputPacket.ps1 returned null. "
+            f"stderr was: {completed.stderr.strip()}"
+        )
+    return payload
 
 
 def load_json(path: str | Path) -> dict[str, object]:
@@ -80,6 +88,32 @@ def as_list(value: object) -> list[object]:
     return [value]
 
 
+def selected_rows_from_packet(packet: dict[str, object]) -> list[dict[str, object]]:
+    routing = packet.get("skill_routing")
+    if isinstance(routing, dict):
+        selected = routing.get("selected")
+        if isinstance(selected, list) and selected:
+            return [item for item in selected if isinstance(item, dict)]
+    work_binding = packet.get("work_binding")
+    if not isinstance(work_binding, dict):
+        return []
+    units = work_binding.get("units")
+    if not isinstance(units, list):
+        return []
+    rows: list[dict[str, object]] = []
+    for unit in units:
+        if not isinstance(unit, dict):
+            continue
+        skill_id = str(unit.get("bound_skill") or "").strip()
+        if not skill_id:
+            continue
+        row = dict(unit)
+        row["skill_id"] = skill_id
+        row.setdefault("state", "selected")
+        rows.append(row)
+    return rows
+
+
 def run_powershell_json(script_body: str) -> dict[str, object]:
     shell = resolve_powershell()
     if shell is None:
@@ -90,6 +124,8 @@ def run_powershell_json(script_body: str) -> dict[str, object]:
             shell,
             "-NoLogo",
             "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
             "-Command",
             f"& {{ . '{RUNTIME_COMMON}'; {script_body} }}",
         ],
@@ -115,26 +151,28 @@ def extract_split_specialist_dispatch_function() -> str:
 
 
 class SkillPromotionFreezeContractTests(unittest.TestCase):
-    def test_runtime_input_policy_allows_no_specialist_decision_and_keeps_advisory_fallbacks(self) -> None:
+    def test_runtime_input_policy_keeps_specialist_recommendations_advisory_without_fallback_table(self) -> None:
         policy = load_json(REPO_ROOT / "config" / "runtime-input-packet-policy.json")
 
-        self.assertEqual(0, int(policy["required_specialist_recommendation_count"]))
         self.assertTrue(bool(policy["require_specialist_decision_evidence"]))
         self.assertGreater(float(policy["minimum_specialist_recommendation_confidence"]), 0.0)
         self.assertFalse(bool(policy["include_stage_assistant_recommendations"]))
-        fallback_by_task_type = policy["fallback_specialists_by_task_type"]
-        for task_type in ("planning", "debug", "research", "coding", "review", "default"):
-            with self.subTest(task_type=task_type):
-                self.assertIn(task_type, fallback_by_task_type)
-        for task_type in ("debug", "coding", "review"):
-            with self.subTest(task_type=task_type):
-                self.assertGreaterEqual(len(as_list(fallback_by_task_type[task_type])), 1)
+        self.assertNotIn("required_specialist_recommendation_count", policy)
+        self.assertNotIn("fallback_specialists_by_task_type", policy)
+        self.assertNotIn("specialist_binding_profiles", policy)
+        self.assertNotIn("overlay_fields", policy)
+        self.assertNotIn("router_script_path", policy)
 
     def test_eligible_matched_skill_is_approved_and_not_ghosted(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             payload = freeze_runtime_packet(ML_PROMPT, Path(tempdir))
             packet = load_json(payload["packet_path"])
-            selected = as_list(packet["skill_routing"]["selected"])
+            field_order = list(packet)
+            self.assertLess(field_order.index("work_binding"), field_order.index("canonical_router"))
+            self.assertLess(field_order.index("work_binding"), field_order.index("route_snapshot"))
+            self.assertLess(field_order.index("specialist_decision"), field_order.index("skill_routing"))
+            self.assertLess(field_order.index("specialist_decision"), field_order.index("divergence_shadow"))
+            selected = selected_rows_from_packet(packet)
             selected_ids = [item["skill_id"] for item in selected]
             decision = packet["specialist_decision"]
 
@@ -158,7 +196,7 @@ class SkillPromotionFreezeContractTests(unittest.TestCase):
 
             routing_rows = (
                 as_list(packet["skill_routing"]["candidates"])
-                + as_list(packet["skill_routing"]["selected"])
+                + selected_rows_from_packet(packet)
                 + as_list(packet["skill_routing"]["rejected"])
             )
             surfaced = {str(item["skill_id"]) for item in routing_rows if str(item["skill_id"])}
@@ -175,7 +213,7 @@ class SkillPromotionFreezeContractTests(unittest.TestCase):
             self.assertNotIn("specialist_consultation", packet)
             self.assertNotIn("legacy_skill_routing", packet)
             self.assertGreaterEqual(len(as_list(packet["skill_routing"]["candidates"])), 1)
-            self.assertGreaterEqual(len(as_list(packet["skill_routing"]["selected"])), 1)
+            self.assertGreaterEqual(len(selected_rows_from_packet(packet)), 1)
 
     def test_policy_can_allow_incomplete_contract_without_forced_freeze_degrade(self) -> None:
         split_function = extract_split_specialist_dispatch_function()

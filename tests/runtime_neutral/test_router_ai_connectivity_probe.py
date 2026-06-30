@@ -44,7 +44,6 @@ class RouterAiConnectivityProbeTests(unittest.TestCase):
                     "scope": {
                         "grade_allow": ["M", "L", "XL"],
                         "task_allow": ["planning", "coding", "review", "debug", "research"],
-                        "route_mode_allow": ["legacy_fallback", "confirm_required", "pack_overlay"],
                     },
                     "provider": {
                         "type": "openai",

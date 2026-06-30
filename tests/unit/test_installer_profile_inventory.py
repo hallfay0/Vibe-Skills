@@ -28,20 +28,23 @@ def _load(path: Path) -> dict:
 
 def test_profile_inventory_loader_reads_manifest_owned_skill_groups() -> None:
     module = _load_profile_inventory_module()
-    minimal = module.load_managed_skill_inventory(_load(MINIMAL_MANIFEST))
-    full = module.load_managed_skill_inventory(_load(FULL_MANIFEST))
+    minimal_manifest = _load(MINIMAL_MANIFEST)
+    full_manifest = _load(FULL_MANIFEST)
+    minimal = module.load_managed_skill_inventory(minimal_manifest)
+    full = module.load_managed_skill_inventory(full_manifest)
+    resident = module.internal_corpus_resident_skill_names(full_manifest)
 
-    assert minimal.required_runtime_skills[0] == 'vibe'
-    assert set(minimal.required_workflow_skills) == {
-        'brainstorming',
-        'writing-plans',
-        'subagent-driven-development',
+    assert minimal.public_entry_skills == ('vibe',)
+    assert set(minimal.starter_skill_names) == {
+        'tdd-guide',
         'systematic-debugging',
     }
-    assert minimal.optional_workflow_skills == ()
-    assert full.optional_workflow_skills == (
-        'requesting-code-review',
-        'receiving-code-review',
+    assert minimal.optional_skill_names == ()
+    assert full.optional_skill_names == (
         'verification-before-completion',
     )
-    assert set(minimal.required_skill_names).issubset(set(full.desired_managed_skill_names))
+    assert resident == (
+        'ralph-loop',
+        'cancel-ralph',
+    )
+    assert set(minimal.default_managed_skill_names).issubset(set(full.desired_managed_skill_names))

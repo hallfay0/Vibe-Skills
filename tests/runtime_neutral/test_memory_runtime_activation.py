@@ -102,6 +102,8 @@ def run_governed_runtime_with_metadata(
         shell,
         "-NoLogo",
         "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
         "-Command",
         (
             "& { "

@@ -55,6 +55,25 @@ function New-VibeAdviceSnapshot {
     return [pscustomobject]$snapshot
 }
 
+function Get-VibeRouteAdviceFieldNames {
+    param(
+        [AllowNull()] [object]$RouteResult
+    )
+
+    if ($null -eq $RouteResult) {
+        return @()
+    }
+
+    return @(
+        @($RouteResult.PSObject.Properties) |
+            Where-Object {
+                $_.Name -match '_advice$' -and $null -ne $_.Value
+            } |
+            ForEach-Object { [string]$_.Name } |
+            Sort-Object -Unique
+    )
+}
+
 function Invoke-VibeFrozenRoute {
     param(
         [Parameter(Mandatory)] [string]$RouterScriptPath,
@@ -127,6 +146,33 @@ function Test-VibeSingleOptionCanonicalConfirmSurface {
     }
 
     return $true
+}
+
+function Test-VibeProgressiveEntryLegacyConfirmBypass {
+    param(
+        [AllowNull()] [object]$RouteResult,
+        [AllowEmptyString()] [string]$EntryIntentId = '',
+        [AllowEmptyString()] [string]$TaskType = ''
+    )
+
+    if ([string]::IsNullOrWhiteSpace([string]$EntryIntentId)) {
+        return $false
+    }
+    if ([string]$EntryIntentId -notin @('vibe-what-do-i-want', 'vibe-how-do-we-do', 'vibe-do-it')) {
+        return $false
+    }
+    if ($null -eq $RouteResult -or [string]$RouteResult.route_mode -ne 'confirm_required') {
+        return $false
+    }
+    if (
+        -not ($RouteResult.PSObject.Properties.Name -contains 'legacy_fallback_guard_applied') -or
+        -not [bool]$RouteResult.legacy_fallback_guard_applied
+    ) {
+        return $false
+    }
+
+    $normalizedTaskType = ([string]$TaskType).Trim().ToLowerInvariant()
+    return $normalizedTaskType -in @('planning', 'coding')
 }
 
 function Get-VibeSkillMetadata {
@@ -244,109 +290,15 @@ function Get-VibeSpecialistBindingProfile {
         [Parameter(Mandatory)] [object]$DispatchContract
     )
 
-    $profiles = if ($Policy.PSObject.Properties.Name -contains 'specialist_binding_profiles') {
-        $Policy.specialist_binding_profiles
-    } else {
-        $null
-    }
-
-    $selectedProfileName = 'default'
-    $selectedProfile = if ($profiles -and $profiles.PSObject.Properties.Name -contains 'default') {
-        $profiles.default
-    } else {
-        $null
-    }
-
-    if ($profiles) {
-        $profilePriority = @{
-            planning = 40
-            deliverable = 30
-            verification = 20
-            implementation = 10
-        }
-        $bestMatchScore = 0
-        $bestPriority = -1
-        foreach ($profileName in @('planning', 'implementation', 'deliverable', 'verification')) {
-            if (-not ($profiles.PSObject.Properties.Name -contains $profileName)) {
-                continue
-            }
-            $profile = $profiles.$profileName
-            $matchScore = 0
-            foreach ($pattern in @($profile.match_skill_patterns)) {
-                $regex = [string]$pattern
-                if (-not [string]::IsNullOrWhiteSpace($regex) -and $SkillId -match $regex) {
-                    $matchScore += 1
-                }
-            }
-            if ($matchScore -le 0) {
-                continue
-            }
-
-            $priority = if ($profilePriority.ContainsKey($profileName)) { [int]$profilePriority[$profileName] } else { 0 }
-            if ($matchScore -gt $bestMatchScore -or ($matchScore -eq $bestMatchScore -and $priority -gt $bestPriority)) {
-                $selectedProfileName = $profileName
-                $selectedProfile = $profile
-                $bestMatchScore = $matchScore
-                $bestPriority = $priority
-            }
-        }
-    }
-
-    if ($null -eq $selectedProfile) {
-        $selectedProfile = [pscustomobject]@{}
-    }
-
     return [pscustomobject]@{
-        binding_profile = $selectedProfileName
-        dispatch_phase = if ($selectedProfile.PSObject.Properties.Name -contains 'dispatch_phase') { [string]$selectedProfile.dispatch_phase } else { [string]$DispatchContract.dispatch_phase }
-        execution_priority = if ($selectedProfile.PSObject.Properties.Name -contains 'execution_priority') { [int]$selectedProfile.execution_priority } else { [int]$DispatchContract.execution_priority }
-        lane_policy = if ($selectedProfile.PSObject.Properties.Name -contains 'lane_policy') { [string]$selectedProfile.lane_policy } else { [string]$DispatchContract.lane_policy }
-        parallelizable_in_root_xl = if ($selectedProfile.PSObject.Properties.Name -contains 'parallelizable_in_root_xl') { [bool]$selectedProfile.parallelizable_in_root_xl } else { [bool]$DispatchContract.parallelizable_in_root_xl }
-        write_scope = Resolve-VibeSpecialistWriteScopeTemplate `
-            -Template $(if ($selectedProfile.PSObject.Properties.Name -contains 'write_scope_template') { [string]$selectedProfile.write_scope_template } else { [string]$DispatchContract.write_scope_template }) `
-            -SkillId $SkillId
-        review_mode = if ($selectedProfile.PSObject.Properties.Name -contains 'review_mode') { [string]$selectedProfile.review_mode } else { [string]$DispatchContract.review_mode }
+        binding_profile = 'default'
+        dispatch_phase = [string]$DispatchContract.dispatch_phase
+        execution_priority = [int]$DispatchContract.execution_priority
+        lane_policy = [string]$DispatchContract.lane_policy
+        parallelizable_in_root_xl = [bool]$DispatchContract.parallelizable_in_root_xl
+        write_scope = Resolve-VibeSpecialistWriteScopeTemplate -Template ([string]$DispatchContract.write_scope_template) -SkillId $SkillId
+        review_mode = [string]$DispatchContract.review_mode
     }
-}
-
-function Get-VibeFallbackSpecialistSkillIds {
-    param(
-        [Parameter(Mandatory)] [string]$TaskType,
-        [Parameter(Mandatory)] [object]$Policy,
-        [AllowEmptyString()] [string]$RouterSelectedSkill = '',
-        [AllowEmptyString()] [string]$RuntimeSelectedSkill = ''
-    )
-
-    $skillIds = @()
-    if (-not [string]::IsNullOrWhiteSpace($RouterSelectedSkill) -and
-        -not [string]::Equals($RouterSelectedSkill, $RuntimeSelectedSkill, [System.StringComparison]::OrdinalIgnoreCase)) {
-        $skillIds += [string]$RouterSelectedSkill
-    }
-
-    $fallbackByTaskType = if ($Policy.PSObject.Properties.Name -contains 'fallback_specialists_by_task_type') {
-        $Policy.fallback_specialists_by_task_type
-    } else {
-        $null
-    }
-    if ($null -eq $fallbackByTaskType) {
-        return @($skillIds | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
-    }
-
-    foreach ($key in @($TaskType, 'default')) {
-        if ([string]::IsNullOrWhiteSpace([string]$key)) {
-            continue
-        }
-        if (-not ($fallbackByTaskType.PSObject.Properties.Name -contains $key)) {
-            continue
-        }
-        foreach ($skillId in @($fallbackByTaskType.$key)) {
-            if (-not [string]::IsNullOrWhiteSpace([string]$skillId)) {
-                $skillIds += [string]$skillId
-            }
-        }
-    }
-
-    return @($skillIds | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
 }
 
 function New-VibeSpecialistRecommendation {
@@ -675,7 +627,7 @@ function Get-VibeSpecialistRecommendations {
         }
     }
 
-    foreach ($overlayField in @($Policy.overlay_fields)) {
+    foreach ($overlayField in @(Get-VibeRouteAdviceFieldNames -RouteResult $RouteResult)) {
         if (@($recommendations).Count -ge $limit) {
             break
         }
@@ -741,45 +693,6 @@ function Get-VibeSpecialistRecommendations {
             -TargetRoot $TargetRoot `
             -HostId $HostId)
         $seen[$RouterSelectedSkill] = $true
-    }
-
-    $requiredRecommendationCount = 1
-    if ($Policy.PSObject.Properties.Name -contains 'required_specialist_recommendation_count' -and $Policy.required_specialist_recommendation_count -ne $null) {
-        $requiredRecommendationCount = [int]$Policy.required_specialist_recommendation_count
-    }
-    foreach ($fallbackSkillId in @(Get-VibeFallbackSpecialistSkillIds `
-            -TaskType $TaskType `
-            -Policy $Policy `
-            -RouterSelectedSkill $RouterSelectedSkill `
-            -RuntimeSelectedSkill $RuntimeSelectedSkill)) {
-        if (@($recommendations).Count -ge $limit) {
-            break
-        }
-        if (@($recommendations).Count -ge $requiredRecommendationCount) {
-            break
-        }
-        if ($seen.ContainsKey($fallbackSkillId)) {
-            continue
-        }
-
-        $customMetadata = if ($customAdmissionIndex.ContainsKey($fallbackSkillId)) { $customAdmissionIndex[$fallbackSkillId] } else { $null }
-        $reason = "policy fallback specialist for task type '{0}'" -f $TaskType
-        $recommendations += (New-VibeSpecialistRecommendation `
-            -RepoRoot $RepoRoot `
-            -Task $Task `
-            -SkillId $fallbackSkillId `
-            -Source ("fallback:{0}" -f $TaskType) `
-            -TaskType $TaskType `
-            -Reason $reason `
-            -PackId $null `
-            -Confidence 0.0 `
-            -Rank (@($recommendations).Count + 1) `
-            -DispatchContract $dispatchContractForRecommendation `
-            -PromotionPolicy $PromotionPolicy `
-            -CustomMetadata $customMetadata `
-            -TargetRoot $TargetRoot `
-            -HostId $HostId)
-        $seen[$fallbackSkillId] = $true
     }
 
     return @($recommendations)
@@ -1003,7 +916,7 @@ if (
 ) {
     $taskType = [string]$continuationContext.prior_task_type
 }
-$routerScriptPath = Join-Path $runtime.repo_root ([string]$policy.router_script_path)
+$routerScriptPath = Join-Path $runtime.repo_root 'scripts/router/resolve-pack-route.ps1'
 $routerHostId = Resolve-VgoHostId -HostId $env:VCO_HOST_ID
 $routerTargetRoot = Resolve-VgoTargetRoot -HostId $routerHostId
 $storageProjection = New-VibeWorkspaceArtifactProjection `
@@ -1074,15 +987,13 @@ if (
     $executionPhaseDecomposition = Resolve-VibeHostPhaseDecomposition -HostDecision $hostDecision -Task $Task -Policy $policy
 }
 
-$overlayDecisions = @()
-foreach ($overlayField in @($policy.overlay_fields)) {
-    if (-not ($routeResult.PSObject.Properties.Name -contains $overlayField)) {
-        continue
-    }
-    $snapshot = New-VibeAdviceSnapshot -Name $overlayField -Advice $routeResult.$overlayField
-    if ($null -ne $snapshot) {
-        $overlayDecisions += $snapshot
-    }
+$shouldBypassLegacyConfirm = Test-VibeProgressiveEntryLegacyConfirmBypass `
+    -RouteResult $routeResult `
+    -EntryIntentId $EntryIntentId `
+    -TaskType $taskType
+if ($shouldBypassLegacyConfirm) {
+    $routeResult.route_mode = 'pack_overlay'
+    $routeResult.route_reason = 'progressive_entry_legacy_fallback_bypass'
 }
 
 $confirmRequired = ([string]$routeResult.route_mode -eq 'confirm_required')
@@ -1250,7 +1161,6 @@ $packet = New-VibeRuntimeInputPacketProjection `
     -SkillRouting $skillRouting `
     -SkillExecutionLock $skillExecutionLock `
     -SpecialistDispatch $specialistDispatch `
-    -OverlayDecisions @($overlayDecisions) `
     -Policy $policy
 
 $packetPath = Get-VibeRuntimeInputPacketPath -RepoRoot $runtime.repo_root -RunId $RunId -ArtifactRoot $ArtifactRoot

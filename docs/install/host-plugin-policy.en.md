@@ -32,7 +32,7 @@ Other agents should not currently be described as having a supported install pat
 ## Codex
 
 - currently the strongest path
-- guidance stays centered on local settings, MCP, and optional CLI enhancements
+- guidance stays centered on local settings, optional CLI enhancements, and host-side capability boundaries
 - hooks remain frozen; that is not an install failure
 
 ## Claude Code
@@ -40,7 +40,7 @@ Other agents should not currently be described as having a supported install pat
 - supported install-and-use path
 - not integrated by “adding a pile of host plugins”
 - preserves the real `~/.claude/settings.json` while merging a bounded managed `vibeskills` settings surface
-- plugin enablement, MCP registration, credentials, and broader Claude behavior remain host-managed
+- plugin enablement, host-side capability configuration, credentials, and broader Claude behavior remain host-managed
 
 ## Cursor
 
@@ -69,7 +69,7 @@ Other agents should not currently be described as having a supported install pat
 - supported install-and-use path
 - default target root is `OPENCODE_HOME` or the real host root `~/.config/opencode`
 - direct install/check writes skills, `.vibeskills/*` sidecars, and `opencode.json.example`
-- the real `opencode.json`, provider credentials, plugin installation, and MCP trust remain managed on the OpenCode side
+- the real `opencode.json`, provider credentials, plugin installation, and online capability authorization remain managed on the OpenCode side
 
 ## Recommended Community Wording
 

@@ -11,7 +11,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 MINIMAL_MANIFEST = REPO_ROOT / "config" / "runtime-core-packaging.minimal.json"
 FULL_MANIFEST = REPO_ROOT / "config" / "runtime-core-packaging.full.json"
 
-REPRESENTATIVE_NON_CORE_SKILL = "scikit-learn"
+REPRESENTATIVE_FULL_ONLY_SKILL = "verification-before-completion"
 DIRECT_RUNTIME_PUBLIC_SKILLS = {
     "vibe",
     "vibe-upgrade",
@@ -19,6 +19,10 @@ DIRECT_RUNTIME_PUBLIC_SKILLS = {
 HOST_VISIBLE_DISCOVERABLE_ENTRIES = {
     "vibe",
     "vibe-upgrade",
+}
+HIDDEN_INTERNAL_RESIDENT_SKILLS = {
+    "ralph-loop",
+    "cancel-ralph",
 }
 
 
@@ -29,17 +33,18 @@ def load_json(path: Path) -> dict:
 def load_skill_inventory(path: Path) -> tuple[set[str], set[str], set[str]]:
     payload = load_json(path)["managed_skill_inventory"]
     return (
-        set(payload["required_runtime_skills"]),
-        set(payload["required_workflow_skills"]),
-        set(payload["optional_workflow_skills"]),
+        set(payload["public_entry_skills"]),
+        set(payload["starter_skill_names"]),
+        set(payload["optional_skill_names"]),
     )
 
 
 MINIMAL_RUNTIME_SKILLS, MINIMAL_WORKFLOW_SKILLS, _ = load_skill_inventory(MINIMAL_MANIFEST)
 FULL_RUNTIME_SKILLS, FULL_WORKFLOW_SKILLS, FULL_OPTIONAL_WORKFLOW_SKILLS = load_skill_inventory(FULL_MANIFEST)
 MINIMAL_REQUIRED_SKILLS = MINIMAL_RUNTIME_SKILLS | MINIMAL_WORKFLOW_SKILLS
+FULL_REQUIRED_SKILLS = FULL_RUNTIME_SKILLS | FULL_WORKFLOW_SKILLS | FULL_OPTIONAL_WORKFLOW_SKILLS
 MINIMAL_INSTALLED_SKILLS = MINIMAL_REQUIRED_SKILLS | {"vibe-upgrade"}
-MINIMAL_ALLOWLIST_SKILLS = (MINIMAL_RUNTIME_SKILLS - {"vibe"}) | MINIMAL_WORKFLOW_SKILLS
+FULL_INSTALLED_SKILLS = FULL_REQUIRED_SKILLS | {"vibe-upgrade"}
 
 
 def count_files(root: Path) -> int:
@@ -72,13 +77,16 @@ class InstallProfileDifferentiationTests(unittest.TestCase):
 
         self.assertEqual("minimal", minimal["profile"])
         self.assertEqual("full", full["profile"])
-        self.assertEqual(sorted(MINIMAL_ALLOWLIST_SKILLS), sorted(minimal["skills_allowlist"]))
+        self.assertNotIn("skills_allowlist", minimal)
         self.assertTrue(minimal["canonical_vibe_payload"]["enabled"])
         self.assertEqual("skills/vibe", minimal["canonical_vibe_payload"]["target_relpath"])
-        self.assertTrue(full["copy_bundled_skills"])
-        self.assertFalse(minimal["copy_bundled_skills"])
+        self.assertNotIn("copy_bundled_skills", full)
+        self.assertNotIn("copy_bundled_skills", minimal)
         self.assertEqual("skills/vibe/bundled/skills", full["internal_skill_corpus"]["target_relpath"])
+        self.assertEqual(sorted(HIDDEN_INTERNAL_RESIDENT_SKILLS), sorted(full["internal_skill_corpus"]["resident_skill_names"]))
+        self.assertEqual(sorted(HIDDEN_INTERNAL_RESIDENT_SKILLS), sorted(minimal["internal_skill_corpus"]["resident_skill_names"]))
         self.assertEqual([], full["compatibility_skill_projections"]["projected_skill_names"])
+        self.assertNotIn("skills_allowlist", full)
 
     def test_minimal_install_contains_only_required_foundation_skills(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
@@ -91,16 +99,25 @@ class InstallProfileDifferentiationTests(unittest.TestCase):
                 for candidate in (target_root / "skills").iterdir()
                 if candidate.is_dir()
             }
-            hidden_required_skill = target_root / "skills" / "vibe" / "bundled" / "skills" / "brainstorming" / "SKILL.runtime-mirror.md"
+            hidden_required_skill = target_root / "skills" / "vibe" / "bundled" / "skills" / "systematic-debugging" / "SKILL.runtime-mirror.md"
+            hidden_resident_skills = {
+                name
+                for name in HIDDEN_INTERNAL_RESIDENT_SKILLS
+                if (target_root / "skills" / "vibe" / "bundled" / "skills" / name / "SKILL.runtime-mirror.md").exists()
+            }
 
             self.assertEqual(DIRECT_RUNTIME_PUBLIC_SKILLS, installed_skills)
             self.assertTrue(hidden_required_skill.exists())
-            self.assertNotIn(REPRESENTATIVE_NON_CORE_SKILL, installed_skills)
+            self.assertEqual(HIDDEN_INTERNAL_RESIDENT_SKILLS, hidden_resident_skills)
+            self.assertNotIn(REPRESENTATIVE_FULL_ONLY_SKILL, installed_skills)
             self.assertEqual("minimal", ledger["profile"])
             self.assertEqual(sorted(MINIMAL_INSTALLED_SKILLS), ledger["payload_summary"]["installed_skill_names"])
             self.assertEqual(sorted(DIRECT_RUNTIME_PUBLIC_SKILLS), ledger["payload_summary"]["public_skill_names"])
             self.assertEqual(sorted(HOST_VISIBLE_DISCOVERABLE_ENTRIES), ledger["payload_summary"]["host_visible_entry_names"])
-            self.assertEqual(len(HOST_VISIBLE_DISCOVERABLE_ENTRIES), ledger["payload_summary"]["host_visible_entry_count"])
+            self.assertTrue(HIDDEN_INTERNAL_RESIDENT_SKILLS.isdisjoint(set(ledger["payload_summary"]["installed_skill_names"])))
+            self.assertNotIn("installed_skill_count", ledger["payload_summary"])
+            self.assertNotIn("public_skill_count", ledger["payload_summary"])
+            self.assertNotIn("host_visible_entry_count", ledger["payload_summary"])
             # In a fresh temp target, every file should be installer-owned.
             self.assertEqual(count_files(target_root), ledger["payload_summary"]["installed_file_count"])
             self.assertTrue((target_root / "commands" / "vibe.md").exists())
@@ -128,23 +145,24 @@ class InstallProfileDifferentiationTests(unittest.TestCase):
                 for candidate in (full_root / "skills").iterdir()
                 if candidate.is_dir()
             }
-            hidden_full_skill = full_root / "skills" / "vibe" / "bundled" / "skills" / REPRESENTATIVE_NON_CORE_SKILL / "SKILL.runtime-mirror.md"
+            hidden_full_skill = full_root / "skills" / "vibe" / "bundled" / "skills" / REPRESENTATIVE_FULL_ONLY_SKILL / "SKILL.runtime-mirror.md"
+            hidden_resident_skills = {
+                name
+                for name in HIDDEN_INTERNAL_RESIDENT_SKILLS
+                if (full_root / "skills" / "vibe" / "bundled" / "skills" / name / "SKILL.runtime-mirror.md").exists()
+            }
 
             self.assertEqual(DIRECT_RUNTIME_PUBLIC_SKILLS, full_skills)
             self.assertTrue(hidden_full_skill.exists())
+            self.assertEqual(HIDDEN_INTERNAL_RESIDENT_SKILLS, hidden_resident_skills)
             self.assertGreater(
-                full_ledger["payload_summary"]["installed_skill_count"],
-                minimal_ledger["payload_summary"]["installed_skill_count"],
+                len(full_ledger["payload_summary"]["installed_skill_names"]),
+                len(minimal_ledger["payload_summary"]["installed_skill_names"]),
             )
-            self.assertEqual(len(DIRECT_RUNTIME_PUBLIC_SKILLS), full_ledger["payload_summary"]["public_skill_count"])
             self.assertEqual(sorted(DIRECT_RUNTIME_PUBLIC_SKILLS), full_ledger["payload_summary"]["public_skill_names"])
             self.assertEqual(sorted(HOST_VISIBLE_DISCOVERABLE_ENTRIES), full_ledger["payload_summary"]["host_visible_entry_names"])
-            self.assertEqual(len(HOST_VISIBLE_DISCOVERABLE_ENTRIES), full_ledger["payload_summary"]["host_visible_entry_count"])
-            self.assertIn(REPRESENTATIVE_NON_CORE_SKILL, full_ledger["payload_summary"]["installed_skill_names"])
-            self.assertGreater(
-                full_ledger["payload_summary"]["installed_file_count"],
-                minimal_ledger["payload_summary"]["installed_file_count"],
-            )
+            self.assertEqual(sorted(FULL_INSTALLED_SKILLS), full_ledger["payload_summary"]["installed_skill_names"])
+            self.assertTrue(HIDDEN_INTERNAL_RESIDENT_SKILLS.isdisjoint(set(full_ledger["payload_summary"]["installed_skill_names"])))
             self.assertEqual([], full_ledger["compatibility_roots"])
 
     def test_full_skill_only_hosts_do_not_leak_codex_wrapper_skill_projections(self) -> None:
@@ -181,9 +199,12 @@ class InstallProfileDifferentiationTests(unittest.TestCase):
             }
 
             self.assertEqual({"vibe", "vibe-upgrade"}, installed_skills)
-            self.assertNotIn(REPRESENTATIVE_NON_CORE_SKILL, installed_skills)
+            self.assertNotIn(REPRESENTATIVE_FULL_ONLY_SKILL, installed_skills)
             self.assertEqual(sorted(MINIMAL_REQUIRED_SKILLS), ledger["managed_skill_names"])
             self.assertEqual(sorted(MINIMAL_INSTALLED_SKILLS), ledger["payload_summary"]["installed_skill_names"])
+            self.assertFalse(
+                (target_root / "skills" / "vibe" / "bundled" / "skills" / REPRESENTATIVE_FULL_ONLY_SKILL / "SKILL.runtime-mirror.md").exists()
+            )
 
     def test_payload_summary_ignores_preexisting_foreign_host_content(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:

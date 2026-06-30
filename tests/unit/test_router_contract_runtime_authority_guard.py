@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import sys
+import json
 
 import pytest
 
@@ -13,6 +14,7 @@ if str(RUNTIME_SRC) not in sys.path:
 
 from vgo_runtime import router_contract_runtime as runtime
 from vgo_runtime.router_contract_selection import INTERNAL_SELECTION_USABLE
+from vgo_runtime.runtime_support import RepoContext
 
 
 def test_unknown_authority_tier_uses_broad_owner_threshold(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -115,3 +117,26 @@ def test_unknown_authority_tier_uses_broad_owner_threshold(monkeypatch: pytest.M
     assert result["fallback_applied"] is False
     assert result["pre_fallback_top"] == {"pack_id": "shadow-pack", "skill": "shadow-skill"}
     assert result["rejected_specialist_reasons"] == ["candidate_signal_below_authority_threshold"]
+
+
+def test_deep_discovery_off_does_not_require_capability_catalog(tmp_path: Path) -> None:
+    config_root = tmp_path / "config"
+    config_root.mkdir()
+    (config_root / "deep-discovery-policy.json").write_text(
+        json.dumps({"enabled": True, "mode": "off"}, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    repo = RepoContext(
+        repo_root=tmp_path,
+        config_root=config_root,
+        bundled_skills_root=tmp_path / "bundled" / "skills",
+    )
+
+    advice = runtime._build_deep_discovery_advice(
+        repo=repo,
+        prompt_lower="plan and implement this task end to end",
+        grade="L",
+        task_type="planning",
+    )
+
+    assert advice is None

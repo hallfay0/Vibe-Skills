@@ -20,7 +20,6 @@
       "docs/universalization/platform-parity-contract.md",
       "config/settings.template.codex.json",
       "config/plugins-manifest.codex.json",
-      "mcp/servers.template.json",
       "adapters/codex/host-profile.json",
       "adapters/codex/settings-map.json",
       "adapters/codex/closure.json",
@@ -41,7 +40,7 @@
     "repo_provided_reference_surfaces": [],
     "host_managed_surfaces": [
       "plugin provisioning",
-      "MCP provider credentials",
+      "provider credentials",
       "external CLI availability",
       "operator-specific secrets"
     ],
@@ -61,7 +60,6 @@
     "docs/universalization/platform-parity-contract.md",
     "config/settings.template.codex.json",
     "config/plugins-manifest.codex.json",
-    "mcp/servers.template.json",
     "adapters/codex/host-profile.json",
     "adapters/codex/settings-map.json",
     "adapters/codex/closure.json",
@@ -94,7 +92,7 @@
   },
   "host_managed_surfaces": [
     "plugin provisioning",
-    "MCP provider credentials",
+    "provider credentials",
     "external CLI availability",
     "operator-specific secrets"
   ],

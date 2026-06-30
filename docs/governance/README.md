@@ -1,44 +1,37 @@
-# Governance Families
+# Governance
 
 - Up: [`../README.md`](../README.md)
 
-## What Lives Here
+## Conclusion
 
-`docs/governance/` 保存仍有长期治理价值、但不需要继续占据 `docs/` 根层入口面的治理专题。
+Start here only for the current governance contracts that still describe the live runtime boundary.
 
-这些文档通常定义：
+If you are reading old consolidation, cleanup, or hard-removal passes, go to [`../archive/governance-history/README.md`](../archive/governance-history/README.md) instead.
 
-- stop rules
-- rollout / scorecard / board governance
-- boundedness, fallback, proof, and evaluation guardrails
-- long-lived policy families that are not the primary public install or runtime entry surface
+## Current Entry Surfaces
 
-## Start Here
+current runtime truth and routing compatibility contracts live here first.
 
-- current routing and runtime field contracts:
-  - [`current-routing-contract.md`](current-routing-contract.md)
-  - [`current-runtime-field-contract.md`](current-runtime-field-contract.md)
-  - [`historical-routing-terminology.md`](historical-routing-terminology.md) is
-    only for reading old cleanup records; it is not the current routing model.
-- keep-root governance entry surfaces stay in the docs root:
-  - [`../developer-change-governance.md`](../developer-change-governance.md)
-  - [`../repo-cleanliness-governance.md`](../repo-cleanliness-governance.md)
-  - [`../version-packaging-governance.md`](../version-packaging-governance.md)
-  - [`../runtime-freshness-install-sop.md`](../runtime-freshness-install-sop.md)
-  - [`../root-child-vibe-hierarchy-governance.md`](../root-child-vibe-hierarchy-governance.md)
-- moved governance families now live here and should be treated as topic indexes, not root landing pages
-
-Representative moved leaves:
-
-- [`absorption-admission-matrix.md`](absorption-admission-matrix.md)
-- [`distribution-governance.md`](distribution-governance.md)
-- [`ecosystem-absorption-dedup-governance.md`](ecosystem-absorption-dedup-governance.md)
-- [`source-neutral-link-governance.md`](source-neutral-link-governance.md)
-- [`vibe-governed-project-delivery-acceptance-governance.md`](vibe-governed-project-delivery-acceptance-governance.md)
+- [`current-runtime-field-contract.md`](current-runtime-field-contract.md)
+  defines the current runtime truth vocabulary and the work-first artifact order.
+- [`current-routing-contract.md`](current-routing-contract.md)
+  explains the remaining routing compatibility mirrors after you already checked the runtime truth contract.
 - [`skill-admission-hardening.md`](skill-admission-hardening.md)
+  records the current admission rules for what may enter the governed skill surface.
+- [`bundled-skill-retention-matrix.md`](bundled-skill-retention-matrix.md)
+  explains the current starter-set boundary and why the large repo-owned bundled tree is not the default public extension story.
+- [`kernel-first-remediation-baseline.md`](kernel-first-remediation-baseline.md)
+  freezes the current remediation boundary while the kernel-first cleanup is still in progress.
 
-## Rules
+## What Does Not Start Here
 
-- keep a small set of root governance docs for stable public/operator entry
-- move specialized governance families here rather than leaving them flat in `docs/*.md`
-- archive historical batch reports and migration receipts instead of turning this directory into a dated-report sink
+These are not current entry surfaces:
+
+- [`historical-routing-terminology.md`](historical-routing-terminology.md)
+  is only for reading older routing cleanup records. It is not the current routing model.
+- dated consolidation batches
+- dated cleanup passes
+- dated hard-removal records
+- zero-route-authority migration passes
+
+Those materials can still be useful, but they are history. They should be reached through the archive navigation, not treated as the first explanation of the current runtime.

@@ -197,7 +197,7 @@
                                                                                "scripts/router/resolve-pack-route.ps1",
                                                                                "scripts/router/invoke-pack-route.py",
                                                                                "scripts/router/runtime_neutral/router_contract.py",
-                                                                               "packages/runtime-core/src/vgo_runtime/router_bridge.py",
+                                                                               "packages/runtime-core/src/vgo_runtime/runtime_bridge.py",
                                                                                "packages/runtime-core/src/vgo_runtime/router_contract_runtime.py",
                                                                                "packages/runtime-core/src/vgo_runtime/custom_admission.py",
                                                                                "scripts/verify/runtime_neutral/router_bridge_gate.py",
@@ -266,7 +266,7 @@
                                                                                                              "packages/installer-core/src/vgo_installer/install_runtime.py",
                                                                                                              "packages/installer-core/src/vgo_installer/uninstall_runtime.py",
                                                                                                              "packages/installer-core/src/vgo_installer/ledger_service.py",
-                                                                                                             "packages/runtime-core/src/vgo_runtime/router_bridge.py",
+                                                                                                             "packages/runtime-core/src/vgo_runtime/runtime_bridge.py",
                                                                                                              "packages/runtime-core/src/vgo_runtime/router_contract_runtime.py",
                                                                                                              "packages/runtime-core/src/vgo_runtime/custom_admission.py"
                                                                                                          ],

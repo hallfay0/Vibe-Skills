@@ -1,19 +1,24 @@
-# 自定义 Skill / Workflow 治理规则
+# 自定义 Skill / Workflow 治理规则（高级路径）
 
-目标：允许扩展，禁止失控。你可以接入自定义能力，但不能破坏 canonical runtime 与 canonical router。
+目标：允许扩展，禁止失控。你可以接入自定义能力，但不能破坏 canonical runtime，也不能覆盖 work kernel 持有的 bounded-work 真相面。
 
-默认推荐 lane 仍是 `workflow`，它保持治理工作流核心有效，同时允许自定义扩展逐步接入。
+这页只面向高级 governed 路径。正常扩展路径仍然是本地 skill：`<TARGET_ROOT>/skills/local/<skill-id>/SKILL.md`。
+
+如果普通本地 skill 已经够用，就不需要继续读这页。只有当你真的需要一个 manifest 驱动的 custom workflow，或其他高级 admitted custom surface 时，才继续。
+
+如果确实要走高级路径，优先使用 `full`。框架版 `minimal` 也能承载，但你必须确认依赖真的齐全。
 
 ## 不可违反的硬规则
 
 1. 只有一个 runtime：`vibe`
-2. 只有一个 canonical routing controller：canonical router
+2. 只有一个 canonical runtime controller：`vibe` work kernel
 3. 自定义内容必须 manifest 声明后才可参与路由
 4. 禁止目录存在即自动生效
 5. 禁止把外部仓库直接变成 live route source
 
 ## 受治理目录约定
 
+- 正常本地 skill 路径：`<TARGET_ROOT>/skills/local/<skill-id>/SKILL.md`
 - 内容目录：`<TARGET_ROOT>/skills/custom/<name>/`
 - workflow 声明：`<TARGET_ROOT>/config/custom-workflows.json`
 - custom skill 分离声明（如启用）：`<TARGET_ROOT>/config/custom-skills.json`
@@ -34,7 +39,6 @@
 
 - `skills/vibe/`
 - 官方 skill 目录 `skills/<official-skill>/`
-- 官方 `mcp/`
 - 官方 `rules/`
 - 官方 `agents/templates/`
 
@@ -50,7 +54,7 @@
 特别是：
 
 - 从 `full` 降到框架版（`minimal`）
-- 从 `workflow` 降到框架版（`minimal`）
+- 从更重的 custom workflow 形态回到框架版（`minimal`）
 
 这类变更最容易造成：
 
@@ -72,6 +76,10 @@
 4. 是否把自定义改动误写进了官方受管目录
 
 ## 路由与触发治理
+
+这部分只适用于高级路径。普通 skill 放在 `skills/local/<skill-id>/SKILL.md` 下时，不应该需要这些 manifest 触发控制。
+
+高级 admission 只能影响 discovery 和 eligibility，不能替代 kernel 持有的工作循环，也不能替代 `work_binding` 作为最终“实际绑定了什么”的记录。
 
 - 默认 `trigger_mode`：`advisory`
 - `explicit_only` 用于高风险或低频流程
@@ -107,7 +115,7 @@
 - `custom_manifest_invalid`
 - `custom_dependencies_missing`
 
-未满足 provider/MCP/host 手工项时，禁止宣称 online readiness。
+未满足 provider/宿主侧能力配置/host 手工项时，禁止宣称 online readiness。
 
 ## Codex 与 Claude Code 边界
 
@@ -126,8 +134,9 @@
 
 ## 最小验收清单
 
+- 普通 skill 仍可直接走 `skills/local/<skill-id>/SKILL.md`，不用进入高级路径
 - manifest schema 校验通过
 - 未声明目录不会被路由
 - 显式用户选择可覆盖自动建议
-- canonical `vibe` 与 workflow core 优先级稳定
+- canonical `vibe`、work kernel 与 `work_binding` 真相面优先级稳定
 - doctor 状态与实际配置一致，不夸大 readiness

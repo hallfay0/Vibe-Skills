@@ -63,6 +63,21 @@ def load_json(path: str | Path) -> dict[str, object]:
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
+def selected_skill_ids_from_runtime_input(runtime_input: dict[str, object]) -> list[str]:
+    routing = runtime_input.get("skill_routing")
+    if isinstance(routing, dict):
+        selected = routing.get("selected")
+        if isinstance(selected, list) and selected:
+            return [str(item.get("skill_id") or "") for item in selected if isinstance(item, dict) and str(item.get("skill_id") or "")]
+    work_binding = runtime_input.get("work_binding")
+    if not isinstance(work_binding, dict):
+        return []
+    units = work_binding.get("units")
+    if not isinstance(units, list):
+        return []
+    return [str(item.get("bound_skill") or "") for item in units if isinstance(item, dict) and str(item.get("bound_skill") or "")]
+
+
 def create_fake_bridge(directory: Path, host_id: str) -> Path:
     suffix = ".cmd" if os.name == "nt" else ""
     bridge_path = directory / f"{host_id}-bridge{suffix}"
@@ -330,9 +345,14 @@ class InstalledHostRuntimeSimulationTests(unittest.TestCase):
 
         self.assertIn("route_snapshot", runtime_input, host_id)
         self.assertEqual("vibe", runtime_input["authority_flags"]["explicit_runtime_skill"], host_id)
-        self.assertEqual("vibe", runtime_input["divergence_shadow"]["runtime_selected_skill"], host_id)
-        route_selected_skill = str(runtime_input["route_snapshot"].get("selected_skill") or "")
-        self.assertTrue(route_selected_skill, host_id)
+        self.assertNotIn("runtime_selected_skill", runtime_input["divergence_shadow"], host_id)
+        bound_skill_ids = [
+            str(unit.get("bound_skill") or "")
+            for unit in runtime_input["work_binding"]["units"]
+            if str(unit.get("bound_skill") or "")
+        ]
+        self.assertTrue(bound_skill_ids, host_id)
+        self.assertNotIn("selected_skill", runtime_input["route_snapshot"], host_id)
         self.assertIn("skill_routing", runtime_input, host_id)
         self.assertIn("skill_usage", runtime_input, host_id)
         self.assertIn("specialist_decision", runtime_input, host_id)
@@ -340,11 +360,8 @@ class InstalledHostRuntimeSimulationTests(unittest.TestCase):
         self.assertNotIn("specialist_recommendations", runtime_input, host_id)
         self.assertNotIn("stage_assistant_hints", runtime_input, host_id)
         self.assertNotIn("specialist_dispatch", runtime_input, host_id)
-        selected_skill_ids = [
-            item["skill_id"]
-            for item in list(runtime_input["skill_routing"]["selected"])
-            if item.get("skill_id")
-        ]
+        selected_skill_ids = selected_skill_ids_from_runtime_input(runtime_input)
+        route_selected_skill = bound_skill_ids[0]
         if route_selected_skill != "vibe":
             self.assertIn(route_selected_skill, selected_skill_ids, host_id)
         self.assertTrue(Path(artifacts["requirement_doc"]).exists(), host_id)
@@ -410,7 +427,7 @@ class InstalledHostRuntimeSimulationTests(unittest.TestCase):
                     env=runtime_env,
                 )
                 debug_state = self._assert_common_governed_outputs(debug, host_id=host_id)
-                specialist_ids = [item["skill_id"] for item in debug_state["runtime_input"]["skill_routing"]["selected"]]
+                specialist_ids = selected_skill_ids_from_runtime_input(debug_state["runtime_input"])
                 self.assertIn("systematic-debugging", specialist_ids, host_id)
                 self.assertGreaterEqual(
                     debug_state["execution_manifest"]["specialist_accounting"]["recommendation_count"],

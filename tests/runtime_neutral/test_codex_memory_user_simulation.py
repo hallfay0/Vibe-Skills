@@ -237,6 +237,8 @@ def run_installed_runtime(
         shell,
         "-NoLogo",
         "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
         "-Command",
         (
             "& { "
@@ -278,6 +280,8 @@ def run_repo_governed_runtime(task: str, artifact_root: Path, env: dict[str, str
         shell,
         "-NoLogo",
         "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
         "-Command",
         (
             "& { "

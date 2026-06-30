@@ -55,6 +55,8 @@ def run_runtime(task: str, artifact_root: Path) -> dict[str, object]:
             shell,
             "-NoLogo",
             "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
             "-Command",
             (
                 "& { "
@@ -156,7 +158,7 @@ class ActiveConsultationSimplificationTests(unittest.TestCase):
             "}"
         )
         completed = subprocess.run(
-            [shell, "-NoLogo", "-NoProfile", "-Command", script],
+            [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,

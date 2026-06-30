@@ -56,14 +56,14 @@ Do not keep pretending the framework version is `framework-only`; the current sc
 - external runtimes such as `ruc-nlpir` may still need their own isolated venv, but that is not the same thing as the bootstrap prerequisite floor
 - do not describe an optional upstream/runtime preference for 3.11 as if the whole public installer were 3.11-only
 
-## Rule 7: Describe Codex as the default recommended path
+## Rule 7: Describe Codex through the shared default root
 
 If the user chooses `codex`:
 
 - run `--host codex`
-- on Linux / macOS, default to `CODEX_HOME="$HOME/.codex"`; on Windows, default `CODEX_HOME` to the real host root `%USERPROFILE%\\.codex`
-- describe it as the strongest governed path today; if the goal is to install and have the current Codex discover `$vibe` directly, the default target must be the real `~/.codex`
-- only use `~/.vibeskills/targets/codex` when the user explicitly asks for an isolated target root, or Codex is already intentionally pointed there
+- default to the shared install root `~/.agents`; on Windows that means `%USERPROFILE%\\.agents`
+- describe this as the simplified public default: different hosts reuse the same `.agents` install
+- set `VIBE_AGENTS_HOME` only when the user explicitly asks for a different shared root
 - explain that hook installation is currently frozen because of compatibility issues; that is not an install failure
 - do not guide users through built-in online enhancement provider, credential, URL, or model configuration in the public install flow for now
 - never imply that baseline host online access automatically means governance-AI online readiness
@@ -77,7 +77,7 @@ If the user chooses `claude-code`:
 - on Linux / macOS, default to `CLAUDE_HOME="$HOME/.claude"`; on Windows, default `CLAUDE_HOME` to the real host root `%USERPROFILE%\\.claude`
 - explain that the installer preserves existing `~/.claude/settings.json` content while adding a bounded managed `vibeskills` node
 - do not claim official-runtime ownership, full Codex parity, or cross-platform proof that has not been frozen
-- guide the user to keep `env`, plugin enablement, MCP registration, and provider credentials on the Claude host-managed side
+- guide the user to keep `env`, plugin enablement, host-local capability configuration, and provider credentials on the Claude host-managed side
 
 ## Rule 9: Describe Cursor as a supported install-and-use path too
 
@@ -119,7 +119,7 @@ If the user chooses `opencode`:
 - the real host config directory is `~/.config/opencode`
 - direct install/check writes skills, `.vibeskills/*` sidecars, and `opencode.json.example`
 - do not claim ownership of the real `opencode.json`
-- keep provider credentials, plugin installation, and MCP trust on the host-managed side
+- keep provider credentials, plugin installation, and online capability authorization on the host-managed side
 
 ## Rule 13: Do not publicly guide built-in online enhancement configuration
 
@@ -135,28 +135,13 @@ Public install, update, manual copy, and prompt-based install docs do not curren
 
 For all six supported hosts, do not ask users to paste keys, URLs, or model names into chat. The public install flow also should not direct users to add those values for built-in online enhancement configuration right now.
 
-## Rule 15: MCP completion must target the host's native MCP surface
-
-For all six supported hosts, MCP must be provisioned into the host's real **native MCP surface** first.
-
-The following must not be treated as MCP completion evidence:
-
-- `$vibe` / `/vibe` / `skills/vibe` discoverability
-- `mcp/servers.template.json`
-- plugin manifests
-- `*.json.example`
-- `.vibeskills/*` sidecars
-- a command merely existing on PATH
-
-If native auto-registration fails, or the current host does not expose a stable officially supportable auto-registration interface, report that the MCP is still `not host-visible` rather than pretending it is ready.
-
-## Rule 16: Distinguish local install, `vibe host-ready`, and online readiness
+## Rule 15: Distinguish local install, `vibe host-ready`, and online readiness
 
 If local provider fields are not configured, the environment must not be described as online-ready.
 
-`$vibe` being callable must not be rewritten as if MCP were already complete.
+`$vibe` being callable must not be rewritten as if host plugins or online enhancement were already complete.
 
-## Rule 17: The result summary must stay explicit
+## Rule 16: The result summary must stay explicit
 
 The install or upgrade summary should include at least:
 
@@ -166,8 +151,6 @@ The install or upgrade summary should include at least:
 - commands actually executed
 - `installed locally`
 - `vibe host-ready`
-- `mcp native auto-provision attempted`
-- per-MCP `host-visible readiness`
 - `online-ready`
 - completed parts
 - manual follow-up still required
@@ -176,6 +159,7 @@ The install or upgrade summary should include at least:
 
 If the user chooses `Framework Only + Customizable Governance` / `minimal`, explicitly remind them:
 
-- this installs the governance foundation first
-- it does not mean the default workflow core is already complete
-- if they want to add their own workflows later, continue with [`custom-workflow-onboarding.en.md`](./custom-workflow-onboarding.en.md)
+- this installs the small work kernel and governance foundation first
+- the normal extension path after install is a local skill under `skills/local/<skill-id>/SKILL.md`
+- it does not mean every optional workflow-core or advanced admitted custom surface is already complete
+- if a normal local skill is not enough and they truly need an advanced manifest-driven custom workflow later, continue with [`custom-workflow-onboarding.en.md`](./custom-workflow-onboarding.en.md)

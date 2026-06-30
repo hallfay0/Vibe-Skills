@@ -13,7 +13,7 @@ HARD_SCAN = REPO_ROOT / "scripts" / "verify" / "vibe-routing-terminology-hard-cl
 SUMMARY_DOC = REPO_ROOT / "docs" / "governance" / "historical-routing-terminology.md"
 CURRENT_CONTRACT = "docs/governance/current-routing-contract.md"
 CURRENT_FIELD_CONTRACT = "docs/governance/current-runtime-field-contract.md"
-CURRENT_MODEL = "skill_candidates -> skill_routing.selected -> selected_skill_execution -> skill_usage"
+CURRENT_MODEL = "skill_candidates -> skill_routing.selected -> skill_execution_lock -> selected_skill_execution -> skill_usage"
 COMPRESSED_DOCS = [
     REPO_ROOT / "docs" / "governance" / "binary-skill-usage-routing-2026-04-28.md",
     REPO_ROOT / "docs" / "governance" / "simplified-skill-routing-2026-04-29.md",
@@ -62,7 +62,7 @@ class HistoricalRoutingDocCompressionTests(unittest.TestCase):
             self.skipTest("PowerShell executable not available")
 
         completed = subprocess.run(
-            [shell, "-NoLogo", "-NoProfile", "-File", str(HARD_SCAN), "-Json"],
+            [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(HARD_SCAN), "-Json"],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,

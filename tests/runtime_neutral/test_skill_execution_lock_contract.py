@@ -37,7 +37,7 @@ def run_ps_json(script: str) -> dict[str, object]:
     if shell is None:
         raise unittest.SkipTest("PowerShell executable not available")
     completed = subprocess.run(
-        [shell, "-NoLogo", "-NoProfile", "-Command", script],
+        [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -265,6 +265,8 @@ class SkillExecutionLockContractTests(unittest.TestCase):
                     shell,
                     "-NoLogo",
                     "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
                     "-File",
                     str(FREEZE_SCRIPT),
                     "-Task",

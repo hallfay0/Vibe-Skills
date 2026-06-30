@@ -26,6 +26,9 @@ CURRENT_USER_VISIBLE_RUNTIME_FILES = [
     REPO_ROOT / "scripts" / "verify" / "vibe-runtime-execution-proof-gate.ps1",
 ]
 RUNTIME_EXECUTION_PROOF_GATE = REPO_ROOT / "scripts" / "verify" / "vibe-runtime-execution-proof-gate.ps1"
+NO_SILENT_FALLBACK_GATE = REPO_ROOT / "scripts" / "verify" / "vibe-no-silent-fallback-contract-gate.ps1"
+CHILD_SPECIALIST_ESCALATION_GATE = REPO_ROOT / "scripts" / "verify" / "vibe-child-specialist-escalation-gate.ps1"
+EXECUTION_CLOSURE_GATE = REPO_ROOT / "scripts" / "verify" / ("vibe-specialist-" + "dispatch-closure-gate.ps1")
 
 
 def read(path: Path) -> str:
@@ -37,8 +40,14 @@ class CurrentRoutingVocabularyFinalCleanupTests(unittest.TestCase):
         policy = json.loads(read(POLICY_PATH))
         required_fields = set(policy["required_fields"])
 
-        self.assertIn("skill_routing", required_fields)
-        self.assertIn("skill_usage", required_fields)
+        self.assertIn("work_binding", required_fields)
+        self.assertIn("specialist_decision", required_fields)
+        self.assertNotIn("overlay_decisions", required_fields)
+        self.assertNotIn("route_snapshot", required_fields)
+        self.assertNotIn("skill_usage", required_fields)
+        self.assertNotIn("skill_routing", required_fields)
+        self.assertNotIn("canonical_router", required_fields)
+        self.assertNotIn("divergence_shadow", required_fields)
         self.assertNotIn("specialist_dispatch", required_fields)
         self.assertNotIn("specialist_recommendations", required_fields)
 
@@ -72,7 +81,8 @@ class CurrentRoutingVocabularyFinalCleanupTests(unittest.TestCase):
             "selected_skill_ids",
             "blocked_skill_ids",
             "degraded_skill_ids",
-            "source = 'skill_routing.selected'",
+            "$executionSource = 'work_binding.units[*].bound_skill'",
+            "$executionStatus = 'derived_from_work_binding'",
         ]:
             self.assertIn(field, helper_body)
         for field in [
@@ -149,9 +159,46 @@ class CurrentRoutingVocabularyFinalCleanupTests(unittest.TestCase):
         self.assertIn("executeReceipt.skill_execution_unit_count", text)
         self.assertIn("executionManifest.specialist_accounting.skill_execution_unit_count", text)
         self.assertIn("proofManifest.skill_execution_unit_count", text)
+        self.assertIn("compatibility skill mirror subordinate to work_binding", text)
+        self.assertIn("legacy specialist recommendations stay subordinate to work_binding", text)
         self.assertNotIn("executeReceipt.specialist_dispatch_unit_count", text)
         self.assertNotIn("executionManifest.specialist_accounting.dispatch_unit_count", text)
         self.assertNotIn("proofManifest.specialist_dispatch_unit_count", text)
+
+    def test_no_silent_fallback_gate_keeps_selected_skill_mirror_subordinate_to_work_binding(self) -> None:
+        text = read(NO_SILENT_FALLBACK_GATE)
+
+        self.assertIn("skill_routing stays an optional compatibility mirror", text)
+        self.assertIn("compatibility selected skills stay subordinate to work_binding", text)
+        self.assertIn("low-signal route stays explicit via non-authoritative fallback guard or explicit host selection", text)
+        self.assertNotIn("records selected skills or no-specialist resolution evidence", text)
+
+    def test_child_specialist_escalation_gate_keeps_work_binding_ahead_of_dispatch_residue(self) -> None:
+        text = read(CHILD_SPECIALIST_ESCALATION_GATE)
+
+        self.assertIn("child runtime packet includes work_binding", text)
+        self.assertIn("child runtime packet keeps root-approved bounded work in work_binding", text)
+        self.assertIn("child runtime packet keeps compatibility selected skills subordinate to work_binding", text)
+        self.assertIn("residual local specialist suggestion does not mutate current work_binding", text)
+        self.assertNotIn("runtime packet exposes specialist dispatch surface", text)
+
+    def test_execution_closure_gate_reads_work_binding_before_closure_proof(self) -> None:
+        text = read(EXECUTION_CLOSURE_GATE)
+
+        self.assertIn("official smoke runtime packet includes work_binding", text)
+        self.assertIn("official smoke work_binding carries bounded skill truth", text)
+        self.assertIn("official smoke compatibility selected skills stay subordinate to work_binding", text)
+        self.assertIn("child closure smoke keeps inherited bounded work in work_binding", text)
+        self.assertIn("child closure smoke keeps compatibility selected skills subordinate to work_binding", text)
+        self.assertIn("child closure smoke residual local suggestion does not mutate work_binding", text)
+
+    def test_team_protocol_frames_selected_skill_execution_as_work_binding_follow_on(self) -> None:
+        text = read(REPO_ROOT / "protocols" / "team.md")
+
+        self.assertIn("`work_binding` remains the source of truth", text)
+        self.assertIn("`selected_skill_execution` is the execution-side copy", text)
+        self.assertIn("execution-side copy of root-approved bounded work from `work_binding`", text)
+        self.assertNotIn("skill usage selected by root and frozen in plan; child lanes may execute directly", text)
 
 
 if __name__ == "__main__":

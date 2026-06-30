@@ -40,6 +40,8 @@ def run_governed_runtime(task: str, artifact_root: Path) -> dict[str, object]:
             shell,
             "-NoLogo",
             "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
             "-Command",
             (
                 "& { "

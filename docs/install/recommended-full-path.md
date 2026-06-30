@@ -9,19 +9,21 @@
 
 这份文档汇总当前六个公开宿主对应的安装命令、默认目标根目录与 host-mode 说明。
 
-## MCP 自动接入合同
+即使走全量路径，产品形态也不变：
 
-所有六个公开宿主都遵循同一条非阻塞 MCP 合同：
+- 安装得到的仍然是同一个小工作内核
+- 安装后的正常扩展路径仍然是 `skills/local/<skill-id>/SKILL.md`
+- manifest 驱动的高级 custom workflow 仍然只是后续更窄的高级路径，不是默认扩展方式
 
-- 安装或 one-shot 期间要尝试：`github`、`context7`、`serena`、`scrapling`、`claude-flow`
-- 这些 MCP 的默认完成目标必须是对应宿主当前真实使用的 **宿主原生 MCP 配置面**
-- `$vibe` 或 `/vibe` 只代表 governed runtime 入口，不等于 MCP 完成
-- repo template、manifest、`*.json.example`、`.vibeskills/*` sidecar，以及“命令已在 PATH 上”都不能单独算 host-visible ready
-- `github` / `context7` / `serena` 优先走 host-native registration
-- `scrapling` / `claude-flow` 优先走 scripted CLI / stdio 安装
-- 如果宿主原生自动注册失败，或当前宿主没有稳定、官方可支持的自动注册接口，必须明确报告尚未进入宿主原生 MCP 配置面，而不是把 `$vibe`、模板或 sidecar 伪装成安装成功
-- 失败不会阻塞 base install；失败只会在最终报告里集中汇总
-- 最终报告会把 `installed locally`、`vibe host-ready`、`mcp native auto-provision attempted`、每个 MCP 的 `host-visible readiness`、`manual follow-up`、以及 `online-ready` 分开写清楚
+## 公共安装边界
+
+所有六个公开宿主现在都遵循同一条更收敛的公共安装边界：
+
+- 公共安装路径不再自动接入宿主侧插件或在线能力
+- `$vibe` 或 `/vibe` 只代表 governed runtime 入口，不代表宿主插件、provider 或在线增强已经完成
+- repo template、manifest、`*.json.example`、`.vibeskills/*` sidecar，以及“命令已在 PATH 上”都不能单独算 online-ready
+- 宿主插件、provider、凭据和更深的在线增强继续保持宿主管理
+- 最终报告会把 `installed locally`、`vibe host-ready`、`manual follow-up`、以及 `online-ready` 分开写清楚
 
 公共平台前置条件：
 
@@ -37,12 +39,12 @@
 
 | 宿主 | 默认命令面 | 默认目标根目录 | 当前口径 |
 | --- | --- | --- | --- |
-| `codex` | one-shot setup + check | 默认真实 `~/.codex`（通过 `CODEX_HOME`），隔离时才用 `~/.vibeskills/targets/codex` | strongest governed lane |
+| `codex` | one-shot setup + check | 默认共享 `~/.agents`；如需改共享根再设置 `VIBE_AGENTS_HOME` | strongest governed path |
 | `claude-code` | one-shot setup + check | 默认真实 `~/.claude`（通过 `CLAUDE_HOME`） | supported install/use path with bounded managed closure |
 | `cursor` | one-shot setup + check | 默认真实 `~/.cursor`（通过 `CURSOR_HOME`） | preview-guidance path |
 | `windsurf` | one-shot setup + check | `WINDSURF_HOME` 或真实宿主根目录 `~/.codeium/windsurf` | runtime-core path |
 | `openclaw` | one-shot setup + check | `OPENCLAW_HOME` 或真实宿主根目录 `~/.openclaw` | preview runtime-core adapter path |
-| `opencode` | direct install + check（更薄）或 one-shot wrapper | `OPENCODE_HOME` 或真实宿主根目录 `~/.config/opencode` | preview-guidance adapter path |
+| `opencode` | direct install + check（更薄）或 one-shot wrapper | `OPENCODE_HOME` 或真实宿主根目录 `~/.config/opencode` | 围绕同一个 work kernel 的 preview-guidance adapter path |
 
 `TargetRoot` 只是路径。
 `HostId` / `--host` 才决定宿主语义。
@@ -53,18 +55,17 @@
 
 ### Codex
 
-如果你的目标是安装后让当前 Codex 直接发现 `$vibe`，默认目标根必须是实际宿主根目录 `~/.codex`。
-只有在你明确要隔离安装，或当前 Codex 已经被指向其他目录时，才改用 `~/.vibeskills/targets/codex`。
+如果你的目标是把安装方式收敛成一份全局共享 runtime，Codex 默认就装到 `~/.agents`。
+只有在你明确要改共享根目录时，才额外设置 `VIBE_AGENTS_HOME`。
 
 ```powershell
-$env:CODEX_HOME="$HOME\\.codex"
 pwsh -File .\scripts\bootstrap\one-shot-setup.ps1 -HostId codex -Profile full
 pwsh -File .\check.ps1 -HostId codex -Profile full -Deep
 ```
 
 ```bash
-CODEX_HOME="$HOME/.codex" bash ./scripts/bootstrap/one-shot-setup.sh --host codex --profile full
-CODEX_HOME="$HOME/.codex" bash ./check.sh --host codex --profile full --deep
+bash ./scripts/bootstrap/one-shot-setup.sh --host codex --profile full
+bash ./check.sh --host codex --profile full --deep
 ```
 
 ### Claude Code
@@ -154,6 +155,7 @@ bash ./check.sh --host opencode --profile full --deep
 ```
 
 如果你要装“仅核心框架 + 可自定义添加治理”，把上面的 `full` 改成 `minimal`。
+这不会改变 local-first work kernel 的形态，只会继续收缩内置 helper 面。
 
 ## 更新方式
 
@@ -177,14 +179,14 @@ git checkout vX.Y.Z
 ### Codex
 
 - hook 当前冻结；这不是安装失败
-- 如需修改宿主本地设置，继续维护真实 `~/.codex/settings.json`
-- 不要把 `$vibe` 可发现性说成 MCP 或在线增强能力已完成
+- 如需查看这份共享安装里的受管设置面，默认检查 `~/.agents/settings.json`
+- 不要把 `$vibe` 可发现性说成宿主插件或在线增强能力已完成
 
 ### Claude Code
 
 - 会在保留真实 `~/.claude/settings.json` 的前提下，增量合并受约束的 `vibeskills` 设置面
-- 更广的 Claude 插件、MCP 注册、凭据和宿主行为仍由宿主侧管理
-- 不要在安装报告里声称宿主侧 provider、插件或 MCP 已经自动全部就绪
+- 更广的 Claude 插件、宿主侧能力配置、凭据和宿主行为仍由宿主侧管理
+- 不要在安装报告里声称宿主侧 provider、插件或在线能力已经自动全部就绪
 
 ### Cursor
 
@@ -209,5 +211,5 @@ git checkout vX.Y.Z
 - 默认目标根目录是 `OPENCODE_HOME`，否则是真实宿主根目录 `~/.config/opencode`
 - 真实宿主配置目录 `~/.config/opencode` 仍由 OpenCode 自身管理
 - direct install/check 与 one-shot wrapper 都保持 host-managed 边界
-- 真实 `opencode.json`、provider 凭据、plugin 安装和 MCP 信任仍按宿主自身方式管理
+- 真实 `opencode.json`、provider 凭据、plugin 安装和在线能力授权仍按宿主自身方式管理
 - 如需项目内隔离安装，使用 `--target-root ./.opencode`

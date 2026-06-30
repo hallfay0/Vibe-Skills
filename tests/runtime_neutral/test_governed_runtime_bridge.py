@@ -51,6 +51,21 @@ def _create_fake_command(directory: Path, name: str) -> Path:
     return command_path
 
 
+def selected_skill_ids_from_packet(runtime_input_packet: dict[str, object]) -> list[str]:
+    routing = runtime_input_packet.get("skill_routing")
+    if isinstance(routing, dict):
+        selected = routing.get("selected")
+        if isinstance(selected, list) and selected:
+            return [str(item.get("skill_id") or "") for item in selected if isinstance(item, dict) and str(item.get("skill_id") or "")]
+    work_binding = runtime_input_packet.get("work_binding")
+    if not isinstance(work_binding, dict):
+        return []
+    units = work_binding.get("units")
+    if not isinstance(units, list):
+        return []
+    return [str(item.get("bound_skill") or "") for item in units if isinstance(item, dict) and str(item.get("bound_skill") or "")]
+
+
 SPECIALIST_TASK = "I have a failing test and a stack trace. Help me debug systematically before proposing fixes."
 UI_TASK = "Build a responsive dashboard UI with clear interaction feedback, meaningful states, and desktop/mobile layout coverage."
 DOC_TASK = "Reformat the project README headings and spacing without changing application code."
@@ -81,7 +96,7 @@ def resolve_python_command_spec_via_powershell(command_spec: str, path_entries: 
     )
     ps_script = "".join(ps_script_parts)
     completed = subprocess.run(
-        [shell, "-NoLogo", "-NoProfile", "-Command", ps_script],
+        [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -93,6 +108,13 @@ def resolve_python_command_spec_via_powershell(command_spec: str, path_entries: 
 
 
 class GovernedRuntimeBridgeTests(unittest.TestCase):
+    def test_runtime_wrappers_leave_runtime_summary_authority_to_python(self) -> None:
+        common_text = (REPO_ROOT / "scripts" / "runtime" / "VibeRuntime.Common.ps1").read_text(encoding="utf-8")
+        invoke_text = (REPO_ROOT / "scripts" / "runtime" / "invoke-vibe-runtime.ps1").read_text(encoding="utf-8")
+
+        self.assertNotIn("function New-VibePythonRuntimeSummaryProjection", common_text)
+        self.assertIn("Missing Python-built runtime-input-packet.json.", invoke_text)
+
     def test_version_governance_bridges_governed_runtime_surfaces(self) -> None:
         governance = json.loads((REPO_ROOT / "config" / "version-governance.json").read_text(encoding="utf-8"))
         packaging = governance["packaging"]["runtime_payload"]
@@ -176,7 +198,7 @@ class GovernedRuntimeBridgeTests(unittest.TestCase):
         self.assertIn("packages/installer-core/src/vgo_installer/install_runtime.py", required_markers)
         self.assertIn("packages/installer-core/src/vgo_installer/uninstall_runtime.py", required_markers)
         self.assertIn("packages/installer-core/src/vgo_installer/ledger_service.py", required_markers)
-        self.assertIn("packages/runtime-core/src/vgo_runtime/router_bridge.py", required_markers)
+        self.assertIn("packages/runtime-core/src/vgo_runtime/runtime_bridge.py", required_markers)
         self.assertIn("packages/runtime-core/src/vgo_runtime/router_contract_runtime.py", required_markers)
         self.assertIn("packages/runtime-core/src/vgo_runtime/custom_admission.py", required_markers)
         self.assertIn("scripts/runtime/VibeRuntime.Common.ps1", required_markers)
@@ -235,6 +257,8 @@ class GovernedRuntimeBridgeTests(unittest.TestCase):
                 shell,
                 "-NoLogo",
                 "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
                 "-Command",
                 (
                     "& { "
@@ -279,6 +303,7 @@ class GovernedRuntimeBridgeTests(unittest.TestCase):
                 if reconstructed_summary_path.exists():
                     summary = json.loads(reconstructed_summary_path.read_text(encoding="utf-8"))
             self.assertEqual("interactive_governed", summary["mode"])
+            self.assertEqual("python", summary["truth_owner"])
             self.assertEqual(
                 EXPECTED_STAGE_IDS,
                 summary["stage_order"],
@@ -354,8 +379,9 @@ class GovernedRuntimeBridgeTests(unittest.TestCase):
             self.assertIn("## Baseline UI Quality Mapping", execution_plan)
 
             runtime_input_packet = json.loads(runtime_input_packet_path.read_text(encoding="utf-8"))
-            selected_skill_ids = [item["skill_id"] for item in runtime_input_packet["skill_routing"]["selected"]]
+            selected_skill_ids = selected_skill_ids_from_packet(runtime_input_packet)
             candidate_skill_ids = [item["skill_id"] for item in runtime_input_packet["skill_routing"]["candidates"]]
+            bound_skill_ids = [item["bound_skill"] for item in runtime_input_packet["work_binding"]["units"]]
             governance_capsule = json.loads(governance_capsule_path.read_text(encoding="utf-8"))
             stage_lineage = json.loads(stage_lineage_path.read_text(encoding="utf-8"))
             execute_receipt = json.loads(execute_receipt_path.read_text(encoding="utf-8"))
@@ -370,8 +396,9 @@ class GovernedRuntimeBridgeTests(unittest.TestCase):
             self.assertFalse(runtime_input_packet["canonical_router"]["unattended"])
             self.assertEqual("structure", runtime_input_packet["provenance"]["proof_class"])
             self.assertEqual("vibe", runtime_input_packet["authority_flags"]["explicit_runtime_skill"])
-            self.assertEqual("systematic-debugging", runtime_input_packet["route_snapshot"]["selected_skill"])
-            self.assertEqual("vibe", runtime_input_packet["divergence_shadow"]["runtime_selected_skill"])
+            self.assertEqual("systematic-debugging", bound_skill_ids[0])
+            self.assertEqual(bound_skill_ids, summary["bound_skill_ids"])
+            self.assertNotIn("runtime_selected_skill", runtime_input_packet["divergence_shadow"])
             self.assertTrue(runtime_input_packet["divergence_shadow"]["skill_mismatch"])
             self.assertNotIn("specialist_recommendations", runtime_input_packet)
             self.assertNotIn("stage_assistant_hints", runtime_input_packet)
@@ -379,7 +406,9 @@ class GovernedRuntimeBridgeTests(unittest.TestCase):
             self.assertNotIn("legacy_skill_routing", runtime_input_packet)
             self.assertGreaterEqual(len(candidate_skill_ids), 1)
             self.assertIn("specialist_decision", runtime_input_packet)
+            self.assertNotIn("selected", runtime_input_packet["skill_routing"])
             self.assertIn("systematic-debugging", selected_skill_ids)
+            self.assertIn("systematic-debugging", bound_skill_ids)
             self.assertIn("systematic-debugging", candidate_skill_ids)
             self.assertNotEqual("execution-contract-prepared", execute_receipt["status"])
             self.assertGreaterEqual(execute_receipt["executed_unit_count"], 2)
@@ -396,7 +425,7 @@ class GovernedRuntimeBridgeTests(unittest.TestCase):
             self.assertEqual("runtime", execution_manifest["proof_class"])
             self.assertTrue(Path(execution_manifest["plan_shadow"]["path"]).exists())
             self.assertEqual(
-                runtime_input_packet["route_snapshot"]["selected_skill"],
+                bound_skill_ids[0],
                 execution_manifest["route_runtime_alignment"]["router_selected_skill"],
             )
             self.assertEqual("vibe", execution_manifest["route_runtime_alignment"]["runtime_selected_skill"])
@@ -480,6 +509,86 @@ class GovernedRuntimeBridgeTests(unittest.TestCase):
             self.assertEqual("runtime", cleanup_receipt["proof_class"])
             self.assertFalse(cleanup_receipt["default_bounded_cleanup_applied"])
 
+    def test_invoke_vibe_canonical_entry_writes_receipt_and_passes_truth_gate(self) -> None:
+        script_path = REPO_ROOT / "scripts" / "runtime" / "Invoke-VibeCanonicalEntry.ps1"
+        truth_gate = REPO_ROOT / "scripts" / "verify" / "vibe-canonical-entry-truth-gate.ps1"
+        run_id = "pytest-canonical-bridge"
+        shell = resolve_powershell()
+        if shell is None:
+            self.skipTest("PowerShell executable not available in PATH")
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            artifact_root = Path(tempdir)
+            completed = subprocess.run(
+                [
+                    shell,
+                    "-NoLogo",
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    str(script_path),
+                    "-Task",
+                    "Plan the migration and freeze the requirement before execution.",
+                    "-HostId",
+                    "codex",
+                    "-EntryId",
+                    "vibe-how-do-we-do",
+                    "-RequestedStageStop",
+                    "xl_plan",
+                    "-RunId",
+                    run_id,
+                    "-ArtifactRoot",
+                    str(artifact_root),
+                ],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=True,
+                env={**os.environ, "VGO_DISABLE_NATIVE_SPECIALIST_EXECUTION": "1"},
+            )
+
+            payload = json.loads(completed.stdout)
+            session_root = Path(payload["session_root"])
+            receipt_path = Path(payload["host_launch_receipt_path"])
+
+            self.assertEqual(run_id, payload["run_id"])
+            self.assertEqual(session_root / "host-launch-receipt.json", receipt_path)
+            self.assertTrue(receipt_path.exists())
+
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            self.assertEqual("canonical-entry", receipt["launch_mode"])
+            self.assertEqual("verified", receipt["launch_status"])
+            self.assertEqual("xl_plan", receipt["requested_stage_stop"])
+            summary = json.loads((session_root / "runtime-summary.json").read_text(encoding="utf-8"))
+            self.assertEqual("python", summary["truth_owner"])
+            self.assertIsInstance(summary["bound_skill_ids"], list)
+
+            gate = subprocess.run(
+                [
+                    shell,
+                    "-NoLogo",
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    str(truth_gate),
+                    "-SessionRoot",
+                    str(session_root),
+                ],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+
+            self.assertEqual(0, gate.returncode, gate.stdout + gate.stderr)
+            self.assertIn("[PASS] host-launch-receipt.json exists", gate.stdout)
+            self.assertIn("[PASS] host launch receipt launch_status is verified", gate.stdout)
+
     def test_invoke_vibe_runtime_freezes_default_ui_baseline_dimensions_for_ui_task(self) -> None:
         script_path = REPO_ROOT / "scripts" / "runtime" / "invoke-vibe-runtime.ps1"
         run_id = "pytest-governed-runtime-ui"
@@ -493,6 +602,8 @@ class GovernedRuntimeBridgeTests(unittest.TestCase):
                 shell,
                 "-NoLogo",
                 "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
                 "-Command",
                 (
                     "& { "
@@ -546,6 +657,8 @@ class GovernedRuntimeBridgeTests(unittest.TestCase):
                 shell,
                 "-NoLogo",
                 "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
                 "-Command",
                 (
                     "& { "
@@ -622,6 +735,8 @@ class GovernedRuntimeBridgeTests(unittest.TestCase):
                 shell,
                 "-NoLogo",
                 "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
                 "-Command",
                 (
                     "& { "
@@ -674,6 +789,8 @@ class GovernedRuntimeBridgeTests(unittest.TestCase):
                 shell,
                 "-NoLogo",
                 "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
                 "-Command",
                 (
                     "& { "
@@ -726,6 +843,8 @@ class GovernedRuntimeBridgeTests(unittest.TestCase):
                 shell,
                 "-NoLogo",
                 "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
                 "-Command",
                 (
                     "& { "
@@ -758,7 +877,7 @@ class GovernedRuntimeBridgeTests(unittest.TestCase):
             requirement_doc = requirement_doc_path.read_text(encoding="utf-8")
             runtime_input_packet = json.loads(runtime_input_packet_path.read_text(encoding="utf-8"))
 
-            self.assertEqual("research", runtime_input_packet["canonical_router"]["task_type"])
+            self.assertEqual("research", runtime_input_packet["route_snapshot"]["task_type"])
             self.assertIn("## Code Task TDD Evidence Requirements", requirement_doc)
             self.assertIn("No code-task TDD evidence requirements were frozen for this run.", requirement_doc)
             self.assertNotIn(
@@ -808,6 +927,8 @@ class GovernedRuntimeBridgeTests(unittest.TestCase):
                 shell,
                 "-NoLogo",
                 "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
                 "-Command",
                 (
                     "& { "
@@ -876,11 +997,13 @@ class GovernedRuntimeBridgeTests(unittest.TestCase):
             artifact_root = Path(tempdir)
             for run_id, task, should_require_tdd in cases:
                 command = [
-                    shell,
-                    "-NoLogo",
-                    "-NoProfile",
-                    "-Command",
-                    (
+                shell,
+                "-NoLogo",
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-Command",
+                (
                         "& { "
                         f"$result = & '{script_path}' "
                         f"-Task {_ps_single_quote(task)} "

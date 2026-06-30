@@ -275,7 +275,6 @@ def test_codex_release_manifests_carry_codex_specific_contract_surfaces() -> Non
     codex_expected_lane = {
         "config/settings.template.codex.json",
         "config/plugins-manifest.codex.json",
-        "mcp/servers.template.json",
         "adapters/codex/host-profile.json",
         "adapters/codex/settings-map.json",
         "adapters/codex/closure.json",

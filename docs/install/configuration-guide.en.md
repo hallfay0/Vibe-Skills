@@ -14,7 +14,7 @@ The public install flow does not currently expose user-facing configuration for 
 
 `installed locally` does not imply `online-ready`.
 
-`$vibe` or `/vibe` only means the governed runtime entry is available. It is not MCP completion and not proof that providers, plugins, credentials, or host-native MCP surfaces are fully configured.
+`$vibe` or `/vibe` only means the governed runtime entry is available. It does not by itself prove that providers, plugins, credentials, or online enhancement are fully configured.
 
 ## What Install Reports Should Say
 
@@ -22,8 +22,6 @@ Do not collapse the result into one vague success line. Report these separately:
 
 - `installed locally`
 - `vibe host-ready`
-- `mcp native auto-provision attempted`
-- per-MCP `host-visible readiness`
 - `online-ready`
 - host-side manual follow-up
 
@@ -43,15 +41,15 @@ The public install flow does not currently guide users through built-in online e
 
 ### Codex
 
-- target root: default `CODEX_HOME` to the real `~/.codex` when the goal is for the current Codex to discover `$vibe`
-- use `~/.vibeskills/targets/codex` only for explicit isolation
-- host login state, providers, plugins, and MCP trust remain Codex-side concerns
+- target root: default to the shared install root `~/.agents`; on Windows that means `%USERPROFILE%\\.agents`
+- set `VIBE_AGENTS_HOME` only when you explicitly want a different shared root
+- host login state, providers, plugins, and online capability authorization remain Codex-side concerns
 
 ### Claude Code
 
 - default `CLAUDE_HOME` to the real `~/.claude`
 - the installer only merges the bounded VibeSkills settings surface
-- broader Claude settings, plugins, credentials, and MCP registration remain host-managed
+- broader Claude settings, plugins, credentials, and host-local capability configuration remain host-managed
 
 ### Cursor
 
@@ -76,7 +74,7 @@ The public install flow does not currently guide users through built-in online e
 - target root: `OPENCODE_HOME` or the real host root `~/.config/opencode`
 - the real host config directory remains `~/.config/opencode`
 - `<target-root>/opencode.json.example` is only a reference scaffold, not the live host config
-- the real host config file is `~/.config/opencode/opencode.json`; provider credentials, plugin installation, and MCP trust remain host-managed
+- the real host config file is `~/.config/opencode/opencode.json`; provider credentials, plugin installation, and online capability authorization remain host-managed
 
 ## Uninstall
 

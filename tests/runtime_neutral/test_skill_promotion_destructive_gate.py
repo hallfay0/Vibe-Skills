@@ -49,6 +49,8 @@ def run_runtime(task: str, artifact_root: Path, *, extra_env: dict[str, str] | N
             shell,
             "-NoLogo",
             "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
             "-Command",
             (
                 "& { "

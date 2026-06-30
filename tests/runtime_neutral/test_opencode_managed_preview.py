@@ -77,6 +77,14 @@ class OpenCodeManagedPreviewTests(unittest.TestCase):
             self.assertFalse((target_root / "command" / "vibe-how-do-we-do.md").exists())
             closure = json.loads(closure_path.read_text(encoding="utf-8"))
             self.assertEqual([str((target_root / ".vibeskills" / "host-settings.json").resolve())], closure["settings_materialized"])
+            self.assertEqual(str(target_root.resolve()), closure["runtime_root"])
+            self.assertEqual(str(target_root.resolve()), closure["host_bridge_root"])
+            self.assertEqual(payload["desired_shared_runtime_root"], closure["desired_shared_runtime_root"])
+            self.assertEqual("legacy-host-root-override", closure["runtime_layout_mode"])
+            self.assertEqual(str(target_root.resolve()), payload["runtime_root"])
+            self.assertEqual(str(target_root.resolve()), payload["host_bridge_root"])
+            self.assertNotEqual(str(target_root.resolve()), payload["desired_shared_runtime_root"])
+            self.assertEqual("legacy-host-root-override", payload["runtime_layout_mode"])
             self.assertIsNone(payload["legacy_opencode_config_cleanup"])
 
     def test_python_installer_leaves_existing_opencode_config_untouched(self) -> None:

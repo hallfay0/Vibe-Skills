@@ -65,20 +65,20 @@ $runtimeEntryPath = Get-VgoRuntimeEntrypointPath -RepoRoot $repoRoot -RuntimeCon
 $results = @()
 
 $policyText = Get-Content -LiteralPath (Join-Path $repoRoot 'config\runtime-input-packet-policy.json') -Raw -Encoding UTF8
-foreach ($token in @('specialist_dispatch', 'local_specialist_suggestions', 'escalation_required', 'auto_promote_when_safe_same_round', 'auto_absorb_gate')) {
-    Add-Assertion -Results ([ref]$results) -Condition ($policyText.Contains($token)) -Message ("runtime input policy contains specialist escalation token: {0}" -f $token)
+foreach ($token in @('child_specialist_suggestion_contract', 'local_specialist_suggestions', 'escalation_required', 'auto_promote_when_safe_same_round', 'auto_absorb_gate')) {
+    Add-Assertion -Results ([ref]$results) -Condition ($policyText.Contains($token)) -Message ("runtime input policy contains child specialist suggestion token: {0}" -f $token)
 }
 
 $teamText = Get-Content -LiteralPath (Join-Path $repoRoot 'protocols\team.md') -Raw -Encoding UTF8
 $stableDocText = Get-Content -LiteralPath (Join-Path $repoRoot 'docs\root-child-vibe-hierarchy-governance.md') -Raw -Encoding UTF8
-Add-Assertion -Results ([ref]$results) -Condition ($teamText.Contains('safe bounded recommendations should aggressively promote into effective dispatch')) -Message 'team protocol documents aggressive specialist promotion'
+Add-Assertion -Results ([ref]$results) -Condition ($teamText.Contains('safe bounded candidates should aggressively promote into selected skill execution')) -Message 'team protocol documents work-first skill promotion'
 Add-Assertion -Results ([ref]$results) -Condition ($stableDocText.Contains('same-round auto-approve safe suggestions')) -Message 'stable hierarchy doc documents root-governed same-round absorb path'
 
 $runId = "child-specialist-escalation-" + [System.Guid]::NewGuid().ToString('N').Substring(0, 8)
 $artifactRoot = Join-Path $repoRoot (".tmp\child-specialist-escalation-{0}" -f $runId)
 
 $rootSummary = & $runtimeEntryPath `
-    -Task 'Root specialist dispatch seed for child escalation gate.' `
+    -Task 'Root bounded work seed for child skill escalation gate.' `
     -Mode interactive_governed `
     -GovernanceScope root `
     -RunId ("{0}-root" -f $runId) `
@@ -93,20 +93,19 @@ if ($hasRootSummary) {
     $rootRuntimeInputPacket = Get-Content -LiteralPath $rootSummary.summary.artifacts.runtime_input_packet -Raw -Encoding UTF8 | ConvertFrom-Json
     Add-Assertion -Results ([ref]$results) -Condition ($rootRuntimeInputPacket.governance_scope -eq 'root') -Message 'root specialist escalation probe is in root scope'
     Add-Assertion -Results ([ref]$results) -Condition ($rootRuntimeInputPacket.authority_flags.explicit_runtime_skill -eq 'vibe') -Message 'root specialist escalation probe keeps vibe authority'
+    $rootBoundSkillIds = @(Get-VibeWorkBindingBoundSkillIds -RuntimeInputPacket $rootRuntimeInputPacket)
+    Add-Assertion -Results ([ref]$results) -Condition ($rootRuntimeInputPacket.PSObject.Properties.Name -contains 'work_binding') -Message 'root runtime packet includes work_binding'
+    Add-Assertion -Results ([ref]$results) -Condition (@($rootBoundSkillIds).Count -ge 1) -Message 'root runtime packet uses work_binding as bounded skill truth'
 
     $rootSelectedSkillExecution = Get-VibeRuntimeSelectedSkillExecutionProjection -RuntimeInputPacket $rootRuntimeInputPacket
-    $rootApprovedDispatch = if ($null -ne $rootSelectedSkillExecution -and $rootSelectedSkillExecution.PSObject.Properties.Name -contains 'selected_skill_execution') {
-        @($rootSelectedSkillExecution.selected_skill_execution)
-    } elseif ($rootRuntimeInputPacket.PSObject.Properties.Name -contains 'approved_specialist_dispatch') {
-        @($rootRuntimeInputPacket.approved_specialist_dispatch)
+    $rootSelectedSkillIds = if ($null -ne $rootSelectedSkillExecution -and $rootSelectedSkillExecution.PSObject.Properties.Name -contains 'selected_skill_ids') {
+        @($rootSelectedSkillExecution.selected_skill_ids | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
     } else {
         @()
     }
-    if (@($rootApprovedDispatch).Count -gt 0) {
-        $firstSkillId = [string]$rootApprovedDispatch[0].skill_id
-        if (-not [string]::IsNullOrWhiteSpace($firstSkillId)) {
-            $approvedForChild = @($firstSkillId)
-        }
+    Add-Assertion -Results ([ref]$results) -Condition ((@($rootSelectedSkillIds).Count -eq 0) -or ((@($rootSelectedSkillIds) | Where-Object { $_ -in @($rootBoundSkillIds) }).Count -eq @($rootSelectedSkillIds).Count)) -Message 'root runtime packet keeps compatibility selected skill mirror subordinate to work_binding'
+    if (@($rootBoundSkillIds).Count -gt 0) {
+        $approvedForChild = @([string]$rootBoundSkillIds[0])
     }
 }
 
@@ -142,11 +141,15 @@ if ($hasChildSummary) {
     $delegationValidation = Get-Content -LiteralPath $childSummary.summary.artifacts.delegation_validation_receipt -Raw -Encoding UTF8 | ConvertFrom-Json
 
     $selectedSkillExecution = Get-VibeRuntimeSelectedSkillExecutionProjection -RuntimeInputPacket $runtimeInputPacket
+    $boundSkillIds = @(Get-VibeWorkBindingBoundSkillIds -RuntimeInputPacket $runtimeInputPacket)
+    $selectedSkillIds = if ($null -ne $selectedSkillExecution -and $selectedSkillExecution.PSObject.Properties.Name -contains 'selected_skill_ids') {
+        @($selectedSkillExecution.selected_skill_ids | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+    } else {
+        @()
+    }
 
     $approvedDispatch = if ($null -ne $selectedSkillExecution -and $selectedSkillExecution.PSObject.Properties.Name -contains 'selected_skill_execution') {
         @($selectedSkillExecution.selected_skill_execution)
-    } elseif ($runtimeInputPacket.PSObject.Properties.Name -contains 'approved_specialist_dispatch') {
-        @($runtimeInputPacket.approved_specialist_dispatch)
     } else {
         @()
     }
@@ -159,37 +162,40 @@ if ($hasChildSummary) {
 
     Add-Assertion -Results ([ref]$results) -Condition ($runtimeInputPacket.governance_scope -eq 'child') -Message 'specialist escalation smoke runs in child scope'
     Add-Assertion -Results ([ref]$results) -Condition ($runtimeInputPacket.authority_flags.explicit_runtime_skill -eq 'vibe') -Message 'specialist escalation smoke keeps vibe runtime authority'
+    Add-Assertion -Results ([ref]$results) -Condition ($runtimeInputPacket.PSObject.Properties.Name -contains 'work_binding') -Message 'child runtime packet includes work_binding'
+    Add-Assertion -Results ([ref]$results) -Condition (@($boundSkillIds).Count -ge 1) -Message 'child runtime packet keeps root-approved bounded work in work_binding'
+    Add-Assertion -Results ([ref]$results) -Condition ((@($selectedSkillIds).Count -eq 0) -or ((@($selectedSkillIds) | Where-Object { $_ -in @($boundSkillIds) }).Count -eq @($selectedSkillIds).Count)) -Message 'child runtime packet keeps compatibility selected skills subordinate to work_binding'
     Add-Assertion -Results ([ref]$results) -Condition ([bool]$delegationValidation.write_scope_valid) -Message 'child specialist escalation smoke validates delegation write scope'
     Add-Assertion -Results ([ref]$results) -Condition ([bool]$delegationValidation.prompt_tail_valid) -Message 'child specialist escalation smoke preserves $vibe prompt-tail discipline'
     Add-Assertion -Results ([ref]$results) -Condition (-not [bool]$runtimeInputPacket.authority_flags.allow_completion_claim) -Message 'child runtime input packet disallows final completion claim'
-    Add-Assertion -Results ([ref]$results) -Condition ($null -ne $specialistDispatch) -Message 'runtime packet exposes specialist dispatch surface'
-
-    if ($null -ne $specialistDispatch) {
-        Add-Assertion -Results ([ref]$results) -Condition ([string]$specialistDispatch.status -eq 'auto_promote_when_safe_same_round') -Message 'child specialist policy prefers same-round safe auto-promotion'
-        if (@($localSuggestions).Count -gt 0) {
-            Add-Assertion -Results ([ref]$results) -Condition ([bool]$specialistDispatch.escalation_required) -Message 'child local specialist suggestions require escalation'
-            Add-Assertion -Results ([ref]$results) -Condition ([string]$specialistDispatch.escalation_status -eq 'root_approval_required') -Message 'child local specialist escalation status is root_approval_required'
-        }
+    $specialistDecision = if ($runtimeInputPacket.PSObject.Properties.Name -contains 'specialist_decision') { $runtimeInputPacket.specialist_decision } else { $null }
+    Add-Assertion -Results ([ref]$results) -Condition ($null -ne $specialistDecision) -Message 'child runtime packet records specialist_decision'
+    if ($null -ne $specialistDecision) {
+        $decisionState = [string](Get-VibePropertySafe -InputObject $specialistDecision -PropertyName 'decision_state' -DefaultValue '')
+        Add-Assertion -Results ([ref]$results) -Condition ($decisionState -in @('approved_dispatch', 'local_suggestion_only', 'no_specialist_recommendations')) -Message 'child specialist decision stays within current work-first decision states'
     }
 
     $approvedSkillIds = @($approvedDispatch | ForEach-Object { [string]$_.skill_id } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
     foreach ($entry in $localSuggestions) {
         $skillId = if ($entry.PSObject.Properties.Name -contains 'skill_id') { [string]$entry.skill_id } else { 'unknown-skill' }
-        Add-Assertion -Results ([ref]$results) -Condition (-not ($approvedSkillIds -contains $skillId)) -Message ("local specialist suggestion is not approved global dispatch: {0}" -f $skillId)
+        Add-Assertion -Results ([ref]$results) -Condition (-not ($approvedSkillIds -contains $skillId)) -Message ("local specialist suggestion is not approved selected skill execution: {0}" -f $skillId)
+        Add-Assertion -Results ([ref]$results) -Condition (-not ($boundSkillIds -contains $skillId)) -Message ("residual local specialist suggestion does not mutate current work_binding: {0}" -f $skillId)
     }
 
     Add-Assertion -Results ([ref]$results) -Condition ($executionManifest.governance_scope -eq 'child') -Message 'execution manifest is marked child scope'
     Add-Assertion -Results ([ref]$results) -Condition (-not [bool]$executionManifest.authority.completion_claim_allowed) -Message 'child execution manifest cannot issue final completion claim'
     Add-Assertion -Results ([ref]$results) -Condition ($executionManifest.route_runtime_alignment.runtime_selected_skill -eq 'vibe') -Message 'execution manifest keeps explicit vibe authority'
+    Add-Assertion -Results ([ref]$results) -Condition ([bool]$executionManifest.dispatch_integrity.proof_passed) -Message 'child execution manifest preserves skill execution integrity proof'
+    Add-Assertion -Results ([ref]$results) -Condition ([bool]$executionManifest.dispatch_integrity.local_suggestions_contained) -Message 'child execution manifest keeps residual local suggestions contained'
+    Add-Assertion -Results ([ref]$results) -Condition ([bool]$executionManifest.dispatch_integrity.executed_specialists_subset_of_approved_dispatch) -Message 'child execution manifest executes only root-approved selected skills'
     $specialistAccounting = if ($executionManifest.PSObject.Properties.Name -contains 'specialist_accounting') { $executionManifest.specialist_accounting } else { $null }
-    if ($null -ne $specialistAccounting -and $specialistAccounting.PSObject.Properties.Name -contains 'auto_absorb_gate') {
+    if (@($localSuggestions).Count -gt 0) {
+        Add-Assertion -Results ([ref]$results) -Condition ($null -ne $specialistAccounting -and $specialistAccounting.PSObject.Properties.Name -contains 'auto_absorb_gate') -Message 'child execution manifest records same-round auto-absorb status when residual local suggestions remain visible'
+    }
+    if (@($localSuggestions).Count -gt 0 -and $null -ne $specialistAccounting -and $specialistAccounting.PSObject.Properties.Name -contains 'auto_absorb_gate') {
         $autoAbsorbGate = $specialistAccounting.auto_absorb_gate
-        $bypassedByCanonicalRouting = (
-            $autoAbsorbGate.PSObject.Properties.Name -contains 'reason' -and
-            [string]$autoAbsorbGate.reason -eq 'skill_routing_selected_is_authority'
-        )
-        Add-Assertion -Results ([ref]$results) -Condition (([bool]$autoAbsorbGate.enabled) -or $bypassedByCanonicalRouting) -Message 'child execution manifest enables same-round auto-absorb or bypasses it for canonical skill routing'
-        if ([bool]$autoAbsorbGate.enabled -and $autoAbsorbGate.receipt_path) {
+        Add-Assertion -Results ([ref]$results) -Condition ([string]$autoAbsorbGate.status -in @('auto_approved_same_round', 'partially_auto_approved_same_round')) -Message 'child execution manifest keeps same-round auto-absorb subordinate to bounded work'
+        if ($autoAbsorbGate.receipt_path) {
             Add-Assertion -Results ([ref]$results) -Condition (Test-Path -LiteralPath ([string]$autoAbsorbGate.receipt_path)) -Message 'same-round auto-absorb gate emits receipt'
         }
     }

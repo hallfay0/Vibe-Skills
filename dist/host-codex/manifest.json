@@ -39,7 +39,6 @@
       "adapters/codex/host-profile.json",
       "adapters/codex/settings-map.json",
       "adapters/codex/closure.json",
-      "mcp/servers.template.json",
       "install.ps1",
       "check.ps1",
       "scripts/router/resolve-pack-route.ps1"
@@ -78,13 +77,6 @@
         "adapters/codex/host-profile.json",
         "adapters/codex/settings-map.json",
         "adapters/codex/closure.json"
-      ]
-    },
-    {
-      "id": "mcp_template_exists",
-      "promise_level": "promised",
-      "evidence_paths": [
-        "mcp/servers.template.json"
       ]
     },
     {

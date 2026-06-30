@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from .commands import canonical_entry_command, install_command, passthrough_command, route_command, runtime_command, uninstall_command, upgrade_command, verify_command
+from .commands import canonical_entry_command, compatibility_exit_command, index_command, inspect_run_command, install_command, locate_entry_command, passthrough_command, route_command, run_command, runtime_command, uninstall_command, upgrade_command, verify_command
 from .errors import CliError
 
 
@@ -14,7 +14,7 @@ def build_parser() -> argparse.ArgumentParser:
     install_parser = subparsers.add_parser('install')
     install_parser.add_argument('--repo-root', required=True)
     install_parser.add_argument('--frontend', choices=('shell', 'powershell'), default='shell')
-    install_parser.add_argument('--profile', choices=('minimal', 'full'), default='full')
+    install_parser.add_argument('--profile', choices=('minimal', 'full'), default='minimal')
     install_parser.add_argument('--host', default='codex')
     install_parser.add_argument('--target-root', default='')
     install_parser.add_argument('--install-external', action='store_true')
@@ -27,7 +27,7 @@ def build_parser() -> argparse.ArgumentParser:
     uninstall_parser = subparsers.add_parser('uninstall')
     uninstall_parser.add_argument('--repo-root', required=True)
     uninstall_parser.add_argument('--frontend', choices=('shell', 'powershell'), default='shell')
-    uninstall_parser.add_argument('--profile', choices=('minimal', 'full'), default='full')
+    uninstall_parser.add_argument('--profile', choices=('minimal', 'full'), default='minimal')
     uninstall_parser.add_argument('--host', default='codex')
     uninstall_parser.add_argument('--target-root', default='')
     uninstall_parser.add_argument('--preview', action='store_true')
@@ -38,7 +38,7 @@ def build_parser() -> argparse.ArgumentParser:
     upgrade_parser = subparsers.add_parser('upgrade')
     upgrade_parser.add_argument('--repo-root', required=True)
     upgrade_parser.add_argument('--frontend', choices=('shell', 'powershell'), default='shell')
-    upgrade_parser.add_argument('--profile', choices=('minimal', 'full'), default='full')
+    upgrade_parser.add_argument('--profile', choices=('minimal', 'full'), default='minimal')
     upgrade_parser.add_argument('--host', default='codex')
     upgrade_parser.add_argument('--target-root', default='')
     upgrade_parser.add_argument('--install-external', action='store_true')
@@ -47,6 +47,41 @@ def build_parser() -> argparse.ArgumentParser:
     upgrade_parser.add_argument('--allow-external-skill-fallback', action='store_true')
     upgrade_parser.add_argument('--skip-runtime-freshness-gate', action='store_true')
     upgrade_parser.set_defaults(handler=upgrade_command)
+
+    index_parser = subparsers.add_parser('index')
+    index_parser.add_argument('--repo-root', required=True)
+    index_parser.add_argument('--agent-root', required=True)
+    index_parser.add_argument('--host-id')
+    index_parser.add_argument('--workspace-root')
+    index_parser.add_argument('--json', action='store_true')
+    index_parser.set_defaults(handler=index_command)
+
+    run_parser = subparsers.add_parser('run')
+    run_parser.add_argument('--repo-root', required=True)
+    run_parser.add_argument('--agent-root', required=True)
+    run_parser.add_argument('--prompt', required=True)
+    run_parser.add_argument('--run-id')
+    run_parser.add_argument('--host-id')
+    run_parser.add_argument('--workspace-root')
+    run_parser.add_argument('--json', action='store_true')
+    run_parser.set_defaults(handler=run_command)
+
+    inspect_run_parser = subparsers.add_parser('inspect-run')
+    inspect_run_parser.add_argument('--repo-root', required=True)
+    inspect_run_parser.add_argument('--agent-root', required=True)
+    inspect_run_parser.add_argument('--run-id', required=True)
+    inspect_run_parser.add_argument('--host-id')
+    inspect_run_parser.add_argument('--workspace-root')
+    inspect_run_parser.set_defaults(handler=inspect_run_command)
+
+    locate_entry_parser = subparsers.add_parser('locate-entry')
+    locate_entry_parser.add_argument('--repo-root', required=True)
+    locate_entry_parser.add_argument('--change-kind', required=True, choices=('task-understanding', 'planning', 'execution', 'verification', 'local-skill-extension'))
+    locate_entry_parser.set_defaults(handler=locate_entry_command)
+
+    compatibility_exit_parser = subparsers.add_parser('compatibility-exit')
+    compatibility_exit_parser.add_argument('--repo-root', required=True)
+    compatibility_exit_parser.set_defaults(handler=compatibility_exit_command)
 
     route_parser = subparsers.add_parser('route')
     route_parser.add_argument('--repo-root', required=True)
@@ -68,6 +103,7 @@ def build_parser() -> argparse.ArgumentParser:
     canonical_entry_parser.add_argument('--requested-grade-floor', choices=('L', 'XL'))
     canonical_entry_parser.add_argument('--run-id')
     canonical_entry_parser.add_argument('--artifact-root')
+    canonical_entry_parser.add_argument('--local-agent-root')
     canonical_entry_parser.add_argument('--continue-from-run-id')
     canonical_entry_parser.add_argument('--bounded-reentry-token')
     canonical_entry_parser.add_argument('--host-decision-json')

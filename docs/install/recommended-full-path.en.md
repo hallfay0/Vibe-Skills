@@ -9,19 +9,21 @@
 
 This document summarizes the install commands, default target roots, and current host-mode wording for the six public hosts.
 
-## MCP Auto-Provision Contract
+Even on the full path, the product shape stays the same:
 
-All six public hosts now follow one shared, non-blocking MCP contract:
+- the install still gives you the same small work kernel
+- the normal extension path after install is still `skills/local/<skill-id>/SKILL.md`
+- advanced manifest-driven custom workflows are still a later, narrower path rather than the default way to extend the system
 
-- install or one-shot should attempt `github`, `context7`, `serena`, `scrapling`, and `claude-flow`
-- the completion target for those MCPs must be the host's real **native MCP surface**
-- `$vibe` or `/vibe` is governed runtime entry only and is not MCP completion
-- repo templates, manifests, `*.json.example`, `.vibeskills/*` sidecars, and PATH-visible commands do not by themselves count as host-visible ready
-- prefer host-native registration for `github`, `context7`, and `serena`
-- prefer scripted CLI / stdio installation for `scrapling` and `claude-flow`
-- if native auto-registration fails, or the current host does not expose a stable officially supportable auto-registration interface, the report must say that the MCP is still outside the host's native MCP surface rather than claiming success through `$vibe`, templates, or sidecars
-- failure does not block the base install; failures are summarized only in the final report
-- the final report separates `installed locally`, `vibe host-ready`, `mcp native auto-provision attempted`, per-MCP `host-visible readiness`, `manual follow-up`, and `online-ready`
+## Public Install Boundary
+
+All six public hosts now follow one narrower public install boundary:
+
+- the public install path no longer auto-connects host-side plugins or online capabilities
+- `$vibe` or `/vibe` is governed runtime entry only and does not prove host plugins, providers, or online enhancement are complete
+- repo templates, manifests, `*.json.example`, `.vibeskills/*` sidecars, and PATH-visible commands do not by themselves count as online-ready
+- host plugins, providers, credentials, and deeper online enhancement remain host-managed
+- the final report separates `installed locally`, `vibe host-ready`, `manual follow-up`, and `online-ready`
 
 Public platform prerequisites:
 
@@ -37,12 +39,12 @@ Public platform prerequisites:
 
 | Host | Default command surface | Default root | Current wording |
 | --- | --- | --- | --- |
-| `codex` | one-shot setup + check | real `~/.codex` by default through `CODEX_HOME`; use `~/.vibeskills/targets/codex` only for explicit isolation | strongest governed lane |
+| `codex` | one-shot setup + check | shared `~/.agents` by default; set `VIBE_AGENTS_HOME` only when you need a different shared root | strongest governed path |
 | `claude-code` | one-shot setup + check | real `~/.claude` by default through `CLAUDE_HOME` | supported install/use path with bounded managed closure |
 | `cursor` | one-shot setup + check | real `~/.cursor` by default through `CURSOR_HOME` | preview-guidance path |
 | `windsurf` | one-shot setup + check | `WINDSURF_HOME` or the real host root `~/.codeium/windsurf` | runtime-core path |
 | `openclaw` | one-shot setup + check | `OPENCLAW_HOME` or the real host root `~/.openclaw` | preview runtime-core adapter path |
-| `opencode` | direct install + check (thinner) or one-shot wrapper | `OPENCODE_HOME` or the real host root `~/.config/opencode` | preview-guidance adapter path |
+| `opencode` | direct install + check (thinner) or one-shot wrapper | `OPENCODE_HOME` or the real host root `~/.config/opencode` | preview-guidance adapter path around the same work kernel |
 
 `TargetRoot` is only a path.
 `HostId` / `--host` decides host semantics.
@@ -53,18 +55,17 @@ Default full install:
 
 ### Codex
 
-If the goal is to install and let the current Codex discover `$vibe` directly, the default target root must be the real host root `~/.codex`.
-Switch to `~/.vibeskills/targets/codex` only when you explicitly want an isolated install, or the current Codex is already pointed there on purpose.
+If the goal is to keep installation simple and reusable across hosts, Codex now defaults to `~/.agents`.
+Set `VIBE_AGENTS_HOME` only when you explicitly want a different shared root.
 
 ```powershell
-$env:CODEX_HOME="$HOME\\.codex"
 pwsh -File .\scripts\bootstrap\one-shot-setup.ps1 -HostId codex -Profile full
 pwsh -File .\check.ps1 -HostId codex -Profile full -Deep
 ```
 
 ```bash
-CODEX_HOME="$HOME/.codex" bash ./scripts/bootstrap/one-shot-setup.sh --host codex --profile full
-CODEX_HOME="$HOME/.codex" bash ./check.sh --host codex --profile full --deep
+bash ./scripts/bootstrap/one-shot-setup.sh --host codex --profile full
+bash ./check.sh --host codex --profile full --deep
 ```
 
 ### Claude Code
@@ -154,6 +155,7 @@ bash ./check.sh --host opencode --profile full --deep
 ```
 
 If you want the “Framework Only + Customizable Governance” variant, replace `full` with `minimal`.
+That still keeps the same local-first kernel shape; it only shrinks the built-in helper surface.
 
 ## Upgrade Flow
 
@@ -177,14 +179,14 @@ Command install only installs VibeSkills into the target host root and runs chec
 ### Codex
 
 - hooks remain frozen; that is not an install failure
-- maintain the real `~/.codex/settings.json` when host-local settings are needed
-- do not describe `$vibe` discoverability as MCP completion or online enhancement readiness
+- inspect `~/.agents/settings.json` when you need the managed settings surface from the shared install
+- do not describe `$vibe` discoverability as host-plugin completion or online enhancement readiness
 
 ### Claude Code
 
 - it preserves the real `~/.claude/settings.json` while merging a bounded managed `vibeskills` settings surface
-- broader Claude plugins, MCP registration, credentials, and host behavior remain host-managed
-- do not claim that host-side providers, plugins, or MCP surfaces are fully ready just because install completed
+- broader Claude plugins, host-side capability configuration, credentials, and host behavior remain host-managed
+- do not claim that host-side providers, plugins, or online capabilities are fully ready just because install completed
 
 ### Cursor
 
@@ -209,5 +211,5 @@ Command install only installs VibeSkills into the target host root and runs chec
 - the default target root is `OPENCODE_HOME`, otherwise the real host root `~/.config/opencode`
 - the real host config directory `~/.config/opencode` remains host-managed
 - both direct install/check and the one-shot wrapper keep host-managed boundaries intact
-- the real `opencode.json`, provider credentials, plugin installation, and MCP trust remain host-managed
+- the real `opencode.json`, provider credentials, plugin installation, and online capability authorization remain host-managed
 - use `--target-root ./.opencode` when you want project-local isolation

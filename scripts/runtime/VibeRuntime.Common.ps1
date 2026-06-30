@@ -3,6 +3,18 @@ $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot '..\common\vibe-governance-helpers.ps1')
 
+$skillUsageCommon = Join-Path $PSScriptRoot 'VibeSkillUsage.Common.ps1'
+if (Test-Path -LiteralPath $skillUsageCommon -PathType Leaf) {
+    . $skillUsageCommon
+}
+
+$skillRoutingCommon = Join-Path $PSScriptRoot 'VibeSkillRouting.Common.ps1'
+if (Test-Path -LiteralPath $skillRoutingCommon -PathType Leaf) {
+    . $skillRoutingCommon
+}
+
+Set-StrictMode -Off
+
 $retiredConsultationHelper = Join-Path $PSScriptRoot 'legacy\VibeRetiredConsultation.Common.ps1'
 $script:VibeRetiredConsultationHelperMissingMessage = "Missing retired consultation helper: $retiredConsultationHelper"
 if (Test-Path -LiteralPath $retiredConsultationHelper -PathType Leaf) {
@@ -249,21 +261,125 @@ function Get-VibeNestedPropertySafe {
     return $current
 }
 
+function Get-VibeWorkBindingBoundSkillIds {
+    param(
+        [AllowNull()] [object]$RuntimeInputPacket = $null,
+        [AllowNull()] [object]$WorkBinding = $null
+    )
+
+    $resolvedWorkBinding = if ($null -ne $WorkBinding) {
+        $WorkBinding
+    } elseif (
+        $null -ne $RuntimeInputPacket -and
+        (Test-VibeObjectHasProperty -InputObject $RuntimeInputPacket -PropertyName 'work_binding')
+    ) {
+        $RuntimeInputPacket.work_binding
+    } else {
+        $null
+    }
+
+    if (
+        $null -eq $resolvedWorkBinding -or
+        -not (Test-VibeObjectHasProperty -InputObject $resolvedWorkBinding -PropertyName 'units') -or
+        $null -eq $resolvedWorkBinding.units
+    ) {
+        return @()
+    }
+
+    return [object[]]@(
+        @($resolvedWorkBinding.units | ForEach-Object {
+                [string](Get-VibePropertySafe -InputObject $_ -PropertyName 'bound_skill' -DefaultValue '')
+            } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+    )
+}
+
+function Get-VibePrimaryBoundSkillId {
+    param(
+        [AllowNull()] [object]$RuntimeInputPacket = $null,
+        [AllowNull()] [object]$WorkBinding = $null,
+        [AllowEmptyString()] [string]$FallbackSkillId = ''
+    )
+
+    $boundSkillIds = @(Get-VibeWorkBindingBoundSkillIds -RuntimeInputPacket $RuntimeInputPacket -WorkBinding $WorkBinding)
+    if ($boundSkillIds.Count -ge 1) {
+        return [string]$boundSkillIds[0]
+    }
+
+    $skillRouting = if (
+        $null -ne $RuntimeInputPacket -and
+        (Test-VibeObjectHasProperty -InputObject $RuntimeInputPacket -PropertyName 'skill_routing')
+    ) {
+        $RuntimeInputPacket.skill_routing
+    } else {
+        $null
+    }
+    $selectedSkillIds = if (
+        $null -ne $skillRouting -and
+        (Test-VibeObjectHasProperty -InputObject $skillRouting -PropertyName 'selected') -and
+        $null -ne $skillRouting.selected
+    ) {
+        @($skillRouting.selected | ForEach-Object {
+                [string](Get-VibePropertySafe -InputObject $_ -PropertyName 'skill_id' -DefaultValue '')
+            } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+    } else {
+        @()
+    }
+    if (@($selectedSkillIds).Count -ge 1) {
+        return [string]$selectedSkillIds[0]
+    }
+
+    return $FallbackSkillId
+}
+
 function Get-VibeRuntimeSelectedSkillExecutionProjection {
     param(
         [AllowNull()] [object]$RuntimeInputPacket = $null
     )
 
-    if (
-        $null -eq $RuntimeInputPacket -or
-        -not (Test-VibeObjectHasProperty -InputObject $RuntimeInputPacket -PropertyName 'skill_routing') -or
-        $null -eq $RuntimeInputPacket.skill_routing -or
-        -not (Test-VibeObjectHasProperty -InputObject $RuntimeInputPacket.skill_routing -PropertyName 'selected')
-    ) {
+    if ($null -eq $RuntimeInputPacket) {
         return $null
     }
 
-    $selectedSkillExecution = [object[]]@($RuntimeInputPacket.skill_routing.selected)
+    $selectedSkillExecution = @()
+    $executionStatus = ''
+    $executionSource = ''
+    if (
+        (Test-VibeObjectHasProperty -InputObject $RuntimeInputPacket -PropertyName 'work_binding') -and
+        $null -ne $RuntimeInputPacket.work_binding -and
+        (Test-VibeObjectHasProperty -InputObject $RuntimeInputPacket.work_binding -PropertyName 'units') -and
+        $null -ne $RuntimeInputPacket.work_binding.units
+    ) {
+        $selectedSkillExecution = @($RuntimeInputPacket.work_binding.units | ForEach-Object {
+                $skillId = [string](Get-VibePropertySafe -InputObject $_ -PropertyName 'bound_skill' -DefaultValue '')
+                if ([string]::IsNullOrWhiteSpace($skillId)) {
+                    return $null
+                }
+
+                [pscustomobject]@{
+                    skill_id = $skillId
+                    skill_md_path = Get-VibePropertySafe -InputObject $_ -PropertyName 'skill_md_path' -DefaultValue $null
+                    native_skill_entrypoint = Get-VibePropertySafe -InputObject $_ -PropertyName 'native_skill_entrypoint' -DefaultValue $null
+                    dispatch_phase = [string](Get-VibePropertySafe -InputObject $_ -PropertyName 'dispatch_phase' -DefaultValue 'in_execution')
+                    bounded_role = [string](Get-VibePropertySafe -InputObject $_ -PropertyName 'bounded_role' -DefaultValue 'selected_skill')
+                    binding_profile = [string](Get-VibePropertySafe -InputObject $_ -PropertyName 'binding_profile' -DefaultValue 'selected_skill')
+                    work_unit_id = [string](Get-VibePropertySafe -InputObject $_ -PropertyName 'work_unit_id' -DefaultValue '')
+                    task_slice = [string](Get-VibePropertySafe -InputObject $_ -PropertyName 'task_slice' -DefaultValue '')
+                }
+            } | Where-Object { $null -ne $_ })
+        $executionStatus = 'derived_from_work_binding'
+        $executionSource = 'work_binding.units[*].bound_skill'
+    } elseif (
+        (Test-VibeObjectHasProperty -InputObject $RuntimeInputPacket -PropertyName 'skill_routing') -and
+        $null -ne $RuntimeInputPacket.skill_routing -and
+        (Test-VibeObjectHasProperty -InputObject $RuntimeInputPacket.skill_routing -PropertyName 'selected')
+    ) {
+        $selectedSkillExecution = [object[]]@($RuntimeInputPacket.skill_routing.selected)
+        $executionStatus = 'derived_from_skill_routing_selected'
+        $executionSource = 'skill_routing.selected'
+    } else {
+        return $null
+    }
+
     $specialistDecision = if (
         (Test-VibeObjectHasProperty -InputObject $RuntimeInputPacket -PropertyName 'specialist_decision') -and
         $null -ne $RuntimeInputPacket.specialist_decision
@@ -323,8 +439,8 @@ function Get-VibeRuntimeSelectedSkillExecutionProjection {
         ghost_match_skill_ids = @()
         escalation_required = $false
         escalation_status = 'not_required'
-        status = 'derived_from_skill_routing_selected'
-        source = 'skill_routing.selected'
+        status = $executionStatus
+        source = $executionSource
     }
 }
 
@@ -333,16 +449,9 @@ function Get-VibeRuntimeSpecialistRecommendations {
         [AllowNull()] [object]$RuntimeInputPacket = $null
     )
 
-    if (
-        $null -ne $RuntimeInputPacket -and
-        (Test-VibeObjectHasProperty -InputObject $RuntimeInputPacket -PropertyName 'skill_routing') -and
-        $null -ne $RuntimeInputPacket.skill_routing -and
-        (Test-VibeObjectHasProperty -InputObject $RuntimeInputPacket.skill_routing -PropertyName 'selected')
-    ) {
-        $selected = [object[]]@($RuntimeInputPacket.skill_routing.selected)
-        if (@($selected).Count -gt 0) {
-            return $selected
-        }
+    $selected = [object[]]@(Get-VibeSkillRoutingSelected -RuntimeInputPacket $RuntimeInputPacket)
+    if (@($selected).Count -gt 0) {
+        return $selected
     }
 
     if (
@@ -363,6 +472,122 @@ function Get-VibeRuntimeStageAssistantHints {
     )
 
     return @()
+}
+
+function New-VibeRuntimeWorkBindingProjection {
+    param(
+        [AllowEmptyString()] [string]$Task = '',
+        [AllowEmptyString()] [string]$RunId = '',
+        [AllowNull()] [object]$SpecialistDispatch = $null,
+        [AllowNull()] [object]$SkillRouting = $null,
+        [AllowNull()] [object]$RuntimeInputPacket = $null
+    )
+
+    $dispatchRows = if (
+        $null -ne $SpecialistDispatch -and
+        (Test-VibeObjectHasProperty -InputObject $SpecialistDispatch -PropertyName 'approved_dispatch')
+    ) {
+        [object[]]@($SpecialistDispatch.approved_dispatch)
+    } else {
+        @()
+    }
+
+    $routing = if ($null -ne $SkillRouting) {
+        $SkillRouting
+    } elseif (
+        $null -ne $RuntimeInputPacket -and
+        (Test-VibeObjectHasProperty -InputObject $RuntimeInputPacket -PropertyName 'skill_routing')
+    ) {
+        $RuntimeInputPacket.skill_routing
+    } else {
+        $null
+    }
+
+    $selectedRows = if (@($dispatchRows).Count -gt 0) {
+        @($dispatchRows)
+    } elseif (
+        $null -ne $routing -and
+        (Test-VibeObjectHasProperty -InputObject $routing -PropertyName 'selected')
+    ) {
+        [object[]]@($routing.selected)
+    } else {
+        @()
+    }
+
+    $units = New-Object System.Collections.Generic.List[object]
+    $ordinal = 0
+    foreach ($selectedRow in @($selectedRows)) {
+        $skillId = [string](Get-VibePropertySafe -InputObject $selectedRow -PropertyName 'skill_id' -DefaultValue '')
+        if ([string]::IsNullOrWhiteSpace($skillId)) {
+            continue
+        }
+
+        $ordinal += 1
+        $workUnitId = [string](Get-VibePropertySafe -InputObject $selectedRow -PropertyName 'work_unit_id' -DefaultValue '')
+        if ([string]::IsNullOrWhiteSpace($workUnitId)) {
+            $workUnitId = ('runtime-bound-skill-{0}' -f $ordinal)
+        }
+        $taskSlice = [string](Get-VibePropertySafe -InputObject $selectedRow -PropertyName 'task_slice' -DefaultValue '')
+        if ([string]::IsNullOrWhiteSpace($taskSlice)) {
+            $taskSlice = ('Use {0} for bounded specialist work.' -f $skillId)
+        }
+
+        $units.Add(
+            [pscustomobject]@{
+                work_unit_id = $workUnitId
+                bound_skill = $skillId
+                phase_id = Get-VibePropertySafe -InputObject $selectedRow -PropertyName 'phase_id' -DefaultValue $null
+                reason = [string](Get-VibePropertySafe -InputObject $selectedRow -PropertyName 'reason' -DefaultValue '')
+                task_slice = $taskSlice
+                skill_md_path = Get-VibePropertySafe -InputObject $selectedRow -PropertyName 'skill_md_path' -DefaultValue $null
+                native_skill_entrypoint = Get-VibePropertySafe -InputObject $selectedRow -PropertyName 'native_skill_entrypoint' -DefaultValue $null
+                dispatch_phase = [string](Get-VibePropertySafe -InputObject $selectedRow -PropertyName 'dispatch_phase' -DefaultValue 'in_execution')
+                parallelizable_in_root_xl = [bool](Get-VibePropertySafe -InputObject $selectedRow -PropertyName 'parallelizable_in_root_xl' -DefaultValue $false)
+                native_usage_required = [bool](Get-VibePropertySafe -InputObject $selectedRow -PropertyName 'native_usage_required' -DefaultValue $true)
+                usage_required = [bool](Get-VibePropertySafe -InputObject $selectedRow -PropertyName 'usage_required' -DefaultValue (Get-VibePropertySafe -InputObject $selectedRow -PropertyName 'native_usage_required' -DefaultValue $true))
+                skill_root = Get-VibePropertySafe -InputObject $selectedRow -PropertyName 'skill_root' -DefaultValue $null
+                bounded_role = [string](Get-VibePropertySafe -InputObject $selectedRow -PropertyName 'bounded_role' -DefaultValue 'selected_skill')
+                must_preserve_workflow = [bool](Get-VibePropertySafe -InputObject $selectedRow -PropertyName 'must_preserve_workflow' -DefaultValue $true)
+                binding_profile = [string](Get-VibePropertySafe -InputObject $selectedRow -PropertyName 'binding_profile' -DefaultValue 'selected_skill')
+                lane_policy = [string](Get-VibePropertySafe -InputObject $selectedRow -PropertyName 'lane_policy' -DefaultValue 'native_contract')
+                write_scope = [string](Get-VibePropertySafe -InputObject $selectedRow -PropertyName 'write_scope' -DefaultValue ('specialist:{0}' -f $skillId))
+                review_mode = [string](Get-VibePropertySafe -InputObject $selectedRow -PropertyName 'review_mode' -DefaultValue 'native_contract')
+                execution_priority = [int](Get-VibePropertySafe -InputObject $selectedRow -PropertyName 'execution_priority' -DefaultValue 50)
+                required_inputs = [object[]]@(Get-VibePropertySafe -InputObject $selectedRow -PropertyName 'required_inputs' -DefaultValue @())
+                expected_outputs = [object[]]@(Get-VibePropertySafe -InputObject $selectedRow -PropertyName 'expected_outputs' -DefaultValue @())
+                verification_expectation = [string](Get-VibePropertySafe -InputObject $selectedRow -PropertyName 'verification_expectation' -DefaultValue 'Record selected skill usage evidence before completion.')
+                progressive_load_policy = [object[]]@(Get-VibePropertySafe -InputObject $selectedRow -PropertyName 'progressive_load_policy' -DefaultValue @())
+            }
+        ) | Out-Null
+    }
+
+    $resolvedRunId = if ([string]::IsNullOrWhiteSpace($RunId)) { $null } else { [string]$RunId }
+    $resolvedTask = if ([string]::IsNullOrWhiteSpace($Task)) { $null } else { [string]$Task }
+    $resolvedUnits = [object[]]@($units.ToArray())
+    $resolvedUnitCount = @($resolvedUnits).Count
+    $projectedFromApprovedDispatch = @($dispatchRows).Count -gt 0
+    $resolvedStatus = if ($resolvedUnitCount -eq 0) {
+        'no_bound_skills'
+    } elseif ($projectedFromApprovedDispatch) {
+        'projected_from_approved_dispatch'
+    } else {
+        'compatibility_projection_from_skill_routing'
+    }
+    $resolvedSource = if ($projectedFromApprovedDispatch) {
+        'approved_dispatch'
+    } else {
+        'compatibility.skill_routing.selected'
+    }
+
+    return [pscustomobject]@{
+        schema_version = 'runtime_work_binding_v1'
+        source = $resolvedSource
+        run_id = $resolvedRunId
+        task = $resolvedTask
+        unit_count = $resolvedUnitCount
+        status = $resolvedStatus
+        units = $resolvedUnits
+    }
 }
 
 function ConvertFrom-VibeHostDecisionJson {
@@ -438,6 +663,45 @@ function Copy-VibeRecordObject {
         }
     }
     return $copy
+}
+
+function New-VibeRuntimeHostDecisionProjection {
+    param(
+        [AllowNull()] [object]$HostDecision = $null,
+        [AllowNull()] [object]$PhaseDecomposition = $null
+    )
+
+    if ($null -eq $HostDecision) {
+        return $null
+    }
+
+    $projection = Copy-VibeRecordObject -InputObject $HostDecision
+    foreach ($propertyName in @(
+        'approval_decision',
+        'decision_action',
+        'decision_kind',
+        'continuation_context',
+        'skill_execution_decision',
+        'code_task_tdd_decision',
+        'code_task_tdd',
+        'tdd_decision',
+        'code_task_tdd_mode',
+        'revision_delta'
+    )) {
+        if (Test-VibeObjectHasProperty -InputObject $projection -PropertyName $propertyName) {
+            [void]$projection.PSObject.Properties.Remove($propertyName)
+        }
+    }
+
+    if ($null -ne $PhaseDecomposition) {
+        $projection | Add-Member -NotePropertyName phase_decomposition -NotePropertyValue $PhaseDecomposition -Force
+    }
+
+    if (@($projection.PSObject.Properties).Count -eq 0) {
+        return $null
+    }
+
+    return $projection
 }
 
 function Get-VibeNormalizedStringList {
@@ -1070,23 +1334,6 @@ function New-VibeSkillExecutionLockProjection {
     }
 }
 
-function New-VibeSkillExecutionLockSummaryProjection {
-    param(
-        [AllowNull()] [object]$SkillExecutionLock = $null
-    )
-
-    $active = Test-VibeSkillExecutionLockActive -SkillExecutionLock $SkillExecutionLock
-    $lockedSkillIds = if ($active) { @(Get-VibeSkillExecutionLockSkillIds -SkillExecutionLock $SkillExecutionLock) } else { @() }
-    return [pscustomobject]@{
-        active = [bool]$active
-        locked_skill_count = @($lockedSkillIds).Count
-        locked_skill_ids = @($lockedSkillIds)
-        source = if ($active -and (Test-VibeObjectHasProperty -InputObject $SkillExecutionLock -PropertyName 'source')) { [string]$SkillExecutionLock.source } else { $null }
-        source_run_id = if ($active -and (Test-VibeObjectHasProperty -InputObject $SkillExecutionLock -PropertyName 'source_run_id')) { [string]$SkillExecutionLock.source_run_id } else { $null }
-        resolution_required = if ($active -and (Test-VibeObjectHasProperty -InputObject $SkillExecutionLock -PropertyName 'resolution_required')) { [bool]$SkillExecutionLock.resolution_required } else { $false }
-    }
-}
-
 function Normalize-VibeCodeTaskTddMode {
     param(
         [AllowNull()] [object]$Value = $null
@@ -1450,10 +1697,20 @@ function New-VibeRouteRuntimeAlignmentProjection {
     $authorityFlags = Get-VibePropertySafe -InputObject $RuntimeInputPacket -PropertyName 'authority_flags'
     $divergenceShadow = Get-VibePropertySafe -InputObject $RuntimeInputPacket -PropertyName 'divergence_shadow'
 
+    $routerSelectedSkill = Get-VibePrimaryBoundSkillId -RuntimeInputPacket $RuntimeInputPacket -FallbackSkillId $null
+    $runtimeSelectedSkill = Get-VibeNestedPropertySafe -InputObject $authorityFlags -PropertyPath @('explicit_runtime_skill') -DefaultValue $DefaultRuntimeSkill
+    $skillMismatch = Get-VibeNestedPropertySafe -InputObject $divergenceShadow -PropertyPath @('skill_mismatch') -DefaultValue $null
+    if ($null -eq $skillMismatch) {
+        $skillMismatch = (
+            -not [string]::IsNullOrWhiteSpace([string]$routerSelectedSkill) -and
+            -not [string]::Equals([string]$routerSelectedSkill, [string]$runtimeSelectedSkill, [System.StringComparison]::OrdinalIgnoreCase)
+        )
+    }
+
     return [pscustomobject]@{
-        router_selected_skill = Get-VibeNestedPropertySafe -InputObject $routeSnapshot -PropertyPath @('selected_skill') -DefaultValue $null
-        runtime_selected_skill = Get-VibeNestedPropertySafe -InputObject $authorityFlags -PropertyPath @('explicit_runtime_skill') -DefaultValue $DefaultRuntimeSkill
-        skill_mismatch = Get-VibeNestedPropertySafe -InputObject $divergenceShadow -PropertyPath @('skill_mismatch') -DefaultValue $false
+        router_selected_skill = $routerSelectedSkill
+        runtime_selected_skill = $runtimeSelectedSkill
+        skill_mismatch = [bool]$skillMismatch
         confirm_required = Get-VibeNestedPropertySafe -InputObject $routeSnapshot -PropertyPath @('confirm_required') -DefaultValue $false
         requested_host_adapter_id = $hostAdapterIdentity.requested_host_id
         effective_host_adapter_id = $hostAdapterIdentity.effective_host_id
@@ -2278,7 +2535,6 @@ function New-VibeRuntimeInputPacketProjection {
         [AllowNull()] [object]$SkillRouting = $null,
         [AllowNull()] [object]$SkillExecutionLock = $null,
         [Parameter(Mandatory)] [object]$SpecialistDispatch,
-        [AllowNull()] [object[]]$OverlayDecisions = @(),
         [Parameter(Mandatory)] [object]$Policy
     )
 
@@ -2293,12 +2549,6 @@ function New-VibeRuntimeInputPacketProjection {
         [pscustomobject]@{
             status = [string]$RouteResult.custom_admission.status
             target_root = if ($RouteResult.custom_admission.PSObject.Properties.Name -contains 'target_root') { [string]$RouteResult.custom_admission.target_root } else { $null }
-            admitted_candidate_count = if ($RouteResult.custom_admission.PSObject.Properties.Name -contains 'admitted_candidates') { @($RouteResult.custom_admission.admitted_candidates).Count } else { 0 }
-            admitted_skill_ids = if ($RouteResult.custom_admission.PSObject.Properties.Name -contains 'admitted_candidates') {
-                @($RouteResult.custom_admission.admitted_candidates | ForEach-Object { [string]$_.skill_id } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
-            } else {
-                @()
-            }
         }
     } else {
         $null
@@ -2367,7 +2617,43 @@ function New-VibeRuntimeInputPacketProjection {
         status = Get-VibeNestedPropertySafe -InputObject $Policy -PropertyPath @('child_specialist_suggestion_contract', 'status') -DefaultValue 'auto_promote_when_safe_same_round'
     }
 
-    return [pscustomobject]@{
+    $effectiveSkillRouting = if ($null -ne $SkillRouting) {
+        $SkillRouting
+    } elseif (Get-Command -Name New-VibeSkillRoutingFromLegacy -CommandType Function -ErrorAction SilentlyContinue) {
+        New-VibeSkillRoutingFromLegacy `
+            -RouterSelectedSkill $routerSelectedSkill `
+            -Recommendations @($SpecialistRecommendations) `
+            -StageAssistantHints @($StageAssistantHints) `
+            -SpecialistDispatch $SpecialistDispatch
+    } else {
+        [pscustomobject]@{
+            schema_version = 'simplified_skill_routing_v1'
+            candidates = @()
+            selected = @()
+            rejected = @()
+        }
+    }
+    $effectiveSkillUsage = if ($null -ne $SkillUsage) {
+        $SkillUsage
+    } else {
+        [pscustomobject]@{
+            schema_version = 1
+            state_model = 'binary_used_unused'
+            used_skills = @()
+            unused_skills = @()
+            loaded_skills = @()
+            evidence = @()
+            unused_reasons = @()
+        }
+    }
+    $workBinding = New-VibeRuntimeWorkBindingProjection -Task $Task -RunId $RunId -SpecialistDispatch $SpecialistDispatch -SkillRouting $effectiveSkillRouting
+    $packetSkillRouting = [pscustomobject]@{
+        schema_version = [string](Get-VibePropertySafe -InputObject $effectiveSkillRouting -PropertyName 'schema_version' -DefaultValue 'simplified_skill_routing_v1')
+        candidates = [object[]]@(Get-VibePropertySafe -InputObject $effectiveSkillRouting -PropertyName 'candidates' -DefaultValue @())
+        rejected = [object[]]@(Get-VibePropertySafe -InputObject $effectiveSkillRouting -PropertyName 'rejected' -DefaultValue @())
+    }
+
+    $baseFields = [pscustomobject]@{
         stage = 'runtime_input_freeze'
         run_id = $RunId
         governance_scope = Get-VibeNestedPropertySafe -InputObject $HierarchyState -PropertyPath @('governance_scope') -DefaultValue ''
@@ -2378,12 +2664,26 @@ function New-VibeRuntimeInputPacketProjection {
         generated_at = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
         runtime_mode = $Mode
         internal_grade = $InternalGrade
+        work_binding = $workBinding
+        specialist_decision = $packetSpecialistDecision
+        skill_usage = $effectiveSkillUsage
+        host_adapter = (New-VibeRuntimeHostAdapterProjection -Runtime $Runtime -FallbackHostId $RouterHostId -TargetRoot $RouterTargetRoot)
         hierarchy = $HierarchyProjection
+        authority_flags = $AuthorityFlagsProjection
+        provenance = [pscustomobject]@{
+            source_of_truth = 'vibe_runtime_with_internal_specialist_recommender'
+            freeze_before_requirement_doc = [bool]$Policy.freeze_before_requirement_doc
+            proof_class = 'structure'
+        }
+        custom_admission = $customAdmission
+        continuation_context = if ($null -ne $continuationContext) { $continuationContext } else { $null }
+        host_decision = New-VibeRuntimeHostDecisionProjection -HostDecision $HostDecision -PhaseDecomposition $ExecutionPhaseDecomposition
+        code_task_tdd_decision = $CodeTaskTddDecision
+        host_skill_execution_decision = $HostSpecialistDispatchDecision
+        skill_execution_lock = if ($null -ne $SkillExecutionLock) { $SkillExecutionLock } else { $null }
         canonical_router = [pscustomobject]@{
             role = 'internal_specialist_recommender'
             prompt = $Task
-            task_type = if ([string]::IsNullOrWhiteSpace($TaskType)) { $null } else { [string]$TaskType }
-            requested_skill = if ([string]::IsNullOrWhiteSpace([string]$RequestedSkill)) { $null } else { [string]$RequestedSkill }
             host_id = if ([string]::IsNullOrWhiteSpace($RouterHostId)) { $null } else { [string]$RouterHostId }
             target_root = if ([string]::IsNullOrWhiteSpace($RouterTargetRoot)) { $null } else { [string]$RouterTargetRoot }
             unattended = [bool]$Unattended
@@ -2392,78 +2692,39 @@ function New-VibeRuntimeInputPacketProjection {
             host_decision_action = if ($RouteResult.PSObject.Properties.Name -contains 'structured_host_route_decision' -and $RouteResult.structured_host_route_decision) { [string]$RouteResult.structured_host_route_decision.decision_action } else { $null }
             route_script_path = if ([string]::IsNullOrWhiteSpace($RouterScriptPath)) { $null } else { [string]$RouterScriptPath }
         }
-        host_adapter = (New-VibeRuntimeHostAdapterProjection -Runtime $Runtime -FallbackHostId $RouterHostId -TargetRoot $RouterTargetRoot)
         route_snapshot = [pscustomobject]@{
-            selected_pack = if ($null -ne $selected) { [string]$selected.pack_id } else { $null }
-            selected_skill = $routerSelectedSkill
+            task_type = if ([string]::IsNullOrWhiteSpace($TaskType)) { $null } else { [string]$TaskType }
             route_mode = [string]$RouteResult.route_mode
-            route_reason = [string]$RouteResult.route_reason
             confirm_required = [bool]$confirmRequired
-            confidence = if ($RouteResult.confidence -ne $null) { [double]$RouteResult.confidence } else { $null }
-            truth_level = [string]$RouteResult.truth_level
-            degradation_state = [string]$RouteResult.degradation_state
-            non_authoritative = [bool]$RouteResult.non_authoritative
-            fallback_active = [bool]$RouteResult.fallback_active
-            hazard_alert_required = [bool]$RouteResult.hazard_alert_required
-            unattended_override_applied = [bool]$RouteResult.unattended_override_applied
-            host_decision_applied = if ($RouteResult.PSObject.Properties.Name -contains 'structured_host_route_decision' -and $RouteResult.structured_host_route_decision) { [bool]$RouteResult.structured_host_route_decision.applied } else { $false }
-            host_decision_action = if ($RouteResult.PSObject.Properties.Name -contains 'structured_host_route_decision' -and $RouteResult.structured_host_route_decision) { [string]$RouteResult.structured_host_route_decision.decision_action } else { $null }
-            host_selected_skill = if ($RouteResult.PSObject.Properties.Name -contains 'structured_host_route_decision' -and $RouteResult.structured_host_route_decision) { [string]$RouteResult.structured_host_route_decision.selected_skill } else { $null }
-            custom_admission_status = if ($RouteResult.PSObject.Properties.Name -contains 'custom_admission' -and $RouteResult.custom_admission) { [string]$RouteResult.custom_admission.status } else { $null }
         }
-        custom_admission = $customAdmission
-        continuation_context = if ($null -ne $continuationContext) { $continuationContext } else { $null }
-        host_reentry_action = $hostReentryAction
-        host_revision_target_stage = $hostRevisionTargetStage
-        host_revision_delta = [object[]]@($hostRevisionDelta)
-        host_decision = if ($null -ne $HostDecision) { $HostDecision } else { $null }
-        execution_phase_decomposition = $ExecutionPhaseDecomposition
-        code_task_tdd_decision = $CodeTaskTddDecision
-        host_skill_execution_decision = $HostSpecialistDispatchDecision
-        skill_execution_lock = if ($null -ne $SkillExecutionLock) { $SkillExecutionLock } else { $null }
-        skill_execution_lock_summary = New-VibeSkillExecutionLockSummaryProjection -SkillExecutionLock $SkillExecutionLock
-        skill_routing = if ($null -ne $SkillRouting) {
-            $SkillRouting
-        } else {
-            [pscustomobject]@{
-                schema_version = 'simplified_skill_routing_v1'
-                candidates = @()
-                selected = @()
-                rejected = @()
-            }
-        }
-        skill_usage = if ($null -ne $SkillUsage) {
-            $SkillUsage
-        } else {
-            [pscustomobject]@{
-                schema_version = 1
-                state_model = 'binary_used_unused'
-                used_skills = @()
-                unused_skills = @()
-                loaded_skills = @()
-                evidence = @()
-                unused_reasons = @()
-            }
-        }
-        specialist_decision = $packetSpecialistDecision
-        overlay_decisions = @($OverlayDecisions)
-        authority_flags = $AuthorityFlagsProjection
+        skill_routing = $packetSkillRouting
         storage = $StorageProjection
         divergence_shadow = [pscustomobject]@{
-            router_selected_skill = $routerSelectedSkill
-            runtime_selected_skill = if ([string]::IsNullOrWhiteSpace($RuntimeSelectedSkill)) { $null } else { [string]$RuntimeSelectedSkill }
             skill_mismatch = [bool](-not [string]::Equals($routerSelectedSkill, $RuntimeSelectedSkill, [System.StringComparison]::OrdinalIgnoreCase))
             confirm_required = [bool]$confirmRequired
             explicit_runtime_override_applied = [bool](-not [string]::IsNullOrWhiteSpace($RuntimeSelectedSkill))
             explicit_runtime_override_reason = 'governed_runtime_entry'
             governance_scope_mismatch = $false
         }
-        provenance = [pscustomobject]@{
-            source_of_truth = 'vibe_runtime_with_internal_specialist_recommender'
-            freeze_before_requirement_doc = [bool]$Policy.freeze_before_requirement_doc
-            proof_class = 'structure'
-        }
     }
+
+    $truthRepoRoot = if (
+        (Test-VibeObjectHasProperty -InputObject $Runtime -PropertyName 'repo_root') -and
+        -not [string]::IsNullOrWhiteSpace([string]$Runtime.repo_root)
+    ) {
+        [string]$Runtime.repo_root
+    } else {
+        Resolve-VgoRepoRoot -StartPath $PSScriptRoot
+    }
+
+    return New-VibePythonRuntimeTruthProjection `
+        -RepoRoot $truthRepoRoot `
+        -RunId $RunId `
+        -Task $Task `
+        -WorkBinding $workBinding `
+        -SpecialistDecision $packetSpecialistDecision `
+        -BaseFields $baseFields `
+        -SkillRouting $packetSkillRouting
 }
 
 function New-VibeExecutionAuthorityProjection {
@@ -4272,6 +4533,80 @@ function New-VibeRuntimeSummaryProjection {
         host_user_briefing = $HostUserBriefing
         bounded_return_control = $BoundedReturnControl
         artifacts_relative = $RelativeArtifacts
+    }
+}
+
+function New-VibePythonRuntimeTruthProjection {
+    param(
+        [Parameter(Mandatory)] [string]$RepoRoot,
+        [Parameter(Mandatory)] [string]$RunId,
+        [Parameter(Mandatory)] [string]$Task,
+        [Parameter(Mandatory)] [object]$WorkBinding,
+        [Parameter(Mandatory)] [object]$SpecialistDecision,
+        [Parameter(Mandatory)] [object]$BaseFields,
+        [AllowNull()] [object]$SkillRouting = $null
+    )
+
+    $pythonInvocation = Get-VgoPythonCommand
+    $scriptPath = Join-Path $RepoRoot 'packages\runtime-core\src\vgo_runtime\canonical_entry.py'
+    $runtimeCoreSrc = Join-Path $RepoRoot 'packages\runtime-core\src'
+    $contractsSrc = Join-Path $RepoRoot 'packages\contracts\src'
+    $inputPath = Join-Path ([System.IO.Path]::GetTempPath()) ("vgo-runtime-truth-" + [System.Guid]::NewGuid().ToString("N") + ".json")
+    $outputPath = Join-Path ([System.IO.Path]::GetTempPath()) ("vgo-runtime-truth-" + [System.Guid]::NewGuid().ToString("N") + ".out.json")
+    $previousPythonPath = $env:PYTHONPATH
+
+    try {
+        Write-VibeJsonArtifact -Path $inputPath -Value ([pscustomobject]@{
+            run_id = $RunId
+            task = $Task
+            work_binding = $WorkBinding
+            specialist_decision = $SpecialistDecision
+            base_fields = $BaseFields
+            skill_routing = $SkillRouting
+        })
+
+        $pythonPathEntries = @($runtimeCoreSrc, $contractsSrc)
+        if (-not [string]::IsNullOrWhiteSpace($previousPythonPath)) {
+            $pythonPathEntries += $previousPythonPath
+        }
+        $env:PYTHONPATH = ($pythonPathEntries -join [System.IO.Path]::PathSeparator)
+        $pythonArgs = @($pythonInvocation.prefix_arguments)
+        $pythonArgs += @(
+            $scriptPath,
+            '--build-runtime-truth-input-json', $inputPath,
+            '--output-json-path', $outputPath
+        )
+        $commandOutput = & $pythonInvocation.host_path @pythonArgs 2>&1
+        $commandExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { [int]$LASTEXITCODE }
+        if ($commandExitCode -ne 0) {
+            throw ("Python runtime truth builder exited with code {0}: {1}" -f $commandExitCode, ((@($commandOutput) | ForEach-Object { [string]$_ }) -join [Environment]::NewLine))
+        }
+
+        if (-not (Test-Path -LiteralPath $outputPath -PathType Leaf)) {
+            throw ("Python runtime truth builder did not write its UTF-8 handoff file: {0}" -f $outputPath)
+        }
+
+        $packetText = [System.IO.File]::ReadAllText(
+            $outputPath,
+            [System.Text.UTF8Encoding]::new($false)
+        ).Trim()
+        if ([string]::IsNullOrWhiteSpace($packetText)) {
+            throw 'Python runtime truth builder returned empty output.'
+        }
+
+        return ($packetText | ConvertFrom-Json)
+    } finally {
+        if ([string]::IsNullOrWhiteSpace($previousPythonPath)) {
+            Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
+        } else {
+            $env:PYTHONPATH = $previousPythonPath
+        }
+        if (Test-Path -LiteralPath $inputPath) {
+            Remove-Item -LiteralPath $inputPath -Force -ErrorAction SilentlyContinue
+        }
+        if (Test-Path -LiteralPath $outputPath) {
+            Remove-Item -LiteralPath $outputPath -Force -ErrorAction SilentlyContinue
+        }
     }
 }
 

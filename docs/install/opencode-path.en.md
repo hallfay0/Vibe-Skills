@@ -6,6 +6,12 @@
 - this guide does not replace the generic install prompts; it expands OpenCode-specific details
 - it is split out because OpenCode also needs clearer coverage of direct install/check, its default target root, project-local isolation, the files written by install, and host-local boundaries, which would make the common install docs too heavy
 
+The product shape still stays small here too:
+
+- the primary work entry is still `vibe`
+- the normal extension path is still `skills/local/<skill-id>/SKILL.md`
+- any extra OpenCode command or agent aliases are host-specific helper surfaces around the same work kernel, not a second public product menu
+
 ## What The Repository Installs
 
 - repo-distributed content
@@ -20,7 +26,7 @@
 - the real `~/.config/opencode/opencode.json`
 - provider credentials
 - plugin installation
-- MCP trust decisions
+- online capability authorization decisions
 
 ## Global Install
 
@@ -76,9 +82,12 @@ If you need to change native OpenCode settings, keep doing that on the host side
 
 ## How To Use
 
-After install, the intended entry surfaces are:
+After install, keep `vibe` as the primary work entry:
 
 - `/vibe`
+
+OpenCode may also materialize host-specific helper aliases around the same kernel:
+
 - `/vibe-implement`
 - `/vibe-review`
 
@@ -89,7 +98,7 @@ You can also invoke the skill directly in chat, for example:
 
 These entrypoints stay skill-native. When Vibe is not explicitly invoked, the sidecar state remains silent and does not try to take over native OpenCode configuration.
 
-Custom agents installed by this path:
+Host-specific helper agents installed by this path:
 
 - `vibe-plan`
 - `vibe-implement`

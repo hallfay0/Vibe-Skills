@@ -119,6 +119,12 @@ Lead-agent rules:
 
 Within XL execution, a selected skill is a bounded helper, not a replacement runtime.
 
+Read bounded work first:
+
+- `work_binding` remains the source of truth for which bounded work units actually carry a skill owner
+- `selected_skill_execution` is the execution-side copy of those root-approved bounded work units
+- child lanes should inherit bounded work contracts, not improvise a second routing story
+
 Rules:
 
 - `vibe` keeps final control of stage order, plan authority, and completion claims
@@ -132,7 +138,7 @@ Rules:
 
 Hierarchy-specific skill execution semantics:
 
-- `selected_skill_execution`: skill usage selected by root and frozen in plan; child lanes may execute directly
+- `selected_skill_execution`: execution-side copy of root-approved bounded work from `work_binding`; child lanes may execute only those inherited bounded units directly
 - `local_suggestion`: residual child-lane skill suggestion that remains advisory only after safe same-round auto-promotion has been exhausted or blocked
 
 Escalation rule:

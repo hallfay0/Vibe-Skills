@@ -1,6 +1,6 @@
 param(
   [ValidateSet("minimal", "full")]
-  [string]$Profile = "full",
+  [string]$Profile = "minimal",
   [string]$HostId = "codex",
   [string]$TargetRoot = '',
   [switch]$InstallExternal,
@@ -43,45 +43,28 @@ function Get-PreferredPythonInvocation {
     }
   }
 
-  $absoluteCandidates = @(
-    '/usr/bin/python3',
-    '/usr/local/bin/python3',
-    '/opt/homebrew/bin/python3',
-    '/opt/local/bin/python3',
-    'C:\Python313\python.exe',
-    'C:\Python312\python.exe',
-    'C:\Python311\python.exe',
-    'C:\Python310\python.exe'
-  )
-  foreach ($programFilesRoot in @($env:ProgramFiles, [Environment]::GetEnvironmentVariable('ProgramFiles(x86)'))) {
-    if (-not [string]::IsNullOrWhiteSpace($programFilesRoot)) {
-      $absoluteCandidates += @(
-        (Join-Path $programFilesRoot 'Python313\python.exe'),
-        (Join-Path $programFilesRoot 'Python312\python.exe'),
-        (Join-Path $programFilesRoot 'Python311\python.exe'),
-        (Join-Path $programFilesRoot 'Python310\python.exe')
-      )
-    }
-  }
-  if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
-    $absoluteCandidates += @(
-      (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python313\python.exe'),
-      (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python312\python.exe'),
-      (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python311\python.exe'),
-      (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python310\python.exe')
-    )
-  }
-
-  foreach ($candidatePath in $absoluteCandidates) {
-    if (-not [string]::IsNullOrWhiteSpace($candidatePath) -and (Test-Path -LiteralPath $candidatePath)) {
-      return [pscustomobject]@{ host_path = $candidatePath; prefix_arguments = @() }
-    }
-  }
-
-  foreach ($candidate in @('python3', 'python', 'py')) {
-    $command = Get-Command $candidate -ErrorAction SilentlyContinue
+  foreach ($candidate in @(
+    [pscustomobject]@{ name = 'python3'; prefix_arguments = @() },
+    [pscustomobject]@{ name = 'python'; prefix_arguments = @() },
+    [pscustomobject]@{ name = 'py'; prefix_arguments = @('-3') }
+  )) {
+    $command = Get-Command ([string]$candidate.name) -ErrorAction SilentlyContinue
     if ($command) {
-      return [pscustomobject]@{ host_path = $command.Source; prefix_arguments = @() }
+      return [pscustomobject]@{ host_path = $command.Source; prefix_arguments = @($candidate.prefix_arguments) }
+    }
+  }
+
+  $pyFallbacks = @()
+  if (-not [string]::IsNullOrWhiteSpace($env:SystemRoot)) {
+    $pyFallbacks += (Join-Path $env:SystemRoot 'py.exe')
+  }
+  $pyFallbacks += 'C:\Windows\py.exe'
+  foreach ($candidate in ($pyFallbacks | Select-Object -Unique)) {
+    if (-not [string]::IsNullOrWhiteSpace($candidate) -and (Test-Path -LiteralPath $candidate)) {
+      return [pscustomobject]@{
+        host_path = [System.IO.Path]::GetFullPath($candidate)
+        prefix_arguments = @('-3')
+      }
     }
   }
   throw 'Python 3.10+ is required to launch vgo-cli.'

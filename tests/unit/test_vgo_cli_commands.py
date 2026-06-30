@@ -13,7 +13,7 @@ CLI_SRC = REPO_ROOT / 'apps' / 'vgo-cli' / 'src'
 if str(CLI_SRC) not in sys.path:
     sys.path.insert(0, str(CLI_SRC))
 
-from vgo_cli.commands import canonical_entry_command, install_command, route_command, runtime_command, upgrade_command, verify_command
+from vgo_cli.commands import canonical_entry_command, compatibility_exit_command, index_command, inspect_run_command, install_command, locate_entry_command, route_command, run_command, runtime_command, upgrade_command, verify_command
 from vgo_cli.errors import CliError
 from vgo_cli.main import build_parser
 from vgo_cli.output import parse_json_output, print_install_completion_hint, print_json_payload
@@ -88,6 +88,173 @@ def test_route_command_delegates_to_runtime_core_bridge(monkeypatch: pytest.Monk
     assert recorded['printed_stdout'] == '{"ok": true}\n'
 
 
+def test_index_command_delegates_to_runtime_core_bridge(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    import vgo_cli.commands as cli_commands
+
+    recorded: dict[str, object] = {}
+
+    def fake_run_skill_index_core(repo_root: Path, argv: list[str]) -> subprocess.CompletedProcess[str]:
+        recorded["repo_root"] = repo_root
+        recorded["argv"] = list(argv)
+        return subprocess.CompletedProcess(args=list(argv), returncode=0, stdout='{"skill_count": 1}\n', stderr="")
+
+    def fake_print(result: subprocess.CompletedProcess[str]) -> None:
+        recorded["printed_stdout"] = result.stdout
+
+    monkeypatch.setattr(cli_commands, "run_skill_index_core", fake_run_skill_index_core)
+    monkeypatch.setattr(cli_commands, "print_process_output", fake_print)
+
+    args = argparse.Namespace(
+        repo_root=str(tmp_path / "repo"),
+        agent_root=str(tmp_path / "agent"),
+        host_id="codex",
+        workspace_root=str(tmp_path / "workspace"),
+        json=True,
+    )
+
+    assert index_command(args) == 0
+    assert recorded["repo_root"] == (tmp_path / "repo").resolve()
+    assert recorded["argv"] == [
+        "--agent-root", str(tmp_path / "agent"),
+        "--host-id", "codex",
+        "--workspace-root", str(tmp_path / "workspace"),
+        "--json",
+    ]
+    assert recorded["printed_stdout"] == '{"skill_count": 1}\n'
+
+
+def test_run_command_delegates_to_runtime_core_bridge(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    import vgo_cli.commands as cli_commands
+
+    recorded: dict[str, object] = {}
+
+    def fake_run_local_kernel_core(repo_root: Path, argv: list[str]) -> subprocess.CompletedProcess[str]:
+        recorded["repo_root"] = repo_root
+        recorded["argv"] = list(argv)
+        return subprocess.CompletedProcess(args=list(argv), returncode=0, stdout='{"run_id": "run-1"}\n', stderr="")
+
+    def fake_print(result: subprocess.CompletedProcess[str]) -> None:
+        recorded["printed_stdout"] = result.stdout
+
+    monkeypatch.setattr(cli_commands, "run_local_kernel_core", fake_run_local_kernel_core)
+    monkeypatch.setattr(cli_commands, "print_process_output", fake_print)
+
+    args = argparse.Namespace(
+        repo_root=str(tmp_path / "repo"),
+        agent_root=str(tmp_path / "agent"),
+        prompt="Review the runtime redesign.",
+        run_id="run-1",
+        host_id="codex",
+        workspace_root=str(tmp_path / "workspace"),
+        json=True,
+    )
+
+    assert run_command(args) == 0
+    assert recorded["repo_root"] == (tmp_path / "repo").resolve()
+    assert recorded["argv"] == [
+        "--agent-root", str(tmp_path / "agent"),
+        "--prompt", "Review the runtime redesign.",
+        "--run-id", "run-1",
+        "--host-id", "codex",
+        "--workspace-root", str(tmp_path / "workspace"),
+        "--json",
+    ]
+    assert recorded["printed_stdout"] == '{"run_id": "run-1"}\n'
+
+
+def test_inspect_run_command_delegates_to_runtime_core_bridge(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    import vgo_cli.commands as cli_commands
+
+    recorded: dict[str, object] = {}
+
+    def fake_run_inspect_run_core(repo_root: Path, argv: list[str]) -> subprocess.CompletedProcess[str]:
+        recorded["repo_root"] = repo_root
+        recorded["argv"] = list(argv)
+        return subprocess.CompletedProcess(args=list(argv), returncode=0, stdout='{"run_id": "run-1", "summary": {"proof_ready": true}}\n', stderr="")
+
+    def fake_print(result: subprocess.CompletedProcess[str]) -> None:
+        recorded["printed_stdout"] = result.stdout
+
+    monkeypatch.setattr(cli_commands, "run_inspect_run_core", fake_run_inspect_run_core)
+    monkeypatch.setattr(cli_commands, "print_process_output", fake_print)
+
+    args = argparse.Namespace(
+        repo_root=str(tmp_path / "repo"),
+        agent_root=str(tmp_path / "agent"),
+        run_id="run-1",
+        host_id="codex",
+        workspace_root=str(tmp_path / "workspace"),
+    )
+
+    assert inspect_run_command(args) == 0
+    assert recorded["repo_root"] == (tmp_path / "repo").resolve()
+    assert recorded["argv"] == [
+        "--agent-root", str(tmp_path / "agent"),
+        "--run-id", "run-1",
+        "--host-id", "codex",
+        "--workspace-root", str(tmp_path / "workspace"),
+    ]
+    assert recorded["printed_stdout"] == '{"run_id": "run-1", "summary": {"proof_ready": true}}\n'
+
+
+def test_locate_entry_command_delegates_to_runtime_core_bridge(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    import vgo_cli.commands as cli_commands
+
+    recorded: dict[str, object] = {}
+
+    def fake_run_entry_locator_core(repo_root: Path, argv: list[str]) -> subprocess.CompletedProcess[str]:
+        recorded["repo_root"] = repo_root
+        recorded["argv"] = list(argv)
+        return subprocess.CompletedProcess(args=list(argv), returncode=0, stdout='{"primary_entry_file":"x.py"}\n', stderr="")
+
+    def fake_print(result: subprocess.CompletedProcess[str]) -> None:
+        recorded["printed_stdout"] = result.stdout
+
+    monkeypatch.setattr(cli_commands, "run_entry_locator_core", fake_run_entry_locator_core)
+    monkeypatch.setattr(cli_commands, "print_process_output", fake_print)
+
+    args = argparse.Namespace(
+        repo_root=str(tmp_path / "repo"),
+        change_kind="planning",
+    )
+
+    assert locate_entry_command(args) == 0
+    assert recorded["repo_root"] == (tmp_path / "repo").resolve()
+    assert recorded["argv"] == [
+        "--repo-root", str((tmp_path / "repo").resolve()),
+        "--change-kind", "planning",
+    ]
+    assert recorded["printed_stdout"] == '{"primary_entry_file":"x.py"}\n'
+
+
+def test_compatibility_exit_command_delegates_to_runtime_core_bridge(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    import vgo_cli.commands as cli_commands
+
+    recorded: dict[str, object] = {}
+
+    def fake_run_compatibility_exit_core(repo_root: Path, argv: list[str]) -> subprocess.CompletedProcess[str]:
+        recorded["repo_root"] = repo_root
+        recorded["argv"] = list(argv)
+        return subprocess.CompletedProcess(args=list(argv), returncode=0, stdout='{"controlled_capabilities":[]}\n', stderr="")
+
+    def fake_print(result: subprocess.CompletedProcess[str]) -> None:
+        recorded["printed_stdout"] = result.stdout
+
+    monkeypatch.setattr(cli_commands, "run_compatibility_exit_core", fake_run_compatibility_exit_core)
+    monkeypatch.setattr(cli_commands, "print_process_output", fake_print)
+
+    args = argparse.Namespace(
+        repo_root=str(tmp_path / "repo"),
+    )
+
+    assert compatibility_exit_command(args) == 0
+    assert recorded["repo_root"] == (tmp_path / "repo").resolve()
+    assert recorded["argv"] == [
+        "--repo-root", str((tmp_path / "repo").resolve()),
+    ]
+    assert recorded["printed_stdout"] == '{"controlled_capabilities":[]}\n'
+
+
 def test_canonical_entry_command_delegates_to_runtime_core_bridge(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     import vgo_cli.commands as cli_commands
 
@@ -113,6 +280,7 @@ def test_canonical_entry_command_delegates_to_runtime_core_bridge(monkeypatch: p
         requested_stage_stop='phase_cleanup',
         requested_grade_floor='XL',
         artifact_root=str(tmp_path / 'artifacts'),
+        local_agent_root=str(tmp_path / 'agent-root'),
         run_id='run-123',
         continue_from_run_id='prior-run',
         bounded_reentry_token='token-123',
@@ -131,6 +299,7 @@ def test_canonical_entry_command_delegates_to_runtime_core_bridge(monkeypatch: p
         '--requested-grade-floor', 'XL',
         '--run-id', 'run-123',
         '--artifact-root', str((tmp_path / 'artifacts')),
+        '--local-agent-root', str(tmp_path / 'agent-root'),
         '--continue-from-run-id', 'prior-run',
         '--bounded-reentry-token', 'token-123',
         '--host-decision-json-file', str(tmp_path / 'host-decision.json'),
@@ -262,6 +431,110 @@ def test_build_parser_includes_upgrade_subcommand() -> None:
     assert args.frontend == 'shell'
 
 
+def test_build_parser_defaults_profile_bearing_subcommands_to_minimal() -> None:
+    parser = build_parser()
+
+    install_args = parser.parse_args(['install', '--repo-root', '/tmp/repo'])
+    uninstall_args = parser.parse_args(['uninstall', '--repo-root', '/tmp/repo'])
+    upgrade_args = parser.parse_args(['upgrade', '--repo-root', '/tmp/repo'])
+
+    assert install_args.profile == 'minimal'
+    assert uninstall_args.profile == 'minimal'
+    assert upgrade_args.profile == 'minimal'
+
+
+def test_build_parser_includes_index_subcommand() -> None:
+    parser = build_parser()
+    args = parser.parse_args([
+        'index',
+        '--repo-root',
+        '/tmp/repo',
+        '--agent-root',
+        '/tmp/agent',
+        '--host-id',
+        'codex',
+        '--workspace-root',
+        '/tmp/workspace',
+    ])
+
+    assert args.command == 'index'
+    assert args.handler is index_command
+    assert args.host_id == 'codex'
+    assert args.workspace_root == '/tmp/workspace'
+    assert args.json is False
+
+
+def test_build_parser_includes_run_subcommand() -> None:
+    parser = build_parser()
+    args = parser.parse_args([
+        'run',
+        '--repo-root',
+        '/tmp/repo',
+        '--agent-root',
+        '/tmp/agent',
+        '--prompt',
+        'review this',
+        '--host-id',
+        'codex',
+        '--workspace-root',
+        '/tmp/workspace',
+    ])
+
+    assert args.command == 'run'
+    assert args.handler is run_command
+    assert args.host_id == 'codex'
+    assert args.workspace_root == '/tmp/workspace'
+    assert args.run_id is None
+
+
+def test_build_parser_includes_inspect_run_subcommand() -> None:
+    parser = build_parser()
+    args = parser.parse_args([
+        'inspect-run',
+        '--repo-root',
+        '/tmp/repo',
+        '--agent-root',
+        '/tmp/agent',
+        '--run-id',
+        'run-1',
+        '--host-id',
+        'codex',
+        '--workspace-root',
+        '/tmp/workspace',
+    ])
+
+    assert args.command == 'inspect-run'
+    assert args.handler is inspect_run_command
+    assert args.host_id == 'codex'
+    assert args.workspace_root == '/tmp/workspace'
+    assert args.run_id == 'run-1'
+
+
+def test_build_parser_includes_locate_entry_subcommand() -> None:
+    parser = build_parser()
+    args = parser.parse_args(['locate-entry', '--repo-root', '/tmp/repo', '--change-kind', 'execution'])
+
+    assert args.command == 'locate-entry'
+    assert args.handler is locate_entry_command
+    assert args.change_kind == 'execution'
+
+
+def test_build_parser_accepts_local_skill_extension_locate_entry() -> None:
+    parser = build_parser()
+    args = parser.parse_args(['locate-entry', '--repo-root', '/tmp/repo', '--change-kind', 'local-skill-extension'])
+
+    assert args.command == 'locate-entry'
+    assert args.change_kind == 'local-skill-extension'
+
+
+def test_build_parser_includes_compatibility_exit_subcommand() -> None:
+    parser = build_parser()
+    args = parser.parse_args(['compatibility-exit', '--repo-root', '/tmp/repo'])
+
+    assert args.command == 'compatibility-exit'
+    assert args.handler is compatibility_exit_command
+
+
 def test_build_parser_includes_canonical_entry_subcommand() -> None:
     parser = build_parser()
     args = parser.parse_args(['canonical-entry', '--repo-root', '/tmp/repo', '--prompt', 'enter canonical vibe'])
@@ -288,6 +561,24 @@ def test_build_parser_accepts_canonical_entry_host_decision_json_file() -> None:
 
     assert args.command == 'canonical-entry'
     assert args.host_decision_json_file == '/tmp/decision.json'
+
+
+def test_build_parser_accepts_canonical_entry_local_agent_root() -> None:
+    parser = build_parser()
+    args = parser.parse_args(
+        [
+            'canonical-entry',
+            '--repo-root',
+            '/tmp/repo',
+            '--prompt',
+            'continue canonical vibe',
+            '--local-agent-root',
+            '/tmp/agent-root',
+        ]
+    )
+
+    assert args.command == 'canonical-entry'
+    assert args.local_agent_root == '/tmp/agent-root'
 
 
 def test_build_parser_accepts_legacy_wrapper_metadata_flag_for_canonical_entry() -> None:

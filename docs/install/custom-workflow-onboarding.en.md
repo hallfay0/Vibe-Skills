@@ -1,17 +1,18 @@
-# Custom Workflow Onboarding Guide (Governed Onboarding)
+# Custom Workflow Onboarding Guide (Advanced Governed Path)
 
-This document describes one governed onboarding path only: make your workflow callable by the canonical router without weakening canonical routing control.
+This document is for the advanced manifest-driven path only. The normal extension path is still a local skill folder under `<TARGET_ROOT>/skills/local/<skill-id>/SKILL.md>`.
+
+Use this page only when a plain local skill is not enough and you truly need an admitted custom workflow that carries its own manifest-driven routing contract.
 
 ## Prerequisites
 
-Recommended install lanes:
+Start with the normal local skill path whenever possible:
 
-- `workflow` (default recommendation)
-- or `full`
+- `<TARGET_ROOT>/skills/local/<skill-id>/SKILL.md>`
 
-The framework-only profile (`minimal`) can also admit custom workflows, but then you are responsible for filling in the missing workflow-core dependencies yourself. Otherwise you may get a successful declaration with limited callable value.
+If you still need this advanced path, prefer `full`. The framework-only profile (`minimal`) can also admit custom workflows, but then you are responsible for filling in any missing workflow-core dependencies yourself. Otherwise you may get a successful declaration with limited callable value.
 
-## Supported Onboarding Path
+## Advanced Onboarding Path
 
 1. Create the workflow content under the target host root:
 
@@ -79,7 +80,7 @@ Frozen priority order:
 - correct: a custom workflow can participate, but it cannot take over canonical routing control
 
 - misunderstanding: declaration means online readiness
-- correct: online readiness still depends on local provider, MCP, and host-side manual work
+- correct: online readiness still depends on local providers, host-side capability setup, and manual follow-up
 
 ## Update / Overwrite-Install Notes
 
@@ -101,7 +102,7 @@ The following are official managed surfaces and should not be edited directly:
 - `<TARGET_ROOT>/skills/vibe/...`
 - official skill directories such as `<TARGET_ROOT>/skills/<official-skill>/`
 - official governance mirrors such as runtime `config/`, `scripts/`, and `docs/`
-- official `mcp/`, `rules/`, and `agents/templates/`
+- official `rules/` and `agents/templates/`
 
 If you patch custom governance directly into those official paths, overwrite updates may rewrite it.
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROFILE="full"
+PROFILE="minimal"
 HOST_ID=""
 HOST_ID_EXPLICIT="false"
 TARGET_ROOT=""
@@ -15,7 +15,6 @@ ADAPTER_QUERY_PY="${REPO_ROOT}/scripts/common/adapter_registry_query.py"
 PYTHON_HELPERS_SH="${REPO_ROOT}/scripts/common/python_helpers.sh"
 INSTALL_SH="${REPO_ROOT}/install.sh"
 CHECK_SH="${REPO_ROOT}/check.sh"
-MATERIALIZE_PS1="${REPO_ROOT}/scripts/setup/materialize-codex-mcp-profile.ps1"
 CLAUDE_SCAFFOLD_SH="${REPO_ROOT}/scripts/bootstrap/scaffold-claude-preview.sh"
 
 while [[ $# -gt 0 ]]; do
@@ -218,12 +217,8 @@ run_powershell_file() {
   shell_path="$(pick_powershell || true)"
   [[ -n "${shell_path}" ]] || return 127
 
-  local leaf="${shell_path##*/}"
-  leaf="$(printf '%s' "${leaf}" | tr '[:upper:]' '[:lower:]')"
   local cmd=("${shell_path}" "-NoProfile")
-  if [[ "${leaf}" == "powershell" || "${leaf}" == "powershell.exe" ]]; then
-    cmd+=("-ExecutionPolicy" "Bypass")
-  fi
+  cmd+=("-ExecutionPolicy" "Bypass")
   cmd+=("-File" "${script_path}")
   "${cmd[@]}" "$@"
 }
@@ -252,20 +247,6 @@ handoff_to_windows_powershell_frontend() {
   run_powershell_file "${script_path}" "$@"
   exit $?
 }
-
-ps_args=(-Profile "${PROFILE}" -HostId "${HOST_ID}")
-if [[ -n "${TARGET_ROOT}" ]]; then
-  ps_args+=(-TargetRoot "${TARGET_ROOT}")
-fi
-if [[ "${SKIP_EXTERNAL_INSTALL}" == "true" ]]; then
-  ps_args+=(-SkipExternalInstall)
-fi
-if [[ "${STRICT_OFFLINE}" == "true" ]]; then
-  ps_args+=(-StrictOffline)
-fi
-if is_windows_shell_host; then
-  handoff_to_windows_powershell_frontend "${REPO_ROOT}/scripts/bootstrap/one-shot-setup.ps1" "${ps_args[@]}"
-fi
 
 assert_target_root_matches_host_intent() {
   local target_root="$1"
@@ -297,133 +278,30 @@ if [[ -z "${TARGET_ROOT}" ]]; then
   TARGET_ROOT="$(resolve_default_target_root "${HOST_ID}")"
 fi
 assert_target_root_matches_host_intent "${TARGET_ROOT}" "${HOST_ID}"
-
-print_mcp_auto_provision_summary() {
-  local python_bin=""
-  python_bin="$(pick_python || true)"
-  if [[ -z "${python_bin}" ]]; then
-    return 0
-  fi
-  "${python_bin}" - "${TARGET_ROOT}" <<'PY'
-import json
-import shutil
-import sys
-from pathlib import Path
-
-target_root = Path(sys.argv[1])
-receipt_path = target_root / ".vibeskills" / "mcp-auto-provision.json"
-active_path = target_root / "mcp" / "servers.active.json"
-print("MCP auto-provision summary")
-if not receipt_path.exists():
-    print("- receipt: missing")
-    sys.exit(0)
-
-payload = json.loads(receipt_path.read_text(encoding="utf-8"))
-try:
-    active_payload = json.loads(active_path.read_text(encoding="utf-8")) if active_path.exists() else {}
-except json.JSONDecodeError:
-    active_payload = {}
-active_servers = active_payload.get("servers") if isinstance(active_payload, dict) else {}
-if not isinstance(active_servers, dict):
-    active_servers = {}
-print(f"- installed_locally: {payload.get('install_state') == 'installed_locally'}")
-print(f"- mcp_auto_provision_attempted: {bool(payload.get('mcp_auto_provision_attempted'))}")
-manual_follow_up = []
-for item in payload.get("mcp_results") or []:
-    name = str(item.get("name") or "")
-    status = str(item.get("status") or "")
-    next_step = str(item.get("next_step") or "none")
-    active_entry = active_servers.get(name)
-    if status == "local_tool_present" and isinstance(active_entry, dict):
-        if str(active_entry.get("mode") or "") == "stdio" and shutil.which(str(active_entry.get("command") or "")):
-            status = "ready"
-            next_step = "none"
-    print(f"- {name}: status={status} next_step={next_step}")
-    if status != "ready":
-        manual_follow_up.append(name)
-print(f"- manual_follow_up: {', '.join(manual_follow_up) if manual_follow_up else 'none'}")
-PY
-}
-
-materialize_mcp_profile_with_python() {
-  local repo_root="$1"
-  local target_root="$2"
-  local requested_profile="$3"
-  local python_bin
-
-  if ! python_bin="$(pick_python)"; then
-    echo "[FAIL] Python is required to materialize the MCP active profile when no PowerShell host is available." >&2
-    exit 1
-  fi
-
-  "${python_bin}" - "${repo_root}" "${target_root}" "${requested_profile}" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-repo_root = Path(sys.argv[1])
-target_root = Path(sys.argv[2])
-requested_profile = sys.argv[3].strip()
-
-settings_path = target_root / "settings.json"
-profile_name = requested_profile
-if not profile_name and settings_path.exists():
-    with settings_path.open("r", encoding="utf-8-sig") as fh:
-        settings = json.load(fh)
-    profile_name = (
-        settings.get("vco", {}).get("mcp_profile")
-        if isinstance(settings.get("vco"), dict)
-        else None
-    )
-profile_name = profile_name or "full"
-
-template_path = repo_root / "mcp" / "servers.template.json"
-profile_path = repo_root / "mcp" / "profiles" / f"{profile_name}.json"
-if not template_path.exists():
-    raise SystemExit(f"MCP servers template not found: {template_path}")
-if not profile_path.exists():
-    raise SystemExit(f"MCP profile not found: {profile_path}")
-
-with template_path.open("r", encoding="utf-8-sig") as fh:
-    template = json.load(fh)
-with profile_path.open("r", encoding="utf-8-sig") as fh:
-    profile = json.load(fh)
-
-servers = template.get("servers", {})
-enabled = [str(item) for item in profile.get("enabled_servers", [])]
-missing = [name for name in enabled if name not in servers]
-if missing:
-    raise SystemExit("MCP profile references unknown servers: " + ", ".join(sorted(set(missing))))
-
-active = {name: servers[name] for name in enabled}
-artifact = {
-    "generated_at": __import__("datetime").datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
-    "target_root": str(target_root.resolve()),
-    "profile": profile_name,
-    "source_template": "mcp/servers.template.json",
-    "source_profile": f"mcp/profiles/{profile_name}.json",
-    "enabled_servers": enabled,
-    "servers": active,
-}
-
-output_path = target_root / "mcp" / "servers.active.json"
-output_path.parent.mkdir(parents=True, exist_ok=True)
-with output_path.open("w", encoding="utf-8", newline="\n") as fh:
-    json.dump(artifact, fh, ensure_ascii=False, indent=2)
-    fh.write("\n")
-PY
-}
+ps_args=(-Profile "${PROFILE}" -HostId "${HOST_ID}")
+if [[ -n "${TARGET_ROOT}" ]]; then
+  ps_args+=(-TargetRoot "${TARGET_ROOT}")
+fi
+if [[ "${SKIP_EXTERNAL_INSTALL}" == "true" ]]; then
+  ps_args+=(-SkipExternalInstall)
+fi
+if [[ "${STRICT_OFFLINE}" == "true" ]]; then
+  ps_args+=(-StrictOffline)
+fi
+if is_windows_shell_host; then
+  handoff_to_windows_powershell_frontend "${REPO_ROOT}/scripts/bootstrap/one-shot-setup.ps1" "${ps_args[@]}"
+fi
 
 require_cmd bash "Linux/macOS bootstrap requires bash"
 require_cmd git "required by the repository install flow"
 PYTHON_BIN_FOR_BOOTSTRAP="$(pick_python || true)"
 if [[ -z "${PYTHON_BIN_FOR_BOOTSTRAP}" ]]; then
-  print_python_requirement_error "Shell-native settings and MCP materialization fallback"
+  print_python_requirement_error "Shell-native settings and bootstrap helpers"
   exit 1
 fi
 if [[ "${SKIP_EXTERNAL_INSTALL}" != "true" ]]; then
   require_cmd node "required for npm-managed runtimes"
-  require_cmd npm "required for claude-flow / external CLI provisioning"
+  require_cmd npm "required for external CLI provisioning"
 fi
 
 ADAPTER_BOOTSTRAP_MODE="$(adapter_query bootstrap_mode)"
@@ -437,7 +315,7 @@ echo "Profile               : ${PROFILE}"
 echo "StrictOffline         : ${STRICT_OFFLINE}"
 echo "SkipExternalInstall   : ${SKIP_EXTERNAL_INSTALL}"
 if [[ "${SKIP_EXTERNAL_INSTALL}" != "true" ]]; then
-  echo "External CLI install  : enabled (npm-based steps such as claude-flow may take several minutes; deprecated warnings are advisory unless the command exits non-zero)"
+  echo "External CLI install  : enabled (optional npm-based steps may take several minutes; deprecated warnings are advisory unless the command exits non-zero)"
 fi
 
 install_args=(--profile "${PROFILE}" --host "${HOST_ID}" --target-root "${TARGET_ROOT}")
@@ -457,13 +335,7 @@ if [[ "${ADAPTER_BOOTSTRAP_MODE}" == "governed" ]]; then
 
   echo "[3/5] User environment sync skipped."
 
-  echo "[4/5] Materializing MCP profile..."
-  if pick_powershell >/dev/null 2>&1; then
-    run_powershell_file "${MATERIALIZE_PS1}" -TargetRoot "${TARGET_ROOT}" -Force >/dev/null
-  else
-    materialize_mcp_profile_with_python "${REPO_ROOT}" "${TARGET_ROOT}" "${PROFILE}"
-  fi
-
+  echo "[4/5] No extra host integration surface is materialized during public install."
   echo "[5/5] Running deep health check..."
   bash "${CHECK_SH}" --profile "${PROFILE}" --host "${HOST_ID}" --target-root "${TARGET_ROOT}" --deep
 elif [[ "${ADAPTER_BOOTSTRAP_MODE}" == "preview-guidance" ]]; then
@@ -480,17 +352,16 @@ elif [[ "${ADAPTER_BOOTSTRAP_MODE}" == "preview-guidance" ]]; then
 else
   echo "[2/5] Runtime-adapter path does not materialize host settings."
   echo "[3/5] Runtime-adapter path does not seed provider settings; public install skips built-in online enhancement configuration."
-  echo "[4/5] MCP materialization skipped for the runtime-adapter path."
+  echo "[4/5] No extra host integration surface is materialized for the runtime-adapter path."
   echo "[5/5] Running runtime-adapter health check..."
   bash "${CHECK_SH}" --profile "${PROFILE}" --host "${HOST_ID}" --target-root "${TARGET_ROOT}" --deep
 fi
 
 echo
-print_mcp_auto_provision_summary
 echo "One-shot setup completed."
 echo "- Re-run deep doctor anytime with: bash ./check.sh --profile ${PROFILE} --host ${HOST_ID} --target-root \"${TARGET_ROOT}\" --deep"
 if [[ "${ADAPTER_BOOTSTRAP_MODE}" == "governed" ]]; then
-  echo "- MCP active file: ${TARGET_ROOT}/mcp/servers.active.json"
+  echo "- Additional host integration surfaces: none materialized by public install"
 fi
 echo "- Doctor artifacts: ${REPO_ROOT}/outputs/verify"
 if ! pick_powershell >/dev/null 2>&1; then

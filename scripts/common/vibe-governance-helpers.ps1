@@ -541,6 +541,31 @@ function Resolve-VgoDefaultTargetRoot {
     return [System.IO.Path]::GetFullPath((Join-Path $homeDir ([string]$entry.rel)))
 }
 
+function Get-VgoHostIntentSignatures {
+    param(
+        [Parameter(Mandatory)] [psobject]$Entry
+    )
+
+    $signatures = @()
+    if ($Entry.kind -ne 'shared-home' -and -not [string]::IsNullOrWhiteSpace([string]$Entry.rel)) {
+        $signatures += [string]$Entry.rel
+    }
+
+    switch ([string]$Entry.id) {
+        'codex' { $signatures += '.codex' }
+        'claude-code' { $signatures += '.claude' }
+        'cursor' { $signatures += '.cursor' }
+        'windsurf' { $signatures += '.codeium/windsurf' }
+        'openclaw' { $signatures += '.openclaw' }
+        'opencode' {
+            $signatures += '.config/opencode'
+            $signatures += '.opencode'
+        }
+    }
+
+    return @($signatures | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Select-Object -Unique)
+}
+
 function Resolve-VgoTargetRoot {
     param(
         [AllowEmptyString()] [string]$TargetRoot = '',
@@ -589,12 +614,7 @@ function Assert-VgoTargetRootMatchesHostIntent {
             continue
         }
 
-        $signatures = @([string]$entry.rel)
-        if ([string]$entry.id -eq 'opencode') {
-            $signatures += '.opencode'
-        }
-
-        foreach ($signature in $signatures) {
+        foreach ($signature in (Get-VgoHostIntentSignatures -Entry $entry)) {
             if (-not (Test-VgoTargetRootMatchesRelativeSignature -TargetRoot $TargetRoot -RelativeSignature $signature)) {
                 continue
             }
@@ -864,6 +884,24 @@ function Resolve-VgoPythonCandidate {
             host_path = [System.IO.Path]::GetFullPath($candidate)
             host_leaf = [System.IO.Path]::GetFileName($candidate).ToLowerInvariant()
             prefix_arguments = @($PrefixArguments)
+        }
+    }
+
+    if ($CommandName -eq 'py') {
+        $fallbackCandidates = @()
+        if (-not [string]::IsNullOrWhiteSpace($env:SystemRoot)) {
+            $fallbackCandidates += (Join-Path $env:SystemRoot 'py.exe')
+        }
+        $fallbackCandidates += 'C:\Windows\py.exe'
+        foreach ($candidate in ($fallbackCandidates | Select-Object -Unique)) {
+            if ([string]::IsNullOrWhiteSpace($candidate) -or -not (Test-Path -LiteralPath $candidate)) {
+                continue
+            }
+            return [pscustomobject]@{
+                host_path = [System.IO.Path]::GetFullPath($candidate)
+                host_leaf = [System.IO.Path]::GetFileName($candidate).ToLowerInvariant()
+                prefix_arguments = @($PrefixArguments)
+            }
         }
     }
 

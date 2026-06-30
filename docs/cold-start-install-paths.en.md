@@ -29,17 +29,17 @@ Note: `one-shot-setup.*` is now a registry-driven wrapper across all six public 
 ## Codex
 
 ```bash
-CODEX_HOME="$HOME/.codex" bash ./scripts/bootstrap/one-shot-setup.sh --host codex --profile full
-CODEX_HOME="$HOME/.codex" bash ./check.sh --host codex --profile full --deep
+bash ./scripts/bootstrap/one-shot-setup.sh --host codex --profile full
+bash ./check.sh --host codex --profile full --deep
 ```
 
-If the goal is to install and let the current Codex discover `$vibe` immediately, this default path intentionally targets the real `~/.codex`.
-Switch to `~/.vibeskills/targets/codex` only when you explicitly want an isolated install.
+If the goal is to keep one reusable global install, this default path goes straight to `~/.agents`, and the current host should discover `$vibe` from that shared root.
+Set `VIBE_AGENTS_HOME` only when you explicitly want a different shared root.
 
 What you get:
 
 - governed runtime payload
-- local Codex settings / MCP guidance
+- the shared Codex runtime payload
 - deep health check
 
 What you do not get:

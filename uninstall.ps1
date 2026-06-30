@@ -1,6 +1,6 @@
 param(
   [ValidateSet("minimal", "full")]
-  [string]$Profile = "full",
+  [string]$Profile = "minimal",
     [string]$HostId = "codex",
   [string]$TargetRoot = '',
   [switch]$Preview,

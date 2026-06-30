@@ -337,7 +337,12 @@ $deepDiscoveryPolicy = if (Test-Path -LiteralPath $deepDiscoveryPolicyPath) {
 } else {
     $null
 }
-$capabilityCatalog = if (Test-Path -LiteralPath $capabilityCatalogPath) {
+$deepDiscoveryEnabled = $false
+if ($deepDiscoveryPolicy) {
+    $deepDiscoveryMode = if ($deepDiscoveryPolicy.mode) { [string]$deepDiscoveryPolicy.mode } else { "off" }
+    $deepDiscoveryEnabled = [bool]($deepDiscoveryPolicy.enabled -ne $false -and $deepDiscoveryMode -ne "off")
+}
+$capabilityCatalog = if ($deepDiscoveryEnabled -and (Test-Path -LiteralPath $capabilityCatalogPath)) {
     try {
         Get-Content -LiteralPath $capabilityCatalogPath -Raw -Encoding UTF8 | ConvertFrom-Json
     } catch {
@@ -1321,7 +1326,6 @@ $explorationAdvice = Get-ExplorationOverlayAdvice `
     -PromptLower $promptLower `
     -Grade $Grade `
     -TaskType $TaskType `
-    -RouteMode $routeMode `
     -SelectedPackId $(if ($effectiveTop) { [string]$effectiveTop.pack_id } else { $null }) `
     -SelectedSkill $effectiveSelectedSkill `
     -PackCandidates $(if ($effectiveTop) { @($effectiveTop.candidates) } else { @() }) `
@@ -1437,7 +1441,6 @@ $retrievalAdvice = Get-RetrievalOverlayAdvice `
     -PromptLower $promptLower `
     -Grade $Grade `
     -TaskType $TaskType `
-    -RouteMode $routeMode `
     -SelectedPackId $(if ($effectiveTop) { [string]$effectiveTop.pack_id } else { $null }) `
     -SelectedSkill $effectiveSelectedSkill `
     -PackCandidates $(if ($effectiveTop) { @($effectiveTop.candidates) } else { @() }) `
@@ -1633,11 +1636,51 @@ $selectedPromotionMetadata = if ($effectiveSelectedSkill) {
 } else {
     $null
 }
+$primaryCandidate = if ($effectiveTop) {
+    [pscustomobject]@{
+        pack_id = if (-not [string]::IsNullOrWhiteSpace([string]$effectiveTop.pack_id)) { $effectiveTop.pack_id } else { $authorityDecision.selected_pack_id }
+        skill = $effectiveSelectedSkill
+        selection_reason = $effectiveSelectionReason
+        selection_score = $effectiveSelectionScore
+        top1_top2_gap = $effectiveTop.candidate_top1_top2_gap
+        candidate_signal = $effectiveTop.candidate_signal
+        filtered_out_by_task = @($effectiveTop.candidate_filtered_out_by_task)
+        authority = [pscustomobject]@{
+            tier = [string]$effectiveTop.authority_tier
+            eligible = [bool]$effectiveTop.authority_eligible
+        }
+        candidate_only = $true
+        work_binding_truth_source = 'kernel'
+        promotion_eligible = if ($selectedPromotionMetadata) { [bool]$selectedPromotionMetadata.promotion_eligible } else { $false }
+        destructive = if ($selectedPromotionMetadata) { [bool]$selectedPromotionMetadata.destructive } else { $false }
+        destructive_reason_codes = if ($selectedPromotionMetadata) { [object[]]@($selectedPromotionMetadata.destructive_reason_codes) } else { @() }
+        rollback_possible = if ($selectedPromotionMetadata) { [bool]$selectedPromotionMetadata.rollback_possible } else { $false }
+        snapshot_required = if ($selectedPromotionMetadata) { [bool]$selectedPromotionMetadata.snapshot_required } else { $false }
+        contract_complete = if ($selectedPromotionMetadata) { [bool]$selectedPromotionMetadata.contract_complete } else { $false }
+        recommended_promotion_action = if ($selectedPromotionMetadata) { [string]$selectedPromotionMetadata.recommended_promotion_action } else { 'surface_only' }
+    }
+} else {
+    $null
+}
+$candidateRows = if ($effectiveTop -and $effectiveTop.candidate_ranking) {
+    @($effectiveTop.candidate_ranking | Select-Object -First 6 | ForEach-Object {
+        [pscustomobject]@{
+            pack_id = if (-not [string]::IsNullOrWhiteSpace([string]$effectiveTop.pack_id)) { [string]$effectiveTop.pack_id } else { [string]$authorityDecision.selected_pack_id }
+            skill = [string]$_.skill
+            score = if ($_.score -ne $null) { [double]$_.score } else { 0.0 }
+            is_primary = [bool]([string]::Equals([string]$_.skill, [string]$effectiveSelectedSkill, [System.StringComparison]::OrdinalIgnoreCase))
+        }
+    })
+} else {
+    @()
+}
 
 $result = [pscustomobject]@{
     prompt = $Prompt
     grade = $Grade
     task_type = $TaskType
+    router_contract_mode = 'candidate_discovery_only'
+    work_binding_truth_source = 'kernel'
     route_mode = $routeMode
     route_reason = $routeReason
     route_mode_before_unattended_override = if ($unattendedOverrideApplied) { $routeModeBeforeUnattended } else { $null }
@@ -1720,30 +1763,12 @@ $result = [pscustomobject]@{
         dependency_failures = @($customAdmission.dependency_failures)
         admitted_candidates = @(ConvertTo-PublicAdmittedCandidates -Rows @($customAdmission.admitted_candidates))
     }
-    selected = if ($effectiveTop) {
-        [pscustomobject]@{
-            pack_id = if (-not [string]::IsNullOrWhiteSpace([string]$effectiveTop.pack_id)) { $effectiveTop.pack_id } else { $authorityDecision.selected_pack_id }
-            skill = $effectiveSelectedSkill
-            selection_reason = $effectiveSelectionReason
-            selection_score = $effectiveSelectionScore
-            top1_top2_gap = $effectiveTop.candidate_top1_top2_gap
-            candidate_signal = $effectiveTop.candidate_signal
-            filtered_out_by_task = @($effectiveTop.candidate_filtered_out_by_task)
-            authority = [pscustomobject]@{
-                tier = [string]$effectiveTop.authority_tier
-                eligible = [bool]$effectiveTop.authority_eligible
-            }
-            promotion_eligible = if ($selectedPromotionMetadata) { [bool]$selectedPromotionMetadata.promotion_eligible } else { $false }
-            destructive = if ($selectedPromotionMetadata) { [bool]$selectedPromotionMetadata.destructive } else { $false }
-            destructive_reason_codes = if ($selectedPromotionMetadata) { [object[]]@($selectedPromotionMetadata.destructive_reason_codes) } else { @() }
-            rollback_possible = if ($selectedPromotionMetadata) { [bool]$selectedPromotionMetadata.rollback_possible } else { $false }
-            snapshot_required = if ($selectedPromotionMetadata) { [bool]$selectedPromotionMetadata.snapshot_required } else { $false }
-            contract_complete = if ($selectedPromotionMetadata) { [bool]$selectedPromotionMetadata.contract_complete } else { $false }
-            recommended_promotion_action = if ($selectedPromotionMetadata) { [string]$selectedPromotionMetadata.recommended_promotion_action } else { 'surface_only' }
-        }
-    } else {
-        $null
-    }
+    candidates = @($candidateRows)
+    primary_candidate = $primaryCandidate
+    selected = $primaryCandidate
+    confirm_required = $false
+    confirm_options = @()
+    probe = $null
     ranked = @($ranked | Select-Object -First 3 | ForEach-Object { ConvertTo-PublicRoutePackRow -PackRow $_ })
 }
 
@@ -1754,20 +1779,25 @@ $confirmSkillOptions = Build-ConfirmSkillOptions `
     -PromptText $Prompt `
     -SkillPromotionPolicy $skillPromotionPolicy `
     -TargetRoot $resolvedTargetRoot `
-    -HostId $HostId
+    -HostId $HostId `
+    -UnattendedDecision $unattendedDecision
 $structuredRouteDecision = Resolve-StructuredRouteDecision -HostDecisionJson $HostDecisionJson -ConfirmSkillOptions $confirmSkillOptions
 if ($structuredRouteDecision -and [bool]$structuredRouteDecision.applied) {
-    if ($result.selected) {
-        $result.selected.pack_id = [string]$structuredRouteDecision.selected_pack
-        $result.selected.skill = [string]$structuredRouteDecision.selected_skill
-        $result.selected.selection_reason = "structured_host_route_selection"
+    if ($result.primary_candidate) {
+        $result.primary_candidate.pack_id = [string]$structuredRouteDecision.selected_pack
+        $result.primary_candidate.skill = [string]$structuredRouteDecision.selected_skill
+        $result.primary_candidate.selection_reason = "structured_host_route_selection"
         if (
             $structuredRouteDecision.selected_option -and
             $structuredRouteDecision.selected_option.PSObject.Properties.Name -contains 'score' -and
             $null -ne $structuredRouteDecision.selected_option.score
         ) {
-            $result.selected.selection_score = [double]$structuredRouteDecision.selected_option.score
+            $result.primary_candidate.selection_score = [double]$structuredRouteDecision.selected_option.score
         }
+    }
+    $result.selected = $result.primary_candidate
+    foreach ($candidate in @($result.candidates)) {
+        $candidate.is_primary = [bool]([string]::Equals([string]$candidate.skill, [string]$structuredRouteDecision.selected_skill, [System.StringComparison]::OrdinalIgnoreCase))
     }
     if ([string]$result.route_mode -in @('confirm_required', 'pack_overlay')) {
         $result.route_mode = 'pack_overlay'
@@ -1787,11 +1817,14 @@ if ($structuredRouteDecision -and [bool]$structuredRouteDecision.applied) {
         -PromptText $Prompt `
         -SkillPromotionPolicy $skillPromotionPolicy `
         -TargetRoot $resolvedTargetRoot `
-        -HostId $HostId
+        -HostId $HostId `
+        -UnattendedDecision $unattendedDecision
 }
 if ($confirmSkillOptions) {
     $confirmText = Build-ConfirmUiText -ConfirmSkillOptions $confirmSkillOptions -UnattendedDecision $unattendedDecision -Result $result
     $confirmClarificationQuestions = @(Get-ConfirmUiClarificationQuestions -Result $result)
+    $result.confirm_required = $true
+    $result.confirm_options = @($confirmSkillOptions.options)
     $result | Add-Member -NotePropertyName "confirm_ui" -NotePropertyValue ([pscustomobject]@{
         enabled = $true
         pack_id = [string]$confirmSkillOptions.selected_pack
@@ -1866,6 +1899,11 @@ Add-RouteProbeEvent -Context $probeContext -Stage "router.final" -Note "final ro
 $probeArtifact = Write-RouteProbeArtifact -Context $probeContext -PromptText $Prompt -Result $result
 if ($probeArtifact) {
     $result | Add-Member -NotePropertyName "probe_reference" -NotePropertyValue $probeArtifact
+}
+$result.probe = [pscustomobject]@{
+    reference = if ($probeArtifact) { $probeArtifact } else { $null }
+    route_mode = [string]$result.route_mode
+    route_reason = [string]$result.route_reason
 }
 
 $result | ConvertTo-Json -Depth 12

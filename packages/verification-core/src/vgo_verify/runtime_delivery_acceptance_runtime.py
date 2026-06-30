@@ -172,6 +172,44 @@ def _normalize_unique_string_list(value: object) -> list[str]:
     return result
 
 
+def _runtime_packet_selected_skill_projection(runtime_input_packet: dict[str, Any]) -> dict[str, Any]:
+    work_binding = runtime_input_packet.get("work_binding")
+    if isinstance(work_binding, dict):
+        units = work_binding.get("units")
+        if isinstance(units, list):
+            bound_skill_ids = _normalize_skill_id_list(
+                [
+                    unit.get("bound_skill")
+                    for unit in units
+                    if isinstance(unit, dict) and str(unit.get("bound_skill") or "").strip()
+                ]
+            )
+            if bound_skill_ids:
+                return {
+                    "selected_skill_ids": bound_skill_ids,
+                    "source": "runtime_packet.work_binding",
+                    "has_explicit_surface": True,
+                }
+
+    skill_routing = runtime_input_packet.get("skill_routing")
+    if isinstance(skill_routing, dict):
+        return {
+            "selected_skill_ids": _normalize_skill_id_list(skill_routing.get("selected") or []),
+            "source": "runtime_packet.skill_routing",
+            "has_explicit_surface": True,
+        }
+
+    return {
+        "selected_skill_ids": [],
+        "source": "none",
+        "has_explicit_surface": False,
+    }
+
+
+def _runtime_packet_selected_skill_ids(runtime_input_packet: dict[str, Any]) -> list[str]:
+    return list(_runtime_packet_selected_skill_projection(runtime_input_packet)["selected_skill_ids"])
+
+
 def _locked_skill_ids(skill_execution_lock: dict[str, Any]) -> list[str]:
     locked_skill_ids = _normalize_unique_string_list(skill_execution_lock.get("locked_skill_ids"))
     if locked_skill_ids:
@@ -270,14 +308,11 @@ def _evaluate_selected_lock_reconciliation(
     runtime_input_packet: dict[str, Any],
     skill_execution_lock: dict[str, Any],
 ) -> tuple[str, list[str], dict[str, list[str]]]:
-    skill_routing = runtime_input_packet.get("skill_routing")
-    if not isinstance(skill_routing, dict):
-        skill_routing = {}
     specialist_decision = runtime_input_packet.get("specialist_decision")
     if not isinstance(specialist_decision, dict):
         specialist_decision = {}
 
-    selected_skill_ids = _normalize_skill_id_list(skill_routing.get("selected") or [])
+    selected_skill_ids = _runtime_packet_selected_skill_ids(runtime_input_packet)
     approved_skill_ids = _normalize_unique_string_list(
         specialist_decision.get("approved_dispatch_skill_ids") or []
     )
@@ -329,7 +364,6 @@ def evaluate_delivery_acceptance(repo_root: Path, session_root: Path) -> dict[st
     execution_plan_text = _read_text_if_exists(execution_plan_path)
     execution_manifest = load_json(execution_manifest_path)
     runtime_input_packet = load_json(runtime_input_packet_path) if runtime_input_packet_path.exists() else {}
-    skill_routing = runtime_input_packet.get("skill_routing") or {}
     specialist_accounting = execution_manifest.get("specialist_accounting") or {}
     skill_usage = _load_skill_usage(session_root, runtime_input_packet, execution_manifest, execute_receipt)
     skill_execution_lock = _load_skill_execution_lock(runtime_input_packet, execution_manifest)
@@ -486,11 +520,19 @@ def evaluate_delivery_acceptance(repo_root: Path, session_root: Path) -> dict[st
     degraded_skill_execution_units = specialist_accounting.get("degraded_skill_execution_units") or []
     # Backward report label only; current runtime source is selected_skill_execution.
     approved_dispatch_skill_ids = selected_skill_execution_skill_ids
-    if skill_routing:
-        selected_skill_ids = _normalize_skill_id_list(skill_routing.get("selected") or [])
+    runtime_packet_selected_skill_projection = _runtime_packet_selected_skill_projection(runtime_input_packet)
+    runtime_packet_selected_skill_ids = list(runtime_packet_selected_skill_projection["selected_skill_ids"])
+    runtime_packet_selected_skill_source = str(runtime_packet_selected_skill_projection["source"] or "").strip() or "none"
+    selected_skill_ids = list(runtime_packet_selected_skill_ids)
+    selected_skill_ids_source = runtime_packet_selected_skill_source
+    has_explicit_selected_surface = bool(runtime_packet_selected_skill_projection["has_explicit_surface"])
+    if selected_skill_ids:
         selected_skill_ids_for_usage_truth = selected_skill_ids
+    elif has_explicit_selected_surface:
+        selected_skill_ids_for_usage_truth = []
     else:
         selected_skill_ids = selected_skill_execution_skill_ids
+        selected_skill_ids_source = "specialist_accounting.selected_skill_execution_fallback"
         selected_skill_ids_for_usage_truth = []
     skill_usage_truth = _evaluate_skill_usage_truth(
         skill_usage,
@@ -1389,7 +1431,10 @@ def evaluate_delivery_acceptance(repo_root: Path, session_root: Path) -> dict[st
             "selected_lock_reconciliation": selected_lock_lists,
             "selected_skill_execution_skill_ids": selected_skill_execution_skill_ids,
             "selected_skill_execution_count": selected_skill_execution_count,
+            "runtime_packet_selected_skill_ids": runtime_packet_selected_skill_ids,
+            "runtime_packet_selected_skill_source": runtime_packet_selected_skill_source,
             "selected_skill_ids": selected_skill_ids,
+            "selected_skill_ids_source": selected_skill_ids_source,
             "disclosed_specialist_skill_ids": disclosure_skill_ids,
             "blocked_skill_execution_unit_count": int(
                 specialist_accounting.get("blocked_skill_execution_unit_count") or len(blocked_skill_execution_units)

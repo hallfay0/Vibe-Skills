@@ -8,7 +8,7 @@ import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-MODULE_PATH = REPO_ROOT / "packages" / "runtime-core" / "src" / "vgo_runtime" / "router_contract_support.py"
+MODULE_PATH = REPO_ROOT / "packages" / "runtime-core" / "src" / "vgo_runtime" / "runtime_support.py"
 
 
 def _load_module():
@@ -84,7 +84,7 @@ def test_resolve_repo_root_prefers_nearest_governed_git_root_for_worktrees(tmp_p
     module = _load_module()
     outer_root = tmp_path / "repo"
     worktree_root = outer_root / ".worktrees" / "feature"
-    script_path = worktree_root / "packages" / "runtime-core" / "src" / "vgo_runtime" / "router_bridge.py"
+    script_path = worktree_root / "packages" / "runtime-core" / "src" / "vgo_runtime" / "runtime_bridge.py"
 
     outer_root.mkdir(parents=True, exist_ok=True)
     (outer_root / ".git").mkdir(parents=True, exist_ok=True)

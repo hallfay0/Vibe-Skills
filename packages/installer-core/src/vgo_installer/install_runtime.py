@@ -15,6 +15,7 @@ from vgo_contracts.canonical_vibe_contract import uses_skill_only_activation
 from vgo_contracts.discoverable_entry_surface import load_discoverable_entry_surface
 
 from .adapter_registry import resolve_adapter
+from .adapter_registry import resolve_default_target_root as resolve_adapter_default_target_root
 from .host_closure import (
     install_claude_managed_settings,
     is_closed_ready_required,
@@ -611,10 +612,17 @@ def prune_previously_managed_wrapper_paths(
         )
 
 
-def install_runtime_core(repo_root: Path, target_root: Path, profile: str, allow_fallback: bool, adapter: dict):
+def install_runtime_core(
+    repo_root: Path,
+    runtime_root: Path,
+    profile: str,
+    allow_fallback: bool,
+    adapter: dict,
+    *,
+    previous_install_ledger: dict | None = None,
+):
     packaging = attach_local_catalog_descriptor(repo_root, resolve_runtime_core_packaging(repo_root, profile))
     excluded_skill_names = excluded_bundled_skill_names(packaging)
-    previous_ledger = load_existing_install_ledger(target_root)
     skill_inventory = load_managed_skill_inventory(packaging)
     current_managed_skill_names = desired_managed_skill_names(repo_root, packaging)
     projected_skill_names = set(compatibility_projection_names(packaging, host_id=adapter["id"]))
@@ -628,8 +636,8 @@ def install_runtime_core(repo_root: Path, target_root: Path, profile: str, allow
         if include_command_surfaces or rel != "commands"
     ]
     for rel in runtime_directories:
-        (target_root / rel).mkdir(parents=True, exist_ok=True)
-        track_created_path(target_root / rel)
+        (runtime_root / rel).mkdir(parents=True, exist_ok=True)
+        track_created_path(runtime_root / rel)
     copy_directories = [
         entry for entry in packaging["copy_directories"]
         if include_command_surfaces or entry["target"] != "commands"
@@ -638,7 +646,7 @@ def install_runtime_core(repo_root: Path, target_root: Path, profile: str, allow
         src_root = repo_root / entry["source"]
         if entry["target"] == "skills" and entry["source"] == str(packaging.get("bundled_skills_source") or "bundled/skills"):
             src_root = resolve_bundled_skills_root(repo_root, packaging)
-        dst_root = target_root / entry["target"]
+        dst_root = runtime_root / entry["target"]
         if entry["target"] == "skills":
             copy_skill_roots_without_self_shadow(
                 src_root,
@@ -663,7 +671,7 @@ def install_runtime_core(repo_root: Path, target_root: Path, profile: str, allow
                     record_owned_tree_root=record_owned_tree_root,
                 )
         if entry["target"] == "skills":
-            for skill_dir in (target_root / "skills").iterdir():
+            for skill_dir in (runtime_root / "skills").iterdir():
                 if skill_dir.is_dir():
                     restore_skill_entrypoint_if_needed(skill_dir)
     for entry in packaging["copy_files"]:
@@ -672,13 +680,13 @@ def install_runtime_core(repo_root: Path, target_root: Path, profile: str, allow
             if entry.get("optional"):
                 continue
             raise SystemExit(f"Runtime-core packaging source missing: {src}")
-        destination = target_root / entry["target"]
+        destination = runtime_root / entry["target"]
         copy_file(src, destination, track_created_path=track_created_path)
     target_rel = canonical_vibe_target_relpath(packaging)
     canonical_vibe_name = Path(target_rel).name
     sync_vibe_canonical(
         repo_root,
-        target_root,
+        runtime_root,
         target_rel,
         copy_file_fn=lambda src, dst: copy_file(src, dst, track_created_path=track_created_path),
         copy_dir_replace_fn=lambda src, dst: copy_dir_replace(
@@ -688,10 +696,10 @@ def install_runtime_core(repo_root: Path, target_root: Path, profile: str, allow
             record_owned_tree_root=record_owned_tree_root,
         ),
     )
-    record_runtime_root(target_root / target_rel)
+    record_runtime_root(runtime_root / target_rel)
     corpus_target = materialize_internal_skill_corpus(
         repo_root,
-        target_root,
+        runtime_root,
         packaging,
         copy_dir_replace_fn=lambda src, dst: copy_dir_replace(
             src,
@@ -703,7 +711,7 @@ def install_runtime_core(repo_root: Path, target_root: Path, profile: str, allow
     record_runtime_root(corpus_target)
     materialize_allowlisted_skills(
         repo_root,
-        target_root,
+        runtime_root,
         packaging,
         host_id=adapter["id"],
         copy_dir_replace_fn=lambda src, dst: copy_dir_replace(
@@ -714,13 +722,13 @@ def install_runtime_core(repo_root: Path, target_root: Path, profile: str, allow
         ),
     )
     prune_previously_managed_skill_dirs(
-        target_root,
-        derive_managed_skill_names_from_ledger(target_root, previous_ledger),
+        runtime_root,
+        derive_managed_skill_names_from_ledger(runtime_root, previous_install_ledger),
         projected_skill_names | {"vibe"},
     )
-    prune_legacy_public_skill_dirs(target_root, current_managed_skill_names, projected_skill_names)
+    prune_legacy_public_skill_dirs(runtime_root, current_managed_skill_names, projected_skill_names)
     for name in projected_skill_names:
-        projected_root = target_root / "skills" / name
+        projected_root = runtime_root / "skills" / name
         if projected_root.exists():
             record_compatibility_root(projected_root)
 
@@ -728,11 +736,11 @@ def install_runtime_core(repo_root: Path, target_root: Path, profile: str, allow
 
     external_used = set()
     missing: set[str] = set()
-    for name in skill_inventory.required_runtime_skills:
+    for name in skill_inventory.public_entry_skills:
         if name == canonical_vibe_name:
             continue
         ensure_skill_present(
-            target_root,
+            runtime_root,
             name,
             True,
             allow_fallback,
@@ -748,9 +756,9 @@ def install_runtime_core(repo_root: Path, target_root: Path, profile: str, allow
                 record_owned_tree_root=record_owned_tree_root,
             ),
         )
-    for name in skill_inventory.required_workflow_skills:
+    for name in skill_inventory.starter_skill_names:
         ensure_skill_present(
-            target_root,
+            runtime_root,
             name,
             True,
             allow_fallback,
@@ -766,9 +774,9 @@ def install_runtime_core(repo_root: Path, target_root: Path, profile: str, allow
                 record_owned_tree_root=record_owned_tree_root,
             ),
         )
-    for name in skill_inventory.optional_workflow_skills:
+    for name in skill_inventory.optional_skill_names:
         ensure_skill_present(
-            target_root,
+            runtime_root,
             name,
             False,
             allow_fallback,
@@ -788,10 +796,10 @@ def install_runtime_core(repo_root: Path, target_root: Path, profile: str, allow
         raise SystemExit("Missing required vendored skills: " + ", ".join(sorted(missing)))
 
     governance = load_json(repo_root / "config" / "version-governance.json")
-    compatibility_source_root = corpus_target if corpus_target.exists() else target_root / "skills"
+    compatibility_source_root = corpus_target if corpus_target.exists() else runtime_root / "skills"
     materialize_generated_nested_compatibility(
         governance,
-        target_root / target_rel,
+        runtime_root / target_rel,
         set(current_managed_skill_names),
         compatibility_source_root,
         copy_file_fn=lambda src, dst: copy_file(src, dst, track_created_path=track_created_path),
@@ -810,10 +818,22 @@ def install_runtime_core(repo_root: Path, target_root: Path, profile: str, allow
     return packaging, sorted(external_used), managed_skill_names
 
 
-def install_claude_guidance_payload(repo_root: Path, target_root: Path):
+def install_claude_guidance_payload(
+    repo_root: Path,
+    target_root: Path,
+    *,
+    runtime_root: Path,
+    host_bridge_root: Path,
+    desired_shared_runtime_root: Path,
+    runtime_layout_mode: str,
+):
     install_claude_managed_settings(
         repo_root,
         target_root,
+        runtime_root=runtime_root,
+        host_bridge_root=host_bridge_root,
+        desired_shared_runtime_root=desired_shared_runtime_root,
+        runtime_layout_mode=runtime_layout_mode,
         track_created_path=track_created_path,
         record_managed_json=record_managed_json,
         record_merged_file=record_merged_file,
@@ -821,12 +841,27 @@ def install_claude_guidance_payload(repo_root: Path, target_root: Path):
     return
 
 
+def should_materialize_split_runtime(
+    *,
+    adapter: dict[str, object],
+    target_root: Path,
+    desired_shared_runtime_root: Path,
+) -> bool:
+    if str(adapter.get("install_mode") or "").strip().lower() != "runtime-core":
+        return False
+    if str(adapter.get("id") or "").strip().lower() not in {"openclaw", "windsurf"}:
+        return False
+    if target_root.resolve() == desired_shared_runtime_root.resolve():
+        return False
+    return bool(os.environ.get("VIBE_AGENTS_HOME", "").strip())
+
+
 def main(argv: list[str] | None = None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo-root")
     parser.add_argument("--target-root")
     parser.add_argument("--host")
-    parser.add_argument("--profile", choices=("minimal", "full"), default="full")
+    parser.add_argument("--profile", choices=("minimal", "full"), default="minimal")
     parser.add_argument("--allow-external-skill-fallback", action="store_true")
     parser.add_argument("--require-closed-ready", action="store_true")
     parser.add_argument("--refresh-install-ledger", action="store_true")
@@ -856,9 +891,35 @@ def main(argv: list[str] | None = None):
     target_root.mkdir(parents=True, exist_ok=True)
     track_created_path(target_root)
     adapter = resolve_adapter(repo_root, args.host)
+    desired_shared_runtime_root = resolve_adapter_default_target_root(repo_root, args.host)
+    host_bridge_root = target_root
     previous_install_ledger = load_existing_install_ledger(target_root)
+    runtime_root = (
+        desired_shared_runtime_root
+        if should_materialize_split_runtime(
+            adapter=adapter,
+            target_root=target_root,
+            desired_shared_runtime_root=desired_shared_runtime_root,
+        )
+        else target_root
+    )
+    runtime_root.mkdir(parents=True, exist_ok=True)
+    if runtime_root.resolve() != target_root.resolve():
+        track_created_path(runtime_root)
+    runtime_layout_mode = (
+        "co-located"
+        if runtime_root.resolve() == target_root.resolve() == desired_shared_runtime_root.resolve()
+        else "split-shared-runtime"
+        if runtime_root.resolve() == desired_shared_runtime_root.resolve()
+        else "legacy-host-root-override"
+    )
     packaging, external_used, managed_skill_names = install_runtime_core(
-        repo_root, target_root, args.profile, args.allow_external_skill_fallback, adapter
+        repo_root,
+        runtime_root,
+        args.profile,
+        args.allow_external_skill_fallback,
+        adapter,
+        previous_install_ledger=previous_install_ledger,
     )
     runtime_entry_surface = None
     runtime_discoverable_entry_surface = str((packaging.get("public_skill_surface") or {}).get("discoverable_entry_surface") or "").strip()
@@ -907,7 +968,14 @@ def main(argv: list[str] | None = None):
                 copy_file_fn=lambda src, dst: copy_file(src, dst, track_created_path=track_created_path),
             )
         elif adapter["id"] == "claude-code":
-            install_claude_guidance_payload(repo_root, target_root)
+            install_claude_guidance_payload(
+                repo_root,
+                target_root,
+                runtime_root=runtime_root,
+                host_bridge_root=host_bridge_root,
+                desired_shared_runtime_root=desired_shared_runtime_root,
+                runtime_layout_mode=runtime_layout_mode,
+            )
         elif adapter["id"] == "cursor":
             pass
         else:
@@ -958,6 +1026,10 @@ def main(argv: list[str] | None = None):
         repo_root,
         target_root,
         adapter,
+        runtime_root=runtime_root,
+        host_bridge_root=host_bridge_root,
+        desired_shared_runtime_root=desired_shared_runtime_root,
+        runtime_layout_mode=runtime_layout_mode,
         track_created_path=track_created_path,
         record_managed_json=record_managed_json,
     )
@@ -978,19 +1050,14 @@ def main(argv: list[str] | None = None):
         profile=args.profile,
         host_id=adapter["id"],
         target_root=target_root,
+        runtime_root=runtime_root,
+        host_bridge_root=host_bridge_root,
+        desired_shared_runtime_root=desired_shared_runtime_root,
+        runtime_layout_mode=runtime_layout_mode,
         install_mode=mode,
         canonical_vibe_rel=canonical_vibe_rel,
         managed_skill_names=managed_skill_names,
-        packaging_manifest={
-            "profile": packaging.get("profile", args.profile),
-            "package_id": packaging.get("package_id"),
-            "copy_bundled_skills": bool(packaging.get("copy_bundled_skills")),
-            "copy_directories": list(packaging.get("copy_directories") or []),
-            "copy_files": list(packaging.get("copy_files") or []),
-            "public_skill_surface": dict(packaging.get("public_skill_surface") or {}),
-            "internal_skill_corpus": dict(packaging.get("internal_skill_corpus") or {}),
-            "compatibility_skill_projections": dict(packaging.get("compatibility_skill_projections") or {}),
-        },
+        internal_skill_target_relpath=str((packaging.get("internal_skill_corpus") or {}).get("target_relpath") or "skills/vibe/bundled/skills"),
     )
     ledger_path = target_root / ".vibeskills" / "install-ledger.json"
     track_created_path(ledger_path)
@@ -1007,6 +1074,10 @@ def main(argv: list[str] | None = None):
             "host_id": adapter["id"],
             "install_mode": mode,
             "target_root": str(target_root),
+            "runtime_root": str(runtime_root),
+            "host_bridge_root": str(host_bridge_root),
+            "desired_shared_runtime_root": str(desired_shared_runtime_root),
+            "runtime_layout_mode": runtime_layout_mode,
             "external_fallback_used": external_used,
             "host_closure_path": str(closure_path),
             "host_closure_state": closure["host_closure_state"],

@@ -1,6 +1,6 @@
 param(
   [ValidateSet("minimal", "full")]
-  [string]$Profile = "full",
+  [string]$Profile = "minimal",
   [string]$HostId = "codex",
   [string]$TargetRoot = '',
   [switch]$SkipRuntimeFreshnessGate,
@@ -10,10 +10,21 @@ param(
 )
 
 $RepoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$DefaultClosureGateNames = @(
+  'vibe-governed-runtime-contract-gate.ps1'
+  'vibe-canonical-entry-truth-gate.ps1'
+  'vibe-runtime-execution-proof-gate.ps1'
+  'vibe-release-truth-consistency-gate.ps1'
+  'vibe-repo-cleanliness-gate.ps1'
+)
 
 function Show-WrapperUsage {
   Write-Output 'Usage: check.ps1 [-Profile minimal|full] [-HostId <id>] [-TargetRoot <path>] [-SkipRuntimeFreshnessGate] [-Deep] [-Help|-?]'
   Write-Output 'Runs the governed VCO adapter health check without falling back to legacy check scripts.'
+}
+
+function Get-DefaultClosureGateNames {
+  return @($script:DefaultClosureGateNames)
 }
 
 if ($Help) {
@@ -349,21 +360,7 @@ function Resolve-CodexDuplicateSkillRoot {
     [string]$HostId
   )
 
-  if ([string]$HostId -ne 'codex') {
-    return $null
-  }
-
-  $leaf = (Split-Path -Path $TargetRoot -Leaf).ToLowerInvariant()
-  if ($leaf -ne '.codex') {
-    return $null
-  }
-
-  $parent = Get-VgoParentPath -Path $TargetRoot
-  if ([string]::IsNullOrWhiteSpace($parent)) {
-    return $null
-  }
-
-  return (Join-Path $parent '.agents\skills\vibe')
+  return $null
 }
 
 function Test-VibeSkillDirectory {
@@ -552,10 +549,10 @@ function Invoke-RuntimeFreshnessCheck {
   $runtimeConfig = Get-InstalledRuntimeConfig -Governance $governance
   Show-InstalledRuntimeUpgradeHint -Governance $governance -TargetRoot $TargetRoot -RuntimeConfig $runtimeConfig
   $receiptRel = [string]$runtimeConfig.receipt_relpath
+  $receiptPath = if (-not [string]::IsNullOrWhiteSpace($receiptRel)) { Join-Path $TargetRoot $receiptRel } else { $null }
 
   if ($SkipGate) {
-    if (-not [string]::IsNullOrWhiteSpace($receiptRel)) {
-      $receiptPath = Join-Path $TargetRoot $receiptRel
+    if (-not [string]::IsNullOrWhiteSpace($receiptRel) -and -not [string]::IsNullOrWhiteSpace($receiptPath)) {
       if (Test-Path -LiteralPath $receiptPath) {
         Check-Path -Label 'vibe runtime freshness receipt' -Path $receiptPath
         Test-ReceiptTargetFreshness -TargetRoot $TargetRoot -RuntimeConfig $runtimeConfig
@@ -569,15 +566,23 @@ function Invoke-RuntimeFreshnessCheck {
     return
   }
 
-  if (-not [string]::IsNullOrWhiteSpace($receiptRel)) {
-    Check-Path -Label 'vibe runtime freshness receipt' -Path (Join-Path $TargetRoot $receiptRel)
-    Test-ReceiptTargetFreshness -TargetRoot $TargetRoot -RuntimeConfig $runtimeConfig
-  }
-
   if (-not (Test-CanonicalRepoExecution -RepoRoot $RepoRoot)) {
+    if (-not [string]::IsNullOrWhiteSpace($receiptRel) -and -not [string]::IsNullOrWhiteSpace($receiptPath)) {
+      if (Test-Path -LiteralPath $receiptPath) {
+        Check-Path -Label 'vibe runtime freshness receipt' -Path $receiptPath
+        Test-ReceiptTargetFreshness -TargetRoot $TargetRoot -RuntimeConfig $runtimeConfig
+      } else {
+        Write-WarnNote -Message 'vibe runtime freshness receipt unavailable because this surface cannot execute the canonical freshness gate.'
+      }
+    }
     Write-Host '[WARN] runtime freshness gate skipped: run canonical repo check.ps1 to execute freshness verification.' -ForegroundColor Yellow
     $script:warn++
     return
+  }
+
+  if (-not [string]::IsNullOrWhiteSpace($receiptRel) -and -not [string]::IsNullOrWhiteSpace($receiptPath)) {
+    Check-Path -Label 'vibe runtime freshness receipt' -Path $receiptPath
+    Test-ReceiptTargetFreshness -TargetRoot $TargetRoot -RuntimeConfig $runtimeConfig
   }
 
   $gateRel = [string]$runtimeConfig.post_install_gate
@@ -680,10 +685,6 @@ function Invoke-RuntimeCoherenceCheck {
   }
 }
 
-$requiredSkills = @('vibe', 'dialectic', 'local-vco-roles', 'spec-kit-vibe-compat', 'superclaude-framework-compat', 'ralph-loop', 'cancel-ralph', 'tdd-guide', 'think-harder')
-$requiredWorkflow = @('brainstorming', 'writing-plans', 'subagent-driven-development', 'systematic-debugging')
-$optionalWorkflow = @('requesting-code-review', 'receiving-code-review', 'verification-before-completion')
-
 $pass = 0
 $fail = 0
 $warn = 0
@@ -714,6 +715,23 @@ function Check-PathAbsent {
   }
 }
 
+function Test-DeepDiscoveryCatalogRequired {
+  param([string]$PolicyPath)
+
+  if (-not (Test-Path -LiteralPath $PolicyPath)) {
+    return $true
+  }
+
+  $policy = Get-JsonObject -Path $PolicyPath -Label 'vibe deep discovery policy config'
+  if ($null -eq $policy) {
+    return $true
+  }
+
+  $enabled = if ($policy.PSObject.Properties.Name -contains 'enabled') { [bool]$policy.enabled } else { $true }
+  $mode = if ($policy.PSObject.Properties.Name -contains 'mode') { [string]$policy.mode } else { 'off' }
+  return [bool]($enabled -and $mode -ne 'off')
+}
+
 function Get-ProfilePackagingManifestPath {
   param(
     [string]$TargetRoot,
@@ -722,6 +740,53 @@ function Get-ProfilePackagingManifestPath {
 
   return (Join-Path $TargetRoot ("config\runtime-core-packaging.{0}.json" -f $Profile))
 }
+
+function Get-ManagedSkillInventoryForCheck {
+  param(
+    [string]$TargetRoot,
+    [string]$Profile
+  )
+
+  $manifestPath = Get-ProfilePackagingManifestPath -TargetRoot $TargetRoot -Profile $Profile
+  if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+    return [pscustomobject]@{
+      public_entry_skills = @()
+      starter_skill_names = @()
+      optional_skill_names = @()
+    }
+  }
+
+  $payload = Get-JsonObject -Path $manifestPath -Label ("runtime packaging manifest ({0})" -f $Profile)
+  if ($null -eq $payload -or -not $payload.PSObject.Properties.Name.Contains('managed_skill_inventory')) {
+    return [pscustomobject]@{
+      public_entry_skills = @()
+      starter_skill_names = @()
+      optional_skill_names = @()
+    }
+  }
+
+  $inventory = $payload.managed_skill_inventory
+  $normalize = {
+    param([object]$Values)
+    return @(
+      @($Values) |
+        ForEach-Object { [string]$_ } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Select-Object -Unique
+    )
+  }
+
+  return [pscustomobject]@{
+    public_entry_skills = & $normalize $inventory.public_entry_skills
+    starter_skill_names = & $normalize $inventory.starter_skill_names
+    optional_skill_names = & $normalize $inventory.optional_skill_names
+  }
+}
+
+$managedSkillInventory = Get-ManagedSkillInventoryForCheck -TargetRoot $TargetRoot -Profile $Profile
+$publicEntrySkills = @($managedSkillInventory.public_entry_skills)
+$starterSkills = @($managedSkillInventory.starter_skill_names)
+$optionalSkills = @($managedSkillInventory.optional_skill_names)
 
 function Get-ProjectedSkillNamesForCheck {
   param(
@@ -778,6 +843,8 @@ function Invoke-AdapterSpecificChecks {
   if ([string]$Adapter.check_mode -eq 'preview-guidance') {
     if ([string]$Adapter.id -eq 'opencode') {
       Write-Host '[INFO] opencode preview now runs as skills-only activation; the real opencode.json stays untouched and sidecar state is verified' -ForegroundColor Cyan
+    } elseif ([string]$Adapter.id -eq 'claude-code') {
+      Write-Host '[INFO] claude-code preview now verifies sidecar state plus a managed settings.json surface' -ForegroundColor Cyan
     } else {
       Write-Host ("[INFO] {0} preview now runs as skills-only activation; host-native config files stay untouched and sidecar state is verified" -f $Adapter.id) -ForegroundColor Cyan
     }
@@ -791,7 +858,6 @@ function Invoke-AdapterSpecificChecks {
   if ([string]$Adapter.check_mode -eq 'governed') {
     Check-Path -Label "plugins manifest" -Path (Join-Path $TargetRoot 'config\plugins-manifest.codex.json')
     Check-Path -Label "rules/common" -Path (Join-Path $TargetRoot 'rules\common\agents.md')
-    Check-Path -Label "mcp template" -Path (Join-Path $TargetRoot 'mcp\servers.template.json')
   }
 
   $hostClosurePath = Join-Path $TargetRoot '.vibeskills\host-closure.json'
@@ -863,8 +929,8 @@ function Invoke-AdapterSpecificChecks {
     return (Join-Path $RuntimeSkillRoot "bundled\skills\$SkillName\SKILL.md")
   }
 
-  foreach ($name in $requiredSkills) {
-    Check-Path -Label "skill/$name" -Path (Resolve-SkillDescriptorPath -SkillName $name)
+  foreach ($name in $publicEntrySkills) {
+    Check-Path -Label "public entry/$name" -Path (Resolve-SkillDescriptorPath -SkillName $name)
   }
 
   Check-Path -Label "vibe router script" -Path (Join-Path $RuntimeSkillRoot 'scripts\router\resolve-pack-route.ps1')
@@ -880,7 +946,12 @@ function Invoke-AdapterSpecificChecks {
   Check-Path -Label "vibe heartbeat policy config" -Path (Join-Path $RuntimeSkillRoot 'config\heartbeat-policy.json')
   Check-Path -Label "vibe deep discovery policy config" -Path (Join-Path $RuntimeSkillRoot 'config\deep-discovery-policy.json')
   Check-Path -Label "vibe llm acceleration policy config" -Path (Join-Path $RuntimeSkillRoot 'config\llm-acceleration-policy.json')
-  Check-Path -Label "vibe capability catalog config" -Path (Join-Path $RuntimeSkillRoot 'config\capability-catalog.json')
+  $deepDiscoveryPolicyPath = Join-Path $RuntimeSkillRoot 'config\deep-discovery-policy.json'
+  if (Test-DeepDiscoveryCatalogRequired -PolicyPath $deepDiscoveryPolicyPath) {
+    Check-Path -Label "vibe capability catalog config" -Path (Join-Path $RuntimeSkillRoot 'config\capability-catalog.json')
+  } else {
+    Check-Condition -Label "vibe capability catalog config skipped when deep discovery is off" -Condition $true
+  }
   Check-Path -Label "vibe retrieval policy config" -Path (Join-Path $RuntimeSkillRoot 'config\retrieval-policy.json')
   Check-Path -Label "vibe retrieval intent profiles config" -Path (Join-Path $RuntimeSkillRoot 'config\retrieval-intent-profiles.json')
   Check-Path -Label "vibe retrieval source registry config" -Path (Join-Path $RuntimeSkillRoot 'config\retrieval-source-registry.json')
@@ -903,13 +974,13 @@ function Invoke-AdapterSpecificChecks {
     $script:pass++
   }
 
-  foreach ($name in $requiredWorkflow) {
-    Check-Path -Label "workflow skill/$name" -Path (Resolve-SkillDescriptorPath -SkillName $name)
+  foreach ($name in $starterSkills) {
+    Check-Path -Label "starter skill/$name" -Path (Resolve-SkillDescriptorPath -SkillName $name)
   }
 
   if ($Profile -eq 'full') {
-    foreach ($name in $optionalWorkflow) {
-      Check-Path -Label "optional workflow skill/$name" -Path (Resolve-SkillDescriptorPath -SkillName $name) -Required:$false
+    foreach ($name in $optionalSkills) {
+      Check-Path -Label "optional skill/$name" -Path (Resolve-SkillDescriptorPath -SkillName $name) -Required:$false
     }
   }
 
@@ -952,6 +1023,7 @@ Write-Host "Mode: $($Adapter.check_mode)"
 Write-Host "Target: $TargetRoot"
 Write-Host "SkipRuntimeFreshnessGate: $SkipRuntimeFreshnessGate"
 Write-Host "Deep: $Deep"
+Write-Host ("Default closure gates: {0}" -f ((Get-DefaultClosureGateNames) -join ', '))
 
 $runtimeSkillRoot = [string]$targetContext.installed_root
 $runtimeNestedSkillRoot = Join-Path $runtimeSkillRoot 'bundled\skills\vibe'
@@ -987,7 +1059,7 @@ if ($Adapter.check_mode -eq 'governed' -and (Get-Command npm -ErrorAction Silent
   Write-Host "[OK] npm"
   $pass++
 } elseif ($Adapter.check_mode -eq 'governed') {
-  Write-Host "[WARN] npm not found (needed for claude-flow)" -ForegroundColor Yellow
+  Write-Host "[WARN] npm not found (needed for optional external CLI installs)" -ForegroundColor Yellow
   $warn++
 } else {
   Write-Host "[OK] npm check skipped for non-governed adapter mode"

@@ -1,6 +1,6 @@
 {
   "schema_version": "runtime.contract.golden.v1",
-  "generated_at": "2026-04-23",
+  "generated_at": "2026-06-23",
   "case_id": "governed_runtime_root",
   "notes": "Normalized root governed runtime baseline. Dynamic run ids and host-local absolute paths are replaced with placeholders.",
   "expected": {
@@ -29,19 +29,9 @@
         "closure_path": null
       },
       "route_snapshot": {
-        "selected_pack": "code-quality",
-        "selected_skill": "systematic-debugging",
+        "task_type": "debug",
         "route_mode": "pack_overlay",
-        "route_reason": "candidate_signal_host_selection",
-        "confirm_required": false,
-        "confidence": 0.3656,
-        "truth_level": "authoritative",
-        "degradation_state": "standard",
-        "non_authoritative": false,
-        "fallback_active": false,
-        "hazard_alert_required": false,
-        "unattended_override_applied": false,
-        "custom_admission_status": "no_custom_manifests"
+        "confirm_required": false
       },
       "authority_flags": {
         "runtime_entry": "vibe",

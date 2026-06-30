@@ -13,6 +13,8 @@ If you are unsure, start with prompt-based install:
 2. Choose host, action, and version.
 3. Copy one prompt into the AI app you want to install VibeSkills into.
 
+After install, the normal extension path is simple: add or edit a local skill under `<target-root>/skills/local/<skill-id>/SKILL.md`. Treat manifest-driven custom workflows as an advanced path, not the default way to extend the kernel.
+
 If you prefer direct commands, open [`recommended-full-path.en.md`](./recommended-full-path.en.md).
 
 ## Requirements
@@ -34,13 +36,13 @@ Linux and macOS can still use the `bash` install scripts. PowerShell 7 is recomm
 | OpenClaw details | [`openclaw-path.en.md`](./openclaw-path.en.md) |
 | OpenCode details | [`opencode-path.en.md`](./opencode-path.en.md) |
 | Post-install configuration boundaries | [`configuration-guide.en.md`](./configuration-guide.en.md) |
-| Custom Skill onboarding | [`custom-workflow-onboarding.en.md`](./custom-workflow-onboarding.en.md) |
+| Advanced manifest-driven custom workflow onboarding | [`custom-workflow-onboarding.en.md`](./custom-workflow-onboarding.en.md) |
 
 Maintainer/reference pages:
 
 - [`installation-rules.en.md`](./installation-rules.en.md): truth-first install assistant rules
 - [`host-plugin-policy.en.md`](./host-plugin-policy.en.md): host/plugin boundary notes
-- [`../one-shot-setup.md`](../one-shot-setup.md): one-shot setup behavior and MCP reporting contract
+- [`../one-shot-setup.md`](../one-shot-setup.md): one-shot setup behavior and install reporting contract
 
 ## Prompt Library
 
@@ -60,7 +62,7 @@ Other pages in this folder are reference docs, compatibility notes, or host-spec
 | `Full Version + Customizable Governance` | `full` |
 | `Framework Only + Customizable Governance` | `minimal` |
 
-Use `full` for the normal VibeSkills experience. Use `minimal` only when you deliberately want the smaller framework foundation.
+Use `minimal` for the normal VibeSkills experience. It keeps the default surface small, leaves local skills under `<target-root>/skills/local/<skill-id>/SKILL.md` as the normal extension path, and keeps only `tdd-guide` and `systematic-debugging` as built-in starter helpers. Choose `full` only when you also want `verification-before-completion` preinstalled.
 
 ## Public Hosts
 
@@ -81,11 +83,9 @@ Do not collapse install state into one vague success line. Report these separate
 
 - `installed locally`
 - `vibe host-ready`
-- `mcp native auto-provision attempted`
-- per-MCP `host-visible readiness`
 - `online-ready`
 
-`$vibe` or `/vibe` proves the governed runtime entry only. It is not MCP completion and not proof that providers, credentials, plugins, or host-native MCP surfaces are fully configured.
+`$vibe` or `/vibe` proves the governed runtime entry only. It does not by itself prove that providers, credentials, plugins, or online enhancement are fully configured.
 
 The public install flow does not currently guide users through built-in online enhancement configuration. Install assistants should not ask users for providers, credentials, URLs, or model names; when that path is not configured through public docs, keep `online-ready` separate and report it as not ready or not verified.
 

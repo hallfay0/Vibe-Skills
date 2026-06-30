@@ -30,12 +30,10 @@ Required fields:
 - `runtime_mode`
 - `internal_grade`
 - `hierarchy`
-- `canonical_router`
 - `host_adapter`
-- `route_snapshot`
-- `specialist_dispatch`
+- `work_binding`
+- `specialist_decision`
 - `authority_flags`
-- `divergence_shadow`
 - `provenance`
 
 Required field groups:
@@ -63,11 +61,12 @@ Required field groups:
   - `bootstrap_mode`
   - `target_root`
   - `closure_path`
-- `route_snapshot`
-  - `selected_pack`
-  - `selected_skill`
-  - `route_mode`
-  - `confirm_required`
+- `work_binding`
+  - `task_id` or packet-level task binding identity
+  - `units`
+- `specialist_decision`
+  - `decision_state`
+  - `resolution_mode`
   - `truth_level`
   - `degradation_state`
   - `non_authoritative`
@@ -107,8 +106,11 @@ Optional compatibility fields:
 - `host_adapter.requested_id`
 - `host_adapter.id`
 - `custom_admission`
-- `specialist_recommendations`
-- `overlay_decisions`
+- `canonical_router`
+- `route_snapshot`
+- `skill_routing`
+- `skill_usage`
+- `divergence_shadow`
 
 Allowed deprecations:
 - None active.

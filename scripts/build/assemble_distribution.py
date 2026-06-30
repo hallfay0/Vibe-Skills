@@ -39,7 +39,7 @@ def resolve_runtime_manifest_path(profile: str) -> Path:
     return resolve_runtime_core_projection_path(REPO_ROOT, profile)
 
 
-def assemble_distribution(output_dir: Path | str, *, host_id: str, profile: str = 'full') -> dict[str, Any]:
+def assemble_distribution(output_dir: Path | str, *, host_id: str, profile: str = 'minimal') -> dict[str, Any]:
     target_dir = Path(output_dir).resolve()
     target_dir.mkdir(parents=True, exist_ok=True)
 
@@ -63,7 +63,7 @@ def assemble_distribution(output_dir: Path | str, *, host_id: str, profile: str 
     governance_marker_groups = dict(governance_marker_projection['required_runtime_marker_groups'])
     governance_marker_notes = dict(governance_marker_projection['required_runtime_marker_notes'])
     adapter_descriptor = load_descriptor(host_id)
-    catalog_descriptor = export_catalog_descriptor(target_dir)
+    catalog_descriptor = export_catalog_descriptor(target_dir, profile=profile)
 
     manifest = {
         'schema_version': 1,
@@ -121,7 +121,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description='Assemble a generated distribution manifest from package owners.')
     parser.add_argument('--output-dir', required=True)
     parser.add_argument('--host', default='codex')
-    parser.add_argument('--profile', default='full')
+    parser.add_argument('--profile', default='minimal')
     args = parser.parse_args()
     manifest = assemble_distribution(args.output_dir, host_id=args.host, profile=args.profile)
     print(json.dumps(manifest, ensure_ascii=False, indent=2))

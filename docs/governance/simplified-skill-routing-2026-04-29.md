@@ -1,6 +1,6 @@
 # Simplified Skill Routing
 
-> Historical / Retired Note: This document records the older simplification pass. The current routing model is `skill_candidates -> skill_routing.selected -> selected_skill_execution -> skill_usage`.
+> Historical / Retired Note: This document records the older simplification pass. The current routing model is `skill_candidates -> skill_routing.selected -> skill_execution_lock -> selected_skill_execution -> skill_usage`.
 
 Current readers should use:
 

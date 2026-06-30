@@ -1,17 +1,18 @@
-# 自定义工作流接入指南（governed onboarding）
+# 自定义工作流接入指南（高级 governed 路径）
 
-这份文档只描述一个受治理接入路径：让你的工作流进入 canonical router 的可调用范围，同时不破坏路由权威。
+这份文档只面向高级 manifest 驱动路径。正常扩展路径仍然是 `<TARGET_ROOT>/skills/local/<skill-id>/SKILL.md` 这样的本地 skill 目录。
+
+只有当普通本地 skill 不够用，而且你真的需要一个带 manifest 的自定义 workflow 时，才需要继续读这页。
 
 ## 先决条件
 
-推荐先安装 lane：
+优先从普通本地 skill 路径开始：
 
-- `workflow`（默认推荐）
-- 或 `full`
+- `<TARGET_ROOT>/skills/local/<skill-id>/SKILL.md`
 
-框架版（当前真实 profile 为 `minimal`）也可接入，但你需要自行补齐工作流核心依赖，否则会出现“声明成功但调用价值不足”。
+如果确实要走这条高级路径，优先使用 `full`。框架版（当前真实 profile 为 `minimal`）也可接入，但你需要自行补齐工作流核心依赖，否则会出现“声明成功但调用价值不足”。
 
-## 接入路径（唯一支持）
+## 高级接入路径（仅在本地 skill 不够时使用）
 
 1. 在目标宿主目录创建工作流内容：
 
@@ -79,7 +80,7 @@
 - 正确：自定义 workflow 只能参与，不得夺权
 
 - 误区：声明了就等于 online readiness
-- 正确：online readiness 仍取决于本地 provider / MCP / host 手工项
+- 正确：online readiness 仍取决于本地 provider / 宿主侧能力配置 / host 手工项
 
 ## 更新 / 覆盖安装注意事项
 
@@ -101,7 +102,7 @@
 - `<TARGET_ROOT>/skills/vibe/...`
 - 官方 skill 目录，例如 `<TARGET_ROOT>/skills/<official-skill>/`
 - 官方治理配置镜像，例如 runtime 下的 `config/`、`scripts/`、`docs/`
-- 官方 `mcp/`、`rules/`、`agents/templates/`
+- 官方 `rules/` 与 `agents/templates/`
 
 如果你把自定义治理直接写进这些官方路径，覆盖更新后很可能被重写。
 

@@ -51,6 +51,8 @@ def run_runtime(task: str, artifact_root: Path, *, extra_env: dict[str, str] | N
             shell,
             "-NoLogo",
             "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
             "-Command",
             (
                 "& { "
@@ -137,6 +139,8 @@ def run_powershell_json(script_body: str) -> dict[str, object]:
             shell,
             "-NoLogo",
             "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
             "-Command",
             script_body,
         ],

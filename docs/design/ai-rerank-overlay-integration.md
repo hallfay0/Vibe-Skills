@@ -24,7 +24,7 @@ Legacy compatibility note:
 
 Key fields:
 - `enabled`, `mode` (`off|shadow|soft|strict`)
-- `scope.grade_allow`, `scope.task_allow`, `scope.route_mode_allow`
+- `scope.grade_allow`, `scope.task_allow`
 - `trigger.top_k`, `trigger.max_top1_top2_gap`, `trigger.max_confidence_for_rerank`, `trigger.confusion_groups`
 - `provider.type` (current default: `heuristic`)
 - `safety.require_candidate_in_top_k`, `safety.enforce_task_allow`, `safety.min_rerank_confidence`, `safety.allow_abstain`

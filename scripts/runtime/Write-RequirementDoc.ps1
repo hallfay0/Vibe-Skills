@@ -366,19 +366,15 @@ $skillUsage = if ($runtimeInputPacket -and $runtimeInputPacket.PSObject.Properti
 } else {
     $null
 }
-$selectedUsageSkill = if ($runtimeInputPacket -and $runtimeInputPacket.route_snapshot) {
-    [string]$runtimeInputPacket.route_snapshot.selected_skill
-} else {
-    ''
-}
+$selectedUsageSkill = Get-VibePrimaryBoundSkillId -RuntimeInputPacket $runtimeInputPacket
 $runtimeTaskType = if (
     $runtimeInputPacket -and
-    $runtimeInputPacket.PSObject.Properties.Name -contains 'canonical_router' -and
-    $runtimeInputPacket.canonical_router -and
-    $runtimeInputPacket.canonical_router.PSObject.Properties.Name -contains 'task_type' -and
-    -not [string]::IsNullOrWhiteSpace([string]$runtimeInputPacket.canonical_router.task_type)
+    $runtimeInputPacket.PSObject.Properties.Name -contains 'route_snapshot' -and
+    $runtimeInputPacket.route_snapshot -and
+    $runtimeInputPacket.route_snapshot.PSObject.Properties.Name -contains 'task_type' -and
+    -not [string]::IsNullOrWhiteSpace([string]$runtimeInputPacket.route_snapshot.task_type)
 ) {
-    ([string]$runtimeInputPacket.canonical_router.task_type).Trim().ToLowerInvariant()
+    ([string]$runtimeInputPacket.route_snapshot.task_type).Trim().ToLowerInvariant()
 } else {
     ''
 }
@@ -636,53 +632,51 @@ if ($runtimeInputPacket) {
         "- Entry intent: $entryIntentId",
         "- Requested stop stage: $requestedStageStop",
         "- Requested grade floor: $requestedGradeFloor",
-        "- Selected pack: $([string]$runtimeInputPacket.route_snapshot.selected_pack)",
-        "- Router-selected skill: $([string]$runtimeInputPacket.route_snapshot.selected_skill)",
+        "- Bounded work skill: $selectedUsageSkill",
         "- Runtime-selected skill: $([string]$runtimeInputPacket.authority_flags.explicit_runtime_skill)",
         "- Route mode: $([string]$runtimeInputPacket.route_snapshot.route_mode)",
-        "- Route reason: $([string]$runtimeInputPacket.route_snapshot.route_reason)",
         "- Confirm required: $([bool]$runtimeInputPacket.route_snapshot.confirm_required)"
     )
 
     $hostReentryAction = if (
-        $runtimeInputPacket.PSObject.Properties.Name -contains 'host_reentry_action' -and
-        -not [string]::IsNullOrWhiteSpace([string]$runtimeInputPacket.host_reentry_action)
-    ) {
-        [string]$runtimeInputPacket.host_reentry_action
-    } elseif (
         $runtimeInputPacket.PSObject.Properties.Name -contains 'continuation_context' -and
         $null -ne $runtimeInputPacket.continuation_context -and
         $runtimeInputPacket.continuation_context.PSObject.Properties.Name -contains 'reentry_action'
     ) {
         [string]$runtimeInputPacket.continuation_context.reentry_action
+    } elseif (
+        $runtimeInputPacket.PSObject.Properties.Name -contains 'host_reentry_action' -and
+        -not [string]::IsNullOrWhiteSpace([string]$runtimeInputPacket.host_reentry_action)
+    ) {
+        [string]$runtimeInputPacket.host_reentry_action
     } else {
         ''
     }
     $hostRevisionTargetStage = if (
-        $runtimeInputPacket.PSObject.Properties.Name -contains 'host_revision_target_stage' -and
-        -not [string]::IsNullOrWhiteSpace([string]$runtimeInputPacket.host_revision_target_stage)
-    ) {
-        [string]$runtimeInputPacket.host_revision_target_stage
-    } elseif (
         $runtimeInputPacket.PSObject.Properties.Name -contains 'continuation_context' -and
         $null -ne $runtimeInputPacket.continuation_context -and
         $runtimeInputPacket.continuation_context.PSObject.Properties.Name -contains 'revision_target_stage'
     ) {
         [string]$runtimeInputPacket.continuation_context.revision_target_stage
+    } elseif (
+        $runtimeInputPacket.PSObject.Properties.Name -contains 'host_revision_target_stage' -and
+        -not [string]::IsNullOrWhiteSpace([string]$runtimeInputPacket.host_revision_target_stage)
+    ) {
+        [string]$runtimeInputPacket.host_revision_target_stage
     } else {
         ''
     }
     $hostRevisionDelta = if (
-        $runtimeInputPacket.PSObject.Properties.Name -contains 'host_revision_delta' -and
-        $null -ne $runtimeInputPacket.host_revision_delta
-    ) {
-        @(Get-VibeNormalizedStringList -Values $runtimeInputPacket.host_revision_delta)
-    } elseif (
         $runtimeInputPacket.PSObject.Properties.Name -contains 'continuation_context' -and
         $null -ne $runtimeInputPacket.continuation_context -and
         $runtimeInputPacket.continuation_context.PSObject.Properties.Name -contains 'revision_delta'
     ) {
         @(Get-VibeNormalizedStringList -Values $runtimeInputPacket.continuation_context.revision_delta)
+    } elseif (
+        $runtimeInputPacket.PSObject.Properties.Name -contains 'host_revision_delta' -and
+        $null -ne $runtimeInputPacket.host_revision_delta
+    ) {
+        @(Get-VibeNormalizedStringList -Values $runtimeInputPacket.host_revision_delta)
     } else {
         @()
     }
@@ -697,6 +691,13 @@ if ($runtimeInputPacket) {
     }
 
     $executionPhaseDecomposition = if (
+        $runtimeInputPacket.PSObject.Properties.Name -contains 'host_decision' -and
+        $null -ne $runtimeInputPacket.host_decision -and
+        $runtimeInputPacket.host_decision.PSObject.Properties.Name -contains 'phase_decomposition' -and
+        $null -ne $runtimeInputPacket.host_decision.phase_decomposition
+    ) {
+        $runtimeInputPacket.host_decision.phase_decomposition
+    } elseif (
         $runtimeInputPacket.PSObject.Properties.Name -contains 'execution_phase_decomposition' -and
         $null -ne $runtimeInputPacket.execution_phase_decomposition
     ) {
@@ -779,7 +780,7 @@ if ($runtimeInputPacket) {
     }
 
     $selectedSkillRouting = @(Get-VibeSkillRoutingSelected -RuntimeInputPacket $runtimeInputPacket)
-    # Compatibility variable name; authority is skill_routing.selected.
+    # Compatibility variable name; bounded-work truth lives in work_binding and is mirrored here for specialist dispatch compatibility.
     $approvedSpecialistDispatch = @(Convert-VibeSkillRoutingSelectedToDispatch -RuntimeInputPacket $runtimeInputPacket)
     $legacySpecialistRecommendations = @(Get-VibeRuntimeSpecialistRecommendations -RuntimeInputPacket $runtimeInputPacket)
     if (@($selectedSkillRouting).Count -gt 0 -or @($approvedSpecialistDispatch).Count -gt 0) {

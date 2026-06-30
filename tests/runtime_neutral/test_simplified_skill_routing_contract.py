@@ -38,7 +38,7 @@ def run_ps_json(script: str) -> dict[str, object]:
     if shell is None:
         raise unittest.SkipTest("PowerShell executable not available")
     completed = subprocess.run(
-        [shell, "-NoLogo", "-NoProfile", "-Command", script],
+        [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -54,6 +54,31 @@ def as_list(value: object) -> list[object]:
     if isinstance(value, list):
         return value
     return [value]
+
+
+def selected_rows_from_packet(packet: dict[str, object]) -> list[dict[str, object]]:
+    routing = packet.get("skill_routing")
+    if isinstance(routing, dict):
+        selected = routing.get("selected")
+        if isinstance(selected, list) and selected:
+            return [item for item in selected if isinstance(item, dict)]
+    work_binding = packet.get("work_binding")
+    if not isinstance(work_binding, dict):
+        return []
+    units = work_binding.get("units")
+    if not isinstance(units, list):
+        return []
+    rows: list[dict[str, object]] = []
+    for unit in units:
+        if not isinstance(unit, dict):
+            continue
+        skill_id = str(unit.get("bound_skill") or "").strip()
+        if not skill_id:
+            continue
+        row = dict(unit)
+        row["skill_id"] = skill_id
+        rows.append(row)
+    return rows
 
 
 class SimplifiedSkillRoutingContractTests(unittest.TestCase):
@@ -127,7 +152,47 @@ class SimplifiedSkillRoutingContractTests(unittest.TestCase):
 
         self.assertEqual([], as_list(payload["selected_skill_ids"]))
 
-    def test_freeze_emits_skill_routing_with_selected_skills(self) -> None:
+    def test_router_result_is_candidate_and_confirm_data_not_work_truth(self) -> None:
+        shell = resolve_powershell()
+        if shell is None:
+            self.skipTest("PowerShell executable not available")
+
+        completed = subprocess.run(
+            [
+                shell,
+                "-NoLogo",
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                str(REPO_ROOT / "scripts" / "router" / "resolve-pack-route.ps1"),
+                "-Prompt",
+                "Please use scikit-learn to compare tabular classification baselines.",
+                "-Grade",
+                "M",
+                "-TaskType",
+                "coding",
+            ],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=True,
+        )
+        route = json.loads(completed.stdout)
+
+        self.assertEqual("candidate_discovery_only", route["router_contract_mode"])
+        self.assertEqual("kernel", route["work_binding_truth_source"])
+        self.assertIsInstance(route["candidates"], list)
+        self.assertIn("confirm_required", route)
+        self.assertIn("confirm_options", route)
+        self.assertIn("probe", route)
+        selected = route.get("selected")
+        if isinstance(selected, dict):
+            self.assertTrue(selected["candidate_only"])
+            self.assertEqual("kernel", selected["work_binding_truth_source"])
+
+    def test_freeze_uses_work_binding_as_selected_skill_truth_when_selected_mirror_is_absent(self) -> None:
         shell = resolve_powershell()
         if shell is None:
             self.skipTest("PowerShell executable not available")
@@ -138,6 +203,8 @@ class SimplifiedSkillRoutingContractTests(unittest.TestCase):
                     shell,
                     "-NoLogo",
                     "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
                     "-File",
                     str(FREEZE_SCRIPT),
                     "-Task",
@@ -160,13 +227,21 @@ class SimplifiedSkillRoutingContractTests(unittest.TestCase):
             packet = json.loads(packet_path.read_text(encoding="utf-8"))
 
         routing = packet["skill_routing"]
-        selected_ids = [item["skill_id"] for item in as_list(routing["selected"])]
+        work_binding = packet["work_binding"]
+        specialist_decision = packet["specialist_decision"]
+        selected_rows = selected_rows_from_packet(packet)
+        selected_ids = [item["skill_id"] for item in selected_rows]
+        self.assertEqual("runtime_input_freeze", packet["stage"])
+        self.assertIsInstance(specialist_decision, dict)
         self.assertIn("scikit-learn", selected_ids)
         self.assertGreaterEqual(len(as_list(routing["candidates"])), len(selected_ids))
-        for selected in as_list(routing["selected"]):
+        self.assertNotIn("selected", routing)
+        for selected in selected_rows:
             self.assertIn("skill_id", selected)
             self.assertIn("task_slice", selected)
             self.assertIn("skill_md_path", selected)
+        bound_skill_ids = [item["bound_skill"] for item in as_list(work_binding["units"])]
+        self.assertEqual(selected_ids, bound_skill_ids)
 
     def test_new_freeze_packet_omits_old_routing_compatibility_fields(self) -> None:
         shell = resolve_powershell()
@@ -179,6 +254,8 @@ class SimplifiedSkillRoutingContractTests(unittest.TestCase):
                     shell,
                     "-NoLogo",
                     "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
                     "-File",
                     str(FREEZE_SCRIPT),
                     "-Task",
@@ -200,6 +277,7 @@ class SimplifiedSkillRoutingContractTests(unittest.TestCase):
             packet = json.loads(packet_path.read_text(encoding="utf-8"))
 
         self.assertIn("skill_routing", packet)
+        self.assertIn("work_binding", packet)
         self.assertIn("skill_usage", packet)
         self.assertNotIn("legacy_skill_routing", packet)
         self.assertNotIn("stage_assistant_hints", packet)

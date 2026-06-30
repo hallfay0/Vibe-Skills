@@ -46,6 +46,17 @@ def _normalize_target_relpath(path: Path | str, *, target_root: Path) -> str | N
     return normalized or None
 
 
+def _resolve_ledger_base_root(target_root: Path | str, ledger: dict | None, field_name: str) -> Path:
+    target_root_path = Path(target_root).resolve()
+    if not isinstance(ledger, dict):
+        return target_root_path
+    if field_name in {'runtime_roots', 'compatibility_roots', 'legacy_cleanup_candidates'}:
+        raw_runtime_root = str(ledger.get('runtime_root') or '').strip()
+        if raw_runtime_root:
+            return Path(raw_runtime_root).resolve(strict=False)
+    return target_root_path
+
+
 def _normalize_skill_name(value: object) -> str | None:
     text = str(value).strip()
     if not text:
@@ -136,45 +147,55 @@ def derive_managed_skill_names_from_ledger(target_root: Path | str, ledger: dict
     return managed
 
 
+def _internal_skill_target_relpath_from_ledger(ledger: dict) -> str:
+    direct_relpath = str(ledger.get('internal_skill_target_relpath') or '').strip() if isinstance(ledger, dict) else ''
+    if direct_relpath:
+        return direct_relpath
+
+    packaging_manifest = ledger.get('packaging_manifest') if isinstance(ledger, dict) else None
+    if not isinstance(packaging_manifest, dict):
+        return 'skills/vibe/bundled/skills'
+
+    legacy_direct_relpath = str(packaging_manifest.get('internal_skill_target_relpath') or '').strip()
+    if legacy_direct_relpath:
+        return legacy_direct_relpath
+
+    # ponytail: read old ledgers, but only write the flatter field going forward.
+    internal_corpus = packaging_manifest.get('internal_skill_corpus')
+    if isinstance(internal_corpus, dict):
+        legacy_relpath = str(internal_corpus.get('target_relpath') or '').strip()
+        if legacy_relpath:
+            return legacy_relpath
+
+    return 'skills/vibe/bundled/skills'
+
+
 def build_payload_summary(target_root: Path | str, ledger: dict) -> dict[str, object]:
     target_root_path = Path(target_root).resolve()
     target_root_resolved = target_root_path.resolve(strict=False)
+    runtime_root_path = Path(str(ledger.get('runtime_root') or target_root_path)).resolve(strict=False)
     managed_skill_names = derive_managed_skill_names_from_ledger(target_root_path, ledger)
-    packaging_manifest = ledger.get('packaging_manifest') if isinstance(ledger, dict) else None
-    internal_corpus = (packaging_manifest or {}).get('internal_skill_corpus') if isinstance(packaging_manifest, dict) else {}
-    internal_target_relpath = str((internal_corpus or {}).get('target_relpath') or 'skills/vibe/bundled/skills').strip() or 'skills/vibe/bundled/skills'
-    internal_skills_root = (target_root_path / internal_target_relpath).resolve(strict=False)
+    internal_target_relpath = _internal_skill_target_relpath_from_ledger(ledger)
+    internal_skills_root = (runtime_root_path / internal_target_relpath).resolve(strict=False)
     installed_skill_names = sorted(
         name
         for name in managed_skill_names
         if not name.startswith('.')
         and (
-            (target_root_path / 'skills' / name).is_dir()
+            (runtime_root_path / 'skills' / name).is_dir()
             or (internal_skills_root / name).is_dir()
         )
     )
     public_skill_names = sorted(
         name
         for name in managed_skill_names
-        if not name.startswith('.') and (target_root_path / 'skills' / name).is_dir()
-    )
-    packaging_manifest = ledger.get('packaging_manifest') if isinstance(ledger.get('packaging_manifest'), dict) else {}
-    internal_skill_corpus = packaging_manifest.get('internal_skill_corpus') if isinstance(packaging_manifest, dict) else {}
-    internal_skill_target = None
-    if isinstance(internal_skill_corpus, dict):
-        target_relpath = str(internal_skill_corpus.get('target_relpath') or '').strip()
-        if target_relpath:
-            internal_skill_target = target_root_path / target_relpath
-    internal_skill_names = sorted(
-        candidate.name
-        for candidate in (internal_skill_target.iterdir() if internal_skill_target and internal_skill_target.exists() else [])
-        if candidate.is_dir()
+        if not name.startswith('.') and (runtime_root_path / 'skills' / name).is_dir()
     )
 
     managed_skill_roots = {
-        (target_root_path / 'skills' / name).resolve(strict=False)
+        (runtime_root_path / 'skills' / name).resolve(strict=False)
         for name in managed_skill_names
-        if (target_root_path / 'skills' / name).exists()
+        if (runtime_root_path / 'skills' / name).exists()
     }
 
     owned_files: set[str] = set()
@@ -222,12 +243,14 @@ def build_payload_summary(target_root: Path | str, ledger: dict) -> dict[str, ob
         collect_owned_tree(skill_root)
 
     skills_root = (target_root_path / 'skills').resolve(strict=False)
+    runtime_root_base = _resolve_ledger_base_root(target_root_path, ledger, 'runtime_roots')
+    compatibility_root_base = _resolve_ledger_base_root(target_root_path, ledger, 'compatibility_roots')
     for raw_path in ledger.get('runtime_roots') or []:
-        collect_owned_tree(raw_path)
-        collect_owned_file(raw_path)
+        collect_owned_tree(runtime_root_base / raw_path)
+        collect_owned_file(runtime_root_base / raw_path)
     for raw_path in ledger.get('compatibility_roots') or []:
-        collect_owned_tree(raw_path)
-        collect_owned_file(raw_path)
+        collect_owned_tree(compatibility_root_base / raw_path)
+        collect_owned_file(compatibility_root_base / raw_path)
     for raw_path in ledger.get('sidecar_roots') or []:
         collect_owned_tree(raw_path)
         collect_owned_file(raw_path)
@@ -258,17 +281,12 @@ def build_payload_summary(target_root: Path | str, ledger: dict) -> dict[str, ob
     # When refreshing summaries from an on-disk install, count the ledger itself
     # as installer-owned payload so fresh installs and refreshed ledgers agree.
     collect_owned_file(target_root_path / '.vibeskills' / 'install-ledger.json')
-    collect_owned_file(target_root_path / '.vibeskills' / 'mcp-auto-provision.json')
     collect_owned_file(target_root_path / '.vibeskills' / 'upgrade-status.json')
 
     return {
-        'installed_skill_count': len(installed_skill_names),
         'installed_skill_names': installed_skill_names,
-        'public_skill_count': len(public_skill_names),
         'public_skill_names': public_skill_names,
-        'host_visible_entry_count': len(host_visible_entry_names),
         'host_visible_entry_names': sorted(host_visible_entry_names),
-        'internal_skill_count': len(internal_skill_names),
         'installed_file_count': len(owned_files),
     }
 
@@ -317,10 +335,10 @@ def build_install_ledger(
                 'managed_key': str(entry.get('managed_key') or 'vibeskills'),
             }
         )
-    runtime_roots = _sorted_target_relpaths(state.runtime_roots, target_root=plan.target_root)
-    compatibility_roots = _sorted_target_relpaths(state.compatibility_roots, target_root=plan.target_root)
+    runtime_roots = _sorted_target_relpaths(state.runtime_roots, target_root=plan.runtime_root)
+    compatibility_roots = _sorted_target_relpaths(state.compatibility_roots, target_root=plan.runtime_root)
     sidecar_roots = _sorted_target_relpaths(state.sidecar_roots, target_root=plan.target_root)
-    legacy_cleanup_candidates = _sorted_target_relpaths(state.legacy_cleanup_candidates, target_root=plan.target_root)
+    legacy_cleanup_candidates = _sorted_target_relpaths(state.legacy_cleanup_candidates, target_root=plan.runtime_root)
     InstallLedger(
         managed_skill_names=list(plan.managed_skill_names),
         runtime_roots=runtime_roots,
@@ -329,6 +347,7 @@ def build_install_ledger(
         config_rollbacks=config_rollbacks,
         legacy_cleanup_candidates=legacy_cleanup_candidates,
     )
+    internal_skill_target_relpath = str(plan.internal_skill_target_relpath or 'skills/vibe/bundled/skills')
     ledger = {
         'schema_version': 2,
         'host_id': plan.host_id,
@@ -336,7 +355,10 @@ def build_install_ledger(
         'profile': plan.profile,
         'target_root': str(plan.target_root),
         'runtime_root': str(plan.runtime_root),
-        'canonical_vibe_root': str((plan.target_root / plan.canonical_vibe_rel).resolve(strict=False)),
+        'host_bridge_root': str(plan.host_bridge_root),
+        'desired_shared_runtime_root': str(plan.desired_shared_runtime_root),
+        'runtime_layout_mode': str(plan.runtime_layout_mode),
+        'canonical_vibe_root': str((plan.runtime_root / plan.canonical_vibe_rel).resolve(strict=False)),
         'created_paths': _sorted_paths(state.created_paths),
         'owned_tree_roots': _sorted_paths(state.owned_tree_roots),
         'managed_json_paths': _sorted_paths(state.managed_json_paths),
@@ -351,7 +373,7 @@ def build_install_ledger(
         'legacy_cleanup_candidates': legacy_cleanup_candidates,
         'external_fallback_used': list(external_fallback_used or []),
         'managed_skill_names': list(plan.managed_skill_names),
-        'packaging_manifest': dict(plan.packaging_manifest),
+        'internal_skill_target_relpath': internal_skill_target_relpath,
         'timestamp': timestamp,
         'ownership_source': 'install-ledger',
     }
@@ -384,6 +406,8 @@ def refresh_install_ledger(target_root: Path | str) -> dict[str, object]:
         raise SystemExit(f'Install ledger missing for refresh: {ledger_path}')
 
     ledger = load_json(ledger_path)
+    ledger['internal_skill_target_relpath'] = _internal_skill_target_relpath_from_ledger(ledger)
+    ledger.pop('packaging_manifest', None)
     ledger['payload_summary'] = build_payload_summary(target_root_path, ledger)
     write_json_file(ledger_path, ledger)
     return {

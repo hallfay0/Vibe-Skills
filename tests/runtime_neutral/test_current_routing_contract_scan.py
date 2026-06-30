@@ -41,7 +41,7 @@ class CurrentRoutingContractScanTests(unittest.TestCase):
             self.skipTest("PowerShell executable not available")
 
         completed = subprocess.run(
-            [shell, "-NoLogo", "-NoProfile", "-File", str(SCAN_SCRIPT), "-Json"],
+            [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(SCAN_SCRIPT), "-Json"],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
@@ -51,6 +51,7 @@ class CurrentRoutingContractScanTests(unittest.TestCase):
         )
         payload = json.loads(completed.stdout)
 
+        self.assertEqual(0, int(payload["current_entrypoint_guidance_violation_count"]))
         self.assertEqual(0, int(payload["current_surface_violation_count"]))
         self.assertEqual(0, int(payload["current_runtime_old_format_fallback_count"]))
         self.assertIn("retired_old_format_reference_count", payload)
@@ -81,7 +82,7 @@ class CurrentRoutingContractScanTests(unittest.TestCase):
             self.skipTest("PowerShell executable not available")
 
         completed = subprocess.run(
-            [shell, "-NoLogo", "-NoProfile", "-File", str(SCAN_SCRIPT)],
+            [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(SCAN_SCRIPT)],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
@@ -91,6 +92,7 @@ class CurrentRoutingContractScanTests(unittest.TestCase):
         )
 
         self.assertIn("VCO Current Routing Contract Scan", completed.stdout)
+        self.assertIn("Current entrypoint guidance violations: 0", completed.stdout)
         self.assertIn("Retired old-format references:", completed.stdout)
         self.assertIn("Hard cleanup current behavior test retired-field reads: 0", completed.stdout)
         self.assertIn("Hard cleanup historical docs with retired terms:", completed.stdout)
@@ -121,7 +123,7 @@ class CurrentRoutingContractScanTests(unittest.TestCase):
             )
 
             completed = subprocess.run(
-                [shell, "-NoLogo", "-NoProfile", "-File", str(SCAN_SCRIPT), "-RepoRoot", str(repo_root), "-Json"],
+                [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(SCAN_SCRIPT), "-RepoRoot", str(repo_root), "-Json"],
                 cwd=REPO_ROOT,
                 capture_output=True,
                 text=True,

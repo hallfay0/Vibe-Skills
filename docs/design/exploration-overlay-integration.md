@@ -7,7 +7,7 @@ Add a lightweight exploration advisory layer to VCO so exploratory prompts ("why
 ## Design Boundary
 
 - Post-route advisory overlay only.
-- Default rollout is `soft` and non-mutating (`preserve_routing_assignment=true`).
+- Default rollout is `soft` and non-mutating.
 - Mode-gated behavior:
   - `off`: disabled.
   - `shadow`: observe and report only.
@@ -24,7 +24,7 @@ Main + bundled:
 
 These configs define:
 
-- scope controls (`task_allow`, `grade_allow`, `route_mode_allow`)
+- scope controls (`task_allow`, `grade_allow`)
 - intent selection thresholds and fallback
 - domain detection thresholds and multi-domain decision
 - mode-specific interview/confirm policy
@@ -62,7 +62,7 @@ Probe + heartbeat:
 - UX guard:
   - `confirm_recommended`, `confirm_required`
 - route safety:
-  - `preserve_routing_assignment`, `auto_override=false`, `route_override_applied=false`
+  - `auto_override=false`, `route_override_applied=false`
 
 ## Observability and Runtime Prompt
 
@@ -87,4 +87,3 @@ Updated checks:
 - `scripts/verify/vibe-pack-routing-smoke.ps1`
 - `scripts/verify/vibe-routing-probe-research.ps1`
 - `scripts/verify/vibe-deep-discovery-scenarios.ps1`
-
