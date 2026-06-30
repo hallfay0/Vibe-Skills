@@ -1141,6 +1141,18 @@ function Copy-VibeSkillExecutionLockDispatchRecord {
         return $null
     }
 
+    $nativeEntrypoint = if (Test-VibeObjectHasProperty -InputObject $copy -PropertyName 'native_skill_entrypoint') { [string]$copy.native_skill_entrypoint } else { '' }
+    $skillMdPath = if (Test-VibeObjectHasProperty -InputObject $copy -PropertyName 'skill_md_path') { [string]$copy.skill_md_path } else { '' }
+    $entrypoint = if (-not [string]::IsNullOrWhiteSpace($nativeEntrypoint)) { $nativeEntrypoint } else { $skillMdPath }
+    $entrypointFileName = if ([string]::IsNullOrWhiteSpace($entrypoint)) { '' } else { [System.IO.Path]::GetFileName($entrypoint) }
+    if (
+        [string]::IsNullOrWhiteSpace($entrypoint) -or
+        $entrypointFileName -notin @('SKILL.md', 'SKILL.runtime-mirror.md') -or
+        -not (Test-Path -LiteralPath $entrypoint -PathType Leaf)
+    ) {
+        return $null
+    }
+
     if (-not (Test-VibeObjectHasProperty -InputObject $copy -PropertyName 'task_slice') -or [string]::IsNullOrWhiteSpace([string]$copy.task_slice)) {
         $copy | Add-Member -NotePropertyName task_slice -NotePropertyValue ('Resolve locked specialist execution for {0}.' -f $skillId) -Force
     }

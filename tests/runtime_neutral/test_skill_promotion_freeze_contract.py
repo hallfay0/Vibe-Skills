@@ -349,7 +349,7 @@ class SkillPromotionFreezeContractTests(unittest.TestCase):
                 "$recommendation | Add-Member -NotePropertyName skill_id -NotePropertyValue 'missing-local-skill'; "
                 "$dispatch = Split-VibeSpecialistDispatch -GovernanceScope 'root' -Recommendations @($recommendation); "
                 "$routing = New-VibeSkillRoutingFromLegacy "
-                "-RouterSelectedSkill '' "
+                "-RouterSelectedSkill 'missing-local-skill' "
                 "-Recommendations @($recommendation) "
                 "-StageAssistantHints @() "
                 "-SpecialistDispatch $dispatch; "

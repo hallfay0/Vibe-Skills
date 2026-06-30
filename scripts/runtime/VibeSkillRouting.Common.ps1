@@ -130,7 +130,6 @@ function New-VibeSkillRoutingFromLegacy {
         $matching = @($Recommendations | Where-Object { [string](Get-VibeSkillRoutingProperty -InputObject $_ -PropertyName 'skill_id' -DefaultValue '') -eq $RouterSelectedSkill } | Select-Object -First 1)
         $source = if (@($matching).Count -gt 0) { $matching[0] } else { $null }
         Add-VibeSkillRoutingEntry -Rows $candidateRows -Seen $candidateSeen -Entry (New-VibeSkillRoutingEntry -SkillId $RouterSelectedSkill -Source $source -Reason 'router selected skill' -State 'candidate')
-        Add-VibeSkillRoutingEntry -Rows $selectedRows -Seen $selectedSeen -Entry (New-VibeSkillRoutingEntry -SkillId $RouterSelectedSkill -Source $source -Reason 'router selected skill' -State 'selected')
     }
 
     foreach ($candidate in @($candidateRows.ToArray())) {

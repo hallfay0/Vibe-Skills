@@ -694,10 +694,13 @@ class NativeExecutionTopologyTests(unittest.TestCase):
     def test_write_xl_plan_keeps_unknown_phase_dispatches_and_suggestions_in_ungrouped_sections(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             artifact_root = Path(tempdir)
+            target_root = artifact_root / ".agents"
+            write_installed_skill(target_root, "systematic-debugging")
             initial_payload = run_runtime(
                 task=DEBUG_EXECUTION_TASK,
                 artifact_root=artifact_root,
                 governance_scope="root",
+                extra_env={"VIBE_AGENTS_HOME": str(target_root)},
             )
             initial_summary = initial_payload["summary"]
             requirement_doc_path = Path(initial_summary["artifacts"]["requirement_doc"])
@@ -745,10 +748,13 @@ class NativeExecutionTopologyTests(unittest.TestCase):
     def test_plan_execute_keeps_work_binding_first_dispatch_packets_valid_without_optional_selected_only_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             artifact_root = Path(tempdir)
+            target_root = artifact_root / ".agents"
+            write_installed_skill(target_root, "systematic-debugging")
             initial_payload = run_runtime(
                 task=DEBUG_EXECUTION_TASK,
                 artifact_root=artifact_root,
                 governance_scope="root",
+                extra_env={"VIBE_AGENTS_HOME": str(target_root)},
             )
             initial_summary = initial_payload["summary"]
             requirement_doc_path = Path(initial_summary["artifacts"]["requirement_doc"])
@@ -787,6 +793,8 @@ class NativeExecutionTopologyTests(unittest.TestCase):
     def test_plan_execute_accepts_current_usage_required_only_dispatch_packets(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             artifact_root = Path(tempdir)
+            target_root = artifact_root / ".agents"
+            write_installed_skill(target_root, "systematic-debugging")
             fake_codex = create_fake_codex_command(
                 artifact_root,
                 required_prompt_markers=[
@@ -800,6 +808,7 @@ class NativeExecutionTopologyTests(unittest.TestCase):
                 task=DEBUG_EXECUTION_TASK,
                 artifact_root=artifact_root,
                 governance_scope="root",
+                extra_env={"VIBE_AGENTS_HOME": str(target_root)},
             )
             initial_summary = initial_payload["summary"]
             requirement_doc_path = Path(initial_summary["artifacts"]["requirement_doc"])
@@ -854,10 +863,14 @@ class NativeExecutionTopologyTests(unittest.TestCase):
 
     def test_specialist_binding_metadata_is_frozen_into_runtime_requirement_and_plan(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = Path(tempdir)
+            target_root = temp_path / ".agents"
+            write_installed_skill(target_root, "systematic-debugging")
             payload = run_runtime(
                 task=DEBUG_EXECUTION_TASK,
-                artifact_root=Path(tempdir),
+                artifact_root=temp_path,
                 governance_scope="root",
+                extra_env={"VIBE_AGENTS_HOME": str(target_root)},
             )
             summary = payload["summary"]
             runtime_input = load_json(summary["artifacts"]["runtime_input_packet"])
@@ -898,11 +911,14 @@ class NativeExecutionTopologyTests(unittest.TestCase):
     def test_plan_shadow_recognizes_specialist_lifecycle_headers_without_legacy_dispatch_heading(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             artifact_root = Path(tempdir)
+            target_root = artifact_root / ".agents"
+            write_installed_skill(target_root, "systematic-debugging")
             fake_codex = create_fake_codex_command(artifact_root)
             payload = run_runtime(
                 task="I have a failing test and a stack trace. Help me debug systematically before proposing fixes.",
                 artifact_root=artifact_root,
                 governance_scope="root",
+                extra_env={"VIBE_AGENTS_HOME": str(target_root)},
             )
             summary = payload["summary"]
             requirement_doc_path = Path(summary["artifacts"]["requirement_doc"])
@@ -1008,8 +1024,8 @@ class NativeExecutionTopologyTests(unittest.TestCase):
                         self.assertTrue(bool(result["verification_passed"]))
 
             specialist_accounting = execution_manifest["specialist_accounting"]
-            self.assertEqual("direct_current_session_routed", specialist_accounting["effective_execution_status"])
-            self.assertGreaterEqual(int(specialist_accounting["direct_routed_skill_execution_unit_count"]), 1)
+            self.assertEqual("none", specialist_accounting["effective_execution_status"])
+            self.assertEqual(0, int(specialist_accounting["direct_routed_skill_execution_unit_count"]))
 
             serial_order = list(topology.get("serial_execution_order") or [])
             self.assertEqual(
@@ -1087,12 +1103,16 @@ class NativeExecutionTopologyTests(unittest.TestCase):
 
     def test_approved_specialist_dispatch_requires_executable_native_units(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = Path(tempdir)
+            target_root = temp_path / ".agents"
+            write_installed_skill(target_root, "systematic-debugging")
             payload = run_runtime(
                 task=DEBUG_SPECIALIST_TASK,
-                artifact_root=Path(tempdir),
+                artifact_root=temp_path,
                 governance_scope="root",
                 extra_env={
                     "VGO_NATIVE_SPECIALIST_EXECUTION_MODE": "host_subprocess",
+                    "VIBE_AGENTS_HOME": str(target_root),
                 },
             )
             summary = payload["summary"]
@@ -1170,6 +1190,8 @@ class NativeExecutionTopologyTests(unittest.TestCase):
     def test_approved_specialist_dispatch_routes_directly_in_current_session_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             temp_path = Path(tempdir)
+            target_root = temp_path / ".agents"
+            write_installed_skill(target_root, "systematic-debugging")
             payload = run_runtime(
                 task=DEBUG_SPECIALIST_TASK,
                 artifact_root=temp_path,
@@ -1179,6 +1201,7 @@ class NativeExecutionTopologyTests(unittest.TestCase):
                     "VGO_SPECIALIST_CONSULTATION_MODE": "",
                     "VGO_ENABLE_NATIVE_SPECIALIST_EXECUTION": "1",
                     "VGO_DISABLE_NATIVE_SPECIALIST_EXECUTION": "0",
+                    "VIBE_AGENTS_HOME": str(target_root),
                 },
             )
             summary = payload["summary"]
@@ -1214,6 +1237,8 @@ class NativeExecutionTopologyTests(unittest.TestCase):
     def test_approved_specialist_dispatch_can_execute_live_native_lane_when_adapter_enabled(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             temp_path = Path(tempdir)
+            target_root = temp_path / ".agents"
+            write_installed_skill(target_root, "systematic-debugging")
             fake_codex = create_fake_codex_command(
                 temp_path,
                 required_prompt_markers=[
@@ -1232,6 +1257,7 @@ class NativeExecutionTopologyTests(unittest.TestCase):
                     "VGO_DISABLE_NATIVE_SPECIALIST_EXECUTION": "0",
                     "VGO_NATIVE_SPECIALIST_EXECUTION_MODE": "host_subprocess",
                     "VGO_CODEX_EXECUTABLE": str(fake_codex),
+                    "VIBE_AGENTS_HOME": str(target_root),
                 },
             )
             summary = payload["summary"]
@@ -1522,7 +1548,7 @@ class NativeExecutionTopologyTests(unittest.TestCase):
             self.assertFalse(bool(child_execution_manifest["authority"]["completion_claim_allowed"]))
             self.assertFalse(bool(specialist_accounting["auto_absorb_gate"]["enabled"]))
 
-    def test_child_divergent_specialist_request_without_overlap_auto_promotes_when_safe(self) -> None:
+    def test_child_divergent_specialist_request_without_local_entrypoint_does_not_auto_promote(self) -> None:
         cases = [
             (
                 "L",
@@ -1581,19 +1607,22 @@ class NativeExecutionTopologyTests(unittest.TestCase):
                         for entry in current_selected_dispatch(child_runtime_input)
                         if str(entry.get("skill_id", "")).strip()
                     }
-                    self.assertGreaterEqual(len(child_selected_ids), 1)
+                    self.assertEqual(set(), child_selected_ids)
 
                     specialist_accounting = child_execution_manifest["specialist_accounting"]
-                    self.assertGreaterEqual(int(specialist_accounting["selected_skill_execution_count"]), 1)
-                    self.assertGreaterEqual(int(specialist_accounting["specialist_skill_count"]), 1)
+                    self.assertEqual(0, int(specialist_accounting["selected_skill_execution_count"]))
+                    self.assertEqual(0, int(specialist_accounting["specialist_skill_count"]))
                     self.assertFalse(bool(specialist_accounting["escalation_required"]))
-                    self.assertGreaterEqual(len(list(specialist_accounting["execution_skill_outcomes"])), 1)
+                    self.assertEqual([], list(specialist_accounting["execution_skill_outcomes"]))
                     self.assertEqual("completed_local_scope", child_execution_manifest["status"])
                     self.assertFalse(bool(child_execution_manifest["authority"]["completion_claim_allowed"]))
 
     def test_xl_can_build_specialist_steps_from_current_selected_routing(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
-            fake_bin_dir = Path(tempdir) / "fake-bin"
+            temp_path = Path(tempdir)
+            target_root = temp_path / ".agents"
+            write_installed_skill(target_root, "scientific-reporting")
+            fake_bin_dir = temp_path / "fake-bin"
             fake_bin_dir.mkdir(parents=True, exist_ok=True)
             fake_codex = create_fake_codex_command(fake_bin_dir)
 
@@ -1603,13 +1632,14 @@ class NativeExecutionTopologyTests(unittest.TestCase):
                     "reporting artifacts, and publish-ready writing deliverables with independent lanes "
                     "and staged verification."
                 ),
-                artifact_root=Path(tempdir),
+                artifact_root=temp_path,
                 governance_scope="root",
                 extra_env={
                     "PATH": str(fake_bin_dir) + os.pathsep + os.environ.get("PATH", ""),
                     "VGO_ENABLE_NATIVE_SPECIALIST_EXECUTION": "1",
                     "VGO_DISABLE_NATIVE_SPECIALIST_EXECUTION": "0",
                     "VGO_CODEX_EXECUTABLE": str(fake_codex),
+                    "VIBE_AGENTS_HOME": str(target_root),
                 },
             )
 
