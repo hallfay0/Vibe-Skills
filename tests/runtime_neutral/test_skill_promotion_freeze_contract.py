@@ -36,12 +36,15 @@ def resolve_powershell() -> str | None:
     return None
 
 
-def freeze_runtime_packet(task: str, artifact_root: Path) -> dict[str, object]:
+def freeze_runtime_packet(task: str, artifact_root: Path, target_root: Path | None = None) -> dict[str, object]:
     shell = resolve_powershell()
     if shell is None:
         raise unittest.SkipTest("PowerShell executable not available in PATH")
 
     run_id = "pytest-freeze-" + uuid.uuid4().hex[:10]
+    env = dict(os.environ)
+    if target_root is not None:
+        env["VIBE_AGENTS_HOME"] = str(target_root)
     completed = subprocess.run(
         [
             shell,
@@ -65,7 +68,7 @@ def freeze_runtime_packet(task: str, artifact_root: Path) -> dict[str, object]:
         text=True,
         encoding="utf-8",
         check=True,
-        env=dict(os.environ),
+        env=env,
     )
     payload = json.loads(completed.stdout)
     if payload is None:
@@ -138,6 +141,25 @@ def run_powershell_json(script_body: str) -> dict[str, object]:
     return json.loads(completed.stdout)
 
 
+def ps_path(path: Path) -> str:
+    return path.resolve().as_posix().replace("'", "''")
+
+
+def write_installed_skill(target_root: Path, skill_id: str) -> Path:
+    skill_path = target_root / "skills" / skill_id / "SKILL.md"
+    skill_path.parent.mkdir(parents=True, exist_ok=True)
+    skill_path.write_text(
+        (
+            "---\n"
+            f"name: {skill_id}\n"
+            f"description: Installed {skill_id} test skill.\n"
+            "---\n"
+        ),
+        encoding="utf-8",
+    )
+    return skill_path
+
+
 def extract_split_specialist_dispatch_function() -> str:
     content = FREEZE_SCRIPT.read_text(encoding="utf-8")
     match = re.search(
@@ -165,7 +187,9 @@ class SkillPromotionFreezeContractTests(unittest.TestCase):
 
     def test_eligible_matched_skill_is_approved_and_not_ghosted(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
-            payload = freeze_runtime_packet(ML_PROMPT, Path(tempdir))
+            target_root = Path(tempdir) / ".agents"
+            write_installed_skill(target_root, "scikit-learn")
+            payload = freeze_runtime_packet(ML_PROMPT, Path(tempdir), target_root)
             packet = load_json(payload["packet_path"])
             field_order = list(packet)
             self.assertLess(field_order.index("work_binding"), field_order.index("canonical_router"))
@@ -191,7 +215,9 @@ class SkillPromotionFreezeContractTests(unittest.TestCase):
 
     def test_freeze_records_explicit_states_for_all_surfaced_recommendations(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
-            payload = freeze_runtime_packet(ML_PROMPT, Path(tempdir))
+            target_root = Path(tempdir) / ".agents"
+            write_installed_skill(target_root, "scikit-learn")
+            payload = freeze_runtime_packet(ML_PROMPT, Path(tempdir), target_root)
             packet = load_json(payload["packet_path"])
 
             routing_rows = (
@@ -207,7 +233,9 @@ class SkillPromotionFreezeContractTests(unittest.TestCase):
 
     def test_freeze_keeps_consultation_truth_out_of_execution_dispatch_surface(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
-            payload = freeze_runtime_packet(ML_PROMPT, Path(tempdir))
+            target_root = Path(tempdir) / ".agents"
+            write_installed_skill(target_root, "scikit-learn")
+            payload = freeze_runtime_packet(ML_PROMPT, Path(tempdir), target_root)
             packet = load_json(payload["packet_path"])
 
             self.assertNotIn("specialist_consultation", packet)
@@ -215,7 +243,7 @@ class SkillPromotionFreezeContractTests(unittest.TestCase):
             self.assertGreaterEqual(len(as_list(packet["skill_routing"]["candidates"])), 1)
             self.assertGreaterEqual(len(selected_rows_from_packet(packet)), 1)
 
-    def test_policy_can_allow_incomplete_contract_without_forced_freeze_degrade(self) -> None:
+    def test_missing_native_entrypoint_cannot_auto_dispatch_even_when_policy_allows_incomplete_contract(self) -> None:
         split_function = extract_split_specialist_dispatch_function()
         payload = run_powershell_json(
             (
@@ -245,45 +273,134 @@ class SkillPromotionFreezeContractTests(unittest.TestCase):
         )
 
         approved_dispatch = as_list(payload["approved_dispatch"])
-        self.assertEqual(1, len(approved_dispatch))
-        self.assertEqual("demo-skill", approved_dispatch[0]["skill_id"])
-        self.assertEqual([], as_list(payload["degraded"]))
+        degraded = as_list(payload["degraded"])
+        self.assertEqual([], approved_dispatch)
+        self.assertEqual(1, len(degraded))
+        self.assertEqual("demo-skill", degraded[0]["skill_id"])
+        self.assertEqual("missing_native_entrypoint", degraded[0]["degrade_reason"])
         outcome = next(item for item in as_list(payload["promotion_outcomes"]) if item["skill_id"] == "demo-skill")
-        self.assertEqual("approved_dispatch", outcome["promotion_state"])
+        self.assertEqual("degraded", outcome["promotion_state"])
+        self.assertEqual("missing_native_entrypoint", outcome["degrade_reason"])
 
-    def test_split_specialist_dispatch_accepts_partial_host_decision_without_optional_lists(self) -> None:
+    def test_unresolvable_native_entrypoint_cannot_auto_dispatch(self) -> None:
         split_function = extract_split_specialist_dispatch_function()
+        with tempfile.TemporaryDirectory() as tempdir:
+            missing_skill_path = Path(tempdir) / "missing-skill" / "SKILL.md"
+            payload = run_powershell_json(
+                (
+                    "& { "
+                    f". '{HELPER_SCRIPT}'; "
+                    f"{split_function} "
+                    "$policy = [pscustomobject]@{ "
+                    "promotion_enabled = $true; "
+                    "default_mode = 'recall_first'; "
+                    "allow_auto_dispatch_when_non_destructive = $true; "
+                    "require_contract_complete = $true; "
+                    "destructive_prompt_patterns = [pscustomobject]@{}; "
+                    "degraded_fallback_rules = [pscustomobject]@{ missing_contract = 'explicit_degraded' } "
+                    "}; "
+                    "$recommendation = Get-VgoSkillPromotionMetadata "
+                    "-Prompt 'generic prompt' "
+                    f"-SkillMdPath '{ps_path(missing_skill_path)}' "
+                    f"-SkillRoot '{ps_path(missing_skill_path.parent)}' "
+                    "-Description 'desc' "
+                    "-RequiredInputs @('input') "
+                    "-ExpectedOutputs @('output') "
+                    "-VerificationExpectation 'verify' "
+                    "-PromotionPolicy $policy; "
+                    "$recommendation | Add-Member -NotePropertyName skill_id -NotePropertyValue 'missing-local-skill'; "
+                    f"$recommendation | Add-Member -NotePropertyName native_skill_entrypoint -NotePropertyValue '{ps_path(missing_skill_path)}'; "
+                    "$dispatch = Split-VibeSpecialistDispatch -GovernanceScope 'root' -Recommendations @($recommendation); "
+                    "$dispatch | ConvertTo-Json -Depth 20 }"
+                )
+            )
+
+        self.assertEqual([], as_list(payload["approved_dispatch"]))
+        degraded = as_list(payload["degraded"])
+        self.assertEqual(["missing-local-skill"], [item["skill_id"] for item in degraded])
+        self.assertEqual("missing_native_entrypoint", degraded[0]["degrade_reason"])
+
+    def test_missing_native_entrypoint_never_enters_selected_or_lock_surfaces(self) -> None:
+        split_function = extract_split_specialist_dispatch_function()
+        skill_routing_common = REPO_ROOT / "scripts" / "runtime" / "VibeSkillRouting.Common.ps1"
         payload = run_powershell_json(
             (
                 "& { "
                 f". '{HELPER_SCRIPT}'; "
+                f". '{skill_routing_common}'; "
+                f". '{RUNTIME_COMMON}'; "
                 f"{split_function} "
                 "$policy = [pscustomobject]@{ "
                 "promotion_enabled = $true; "
                 "default_mode = 'recall_first'; "
-                "allow_auto_dispatch_when_non_destructive = $false; "
-                "require_contract_complete = $true; "
+                "allow_auto_dispatch_when_non_destructive = $true; "
+                "require_contract_complete = $false; "
                 "destructive_prompt_patterns = [pscustomobject]@{}; "
                 "degraded_fallback_rules = [pscustomobject]@{ missing_contract = 'explicit_degraded' } "
                 "}; "
                 "$recommendation = Get-VgoSkillPromotionMetadata "
                 "-Prompt 'generic prompt' "
-                "-SkillMdPath '/tmp/skill.md' "
-                "-SkillRoot '/tmp' "
-                "-Description 'desc' "
-                "-RequiredInputs @('input') "
-                "-ExpectedOutputs @('output') "
-                "-VerificationExpectation 'verify' "
+                "-SkillMdPath '' "
+                "-Description '' "
+                "-RequiredInputs @() "
+                "-ExpectedOutputs @() "
+                "-VerificationExpectation '' "
                 "-PromotionPolicy $policy; "
-                "$recommendation | Add-Member -NotePropertyName skill_id -NotePropertyValue 'demo-skill'; "
-                "$hostDecision = [pscustomobject]@{ selection_mode = 'curated_only' }; "
-                "$dispatch = Split-VibeSpecialistDispatch "
-                "-GovernanceScope 'root' "
+                "$recommendation | Add-Member -NotePropertyName skill_id -NotePropertyValue 'missing-local-skill'; "
+                "$dispatch = Split-VibeSpecialistDispatch -GovernanceScope 'root' -Recommendations @($recommendation); "
+                "$routing = New-VibeSkillRoutingFromLegacy "
+                "-RouterSelectedSkill '' "
                 "-Recommendations @($recommendation) "
-                "-HostSpecialistDispatchDecision $hostDecision; "
-                "$dispatch | ConvertTo-Json -Depth 20 }"
+                "-StageAssistantHints @() "
+                "-SpecialistDispatch $dispatch; "
+                "$lock = New-VibeSkillExecutionLockProjection -CurrentSkillRouting $routing -Source 'test'; "
+                "[pscustomobject]@{ dispatch = $dispatch; routing = $routing; lock = $lock } | ConvertTo-Json -Depth 30 }"
             )
         )
+
+        self.assertEqual([], as_list(payload["routing"]["selected"]))
+        self.assertEqual(["missing-local-skill"], [item["skill_id"] for item in as_list(payload["routing"]["candidates"])])
+        self.assertEqual(["missing-local-skill"], [item["skill_id"] for item in as_list(payload["routing"]["rejected"])])
+        self.assertEqual("inactive", payload["lock"]["state"])
+        self.assertEqual([], as_list(payload["lock"]["locked_dispatch"]))
+
+    def test_split_specialist_dispatch_accepts_partial_host_decision_without_optional_lists(self) -> None:
+        split_function = extract_split_specialist_dispatch_function()
+        with tempfile.TemporaryDirectory() as tempdir:
+            skill_path = Path(tempdir) / "SKILL.md"
+            skill_path.write_text("---\nname: demo-skill\n---\n", encoding="utf-8")
+            payload = run_powershell_json(
+                (
+                    "& { "
+                    f". '{HELPER_SCRIPT}'; "
+                    f"{split_function} "
+                    "$policy = [pscustomobject]@{ "
+                    "promotion_enabled = $true; "
+                    "default_mode = 'recall_first'; "
+                    "allow_auto_dispatch_when_non_destructive = $false; "
+                    "require_contract_complete = $true; "
+                    "destructive_prompt_patterns = [pscustomobject]@{}; "
+                    "degraded_fallback_rules = [pscustomobject]@{ missing_contract = 'explicit_degraded' } "
+                    "}; "
+                    "$recommendation = Get-VgoSkillPromotionMetadata "
+                    "-Prompt 'generic prompt' "
+                    f"-SkillMdPath '{ps_path(skill_path)}' "
+                    f"-SkillRoot '{ps_path(skill_path.parent)}' "
+                    "-Description 'desc' "
+                    "-RequiredInputs @('input') "
+                    "-ExpectedOutputs @('output') "
+                    "-VerificationExpectation 'verify' "
+                    "-PromotionPolicy $policy; "
+                    "$recommendation | Add-Member -NotePropertyName skill_id -NotePropertyValue 'demo-skill'; "
+                    f"$recommendation | Add-Member -NotePropertyName native_skill_entrypoint -NotePropertyValue '{ps_path(skill_path)}'; "
+                    "$hostDecision = [pscustomobject]@{ selection_mode = 'curated_only' }; "
+                    "$dispatch = Split-VibeSpecialistDispatch "
+                    "-GovernanceScope 'root' "
+                    "-Recommendations @($recommendation) "
+                    "-HostSpecialistDispatchDecision $hostDecision; "
+                    "$dispatch | ConvertTo-Json -Depth 20 }"
+                )
+            )
 
         self.assertEqual([], as_list(payload["approved_dispatch"]))
         self.assertEqual(["demo-skill"], [item["skill_id"] for item in as_list(payload["local_specialist_suggestions"])])
@@ -292,33 +409,37 @@ class SkillPromotionFreezeContractTests(unittest.TestCase):
 
     def test_surface_only_recommendation_is_not_auto_approved_in_root_scope(self) -> None:
         split_function = extract_split_specialist_dispatch_function()
-        payload = run_powershell_json(
-            (
-                "& { "
-                f". '{HELPER_SCRIPT}'; "
-                f"{split_function} "
-                "$policy = [pscustomobject]@{ "
-                "promotion_enabled = $true; "
-                "default_mode = 'recall_first'; "
-                "allow_auto_dispatch_when_non_destructive = $false; "
-                "require_contract_complete = $true; "
-                "destructive_prompt_patterns = [pscustomobject]@{}; "
-                "degraded_fallback_rules = [pscustomobject]@{ missing_contract = 'explicit_degraded' } "
-                "}; "
-                "$recommendation = Get-VgoSkillPromotionMetadata "
-                "-Prompt 'generic prompt' "
-                "-SkillMdPath '/tmp/skill.md' "
-                "-SkillRoot '/tmp' "
-                "-Description 'desc' "
-                "-RequiredInputs @('input') "
-                "-ExpectedOutputs @('output') "
-                "-VerificationExpectation 'verify' "
-                "-PromotionPolicy $policy; "
-                "$recommendation | Add-Member -NotePropertyName skill_id -NotePropertyValue 'demo-skill'; "
-                "$dispatch = Split-VibeSpecialistDispatch -GovernanceScope 'root' -Recommendations @($recommendation); "
-                "$dispatch | ConvertTo-Json -Depth 20 }"
+        with tempfile.TemporaryDirectory() as tempdir:
+            skill_path = Path(tempdir) / "SKILL.md"
+            skill_path.write_text("---\nname: demo-skill\n---\n", encoding="utf-8")
+            payload = run_powershell_json(
+                (
+                    "& { "
+                    f". '{HELPER_SCRIPT}'; "
+                    f"{split_function} "
+                    "$policy = [pscustomobject]@{ "
+                    "promotion_enabled = $true; "
+                    "default_mode = 'recall_first'; "
+                    "allow_auto_dispatch_when_non_destructive = $false; "
+                    "require_contract_complete = $true; "
+                    "destructive_prompt_patterns = [pscustomobject]@{}; "
+                    "degraded_fallback_rules = [pscustomobject]@{ missing_contract = 'explicit_degraded' } "
+                    "}; "
+                    "$recommendation = Get-VgoSkillPromotionMetadata "
+                    "-Prompt 'generic prompt' "
+                    f"-SkillMdPath '{ps_path(skill_path)}' "
+                    f"-SkillRoot '{ps_path(skill_path.parent)}' "
+                    "-Description 'desc' "
+                    "-RequiredInputs @('input') "
+                    "-ExpectedOutputs @('output') "
+                    "-VerificationExpectation 'verify' "
+                    "-PromotionPolicy $policy; "
+                    "$recommendation | Add-Member -NotePropertyName skill_id -NotePropertyValue 'demo-skill'; "
+                    f"$recommendation | Add-Member -NotePropertyName native_skill_entrypoint -NotePropertyValue '{ps_path(skill_path)}'; "
+                    "$dispatch = Split-VibeSpecialistDispatch -GovernanceScope 'root' -Recommendations @($recommendation); "
+                    "$dispatch | ConvertTo-Json -Depth 20 }"
+                )
             )
-        )
 
         self.assertEqual([], as_list(payload["approved_dispatch"]))
         self.assertEqual(["demo-skill"], [item["skill_id"] for item in as_list(payload["local_specialist_suggestions"])])

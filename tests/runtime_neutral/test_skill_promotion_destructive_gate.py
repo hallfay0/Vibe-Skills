@@ -18,8 +18,8 @@ ML_PROMPT = (
     "run feature selection, and compare cross-validation metrics."
 )
 DESTRUCTIVE_PROMPT = (
-    "Delete the old generated artifacts, remove the obsolete branch, "
-    "and overwrite the install settings to reset the environment."
+    "Build a scikit-learn tabular classification baseline, "
+    "then delete old generated artifacts and overwrite install settings."
 )
 
 
@@ -84,6 +84,21 @@ def as_list(value: object) -> list[object]:
     return [value]
 
 
+def write_installed_skill(target_root: Path, skill_id: str) -> Path:
+    skill_path = target_root / "skills" / skill_id / "SKILL.md"
+    skill_path.parent.mkdir(parents=True, exist_ok=True)
+    skill_path.write_text(
+        (
+            "---\n"
+            f"name: {skill_id}\n"
+            f"description: Installed {skill_id} test skill.\n"
+            "---\n"
+        ),
+        encoding="utf-8",
+    )
+    return skill_path
+
+
 def create_fake_codex_command(directory: Path) -> Path:
     suffix = ".cmd" if os.name == "nt" else ""
     command_path = directory / f"codex{suffix}"
@@ -138,7 +153,14 @@ def create_fake_codex_command(directory: Path) -> Path:
 class SkillPromotionDestructiveGateTests(unittest.TestCase):
     def test_destructive_match_is_blocked_with_artifact_backed_outcome(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
-            payload = run_runtime(DESTRUCTIVE_PROMPT, Path(tempdir))
+            temp_path = Path(tempdir)
+            target_root = temp_path / ".agents"
+            write_installed_skill(target_root, "scikit-learn")
+            payload = run_runtime(
+                DESTRUCTIVE_PROMPT,
+                temp_path,
+                extra_env={"VIBE_AGENTS_HOME": str(target_root)},
+            )
             summary = payload["summary"]
             runtime_input = load_json(summary["artifacts"]["runtime_input_packet"])
             execution_manifest = load_json(summary["artifacts"]["execution_manifest"])
@@ -161,11 +183,14 @@ class SkillPromotionDestructiveGateTests(unittest.TestCase):
     def test_non_destructive_match_can_execute_live_after_auto_dispatch(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             temp_path = Path(tempdir)
+            target_root = temp_path / ".agents"
+            write_installed_skill(target_root, "scikit-learn")
             fake_codex = create_fake_codex_command(temp_path)
             payload = run_runtime(
                 ML_PROMPT,
                 temp_path,
                 extra_env={
+                    "VIBE_AGENTS_HOME": str(target_root),
                     "VGO_NATIVE_SPECIALIST_EXECUTION_MODE": "",
                     "VGO_SPECIALIST_CONSULTATION_MODE": "",
                     "VGO_DISABLE_NATIVE_SPECIALIST_EXECUTION": "0",

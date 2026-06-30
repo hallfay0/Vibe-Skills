@@ -51,6 +51,21 @@ def _create_fake_command(directory: Path, name: str) -> Path:
     return command_path
 
 
+def write_installed_skill(target_root: Path, skill_id: str) -> Path:
+    skill_path = target_root / "skills" / skill_id / "SKILL.md"
+    skill_path.parent.mkdir(parents=True, exist_ok=True)
+    skill_path.write_text(
+        (
+            "---\n"
+            f"name: {skill_id}\n"
+            f"description: Installed {skill_id} test skill.\n"
+            "---\n"
+        ),
+        encoding="utf-8",
+    )
+    return skill_path
+
+
 def selected_skill_ids_from_packet(runtime_input_packet: dict[str, object]) -> list[str]:
     routing = runtime_input_packet.get("skill_routing")
     if isinstance(routing, dict):
@@ -253,6 +268,8 @@ class GovernedRuntimeBridgeTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tempdir:
             artifact_root = Path(tempdir)
+            target_root = artifact_root / ".agents"
+            write_installed_skill(target_root, "systematic-debugging")
             command = [
                 shell,
                 "-NoLogo",
@@ -278,7 +295,11 @@ class GovernedRuntimeBridgeTests(unittest.TestCase):
                 encoding="utf-8",
                 errors="replace",
                 check=True,
-                env={**os.environ, "VGO_DISABLE_NATIVE_SPECIALIST_EXECUTION": "1"},
+                env={
+                    **os.environ,
+                    "VIBE_AGENTS_HOME": str(target_root),
+                    "VGO_DISABLE_NATIVE_SPECIALIST_EXECUTION": "1",
+                },
             )
 
             payload = json.loads(completed.stdout)

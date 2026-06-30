@@ -20,8 +20,8 @@ ML_PROMPT = (
 )
 SAFE_EDIT_PROMPT = "Remove dead imports and replace a mock in tests."
 DESTRUCTIVE_PROMPT = (
-    "Delete the old generated artifacts, remove the obsolete branch, "
-    "and overwrite the install settings to reset the environment."
+    "Please use scikit-learn to prototype a tabular classification baseline, "
+    "then delete old generated artifacts and overwrite install settings."
 )
 WINDOWS_DESTRUCTIVE_PROMPT = r"delete C:\tmp\build"
 POWERSHELL_SUBPROCESS_TIMEOUT_SECONDS = 120
@@ -42,28 +42,32 @@ def resolve_powershell() -> str | None:
     return None
 
 
-def run_route(prompt: str, *, repo_root: Path = REPO_ROOT) -> dict[str, object]:
+def run_route(prompt: str, *, repo_root: Path = REPO_ROOT, target_root: Path | None = None) -> dict[str, object]:
     shell = resolve_powershell()
     if shell is None:
         raise unittest.SkipTest("PowerShell executable not available in PATH")
 
     route_script = repo_root / "scripts" / "router" / "resolve-pack-route.ps1"
+    command = [
+        shell,
+        "-NoLogo",
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        str(route_script),
+        "-Prompt",
+        prompt,
+        "-Grade",
+        "M",
+        "-TaskType",
+        "coding",
+    ]
+    if target_root is not None:
+        command.extend(["-HostId", "codex", "-TargetRoot", str(target_root)])
+
     completed = subprocess.run(
-        [
-            shell,
-            "-NoLogo",
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            str(route_script),
-            "-Prompt",
-            prompt,
-            "-Grade",
-            "M",
-            "-TaskType",
-            "coding",
-        ],
+        command,
         cwd=repo_root,
         capture_output=True,
         text=True,
@@ -72,6 +76,21 @@ def run_route(prompt: str, *, repo_root: Path = REPO_ROOT) -> dict[str, object]:
         check=True,
     )
     return json.loads(completed.stdout)
+
+
+def write_installed_skill(target_root: Path, skill_id: str) -> Path:
+    skill_path = target_root / "skills" / skill_id / "SKILL.md"
+    skill_path.parent.mkdir(parents=True, exist_ok=True)
+    skill_path.write_text(
+        (
+            "---\n"
+            f"name: {skill_id}\n"
+            f"description: Installed {skill_id} test skill.\n"
+            "---\n"
+        ),
+        encoding="utf-8",
+    )
+    return skill_path
 
 
 def run_helper_json(script_body: str) -> dict[str, object]:
@@ -143,7 +162,10 @@ def copy_repo_fixture(target_root: Path) -> Path:
 
 class SkillPromotionRouterMetadataTests(unittest.TestCase):
     def test_non_destructive_ml_prompt_exposes_auto_dispatch_promotion_metadata(self) -> None:
-        route = run_route(ML_PROMPT)
+        with tempfile.TemporaryDirectory() as tempdir:
+            target_root = Path(tempdir) / ".agents"
+            write_installed_skill(target_root, "scikit-learn")
+            route = run_route(ML_PROMPT, target_root=target_root)
 
         selected = route["selected"]
         self.assertEqual("data-ml", selected["pack_id"])
@@ -158,7 +180,10 @@ class SkillPromotionRouterMetadataTests(unittest.TestCase):
         self.assertNotIn("confirm_ui", route)
 
     def test_destructive_prompt_exposes_confirmation_gated_promotion_metadata(self) -> None:
-        route = run_route(DESTRUCTIVE_PROMPT)
+        with tempfile.TemporaryDirectory() as tempdir:
+            target_root = Path(tempdir) / ".agents"
+            write_installed_skill(target_root, "scikit-learn")
+            route = run_route(DESTRUCTIVE_PROMPT, target_root=target_root)
 
         selected = route["selected"]
         self.assertIsInstance(selected["skill"], str)

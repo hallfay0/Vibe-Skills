@@ -33,12 +33,12 @@ HOST_BRIDGE_ENV = {
     "opencode": "VGO_OPENCODE_SPECIALIST_BRIDGE_COMMAND",
 }
 HOST_HOME_ENV = {
-    "codex": "CODEX_HOME",
-    "claude-code": "CLAUDE_HOME",
-    "cursor": "CURSOR_HOME",
-    "windsurf": "WINDSURF_HOME",
-    "openclaw": "OPENCLAW_HOME",
-    "opencode": "OPENCODE_HOME",
+    "codex": "VIBE_AGENTS_HOME",
+    "claude-code": "VIBE_AGENTS_HOME",
+    "cursor": "VIBE_AGENTS_HOME",
+    "windsurf": "VIBE_AGENTS_HOME",
+    "openclaw": "VIBE_AGENTS_HOME",
+    "opencode": "VIBE_AGENTS_HOME",
 }
 
 
@@ -211,6 +211,21 @@ def create_fake_codex_command(directory: Path) -> Path:
     return command_path
 
 
+def write_installed_skill(target_root: Path, skill_id: str) -> Path:
+    skill_path = target_root / "skills" / skill_id / "SKILL.md"
+    skill_path.parent.mkdir(parents=True, exist_ok=True)
+    skill_path.write_text(
+        (
+            "---\n"
+            f"name: {skill_id}\n"
+            f"description: Installed {skill_id} test skill.\n"
+            "---\n"
+        ),
+        encoding="utf-8",
+    )
+    return skill_path
+
+
 def install_host(target_root: Path, host_id: str, *, env: dict[str, str]) -> None:
     if os.name == "nt":
         shell = resolve_powershell()
@@ -326,6 +341,7 @@ class InstalledHostRuntimeSimulationTests(unittest.TestCase):
             bridge = create_fake_bridge(bridge_root, host_id)
             env[HOST_BRIDGE_ENV[host_id]] = str(bridge)
         install_host(target_root, host_id, env=env)
+        write_installed_skill(target_root, "systematic-debugging")
         installed_root = target_root / "skills" / "vibe"
         self.assertTrue(installed_root.exists(), host_id)
         return target_root, installed_root, env

@@ -184,7 +184,7 @@ def run_runtime_freeze(
         (
             "& { "
             f"$env:VCO_HOST_ID = 'codex'; "
-            f"$env:CODEX_HOME = '{target_root}'; "
+            f"$env:VIBE_AGENTS_HOME = '{target_root}'; "
             f"$result = & '{FREEZE_SCRIPT}' "
             f"-Task '{task}' "
             "-Mode interactive_governed "
@@ -240,7 +240,7 @@ def run_full_runtime(
         (
             "& { "
             f"$env:VCO_HOST_ID = 'codex'; "
-            f"$env:CODEX_HOME = '{target_root}'; "
+            f"$env:VIBE_AGENTS_HOME = '{target_root}'; "
             f"$result = & '{INVOKE_RUNTIME_SCRIPT}' "
             f"-Task '{task}' "
             "-Mode interactive_governed "

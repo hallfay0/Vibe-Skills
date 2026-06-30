@@ -157,6 +157,21 @@ def run_runtime(
     return json.loads(stdout)
 
 
+def write_installed_skill(target_root: Path, skill_id: str) -> Path:
+    skill_path = target_root / "skills" / skill_id / "SKILL.md"
+    skill_path.parent.mkdir(parents=True, exist_ok=True)
+    skill_path.write_text(
+        (
+            "---\n"
+            f"name: {skill_id}\n"
+            f"description: Installed {skill_id} test skill.\n"
+            "---\n"
+        ),
+        encoding="utf-8",
+    )
+    return skill_path
+
+
 def write_delegation_envelope_fixture(
     artifact_root: Path,
     *,
@@ -1258,6 +1273,8 @@ class NativeExecutionTopologyTests(unittest.TestCase):
     def test_path_resolved_specialist_prompt_uses_entrypoint_and_root_as_source_of_truth(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             temp_path = Path(tempdir)
+            target_root = temp_path / ".agents"
+            expected_entrypoint = write_installed_skill(target_root, "scientific-reporting").resolve()
             fake_codex = create_fake_codex_command(temp_path)
             payload = run_runtime(
                 task=(
@@ -1270,6 +1287,7 @@ class NativeExecutionTopologyTests(unittest.TestCase):
                     "VGO_ENABLE_NATIVE_SPECIALIST_EXECUTION": "1",
                     "VGO_DISABLE_NATIVE_SPECIALIST_EXECUTION": "0",
                     "VGO_NATIVE_SPECIALIST_EXECUTION_MODE": "host_subprocess",
+                    "VIBE_AGENTS_HOME": str(target_root),
                     "VGO_CODEX_EXECUTABLE": str(fake_codex),
                 },
             )
@@ -1293,11 +1311,11 @@ class NativeExecutionTopologyTests(unittest.TestCase):
                 )
                 self.assertIsNotNone(dispatch)
                 native_entrypoint = str((dispatch or {}).get("native_skill_entrypoint") or "").strip()
-                normalized_entrypoint = native_entrypoint.replace("\\", "/")
-                if "/bundled/skills/" not in normalized_entrypoint:
+                if Path(native_entrypoint).resolve() != expected_entrypoint:
                     continue
                 skill_root = str((dispatch or {}).get("skill_root") or "").strip()
                 self.assertTrue(skill_root)
+                self.assertEqual(expected_entrypoint, Path(native_entrypoint).resolve())
                 self.assertEqual(native_entrypoint, str(result.get("native_skill_entrypoint") or "").strip())
                 self.assertEqual(skill_root, str(result.get("skill_root") or "").strip())
                 self.assertEqual(native_entrypoint, str(result.get("direct_route_entrypoint") or "").strip())

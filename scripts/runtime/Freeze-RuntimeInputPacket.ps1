@@ -184,28 +184,16 @@ function Get-VibeSkillMetadata {
     )
 
     $skillPath = $null
+    $installedSkillsRoot = Resolve-VgoInstalledSkillsRoot -TargetRoot $TargetRoot -HostId $HostId
     foreach ($candidatePath in @(
-        (Join-Path $RepoRoot ("bundled\skills\{0}\SKILL.md" -f $SkillId)),
-        (Join-Path $RepoRoot ("bundled\skills\{0}\SKILL.runtime-mirror.md" -f $SkillId))
+        (Join-Path $installedSkillsRoot (Join-Path $SkillId 'SKILL.md')),
+        (Join-Path $installedSkillsRoot (Join-Path $SkillId 'SKILL.runtime-mirror.md')),
+        (Join-Path $installedSkillsRoot (Join-Path 'custom' (Join-Path $SkillId 'SKILL.md'))),
+        (Join-Path $installedSkillsRoot (Join-Path 'custom' (Join-Path $SkillId 'SKILL.runtime-mirror.md')))
     )) {
         if (Test-Path -LiteralPath $candidatePath) {
             $skillPath = $candidatePath
             break
-        }
-    }
-
-    if (-not $skillPath) {
-        $installedSkillsRoot = Resolve-VgoInstalledSkillsRoot -TargetRoot $TargetRoot -HostId $HostId
-        foreach ($candidatePath in @(
-            (Join-Path $installedSkillsRoot (Join-Path $SkillId 'SKILL.md')),
-            (Join-Path $installedSkillsRoot (Join-Path $SkillId 'SKILL.runtime-mirror.md')),
-            (Join-Path $installedSkillsRoot (Join-Path 'custom' (Join-Path $SkillId 'SKILL.md'))),
-            (Join-Path $installedSkillsRoot (Join-Path 'custom' (Join-Path $SkillId 'SKILL.runtime-mirror.md')))
-        )) {
-            if (Test-Path -LiteralPath $candidatePath) {
-                $skillPath = $candidatePath
-                break
-            }
         }
     }
 
@@ -766,6 +754,39 @@ function Split-VibeSpecialistDispatch {
     $promotionOutcomes = @()
     foreach ($recommendation in @($Recommendations)) {
         $skillId = [string]$recommendation.skill_id
+        $nativeSkillEntrypoint = if (
+            $recommendation.PSObject.Properties.Name -contains 'native_skill_entrypoint' -and
+            -not [string]::IsNullOrWhiteSpace([string]$recommendation.native_skill_entrypoint)
+        ) {
+            [string]$recommendation.native_skill_entrypoint
+        } elseif (
+            $recommendation.PSObject.Properties.Name -contains 'skill_md_path' -and
+            -not [string]::IsNullOrWhiteSpace([string]$recommendation.skill_md_path)
+        ) {
+            [string]$recommendation.skill_md_path
+        } else {
+            ''
+        }
+        $nativeEntrypointFileName = if ([string]::IsNullOrWhiteSpace($nativeSkillEntrypoint)) { '' } else { [System.IO.Path]::GetFileName($nativeSkillEntrypoint) }
+        if (
+            [string]::IsNullOrWhiteSpace($nativeSkillEntrypoint) -or
+            $nativeEntrypointFileName -notin @('SKILL.md', 'SKILL.runtime-mirror.md') -or
+            -not (Test-Path -LiteralPath $nativeSkillEntrypoint -PathType Leaf)
+        ) {
+            $record = Copy-VibeRecordObject -InputObject $recommendation
+            $record | Add-Member -NotePropertyName degrade_reason -NotePropertyValue 'missing_native_entrypoint' -Force
+            $degradedDispatch += $record
+            $promotionOutcomes += [pscustomobject]@{
+                skill_id = $skillId
+                promotion_state = 'degraded'
+                degrade_reason = 'missing_native_entrypoint'
+                destructive = [bool]$recommendation.destructive
+                destructive_reason_codes = @($recommendation.destructive_reason_codes)
+                contract_complete = [bool]$recommendation.contract_complete
+                recommended_promotion_action = [string]$recommendation.recommended_promotion_action
+            }
+            continue
+        }
         if ([bool]$recommendation.destructive -or [string]$recommendation.recommended_promotion_action -eq 'require_confirmation') {
             $blockedDispatch += $recommendation
             $promotionOutcomes += [pscustomobject]@{
