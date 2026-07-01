@@ -1008,6 +1008,14 @@ function Sync-VgoInternalSkillCorpus {
         [bool]$corpus.enabled
     )
     if (-not $corpusEnabled) {
+        $staleCorpusRoot = Join-Path (Join-Path (Join-Path $TargetRoot 'skills') $CanonicalVibeName) 'bundled\skills'
+        if (Test-Path -LiteralPath $staleCorpusRoot -PathType Container) {
+            $targetFull = [System.IO.Path]::GetFullPath($TargetRoot).TrimEnd('\', '/')
+            $staleFull = [System.IO.Path]::GetFullPath($staleCorpusRoot).TrimEnd('\', '/')
+            if ($staleFull.StartsWith($targetFull + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)) {
+                Remove-Item -LiteralPath $staleCorpusRoot -Recurse -Force
+            }
+        }
         return $null
     }
 

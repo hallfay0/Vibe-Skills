@@ -104,6 +104,115 @@ function Resolve-VibeSkillUsageSkillPath {
     return $null
 }
 
+function Resolve-VibeLocalSkillAuthority {
+    param(
+        [Parameter(Mandatory)] [string]$RepoRoot,
+        [Parameter(Mandatory)] [string]$SkillId,
+        [AllowEmptyString()] [string]$NativeSkillEntrypoint = '',
+        [AllowEmptyString()] [string]$TargetRoot = '',
+        [AllowEmptyString()] [string]$HostId = '',
+        [switch]$RequireProvidedEntrypoint
+    )
+
+    $skillIdText = ([string]$SkillId).Trim()
+    if ([string]::IsNullOrWhiteSpace($skillIdText)) {
+        return [pscustomobject]@{
+            valid = $false
+            reason = 'missing_skill_id'
+            skill_id = $skillIdText
+            canonical_entrypoint = $null
+        }
+    }
+    if ($skillIdText -in @('vibe', 'vibe-upgrade')) {
+        return [pscustomobject]@{
+            valid = $false
+            reason = 'controller_entry_excluded'
+            skill_id = $skillIdText
+            canonical_entrypoint = $null
+        }
+    }
+
+    $activePath = $null
+    $activeSourceRoot = $null
+    $activePriority = 0
+    $rootIndex = 0
+    foreach ($installedSkillsRoot in @(Get-VibeConfiguredSkillRoots -RepoRoot $RepoRoot -TargetRoot $TargetRoot -HostId $HostId)) {
+        foreach ($candidatePath in @(
+            (Join-Path $installedSkillsRoot (Join-Path $skillIdText 'SKILL.md')),
+            (Join-Path $installedSkillsRoot (Join-Path 'custom' (Join-Path $skillIdText 'SKILL.md')))
+        )) {
+            if (Test-Path -LiteralPath $candidatePath -PathType Leaf) {
+                $activePath = [System.IO.Path]::GetFullPath($candidatePath)
+                $activeSourceRoot = [System.IO.Path]::GetFullPath($installedSkillsRoot)
+                $activePriority = $rootIndex
+                break
+            }
+        }
+        if (-not [string]::IsNullOrWhiteSpace([string]$activePath)) {
+            break
+        }
+        $rootIndex += 1
+    }
+
+    if ([string]::IsNullOrWhiteSpace([string]$activePath)) {
+        return [pscustomobject]@{
+            valid = $false
+            reason = 'not_in_local_skill_index'
+            skill_id = $skillIdText
+            canonical_entrypoint = $null
+        }
+    }
+
+    $providedPath = ''
+    if (-not [string]::IsNullOrWhiteSpace([string]$NativeSkillEntrypoint)) {
+        $providedPath = [System.IO.Path]::GetFullPath([string]$NativeSkillEntrypoint)
+    }
+    if ([string]::IsNullOrWhiteSpace($providedPath) -and $RequireProvidedEntrypoint) {
+        return [pscustomobject]@{
+            valid = $false
+            reason = 'missing_native_entrypoint'
+            skill_id = $skillIdText
+            canonical_entrypoint = $activePath
+            source_root = $activeSourceRoot
+            source_kind = 'host_installed'
+            source_priority = $activePriority
+            active = $true
+            duplicate_state = 'active'
+        }
+    }
+    if (
+        -not [string]::IsNullOrWhiteSpace($providedPath) -and
+        -not [string]::Equals($providedPath, $activePath, [System.StringComparison]::OrdinalIgnoreCase)
+    ) {
+        return [pscustomobject]@{
+            valid = $false
+            reason = 'entrypoint_mismatch'
+            skill_id = $skillIdText
+            canonical_entrypoint = $activePath
+            provided_entrypoint = $providedPath
+            source_root = $activeSourceRoot
+            source_kind = 'host_installed'
+            source_priority = $activePriority
+            active = $true
+            duplicate_state = 'active'
+        }
+    }
+
+    return [pscustomobject]@{
+        valid = $true
+        reason = 'ok'
+        skill_id = $skillIdText
+        canonical_entrypoint = $activePath
+        native_skill_entrypoint = $activePath
+        skill_root = [System.IO.Path]::GetFullPath((Split-Path -Parent $activePath))
+        source_root = $activeSourceRoot
+        source_kind = 'host_installed'
+        source_priority = $activePriority
+        active = $true
+        duplicate_state = 'active'
+    }
+}
+
 function New-VibeSkillUsageLoadedSkill {
     param(
         [Parameter(Mandatory)] [string]$RepoRoot,

@@ -1053,8 +1053,6 @@ TARGET_ROOT="${resolved_target_root}"
 assert_target_root_matches_host_intent "${TARGET_ROOT}" "${HOST_ID}"
 
 runtime_skill_root="${resolved_installed_root}"
-runtime_nested_skill_root="${runtime_skill_root}/bundled/skills/vibe"
-
 if [[ "${ADAPTER_CHECK_MODE}" == "governed" ]]; then
   check_path "settings.json" "${TARGET_ROOT}/settings.json"
 fi
@@ -1142,17 +1140,7 @@ fi
 resolve_skill_descriptor_path() {
   local skill_name="$1"
   local public_path="${TARGET_ROOT}/skills/${skill_name}/SKILL.md"
-  local hidden_runtime_mirror="${runtime_skill_root}/bundled/skills/${skill_name}/SKILL.runtime-mirror.md"
-  local hidden_plain="${runtime_skill_root}/bundled/skills/${skill_name}/SKILL.md"
-  if [[ -f "${public_path}" ]]; then
-    printf '%s\n' "${public_path}"
-    return 0
-  fi
-  if [[ -f "${hidden_runtime_mirror}" ]]; then
-    printf '%s\n' "${hidden_runtime_mirror}"
-    return 0
-  fi
-  printf '%s\n' "${hidden_plain}"
+  printf '%s\n' "${public_path}"
 }
 
 PUBLIC_ENTRY_SKILLS=()
@@ -1190,20 +1178,7 @@ check_path "vibe retrieval rerank weights config" "${runtime_skill_root}/config/
 check_path "vibe exploration policy config" "${runtime_skill_root}/config/exploration-policy.json"
 check_path "vibe exploration intent profiles config" "${runtime_skill_root}/config/exploration-intent-profiles.json"
 check_path "vibe exploration domain map config" "${runtime_skill_root}/config/exploration-domain-map.json"
-if [[ -d "${runtime_nested_skill_root}" ]]; then
-  check_path "vibe bundled retrieval intent profiles config" "${runtime_nested_skill_root}/config/retrieval-intent-profiles.json"
-  check_path "vibe bundled retrieval source registry config" "${runtime_nested_skill_root}/config/retrieval-source-registry.json"
-  check_path "vibe bundled retrieval rerank weights config" "${runtime_nested_skill_root}/config/retrieval-rerank-weights.json"
-  check_path "vibe bundled exploration policy config" "${runtime_nested_skill_root}/config/exploration-policy.json"
-  check_path "vibe bundled exploration intent profiles config" "${runtime_nested_skill_root}/config/exploration-intent-profiles.json"
-  check_path "vibe bundled exploration domain map config" "${runtime_nested_skill_root}/config/exploration-domain-map.json"
-  check_path "vibe bundled llm acceleration policy config" "${runtime_nested_skill_root}/config/llm-acceleration-policy.json"
-  check_absent_path "vibe nested bundled skill entrypoint hidden" "${runtime_nested_skill_root}/SKILL.md"
-  check_path "vibe nested bundled skill runtime mirror" "${runtime_nested_skill_root}/SKILL.runtime-mirror.md"
-else
-  echo "[OK] vibe nested bundled config checks skipped (target absent; policy=optional)"
-  PASS=$((PASS+1))
-fi
+check_absent_path "vibe bundled specialist corpus absent" "${runtime_skill_root}/bundled/skills"
 for n in "${STARTER_SKILLS[@]}"; do
   check_path "starter/${n}" "$(resolve_skill_descriptor_path "${n}")"
 done

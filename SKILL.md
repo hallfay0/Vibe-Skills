@@ -43,7 +43,7 @@ Do not simulate stages, claim canonical entry from reading this file or wrapper 
 Do not manually create `outputs/runtime/vibe-sessions/<run-id>/`.
 Do not use the Vibe installation root as the governed artifact root.
 
-Internal specialist recommendation router: `scripts/router/resolve-pack-route.ps1`
+Local installed specialist recommender: `scripts/router/resolve-pack-route.ps1`
 
 Specialist recommender input rules:
 
@@ -224,5 +224,5 @@ Read these references only after canonical launch or when maintaining the repo:
 - Runtime family: governed-runtime-first
 - Version: 3.1.1
 - Updated: 2026-05-06
-- Internal specialist recommendation router: `scripts/router/resolve-pack-route.ps1`
+- Local installed specialist recommender: `scripts/router/resolve-pack-route.ps1`
 - Primary contract metadata: `core/skill-contracts/v1/vibe.json`

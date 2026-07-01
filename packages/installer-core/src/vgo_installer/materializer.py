@@ -438,6 +438,9 @@ def materialize_internal_skill_corpus(
 ) -> Path | None:
     corpus = internal_skill_corpus(packaging)
     if not bool(corpus.get("enabled")):
+        stale_corpus = target_root / canonical_vibe_target_relpath(packaging) / "bundled" / "skills"
+        if stale_corpus.exists():
+            shutil.rmtree(stale_corpus)
         return None
 
     target_relpath = str(corpus.get("target_relpath") or "").strip()

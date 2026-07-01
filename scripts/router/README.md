@@ -5,13 +5,13 @@
 
 ## What Lives Here
 
-`scripts/router/` 保存内部专家候选发现面，也就是 candidate discovery surface。这里负责给出候选项、补充澄清问题、整理确认界面，以及保留旧调用方仍需要的 compatibility projection。它不负责声明真正的工作归属、执行事实或完成结论；这些事实应由 kernel 侧产物给出。公开治理入口仍然是 `$vibe` / `/vibe`。
+`scripts/router/` 保存本地已安装 skill 的候选发现面，也就是 candidate discovery surface。这里只围绕宿主声明的本地 skill roots 给出候选项、补充澄清问题、整理确认界面，以及保留旧调用方仍需要的 compatibility projection。它不负责声明真正的工作归属、执行事实或完成结论；这些事实应由 kernel 侧产物给出。公开治理入口仍然是 `$vibe` / `/vibe`。
 
 ## Current Layout
 
 | Path | Role |
 | --- | --- |
-| [`resolve-pack-route.ps1`](resolve-pack-route.ps1) | 内部候选发现入口；产出候选项、确认需要、确认选项与探针数据，并保留兼容字段 |
+| [`resolve-pack-route.ps1`](resolve-pack-route.ps1) | 本地已安装 skill 候选发现入口；产出候选项、确认需要、确认选项与探针数据，并保留兼容字段 |
 | [`legacy/`](legacy) | 兼容旧 routing 路径的辅助实现 |
 | [`modules/`](modules) | router 可复用模块：规则候选、澄清提示、候选排序、确认界面 |
 

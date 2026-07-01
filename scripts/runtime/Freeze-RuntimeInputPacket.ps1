@@ -183,28 +183,22 @@ function Get-VibeSkillMetadata {
         [AllowEmptyString()] [string]$HostId = ''
     )
 
-    $skillPath = $null
-    $installedSkillsRoot = Resolve-VgoInstalledSkillsRoot -TargetRoot $TargetRoot -HostId $HostId
-    foreach ($candidatePath in @(
-        (Join-Path $installedSkillsRoot (Join-Path $SkillId 'SKILL.md')),
-        (Join-Path $installedSkillsRoot (Join-Path $SkillId 'SKILL.runtime-mirror.md')),
-        (Join-Path $installedSkillsRoot (Join-Path 'custom' (Join-Path $SkillId 'SKILL.md'))),
-        (Join-Path $installedSkillsRoot (Join-Path 'custom' (Join-Path $SkillId 'SKILL.runtime-mirror.md')))
-    )) {
-        if (Test-Path -LiteralPath $candidatePath) {
-            $skillPath = $candidatePath
-            break
-        }
-    }
-
-    if (-not $skillPath) {
+    $authority = Resolve-VibeLocalSkillAuthority `
+        -RepoRoot $RepoRoot `
+        -SkillId $SkillId `
+        -TargetRoot $TargetRoot `
+        -HostId $HostId
+    if (-not [bool]$authority.valid) {
         return [pscustomobject]@{
             skill_id = $SkillId
             skill_path = $null
             skill_root = $null
             description = $null
+            authority_valid = $false
+            authority_reason = [string]$authority.reason
         }
     }
+    $skillPath = [string]$authority.canonical_entrypoint
 
     $description = $null
     foreach ($line in @(Get-Content -LiteralPath $skillPath -Encoding UTF8 -TotalCount 20)) {
@@ -216,9 +210,15 @@ function Get-VibeSkillMetadata {
 
     return [pscustomobject]@{
         skill_id = $SkillId
-        skill_path = $skillPath
-        skill_root = (Split-Path -Parent $skillPath)
+        skill_path = [System.IO.Path]::GetFullPath($skillPath)
+        skill_root = [string]$authority.skill_root
         description = $description
+        authority_valid = $true
+        authority_reason = 'ok'
+        source_root = [string]$authority.source_root
+        source_kind = [string]$authority.source_kind
+        source_priority = [int]$authority.source_priority
+        duplicate_state = [string]$authority.duplicate_state
     }
 }
 
@@ -309,9 +309,7 @@ function New-VibeSpecialistRecommendation {
 
     $metadata = Get-VibeSkillMetadata -RepoRoot $RepoRoot -SkillId $SkillId -TargetRoot $TargetRoot -HostId $HostId
     $bindingProfile = Get-VibeSpecialistBindingProfile -SkillId $SkillId -Policy $DispatchContract.policy -DispatchContract $DispatchContract
-    $nativeSkillEntrypoint = if ($null -ne $CustomMetadata -and $CustomMetadata.PSObject.Properties.Name -contains 'skill_md_path' -and -not [string]::IsNullOrWhiteSpace([string]$CustomMetadata.skill_md_path)) {
-        [string]$CustomMetadata.skill_md_path
-    } elseif ($metadata.skill_path) {
+    $nativeSkillEntrypoint = if ($metadata.skill_path) {
         [string]$metadata.skill_path
     } else {
         $null
@@ -323,9 +321,7 @@ function New-VibeSpecialistRecommendation {
     } else {
         $null
     }
-    $skillRoot = if ($null -ne $CustomMetadata -and $CustomMetadata.PSObject.Properties.Name -contains 'skill_root' -and -not [string]::IsNullOrWhiteSpace([string]$CustomMetadata.skill_root)) {
-        [string]$CustomMetadata.skill_root
-    } elseif ($metadata.PSObject.Properties.Name -contains 'skill_root' -and -not [string]::IsNullOrWhiteSpace([string]$metadata.skill_root)) {
+    $skillRoot = if ($metadata.PSObject.Properties.Name -contains 'skill_root' -and -not [string]::IsNullOrWhiteSpace([string]$metadata.skill_root)) {
         [string]$metadata.skill_root
     } elseif (-not [string]::IsNullOrWhiteSpace([string]$nativeSkillEntrypoint)) {
         [string](Split-Path -Parent $nativeSkillEntrypoint)
@@ -375,6 +371,12 @@ function New-VibeSpecialistRecommendation {
         review_mode = if ($null -ne $CustomMetadata -and $CustomMetadata.PSObject.Properties.Name -contains 'review_mode') { [string]$CustomMetadata.review_mode } else { [string]$bindingProfile.review_mode }
         native_skill_entrypoint = $nativeSkillEntrypoint
         skill_root = $skillRoot
+        source_root = if ($metadata.PSObject.Properties.Name -contains 'source_root') { [string]$metadata.source_root } else { $null }
+        source_kind = if ($metadata.PSObject.Properties.Name -contains 'source_kind') { [string]$metadata.source_kind } else { $null }
+        source_priority = if ($metadata.PSObject.Properties.Name -contains 'source_priority' -and $null -ne $metadata.source_priority) { [int]$metadata.source_priority } else { $null }
+        duplicate_state = if ($metadata.PSObject.Properties.Name -contains 'duplicate_state') { [string]$metadata.duplicate_state } else { $null }
+        local_skill_authority = if ($metadata.PSObject.Properties.Name -contains 'authority_valid') { [bool]$metadata.authority_valid } else { $false }
+        local_skill_authority_reason = if ($metadata.PSObject.Properties.Name -contains 'authority_reason') { [string]$metadata.authority_reason } else { 'not_in_local_skill_index' }
         native_skill_description = $nativeSkillDescription
         visibility_class = if (-not [string]::IsNullOrWhiteSpace([string]$nativeSkillEntrypoint) -and -not [string]::IsNullOrWhiteSpace([string]$skillRoot)) { 'path_resolved' } else { 'path_unresolved' }
         usage_required = [bool]$DispatchContract.native_usage_required
@@ -721,7 +723,10 @@ function Split-VibeSpecialistDispatch {
         [string[]]$MatchedSkillIds = @(),
         [string[]]$ApprovedSpecialistSkillIds = @(),
         [AllowNull()] [object]$HostSpecialistDispatchDecision = $null,
-        [AllowNull()] [object]$SuggestionContract = $null
+        [AllowNull()] [object]$SuggestionContract = $null,
+        [AllowEmptyString()] [string]$RepoRoot = '',
+        [AllowEmptyString()] [string]$TargetRoot = '',
+        [AllowEmptyString()] [string]$HostId = ''
     )
 
     $approvedLookup = @{}
@@ -780,6 +785,7 @@ function Split-VibeSpecialistDispatch {
     $blockedDispatch = @()
     $degradedDispatch = @()
     $promotionOutcomes = @()
+    $enforceLocalAuthority = -not [string]::IsNullOrWhiteSpace([string]$RepoRoot)
     foreach ($recommendation in @($Recommendations)) {
         $skillId = [string]$recommendation.skill_id
         $nativeSkillEntrypoint = if (
@@ -794,6 +800,32 @@ function Split-VibeSpecialistDispatch {
             [string]$recommendation.skill_md_path
         } else {
             ''
+        }
+        if ($enforceLocalAuthority) {
+            $authority = Resolve-VibeLocalSkillAuthority `
+                -RepoRoot $RepoRoot `
+                -SkillId $skillId `
+                -NativeSkillEntrypoint $nativeSkillEntrypoint `
+                -TargetRoot $TargetRoot `
+                -HostId $HostId `
+                -RequireProvidedEntrypoint
+            if (-not [bool]$authority.valid) {
+                $record = Copy-VibeRecordObject -InputObject $recommendation
+                $record | Add-Member -NotePropertyName degrade_reason -NotePropertyValue ([string]$authority.reason) -Force
+                $record | Add-Member -NotePropertyName canonical_native_skill_entrypoint -NotePropertyValue $authority.canonical_entrypoint -Force
+                $degradedDispatch += $record
+                $promotionOutcomes += [pscustomobject]@{
+                    skill_id = $skillId
+                    promotion_state = 'degraded'
+                    degrade_reason = [string]$authority.reason
+                    destructive = [bool]$recommendation.destructive
+                    destructive_reason_codes = @($recommendation.destructive_reason_codes)
+                    contract_complete = [bool]$recommendation.contract_complete
+                    recommended_promotion_action = [string]$recommendation.recommended_promotion_action
+                }
+                continue
+            }
+            $nativeSkillEntrypoint = [string]$authority.canonical_entrypoint
         }
         $nativeEntrypointFileName = if ([string]::IsNullOrWhiteSpace($nativeSkillEntrypoint)) { '' } else { [System.IO.Path]::GetFileName($nativeSkillEntrypoint) }
         if (
@@ -852,6 +884,10 @@ function Split-VibeSpecialistDispatch {
         }
 
         $record = Copy-VibeRecordObject -InputObject $recommendation
+        if ($enforceLocalAuthority) {
+            $record | Add-Member -NotePropertyName native_skill_entrypoint -NotePropertyValue $nativeSkillEntrypoint -Force
+            $record | Add-Member -NotePropertyName skill_md_path -NotePropertyValue $nativeSkillEntrypoint -Force
+        }
         if (-not [string]::IsNullOrWhiteSpace($hostSelectionAction)) {
             $record | Add-Member -NotePropertyName host_selection_applied -NotePropertyValue $true -Force
             $record | Add-Member -NotePropertyName host_selection_mode -NotePropertyValue $hostSelectionMode -Force
@@ -973,13 +1009,20 @@ $storageProjection = New-VibeWorkspaceArtifactProjection `
     -Runtime $runtime `
     -ArtifactRoot $ArtifactRoot `
     -RouterTargetRoot $routerTargetRoot
+$controllerEntryIntentIds = @(
+    [string]$policy.explicit_runtime_skill,
+    'vibe-what-do-i-want',
+    'vibe-how-do-we-do',
+    'vibe-do-it',
+    'vibe-upgrade'
+) | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }
 $requestedSkill = if (
     -not [string]::IsNullOrWhiteSpace($EntryIntentId) -and
-    -not [string]::Equals([string]$EntryIntentId, [string]$policy.explicit_runtime_skill, [System.StringComparison]::OrdinalIgnoreCase)
+    [string]$EntryIntentId -notin @($controllerEntryIntentIds)
 ) {
-    ''
+    [string]$EntryIntentId
 } else {
-    [string]$policy.explicit_runtime_skill
+    ''
 }
 $unattended = $false
 $hierarchyState = Get-VibeHierarchyState `
@@ -1134,7 +1177,10 @@ $specialistDispatch = Split-VibeSpecialistDispatch `
     -MatchedSkillIds @($matchedSkillIds) `
     -ApprovedSpecialistSkillIds @($ApprovedSpecialistSkillIds) `
     -HostSpecialistDispatchDecision $hostSpecialistDispatchDecision `
-    -SuggestionContract $policy.child_specialist_suggestion_contract
+    -SuggestionContract $policy.child_specialist_suggestion_contract `
+    -RepoRoot $runtime.repo_root `
+    -TargetRoot $routerTargetRoot `
+    -HostId $routerHostId
 $skillRouting = New-VibeSkillRoutingFromLegacy `
     -RouterSelectedSkill ([string]$routerSelectedSkill) `
     -Recommendations @($specialistRecommendations) `
@@ -1150,7 +1196,10 @@ $skillExecutionLock = New-VibeSkillExecutionLockProjection `
     -CurrentSkillRouting $skillRouting `
     -HostSpecialistDispatchDecision $hostSpecialistDispatchDecision `
     -SourceRunId $lockSourceRunId `
-    -Source $lockSource
+    -Source $lockSource `
+    -RepoRoot $runtime.repo_root `
+    -TargetRoot $routerTargetRoot `
+    -HostId $routerHostId
 $selectedSkillLoads = @()
 foreach ($selectedSkill in @(Get-VibeSkillRoutingSelected -SkillRouting $skillRouting)) {
     $selectedSkillId = [string]$selectedSkill.skill_id

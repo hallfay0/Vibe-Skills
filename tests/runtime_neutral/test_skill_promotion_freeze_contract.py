@@ -15,6 +15,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 FREEZE_SCRIPT = REPO_ROOT / "scripts" / "runtime" / "Freeze-RuntimeInputPacket.ps1"
 HELPER_SCRIPT = REPO_ROOT / "scripts" / "common" / "vibe-governance-helpers.ps1"
 RUNTIME_COMMON = REPO_ROOT / "scripts" / "runtime" / "VibeRuntime.Common.ps1"
+SKILL_USAGE_COMMON = REPO_ROOT / "scripts" / "runtime" / "VibeSkillUsage.Common.ps1"
 ML_PROMPT = (
     "Build a scikit-learn tabular classification baseline, "
     "run feature selection, and compare cross-validation metrics."
@@ -319,6 +320,81 @@ class SkillPromotionFreezeContractTests(unittest.TestCase):
         degraded = as_list(payload["degraded"])
         self.assertEqual(["missing-local-skill"], [item["skill_id"] for item in degraded])
         self.assertEqual("missing_native_entrypoint", degraded[0]["degrade_reason"])
+
+    def test_bundled_entrypoint_cannot_auto_dispatch_without_local_authority(self) -> None:
+        split_function = extract_split_specialist_dispatch_function()
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_root = Path(tempdir)
+            target_root = temp_root / ".agents"
+            bundled_skill_path = temp_root / "bundled" / "skills" / "aeon" / "SKILL.md"
+            bundled_skill_path.parent.mkdir(parents=True)
+            bundled_skill_path.write_text(
+                "---\nname: aeon\ndescription: Bundled test skill.\n---\n",
+                encoding="utf-8",
+            )
+            payload = run_powershell_json(
+                (
+                    "& { "
+                    f". '{HELPER_SCRIPT}'; "
+                    f". '{SKILL_USAGE_COMMON}'; "
+                    f"{split_function} "
+                    "$recommendation = [pscustomobject]@{ "
+                    "skill_id = 'aeon'; "
+                    "recommended_promotion_action = 'auto_dispatch'; "
+                    "destructive = $false; "
+                    "destructive_reason_codes = @(); "
+                    "contract_complete = $true; "
+                    f"native_skill_entrypoint = '{ps_path(bundled_skill_path)}'; "
+                    f"skill_md_path = '{ps_path(bundled_skill_path)}' "
+                    "}; "
+                    "$dispatch = Split-VibeSpecialistDispatch "
+                    "-GovernanceScope 'root' "
+                    "-Recommendations @($recommendation) "
+                    f"-RepoRoot '{ps_path(REPO_ROOT)}' "
+                    f"-TargetRoot '{ps_path(target_root)}' "
+                    "-HostId 'codex'; "
+                    "$dispatch | ConvertTo-Json -Depth 20 }"
+                )
+            )
+
+        self.assertEqual([], as_list(payload["approved_dispatch"]))
+        degraded = as_list(payload["degraded"])
+        self.assertEqual(["aeon"], [item["skill_id"] for item in degraded])
+        self.assertEqual("not_in_local_skill_index", degraded[0]["degrade_reason"])
+
+    def test_local_active_entrypoint_can_auto_dispatch_with_local_authority(self) -> None:
+        split_function = extract_split_specialist_dispatch_function()
+        with tempfile.TemporaryDirectory() as tempdir:
+            target_root = Path(tempdir) / ".agents"
+            skill_path = write_installed_skill(target_root, "local-data-helper")
+            payload = run_powershell_json(
+                (
+                    "& { "
+                    f". '{HELPER_SCRIPT}'; "
+                    f". '{SKILL_USAGE_COMMON}'; "
+                    f"{split_function} "
+                    "$recommendation = [pscustomobject]@{ "
+                    "skill_id = 'local-data-helper'; "
+                    "recommended_promotion_action = 'auto_dispatch'; "
+                    "destructive = $false; "
+                    "destructive_reason_codes = @(); "
+                    "contract_complete = $true; "
+                    f"native_skill_entrypoint = '{ps_path(skill_path)}'; "
+                    f"skill_md_path = '{ps_path(skill_path)}' "
+                    "}; "
+                    "$dispatch = Split-VibeSpecialistDispatch "
+                    "-GovernanceScope 'root' "
+                    "-Recommendations @($recommendation) "
+                    f"-RepoRoot '{ps_path(REPO_ROOT)}' "
+                    f"-TargetRoot '{ps_path(target_root)}' "
+                    "-HostId 'codex'; "
+                    "$dispatch | ConvertTo-Json -Depth 20 }"
+                )
+            )
+
+        approved = as_list(payload["approved_dispatch"])
+        self.assertEqual(["local-data-helper"], [item["skill_id"] for item in approved])
+        self.assertEqual(str(skill_path.resolve()), approved[0]["native_skill_entrypoint"])
 
     def test_missing_native_entrypoint_never_enters_selected_or_lock_surfaces(self) -> None:
         split_function = extract_split_specialist_dispatch_function()

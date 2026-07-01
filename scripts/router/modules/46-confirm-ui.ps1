@@ -4,6 +4,10 @@ $confirmUiHelperPath = Join-Path (Split-Path $PSScriptRoot -Parent) '..\common\v
 if (-not (Get-Command Resolve-VgoInstalledSkillsRoot -ErrorAction SilentlyContinue) -and (Test-Path -LiteralPath $confirmUiHelperPath)) {
     . $confirmUiHelperPath
 }
+$skillUsageHelperPath = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'runtime\VibeSkillUsage.Common.ps1'
+if (-not (Get-Command Resolve-VibeLocalSkillAuthority -ErrorAction SilentlyContinue) -and (Test-Path -LiteralPath $skillUsageHelperPath)) {
+    . $skillUsageHelperPath
+}
 
 function Get-ConfirmUiPolicyDefaults {
     return [pscustomobject]@{
@@ -303,18 +307,14 @@ function Resolve-SkillMdPath {
     if (-not $Skill) { return $null }
     $skillId = [string]$Skill
 
-    if ($RepoRoot) {
-        $bundled = Join-Path (Join-Path (Join-Path $RepoRoot "bundled") "skills") (Join-Path $skillId "SKILL.md")
-        if (Test-Path -LiteralPath $bundled) { return $bundled }
+    $authority = Resolve-VibeLocalSkillAuthority `
+        -RepoRoot $RepoRoot `
+        -SkillId $skillId `
+        -TargetRoot $TargetRoot `
+        -HostId $HostId
+    if ([bool]$authority.valid) {
+        return [string]$authority.canonical_entrypoint
     }
-
-    $userRoot = Resolve-VgoInstalledSkillsRoot -TargetRoot $TargetRoot -HostId $HostId
-    $installed = Join-Path $userRoot (Join-Path $skillId "SKILL.md")
-    if (Test-Path -LiteralPath $installed) { return $installed }
-
-    $customInstalled = Join-Path $userRoot (Join-Path 'custom' (Join-Path $skillId 'SKILL.md'))
-    if (Test-Path -LiteralPath $customInstalled) { return $customInstalled }
-
     return $null
 }
 

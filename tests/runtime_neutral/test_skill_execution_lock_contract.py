@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -53,6 +54,19 @@ def as_list(value: object) -> list[object]:
     if isinstance(value, list):
         return value
     return [value]
+
+
+def write_installed_skill(target_root: Path, skill_id: str) -> Path:
+    skill_path = target_root / "skills" / skill_id / "SKILL.md"
+    skill_path.parent.mkdir(parents=True, exist_ok=True)
+    skill_path.write_text(
+        "---\n"
+        f"name: {skill_id}\n"
+        f"description: Installed {skill_id} test skill.\n"
+        "---\n",
+        encoding="utf-8",
+    )
+    return skill_path
 
 
 class SkillExecutionLockContractTests(unittest.TestCase):
@@ -207,6 +221,109 @@ class SkillExecutionLockContractTests(unittest.TestCase):
         dispatch_by_id = {item["skill_id"]: item for item in as_list(payload["locked_dispatch"])}
         self.assertNotIn("manuscript-as-code", dispatch_by_id)
 
+    def test_local_authority_drops_previous_bundled_lock_even_when_file_exists(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_root = Path(tempdir)
+            target_root = temp_root / ".agents"
+            current_skill = write_installed_skill(target_root, "exploratory-data-analysis")
+            bundled_skill = temp_root / "vibe_full_copy" / "bundled" / "skills" / "aeon" / "SKILL.md"
+            bundled_skill.parent.mkdir(parents=True)
+            bundled_skill.write_text(
+                "---\nname: aeon\ndescription: Bundled stale skill.\n---\n",
+                encoding="utf-8",
+            )
+            payload = run_ps_json(
+                "& { "
+                f". {ps_quote(str(RUNTIME_COMMON))}; "
+                f". {ps_quote(str(SKILL_ROUTING_COMMON))}; "
+                "$previous = [pscustomobject]@{ "
+                "  skill_execution_lock = [pscustomobject]@{ "
+                "    schema_version = 'v1'; state = 'active'; resolution_required = $true; "
+                "    locked_skill_ids = @('aeon'); "
+                "    locked_dispatch = @([pscustomobject]@{ "
+                "      skill_id = 'aeon'; task_slice = 'stale bundled time-series hint'; "
+                f"      native_skill_entrypoint = {ps_quote(str(bundled_skill))}; "
+                f"      skill_md_path = {ps_quote(str(bundled_skill))} "
+                "    }) "
+                "  } "
+                "}; "
+                "$current = [pscustomobject]@{ "
+                "  selected = @([pscustomobject]@{ "
+                "    skill_id = 'exploratory-data-analysis'; task_slice = 'analyze data'; "
+                f"    native_skill_entrypoint = {ps_quote(str(current_skill))}; skill_md_path = {ps_quote(str(current_skill))} "
+                "  }); "
+                "  candidates = @(); rejected = @() "
+                "}; "
+                "$lock = New-VibeSkillExecutionLockProjection "
+                "-PreviousRuntimeInputPacket $previous "
+                "-CurrentSkillRouting $current "
+                f"-RepoRoot {ps_quote(str(REPO_ROOT))} "
+                f"-TargetRoot {ps_quote(str(target_root))} "
+                "-HostId 'codex' "
+                "-SourceRunId 'pytest-plan-run' "
+                "-Source 'approved_plan_reentry'; "
+                "$lock | ConvertTo-Json -Depth 20 "
+                "}"
+            )
+
+        self.assertEqual(["exploratory-data-analysis"], as_list(payload["locked_skill_ids"]))
+        dispatch_by_id = {item["skill_id"]: item for item in as_list(payload["locked_dispatch"])}
+        self.assertNotIn("aeon", dispatch_by_id)
+
+    def test_local_authority_rejects_host_approved_skill_missing_from_local_index(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            target_root = Path(tempdir) / ".agents"
+            payload = run_ps_json(
+                "& { "
+                f". {ps_quote(str(RUNTIME_COMMON))}; "
+                f". {ps_quote(str(SKILL_ROUTING_COMMON))}; "
+                "$current = [pscustomobject]@{ selected = @(); candidates = @(); rejected = @() }; "
+                "$decision = [pscustomobject]@{ approved_skill_ids = @('manuscript-as-code') }; "
+                "$lock = New-VibeSkillExecutionLockProjection "
+                "-CurrentSkillRouting $current "
+                "-HostSpecialistDispatchDecision $decision "
+                f"-RepoRoot {ps_quote(str(REPO_ROOT))} "
+                f"-TargetRoot {ps_quote(str(target_root))} "
+                "-HostId 'codex' "
+                "-Source 'test'; "
+                "$lock | ConvertTo-Json -Depth 20 "
+                "}"
+            )
+
+        self.assertEqual("inactive", payload["state"])
+        self.assertEqual([], as_list(payload["locked_skill_ids"]))
+        self.assertEqual([], as_list(payload["locked_dispatch"]))
+
+    def test_local_authority_locks_current_active_local_skill(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            target_root = Path(tempdir) / ".agents"
+            skill_path = write_installed_skill(target_root, "local-data-helper")
+            payload = run_ps_json(
+                "& { "
+                f". {ps_quote(str(RUNTIME_COMMON))}; "
+                f". {ps_quote(str(SKILL_ROUTING_COMMON))}; "
+                "$current = [pscustomobject]@{ "
+                "  selected = @([pscustomobject]@{ "
+                "    skill_id = 'local-data-helper'; task_slice = 'local work'; "
+                f"    native_skill_entrypoint = {ps_quote(str(skill_path))}; skill_md_path = {ps_quote(str(skill_path))} "
+                "  }); "
+                "  candidates = @(); rejected = @() "
+                "}; "
+                "$lock = New-VibeSkillExecutionLockProjection "
+                "-CurrentSkillRouting $current "
+                f"-RepoRoot {ps_quote(str(REPO_ROOT))} "
+                f"-TargetRoot {ps_quote(str(target_root))} "
+                "-HostId 'codex' "
+                "-Source 'test'; "
+                "$lock | ConvertTo-Json -Depth 20 "
+                "}"
+            )
+
+        self.assertEqual("active", payload["state"])
+        self.assertEqual(["local-data-helper"], as_list(payload["locked_skill_ids"]))
+        dispatch = as_list(payload["locked_dispatch"])[0]
+        self.assertEqual(str(skill_path.resolve()), dispatch["native_skill_entrypoint"])
+
     def test_lock_projection_curated_only_limits_lock_to_host_approved_skills(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             approved_skill = Path(tempdir) / "scientific-writing" / "SKILL.md"
@@ -291,9 +408,8 @@ class SkillExecutionLockContractTests(unittest.TestCase):
             self.skipTest("PowerShell executable not available")
         with tempfile.TemporaryDirectory() as tempdir:
             artifact_root = Path(tempdir) / "artifacts"
-            skill_path = Path(tempdir) / "scientific-reporting" / "SKILL.md"
-            skill_path.parent.mkdir(parents=True)
-            skill_path.write_text("---\nname: scientific-reporting\n---\n", encoding="utf-8")
+            target_root = Path(tempdir) / ".agents"
+            skill_path = write_installed_skill(target_root, "scientific-reporting")
             prior_session = artifact_root / "outputs" / "runtime" / "vibe-sessions" / "pytest-plan-run"
             prior_session.mkdir(parents=True)
             (prior_session / "runtime-input-packet.json").write_text(
@@ -359,6 +475,7 @@ class SkillExecutionLockContractTests(unittest.TestCase):
                 text=True,
                 encoding="utf-8",
                 check=True,
+                env={**os.environ, "VIBE_AGENTS_HOME": str(target_root)},
             )
             self.assertIn("packet_path", completed.stdout)
             packet_search_root = artifact_root / "outputs" / "runtime" / "vibe-sessions" / "pytest-execute-run"

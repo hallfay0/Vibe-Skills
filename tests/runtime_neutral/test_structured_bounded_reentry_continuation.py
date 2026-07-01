@@ -311,6 +311,52 @@ class StructuredBoundedReentryContinuationTests(unittest.TestCase):
         self.assertEqual("accept_primary", payload["action"])
         self.assertEqual("vibe", payload["skill"])
 
+    def test_confirm_ui_resolves_only_local_installed_skill_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_root = Path(tempdir)
+            fake_repo = temp_root / "repo"
+            settings_path = fake_repo / "adapters" / "codex" / "settings-map.json"
+            settings_path.parent.mkdir(parents=True)
+            settings_path.write_text(
+                json.dumps(
+                    {
+                        "semantics": {
+                            "vco.skill_roots.global": [
+                                "~/.agents/skills",
+                                "~/.codex/skills",
+                            ]
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            bundled_aeon = fake_repo / "bundled" / "skills" / "aeon" / "SKILL.md"
+            bundled_aeon.parent.mkdir(parents=True)
+            bundled_aeon.write_text(
+                "---\nname: aeon\ndescription: Bundled stale skill.\n---\n",
+                encoding="utf-8",
+            )
+            target_root = temp_root / ".agents"
+            local_skill = target_root / "skills" / "local-data-helper" / "SKILL.md"
+            local_skill.parent.mkdir(parents=True)
+            local_skill.write_text(
+                "---\nname: local-data-helper\ndescription: Local test skill.\n---\n",
+                encoding="utf-8",
+            )
+            payload = run_confirm_ui_script(
+                f"$repoRoot = {ps_quote(str(fake_repo))}; "
+                f"$targetRoot = {ps_quote(str(target_root))}; "
+                "$aeon = Resolve-SkillMdPath -RepoRoot $repoRoot -Skill 'aeon' -TargetRoot $targetRoot -HostId 'codex'; "
+                "$local = Resolve-SkillMdPath -RepoRoot $repoRoot -Skill 'local-data-helper' -TargetRoot $targetRoot -HostId 'codex'; "
+                "[pscustomobject]@{ "
+                "  aeon_is_null = ($null -eq $aeon); "
+                "  local_path = $local "
+                "} | ConvertTo-Json -Depth 8 -Compress"
+            )
+
+        self.assertTrue(payload["aeon_is_null"])
+        self.assertEqual(str(local_skill.resolve()), payload["local_path"])
+
     def test_phase_decomposition_rejects_non_object_phase_records(self) -> None:
         shell = resolve_powershell()
         if shell is None:

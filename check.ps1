@@ -831,10 +831,7 @@ function Invoke-AdapterSpecificChecks {
     [psobject]$Adapter,
     [string]$TargetRoot,
     [string]$HostId,
-    [string]$RuntimeSkillRoot,
-    [string]$RuntimeNestedSkillRoot,
-    [bool]$NestedBundledRequired,
-    [string]$NestedBundledPresencePolicy
+    [string]$RuntimeSkillRoot
   )
 
   if ([string]$Adapter.check_mode -eq 'governed') {
@@ -918,15 +915,7 @@ function Invoke-AdapterSpecificChecks {
 
   function Resolve-SkillDescriptorPath {
     param([string]$SkillName)
-    $publicPath = Join-Path $TargetRoot "skills\$SkillName\SKILL.md"
-    if (Test-Path -LiteralPath $publicPath -PathType Leaf) {
-      return $publicPath
-    }
-    $hiddenRuntimeMirror = Join-Path $RuntimeSkillRoot "bundled\skills\$SkillName\SKILL.runtime-mirror.md"
-    if (Test-Path -LiteralPath $hiddenRuntimeMirror -PathType Leaf) {
-      return $hiddenRuntimeMirror
-    }
-    return (Join-Path $RuntimeSkillRoot "bundled\skills\$SkillName\SKILL.md")
+    return (Join-Path $TargetRoot "skills\$SkillName\SKILL.md")
   }
 
   foreach ($name in $publicEntrySkills) {
@@ -959,20 +948,7 @@ function Invoke-AdapterSpecificChecks {
   Check-Path -Label "vibe exploration policy config" -Path (Join-Path $RuntimeSkillRoot 'config\exploration-policy.json')
   Check-Path -Label "vibe exploration intent profiles config" -Path (Join-Path $RuntimeSkillRoot 'config\exploration-intent-profiles.json')
   Check-Path -Label "vibe exploration domain map config" -Path (Join-Path $RuntimeSkillRoot 'config\exploration-domain-map.json')
-  if ($NestedBundledRequired) {
-    Check-Path -Label "vibe bundled retrieval intent profiles config" -Path (Join-Path $RuntimeNestedSkillRoot 'config\retrieval-intent-profiles.json') -Required:$NestedBundledRequired
-    Check-Path -Label "vibe bundled retrieval source registry config" -Path (Join-Path $RuntimeNestedSkillRoot 'config\retrieval-source-registry.json') -Required:$NestedBundledRequired
-    Check-Path -Label "vibe bundled retrieval rerank weights config" -Path (Join-Path $RuntimeNestedSkillRoot 'config\retrieval-rerank-weights.json') -Required:$NestedBundledRequired
-    Check-Path -Label "vibe bundled exploration policy config" -Path (Join-Path $RuntimeNestedSkillRoot 'config\exploration-policy.json') -Required:$NestedBundledRequired
-    Check-Path -Label "vibe bundled exploration intent profiles config" -Path (Join-Path $RuntimeNestedSkillRoot 'config\exploration-intent-profiles.json') -Required:$NestedBundledRequired
-    Check-Path -Label "vibe bundled exploration domain map config" -Path (Join-Path $RuntimeNestedSkillRoot 'config\exploration-domain-map.json') -Required:$NestedBundledRequired
-    Check-Path -Label "vibe bundled llm acceleration policy config" -Path (Join-Path $RuntimeNestedSkillRoot 'config\llm-acceleration-policy.json') -Required:$NestedBundledRequired
-    Check-PathAbsent -Label "vibe nested bundled skill entrypoint hidden" -Path (Join-Path $RuntimeNestedSkillRoot 'SKILL.md')
-    Check-Path -Label "vibe nested bundled skill runtime mirror" -Path (Join-Path $RuntimeNestedSkillRoot 'SKILL.runtime-mirror.md') -Required:$NestedBundledRequired
-  } else {
-    Write-Host ("[OK] vibe nested bundled config checks skipped (target absent; policy={0})" -f $NestedBundledPresencePolicy)
-    $script:pass++
-  }
+  Check-PathAbsent -Label "vibe bundled specialist corpus absent" -Path (Join-Path $RuntimeSkillRoot 'bundled\skills')
 
   foreach ($name in $starterSkills) {
     Check-Path -Label "starter skill/$name" -Path (Resolve-SkillDescriptorPath -SkillName $name)
@@ -1026,29 +1002,8 @@ Write-Host "Deep: $Deep"
 Write-Host ("Default closure gates: {0}" -f ((Get-DefaultClosureGateNames) -join ', '))
 
 $runtimeSkillRoot = [string]$targetContext.installed_root
-$runtimeNestedSkillRoot = Join-Path $runtimeSkillRoot 'bundled\skills\vibe'
-$runtimeNestedSkillRootExists = Test-Path -LiteralPath $runtimeNestedSkillRoot
-$nestedBundledPresencePolicy = 'optional'
-$nestedBundledRequired = $false
-if ($startupRuntimeConfig.PSObject.Properties.Name -contains 'require_nested_bundled_root') {
-  $nestedBundledRequired = [bool]$startupRuntimeConfig.require_nested_bundled_root
-}
-if ($null -ne $startupGovernance -and $startupGovernance.PSObject.Properties.Name -contains 'mirror_topology' -and $null -ne $startupGovernance.mirror_topology) {
-  $topology = $startupGovernance.mirror_topology
-  if ($topology.PSObject.Properties.Name -contains 'targets' -and $null -ne $topology.targets) {
-    $nestedBundledTarget = $topology.targets | Where-Object { [string]$_.id -eq 'nested_bundled' } | Select-Object -First 1
-    if ($null -ne $nestedBundledTarget) {
-      if ($nestedBundledTarget.PSObject.Properties.Name -contains 'presence_policy' -and -not [string]::IsNullOrWhiteSpace([string]$nestedBundledTarget.presence_policy)) {
-        $nestedBundledPresencePolicy = [string]$nestedBundledTarget.presence_policy
-      }
-      if (($nestedBundledTarget.PSObject.Properties.Name -contains 'required' -and [bool]$nestedBundledTarget.required) -or $nestedBundledPresencePolicy -eq 'required') {
-        $nestedBundledRequired = $true
-      }
-    }
-  }
-}
 
-Invoke-AdapterSpecificChecks -Adapter $Adapter -TargetRoot $TargetRoot -HostId $HostId -RuntimeSkillRoot $runtimeSkillRoot -RuntimeNestedSkillRoot $runtimeNestedSkillRoot -NestedBundledRequired:$nestedBundledRequired -NestedBundledPresencePolicy $nestedBundledPresencePolicy
+Invoke-AdapterSpecificChecks -Adapter $Adapter -TargetRoot $TargetRoot -HostId $HostId -RuntimeSkillRoot $runtimeSkillRoot
 Check-CodexDuplicateSkillSurface -TargetRoot $TargetRoot -HostId $HostId
 
 Invoke-RuntimeFreshnessCheck -RepoRoot $RepoRoot -TargetRoot $TargetRoot -SkipGate:$SkipRuntimeFreshnessGate

@@ -111,6 +111,17 @@ class InstallProfileDifferentiationTests(unittest.TestCase):
             self.assertTrue((target_root / "skills" / "vibe-upgrade" / "SKILL.md").exists())
             self.assertFalse((target_root / "commands" / "vibe-upgrade.md").exists())
 
+    def test_install_removes_stale_bundled_specialist_corpus(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            target_root = Path(tempdir) / "stale-root"
+            stale_skill = target_root / "skills" / "vibe" / "bundled" / "skills" / "aeon" / "SKILL.md"
+            stale_skill.parent.mkdir(parents=True, exist_ok=True)
+            stale_skill.write_text("---\nname: aeon\ndescription: stale bundled specialist\n---\n", encoding="utf-8")
+
+            self.install_profile(target_root, profile="minimal")
+
+            self.assertFalse((target_root / "skills" / "vibe" / "bundled" / "skills").exists())
+
     def test_full_install_extends_minimal_payload_and_records_larger_summary(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             root = Path(tempdir)
