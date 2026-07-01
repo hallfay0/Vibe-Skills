@@ -161,47 +161,34 @@ def copy_repo_fixture(target_root: Path) -> Path:
 
 
 class SkillPromotionRouterMetadataTests(unittest.TestCase):
-    def test_non_destructive_ml_prompt_exposes_auto_dispatch_promotion_metadata(self) -> None:
+    def test_non_destructive_ml_prompt_routes_to_local_installed_skill(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             target_root = Path(tempdir) / ".agents"
-            write_installed_skill(target_root, "scikit-learn")
+            skill_path = write_installed_skill(target_root, "scikit-learn")
             route = run_route(ML_PROMPT, target_root=target_root)
 
         selected = route["selected"]
-        self.assertEqual("data-ml", selected["pack_id"])
+        self.assertEqual("local-skill-index", selected["pack_id"])
+        self.assertEqual("local_skill_index", selected["candidate_source"])
         self.assertEqual("scikit-learn", selected["skill"])
-        self.assertTrue(selected["promotion_eligible"])
-        self.assertFalse(selected["destructive"])
-        self.assertEqual([], as_list(selected["destructive_reason_codes"]))
-        self.assertFalse(selected["snapshot_required"])
-        self.assertFalse(selected["rollback_possible"])
-        self.assertTrue(selected["contract_complete"])
-        self.assertEqual("auto_dispatch", selected["recommended_promotion_action"])
+        self.assertEqual(str(skill_path), selected["native_skill_entrypoint"])
+        self.assertEqual("local_installed", selected["authority"]["tier"])
+        self.assertTrue(selected["authority"]["eligible"])
+        self.assertNotIn("promotion_eligible", selected)
         self.assertNotIn("confirm_ui", route)
 
-    def test_destructive_prompt_exposes_confirmation_gated_promotion_metadata(self) -> None:
+    def test_destructive_prompt_keeps_router_metadata_local_only(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             target_root = Path(tempdir) / ".agents"
-            write_installed_skill(target_root, "scikit-learn")
+            skill_path = write_installed_skill(target_root, "scikit-learn")
             route = run_route(DESTRUCTIVE_PROMPT, target_root=target_root)
 
         selected = route["selected"]
-        self.assertIsInstance(selected["skill"], str)
-        self.assertTrue(selected["skill"].strip())
-        self.assertFalse(selected["promotion_eligible"])
-        self.assertTrue(selected["destructive"])
-        self.assertTrue(selected["snapshot_required"])
-        self.assertTrue(selected["rollback_possible"])
-        self.assertTrue(selected["contract_complete"])
-        self.assertEqual("require_confirmation", selected["recommended_promotion_action"])
-        self.assertGreaterEqual(len(as_list(selected["destructive_reason_codes"])), 1)
-
-        option = get_selected_option(route)
-        self.assertEqual(selected["skill"], option["skill"])
-        self.assertFalse(option["promotion_eligible"])
-        self.assertTrue(option["destructive"])
-        self.assertTrue(option["snapshot_required"])
-        self.assertEqual("require_confirmation", option["recommended_promotion_action"])
+        self.assertEqual("scikit-learn", selected["skill"])
+        self.assertEqual(str(skill_path), selected["native_skill_entrypoint"])
+        self.assertEqual("local_skill_index", selected["candidate_source"])
+        self.assertNotIn("destructive", selected)
+        self.assertNotIn("recommended_promotion_action", selected)
 
     def test_routine_edit_prompt_is_not_classified_as_destructive(self) -> None:
         assessment = run_helper_json(
@@ -253,12 +240,15 @@ class SkillPromotionRouterMetadataTests(unittest.TestCase):
         self.assertIn("required_inputs", as_list(completeness["missing_fields"]))
         self.assertIn("expected_outputs", as_list(completeness["missing_fields"]))
 
-    def test_route_fails_closed_when_skill_promotion_policy_is_invalid(self) -> None:
+    def test_route_does_not_read_legacy_skill_promotion_policy(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             repo_copy = copy_repo_fixture(Path(tempdir))
             (repo_copy / "config" / "skill-promotion-policy.json").write_text(
                 "{ invalid json",
                 encoding="utf-8",
             )
-            with self.assertRaises(subprocess.CalledProcessError):
-                run_route(ML_PROMPT, repo_root=repo_copy)
+            target_root = Path(tempdir) / ".agents"
+            write_installed_skill(target_root, "scikit-learn")
+            route = run_route(ML_PROMPT, repo_root=repo_copy, target_root=target_root)
+
+        self.assertEqual("local-skill-index", route["selected"]["pack_id"])

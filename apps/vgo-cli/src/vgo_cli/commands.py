@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import subprocess
 
 from .core_bridge import run_canonical_entry_core, run_compatibility_exit_core, run_entry_locator_core, run_inspect_run_core, run_installer_core, run_local_kernel_core, run_router_core, run_skill_index_core, run_uninstaller_core
 from .errors import CliError
@@ -199,6 +200,22 @@ def route_command(args: argparse.Namespace) -> int:
         command.append('--force-runtime-neutral')
 
     result = run_router_core(repo_root, command)
+    output_json_path = str(getattr(args, 'output_json_path', '') or '').strip()
+    if output_json_path:
+        if result.returncode != 0:
+            print_process_output(result)
+            return int(result.returncode)
+        Path(output_json_path).write_text(result.stdout or "", encoding="utf-8")
+        if result.stderr:
+            print_process_output(
+                subprocess.CompletedProcess(
+                    args=result.args,
+                    returncode=result.returncode,
+                    stdout="",
+                    stderr=result.stderr,
+                )
+            )
+        return int(result.returncode)
     print_process_output(result)
     return int(result.returncode)
 

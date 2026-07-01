@@ -10,6 +10,7 @@ from pathlib import Path, PureWindowsPath
 import re
 import shutil
 import sys
+import tempfile
 from typing import Any
 import warnings
 
@@ -1427,14 +1428,25 @@ def invoke_vibe_runtime_entrypoint(
     if serialized_host_decision:
         command.extend(["-HostDecisionJson", serialized_host_decision])
 
+    bridge_output_path = Path(tempfile.gettempdir()) / f"vgo-canonical-entry-{os.getpid()}-{os.urandom(4).hex()}.json"
+    command.extend(["-BridgeOutputJsonPath", str(bridge_output_path)])
     env = dict(os.environ)
     env["VCO_HOST_ID"] = host_id
-    return run_powershell_json_command(
-        command,
-        cwd=repo_root,
-        bridge_label="canonical entry bridge",
-        env=env,
-    )
+    env["PYTHONUTF8"] = "1"
+    env["PYTHONIOENCODING"] = "utf-8"
+    try:
+        return run_powershell_json_command(
+            command,
+            cwd=repo_root,
+            bridge_label="canonical entry bridge",
+            env=env,
+            json_output_path=bridge_output_path,
+        )
+    finally:
+        try:
+            bridge_output_path.unlink()
+        except FileNotFoundError:
+            pass
 
 
 def finalize_runtime_summary_payload(
@@ -2144,8 +2156,12 @@ def main(argv: list[str] | None = None) -> int:
         )
     except EntryRootGuardError as exc:
         raise SystemExit(str(exc)) from None
-    json.dump(result.to_dict(), sys.stdout, ensure_ascii=False, indent=2)
-    sys.stdout.write("\n")
+    output = json.dumps(result.to_dict(), ensure_ascii=False, indent=2) + "\n"
+    stdout_buffer = getattr(sys.stdout, "buffer", None)
+    if stdout_buffer is not None:
+        stdout_buffer.write(output.encode("utf-8"))
+    else:
+        sys.stdout.write(output)
     return 0
 
 

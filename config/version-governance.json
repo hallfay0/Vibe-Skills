@@ -58,6 +58,7 @@
                                                             "config/runtime-config-manifest.json"
                                                         ],
                                               "directories":  [
+                                                                  "adapters",
                                                                   "docs",
                                                                   "protocols",
                                                                   "templates",
@@ -110,7 +111,8 @@
                                                               },
                                                     "directories":  {
                                                                         "runtime_support_assets":  [
-                                                                                                       "docs",
+                                                                                                      "adapters",
+                                                                                                      "docs",
                                                                                                        "protocols",
                                                                                                        "templates",
                                                                                                        "mcp"

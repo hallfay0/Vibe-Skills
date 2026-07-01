@@ -44,6 +44,9 @@ def test_expanded_runtime_payload_covers_governed_runtime_dependency_surfaces() 
         "config/vibe-entry-surfaces.json",
         "config/secrets-policy.json",
         "config/tool-registry.json",
+        "adapters/index.json",
+        "adapters/codex/settings-map.json",
+        "adapters/claude-code/settings-map.json",
     ]
 
     missing = [path for path in required if not _payload_covers(path, files, directories)]

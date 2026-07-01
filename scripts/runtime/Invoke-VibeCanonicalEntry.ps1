@@ -6,7 +6,8 @@ param(
     [AllowEmptyString()] [string]$RequestedGradeFloor = '',
     [AllowEmptyString()] [string]$RunId = '',
     [AllowEmptyString()] [string]$ArtifactRoot = '',
-    [AllowEmptyString()] [string]$HostDecisionJson = ''
+    [AllowEmptyString()] [string]$HostDecisionJson = '',
+    [AllowEmptyString()] [string]$BridgeOutputJsonPath = ''
 )
 
 Set-StrictMode -Version Latest
@@ -236,7 +237,11 @@ try {
         launch_mode = 'canonical-entry'
         summary = $result.summary
     }
-    $payload | ConvertTo-Json -Depth 20
+    if (-not [string]::IsNullOrWhiteSpace($BridgeOutputJsonPath)) {
+        Write-Utf8Json -Path $BridgeOutputJsonPath -Payload $payload -Depth 20
+    } else {
+        $payload | ConvertTo-Json -Depth 20
+    }
 } finally {
     if ([string]::IsNullOrWhiteSpace($previousHostId)) {
         Remove-Item Env:VCO_HOST_ID -ErrorAction SilentlyContinue

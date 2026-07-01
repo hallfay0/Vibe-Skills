@@ -186,11 +186,71 @@ class SimplifiedSkillRoutingContractTests(unittest.TestCase):
         self.assertIsInstance(route["candidates"], list)
         self.assertIn("confirm_required", route)
         self.assertIn("confirm_options", route)
-        self.assertIn("probe", route)
         selected = route.get("selected")
         if isinstance(selected, dict):
-            self.assertTrue(selected["candidate_only"])
-            self.assertEqual("kernel", selected["work_binding_truth_source"])
+            self.assertEqual("local_skill_index", selected["candidate_source"])
+            self.assertTrue(str(selected["native_skill_entrypoint"]).endswith("SKILL.md"))
+
+    def test_router_preserves_unicode_prompt_and_local_skill_paths(self) -> None:
+        shell = resolve_powershell()
+        if shell is None:
+            self.skipTest("PowerShell executable not available")
+
+        with tempfile.TemporaryDirectory(prefix="vibe-用户-") as tempdir:
+            home_root = Path(tempdir) / "家目录-羽裳"
+            agent_root = home_root / ".agents"
+            skill_root = agent_root / "skills" / "csv-analysis"
+            skill_root.mkdir(parents=True)
+            (skill_root / "SKILL.md").write_text(
+                "---\n"
+                "name: CSV Analysis\n"
+                "description: Analyze CSV datasets, missing values, statistics, and charts.\n"
+                "tags: [csv, data, analysis]\n"
+                "---\n"
+                "# CSV Analysis\n",
+                encoding="utf-8",
+            )
+
+            completed = subprocess.run(
+                [
+                    shell,
+                    "-NoLogo",
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    str(REPO_ROOT / "scripts" / "router" / "resolve-pack-route.ps1"),
+                    "-Prompt",
+                    "请冻结需求：分析一个CSV数据集并产出计划",
+                    "-Grade",
+                    "XL",
+                    "-TaskType",
+                    "planning",
+                    "-HostId",
+                    "codex",
+                    "-TargetRoot",
+                    str(agent_root),
+                ],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                check=True,
+            )
+            route = json.loads(completed.stdout)
+
+        self.assertIn("请冻结需求", route["prompt"])
+        self.assertNotIn("�", json.dumps(route, ensure_ascii=False))
+        local_index = route["local_skill_index"]
+        self.assertIn("羽裳", local_index["target_root"])
+        candidate_paths = [
+            str(item.get("native_skill_entrypoint") or "")
+            for item in route["candidates"]
+            if isinstance(item, dict)
+        ]
+        self.assertTrue(
+            any("羽裳" in path and path.replace("\\", "/").endswith("csv-analysis/SKILL.md") for path in candidate_paths)
+        )
 
     def test_freeze_uses_work_binding_as_selected_skill_truth_when_selected_mirror_is_absent(self) -> None:
         shell = resolve_powershell()
