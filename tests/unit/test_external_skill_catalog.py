@@ -85,7 +85,7 @@ def test_build_skill_catalog_marks_duplicates_inactive_by_root_order(tmp_path: P
     assert [row["display_name"] for row in rows] == ["First Skill", "Second Skill"]
     assert [row["source_order"] for row in rows] == [0, 1]
     assert [row["active"] for row in rows] == [True, False]
-    assert [row["duplicate_state"] for row in rows] == ["active", "inactive_duplicate"]
+    assert [row["duplicate_state"] for row in rows] == ["active", "shadowed_duplicate"]
     assert catalog["discovery_diagnostics"]["duplicates"] == [
         {
             "skill_id": "shared-skill",

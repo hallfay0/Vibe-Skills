@@ -46,33 +46,17 @@ function Get-VibeConfiguredSkillRoots {
     } else {
         [System.IO.Path]::GetFullPath($TargetRoot)
     }
-    $settingsMapPath = Join-Path $RepoRoot (Join-Path 'adapters' (Join-Path $resolvedHostId 'settings-map.json'))
-    if (-not (Test-Path -LiteralPath $settingsMapPath -PathType Leaf)) {
-        return @()
-    }
-    $settingsMap = Get-Content -LiteralPath $settingsMapPath -Raw -Encoding UTF8 | ConvertFrom-Json
-    if ($null -eq $settingsMap -or -not ($settingsMap.PSObject.Properties.Name -contains 'semantics')) {
-        return @()
-    }
-    $semantics = $settingsMap.semantics
-    $keys = @('vco.skill_roots.global', 'vco.skill_root.global', 'vco.skill_root')
+    $defaultSkillRoots = @('~/.agents/skills', '~/.codex/skills', '~/.claude/skills')
     $roots = New-Object System.Collections.Generic.List[string]
     $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-    foreach ($key in $keys) {
-        $property = $semantics.PSObject.Properties[$key]
-        if ($null -eq $property) {
+    foreach ($rawValue in $defaultSkillRoots) {
+        $resolved = Resolve-VibeSkillRootPath -RawPath ([string]$rawValue) -TargetRoot $resolvedTargetRoot
+        if ([string]::IsNullOrWhiteSpace([string]$resolved)) {
             continue
         }
-        foreach ($rawValue in @($property.Value)) {
-            $resolved = Resolve-VibeSkillRootPath -RawPath ([string]$rawValue) -TargetRoot $resolvedTargetRoot
-            if ([string]::IsNullOrWhiteSpace([string]$resolved)) {
-                continue
-            }
-            if ($seen.Add([string]$resolved)) {
-                $roots.Add([string]$resolved) | Out-Null
-            }
+        if ($seen.Add([string]$resolved)) {
+            $roots.Add([string]$resolved) | Out-Null
         }
-        break
     }
     return [string[]]$roots.ToArray()
 }

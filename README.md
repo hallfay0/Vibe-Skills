@@ -195,6 +195,8 @@ flowchart LR
 
 </div>
 
+The normal closeout path should stay small: prove the governed runtime, entry truth, execution proof, release consistency, and repo cleanliness before reaching for wider audit gates.
+
 ---
 
 ## 🎬 Practice Demos: Real Work You Can See
@@ -292,7 +294,7 @@ The operating model is intentionally simple:
 | **Less micromanagement** | You do not need to keep saying "plan first", "test it", or "save the context". |
 | **Verified delivery** | Work is pushed toward tests, checks, evidence, and explicit acceptance. |
 | **Cross-session context** | Requirements, plans, decisions, handoff notes, and evidence are stored in predictable places. |
-| **External-first extension** | Host-managed external and other user-owned skill folders are the main way to extend the workflow. |
+| **Local installed extension** | Declared local skill roots are the main way to extend the workflow. A skill needs a real `SKILL.md` before the kernel can bind it. |
 | **Portable entry** | The core is one work-kernel entry, so Skills-capable agents can get the same workflow upgrade across supported hosts. |
 
 </div>
@@ -477,7 +479,7 @@ _If you only want to judge whether VibeSkills fits your task, the table below is
 
 <br/>
 
-The point of this section is to show shape, not to turn the README into a catalog. If your work looks roughly like one of these rows, the kernel is meant to organize it. If not, the normal extension path is still a user-owned skill folder under a declared host root or `skills/local/<skill-id>/SKILL.md`, not a bigger central catalog.
+The point of this section is to show shape, not to turn the README into a catalog. If your work looks roughly like one of these rows, the kernel is meant to organize it. If not, the normal extension path is still a user-owned skill folder under a declared local skill root, not a bigger central catalog.
 
 <br/>
 
@@ -507,103 +509,61 @@ The runtime core behind **VibeSkills** is **VCO**. It is not trying to be a smar
 
 ## ⚙️ Installation & Skills Management
 
-Install first, learn the internals later. The public install path now has two clear choices: **prompt-based install** and **command install**.
+Install first, learn the internals later. The public install path is now intentionally small: choose a skills directory, then place the `vibe` skill there.
 
-Use the prompt path if you want the assistant to handle host roots and checks. Use the command path if you already know the terminal flow and want to run the commands yourself. Both paths install the same public `vibe` / `vibe-upgrade` entries.
+The default target is `~/.agents/skills`, so the shortest Windows install is:
 
-### Option 1: Prompt-Based Install (Recommended)
-
-This is the shortest path. Choose three things, then copy one prompt into the AI app you use:
-
-1. Pick your host: `codex`, `claude-code`, `cursor`, `windsurf`, `openclaw`, or `opencode`.
-2. Pick your action: `install` for a first install, `update` if VibeSkills is already installed.
-3. Pick your version: `minimal` is the recommended default. It gives you the small work kernel and public `vibe` entries. Choose `full` when you need the full-profile host wiring; specialist Skills still come only from local installed roots.
-4. Open the install entry:
-   [Prompt-based install (recommended)](docs/install/one-click-install-release-copy.en.md)
-5. Copy the matching prompt into your AI app and let it run the install and check steps.
-
-The prompt asks the assistant to confirm host and public version first, then run the install and checks. It does not ask you to paste secrets, URLs, or model names into chat.
-
-### Option 2: Command Install
-
-If you prefer to run commands directly, open:
-
-[Multi-host command reference](docs/install/recommended-full-path.en.md)
-
-Command install is useful when:
-
-- you already know the target host root, such as `~/.codex` for Codex
-- you want to control the `install` / `check` sequence yourself
-- you are validating install behavior in CI, a test machine, or an isolated target
-
-The common shape is:
-
-```bash
-bash ./install.sh --host <host> --profile minimal
-bash ./check.sh --host <host> --profile minimal
+```powershell
+.\install.ps1
+.\check.ps1
 ```
 
-See the command reference for Windows / PowerShell variants.
+To install into a specific skills directory, pass it directly:
 
-The normal closeout path should stay small: run the governed runtime contract gate, the canonical entry truth gate, the runtime execution proof gate, the release truth consistency gate, and the repo cleanliness gate. Heavier packaging or retired-routing audit gates are still available, but they are not the default closure story.
+```powershell
+.\install.ps1 -SkillsDir C:\Users\you\.agents\skills
+.\check.ps1 -SkillsDir C:\Users\you\.agents\skills
+```
 
-### `full` or `minimal`?
+Update and uninstall use the same boundary:
 
-- Choose `minimal` if you want the normal work-first kernel and local installed skills as the only specialist source.
-- Choose `full` if you want the same local-skill-only runtime with the broader full-profile host wiring. Neither profile installs a repo-shipped specialist corpus.
+```powershell
+.\update.ps1 -SkillsDir C:\Users\you\.agents\skills
+.\uninstall.ps1 -SkillsDir C:\Users\you\.agents\skills
+```
 
-### What install will not ask you to configure
+The installer writes only `<SkillsDir>/vibe`. It does not edit Codex, Claude, Agents, host settings, command wrappers, or global prompt files.
 
-The public install flow currently focuses on local installation, `vibe` discoverability, and base checks. Built-in online enhancement features are treated as not publicly configurable for now, so install docs do not guide normal users through provider, credential, model, or host-plugin setup for that path.
+After install, Vibe scans these default skill roots in order:
+
+- `~/.agents/skills`
+- `~/.codex/skills`
+- `~/.claude/skills`
+
+Extra scan roots are runtime configuration, not installation. Put them in `~/.vibeskills/skill-roots.json` for user-wide roots or `<workspace>/.vibeskills/skill-roots.json` for project roots.
+
+Old host/profile install docs are legacy migration material. They are useful for understanding older installs, but they are not the recommended path for new installs.
 
 ### Open More Docs Only When Needed
 
-- Unsure which host root applies? Use the [cold-start host matrix](docs/cold-start-install-paths.en.md).
-- Want raw commands instead of prompts? Use the [multi-host command reference](docs/install/recommended-full-path.en.md).
-- Need OpenClaw or OpenCode details? Open the [OpenClaw guide](docs/install/openclaw-path.en.md) or [OpenCode guide](docs/install/opencode-path.en.md).
-- Need offline setup? Use the [manual install guide](docs/install/manual-copy-install.en.md).
+- Need legacy host/profile details for an existing old install? Use the [legacy command reference](docs/install/recommended-full-path.en.md).
+- Need offline setup? Use the [manual install guide](docs/install/manual-copy-install.en.md), but keep the target as a skills directory.
 
 <details>
 <summary><b>🔧 Advanced install details</b></summary>
 
-Only read this part if you are configuring paths by hand, debugging install state, or integrating custom Skills.
-
-**Manual configuration paths**
-
-- Codex: `~/.codex/settings.json`
-- Claude Code: `~/.claude/settings.json`
-- Cursor: `~/.cursor/settings.json`
-- OpenCode: `~/.config/opencode/opencode.json`
-- Windsurf / OpenClaw sidecar state: `<target-root>/.vibeskills/host-settings.json`
+Only read this part if you are debugging install state or integrating custom Skills.
 
 **What install creates**
 
-- public runtime entry: `<target-root>/skills/vibe`
-- normal local extension path: `<target-root>/skills/local/<skill-id>/SKILL.md`
-- compatibility helper files: only when a host explicitly needs them
+- installed runtime entry: `<SkillsDir>/vibe`
+- install receipt: `<SkillsDir>/vibe/.vibeskills/install-receipt.json`
 
-When the host declares local skill roots, the kernel scans only those governed roots plus the installed `skills/local` path. Duplicate skill ids are recorded, but only the highest-priority entry stays active. The package no longer ships a specialist corpus.
-
-The `.vibeskills` folders are split on purpose:
-
-- host-sidecar: `<target-root>/.vibeskills/host-settings.json`, `host-closure.json`, `install-ledger.json`, `bin/*`
-- workspace-sidecar: `<workspace-root>/.vibeskills/project.json`, `.vibeskills/docs/requirements/*`, `.vibeskills/docs/plans/*`, `.vibeskills/outputs/runtime/vibe-sessions/*`
-
-**Verified install behavior**
-
-| Host | Verified areas after install |
-|:---|:---|
-| `codex` | planning, debug, governed execution, memory continuity |
-| `claude-code` | planning, debug, governed execution, memory continuity |
-| `openclaw` | planning, debug, governed execution, memory continuity |
-| `opencode` | planning, debug, governed execution, memory continuity |
-
-These checks confirm that the installed runtime still organizes work, writes governance and cleanup records, and preserves memory continuity. They do not prove every host-specific invocation path was exercised in the same run.
+Duplicate skill ids are recorded, but only the first root by scan order stays active. Later copies are reported as shadowed duplicates.
 
 **Uninstall and custom skills**
 
-- uninstall paths: `uninstall.ps1 -HostId <host>` and `uninstall.sh --host <host>`
-- uninstall governance notes: [`docs/uninstall-governance.md`](docs/uninstall-governance.md)
+- uninstall path: `uninstall.ps1 -SkillsDir <skills-dir>`
 - custom skill onboarding: [custom workflow & skill onboarding guide](docs/install/custom-workflow-onboarding.en.md)
 
 </details>

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import shutil
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -48,12 +50,13 @@ DELETED_RESEARCH_DESIGN_SKILLS = [
 ]
 
 
-def route(prompt: str, task_type: str = "research", grade: str = "L") -> dict[str, object]:
+def route(prompt: str, task_type: str = "research", grade: str = "L", target_root: Path | None = None) -> dict[str, object]:
     return route_prompt(
         prompt=prompt,
         grade=grade,
         task_type=task_type,
         repo_root=REPO_ROOT,
+        target_root=str(target_root) if target_root is not None else None,
     )
 
 
@@ -98,6 +101,15 @@ def skill_text(skill_id: str) -> str:
     return skill_path.read_text(encoding="utf-8-sig")
 
 
+def install_skills(target_root: Path, skill_ids: list[str]) -> None:
+    skills_root = target_root / "skills"
+    skills_root.mkdir(parents=True, exist_ok=True)
+    for skill_id in dict.fromkeys(skill_ids):
+        source = REPO_ROOT / "bundled" / "skills" / skill_id
+        if source.exists():
+            shutil.copytree(source, skills_root / skill_id)
+
+
 class ResearchDesignPackConsolidationTests(unittest.TestCase):
     def assert_selected(
         self,
@@ -108,8 +120,11 @@ class ResearchDesignPackConsolidationTests(unittest.TestCase):
         task_type: str = "research",
         grade: str = "L",
     ) -> None:
-        result = route(prompt, task_type=task_type, grade=grade)
-        self.assertEqual((expected_pack, expected_skill), selected(result), ranked_summary(result))
+        with tempfile.TemporaryDirectory() as tempdir:
+            target_root = Path(tempdir) / ".agents"
+            install_skills(target_root, [*RESEARCH_DESIGN_SKILLS, expected_skill])
+            result = route(prompt, task_type=task_type, grade=grade, target_root=target_root)
+        self.assertEqual(("local-skill-index", expected_skill), selected(result), ranked_summary(result))
 
     def assert_not_research_design(
         self,
@@ -118,8 +133,11 @@ class ResearchDesignPackConsolidationTests(unittest.TestCase):
         task_type: str = "research",
         grade: str = "L",
     ) -> None:
-        result = route(prompt, task_type=task_type, grade=grade)
-        self.assertNotEqual("research-design", selected(result)[0], ranked_summary(result))
+        with tempfile.TemporaryDirectory() as tempdir:
+            target_root = Path(tempdir) / ".agents"
+            install_skills(target_root, RESEARCH_DESIGN_SKILLS)
+            result = route(prompt, task_type=task_type, grade=grade, target_root=target_root)
+        self.assertNotIn(selected(result)[1], RESEARCH_DESIGN_SKILLS, ranked_summary(result))
 
     def test_research_design_manifest_is_research_methods_only(self) -> None:
         pack = pack_by_id("research-design")
@@ -291,9 +309,11 @@ class ResearchDesignPackConsolidationTests(unittest.TestCase):
         )
 
     def test_playwright_browser_automation_does_not_route_to_research_design(self) -> None:
-        result = route("用 Playwright 打开网页并截图", task_type="coding", grade="M")
-        self.assertIn(selected(result)[0], {"web-scraping", "screen-capture"}, ranked_summary(result))
-        self.assertNotEqual("research-design", selected(result)[0], ranked_summary(result))
+        self.assert_not_research_design(
+            "用 Playwright 打开网页并截图",
+            task_type="coding",
+            grade="M",
+        )
 
     def test_property_based_testing_does_not_route_to_research_design(self) -> None:
         self.assert_not_research_design(

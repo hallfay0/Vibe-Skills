@@ -309,8 +309,17 @@ function New-VibeSpecialistRecommendation {
 
     $metadata = Get-VibeSkillMetadata -RepoRoot $RepoRoot -SkillId $SkillId -TargetRoot $TargetRoot -HostId $HostId
     $bindingProfile = Get-VibeSpecialistBindingProfile -SkillId $SkillId -Policy $DispatchContract.policy -DispatchContract $DispatchContract
+    $customNativeSkillEntrypoint = if ($null -ne $CustomMetadata -and $CustomMetadata.PSObject.Properties.Name -contains 'native_skill_entrypoint' -and -not [string]::IsNullOrWhiteSpace([string]$CustomMetadata.native_skill_entrypoint)) {
+        [string]$CustomMetadata.native_skill_entrypoint
+    } elseif ($null -ne $CustomMetadata -and $CustomMetadata.PSObject.Properties.Name -contains 'skill_md_path' -and -not [string]::IsNullOrWhiteSpace([string]$CustomMetadata.skill_md_path)) {
+        [string]$CustomMetadata.skill_md_path
+    } else {
+        $null
+    }
     $nativeSkillEntrypoint = if ($metadata.skill_path) {
         [string]$metadata.skill_path
+    } elseif (-not [string]::IsNullOrWhiteSpace([string]$customNativeSkillEntrypoint)) {
+        [string]$customNativeSkillEntrypoint
     } else {
         $null
     }
@@ -323,6 +332,8 @@ function New-VibeSpecialistRecommendation {
     }
     $skillRoot = if ($metadata.PSObject.Properties.Name -contains 'skill_root' -and -not [string]::IsNullOrWhiteSpace([string]$metadata.skill_root)) {
         [string]$metadata.skill_root
+    } elseif ($null -ne $CustomMetadata -and $CustomMetadata.PSObject.Properties.Name -contains 'skill_root' -and -not [string]::IsNullOrWhiteSpace([string]$CustomMetadata.skill_root)) {
+        [string]$CustomMetadata.skill_root
     } elseif (-not [string]::IsNullOrWhiteSpace([string]$nativeSkillEntrypoint)) {
         [string](Split-Path -Parent $nativeSkillEntrypoint)
     } else {
@@ -371,8 +382,8 @@ function New-VibeSpecialistRecommendation {
         review_mode = if ($null -ne $CustomMetadata -and $CustomMetadata.PSObject.Properties.Name -contains 'review_mode') { [string]$CustomMetadata.review_mode } else { [string]$bindingProfile.review_mode }
         native_skill_entrypoint = $nativeSkillEntrypoint
         skill_root = $skillRoot
-        source_root = if ($metadata.PSObject.Properties.Name -contains 'source_root') { [string]$metadata.source_root } else { $null }
-        source_kind = if ($metadata.PSObject.Properties.Name -contains 'source_kind') { [string]$metadata.source_kind } else { $null }
+        source_root = if ($metadata.PSObject.Properties.Name -contains 'source_root' -and -not [string]::IsNullOrWhiteSpace([string]$metadata.source_root)) { [string]$metadata.source_root } elseif ($null -ne $CustomMetadata -and $CustomMetadata.PSObject.Properties.Name -contains 'source_root') { [string]$CustomMetadata.source_root } else { $null }
+        source_kind = if ($metadata.PSObject.Properties.Name -contains 'source_kind' -and -not [string]::IsNullOrWhiteSpace([string]$metadata.source_kind)) { [string]$metadata.source_kind } elseif ($null -ne $CustomMetadata -and $CustomMetadata.PSObject.Properties.Name -contains 'source_kind') { [string]$CustomMetadata.source_kind } else { $null }
         source_priority = if ($metadata.PSObject.Properties.Name -contains 'source_priority' -and $null -ne $metadata.source_priority) { [int]$metadata.source_priority } else { $null }
         duplicate_state = if ($metadata.PSObject.Properties.Name -contains 'duplicate_state') { [string]$metadata.duplicate_state } else { $null }
         local_skill_authority = if ($metadata.PSObject.Properties.Name -contains 'authority_valid') { [bool]$metadata.authority_valid } else { $false }

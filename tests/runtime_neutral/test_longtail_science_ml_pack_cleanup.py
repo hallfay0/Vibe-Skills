@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import shutil
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -167,55 +169,6 @@ BLOCKED_ROUTE_CASES = [
 ]
 
 
-REQUIRED_KEYWORDS = {
-    "simpy": ["simpy", "simpy discrete event simulation", "simpy queue simulation", "simpy resource process"],
-    "fluidsim": ["fluidsim", "fluidsim cfd", "fluidsim navier-stokes", "fluidsim turbulence"],
-    "matchms": ["matchms", "ms/ms", "mass spectra", "spectral similarity", "metabolomics spectrum processing"],
-    "matlab": ["matlab", "octave", ".m script", "m-file", "simulink", "matlab script"],
-    "neuropixels-analysis": ["neuropixels", "spikeglx", "kilosort", "spike sorting", "open ephys"],
-    "pymc": ["pymc", "bayesian hierarchical model", "nuts mcmc", "posterior predictive", "probabilistic programming"],
-    "pymoo": ["pymoo", "nsga-ii", "multi-objective optimization", "pareto front", "pymoo constraint optimization"],
-    "rowan": ["rowan", "rowan chemistry", "rowan-python", "labs.rowansci.com", "rowan api"],
-    "stable-baselines3": ["stable-baselines3", "stable baselines3", "sb3", "ppo", "reinforcement learning"],
-    "timesfm-forecasting": ["timesfm", "zero-shot forecasting", "foundation model forecasting", "forecast horizon", "prediction intervals"],
-    "torch-geometric": ["torch-geometric", "torch_geometric", "pytorch geometric", "pyg", "graph neural network"],
-}
-
-
-FORBIDDEN_POSITIVE_KEYWORDS = {
-    "simpy": ["event simulation", "process simulation", "agent-based model", "monte carlo simulation"],
-    "fluidsim": ["fluid simulation", "python simulation", "physics simulation", "pde solver"],
-    "matlab": ["matrix calculation", "numpy matrix", "scientific visualization", "data analysis", "numerical computing"],
-    "pymoo": ["optimization", "experiment design"],
-    "rowan": [
-        "pka prediction",
-        "conformer search",
-        "geometry optimization",
-        "quantum chemistry",
-        "docking",
-        "boltz",
-        "chai-1",
-        "molecular machine learning",
-    ],
-    "timesfm-forecasting": ["time series forecasting", "business forecast", "tabular regression"],
-}
-
-
-REQUIRED_NEGATIVE_KEYWORDS = {
-    "simpy": ["sympy", "agent-based model", "monte carlo simulation", "generic simulation", "physics simulation"],
-    "fluidsim": ["css", "fluid layout", "responsive design", "generic pde", "finite element", "python simulation"],
-    "matchms": ["pubmed", "literature review", "generic chemistry", "non-spectral metabolomics", "not mass spectra"],
-    "matlab": ["not matlab", "not octave", "numpy", "python matrix", "jupyter", "scientific visualization", "data analysis"],
-    "neuropixels-analysis": ["clinical eeg", "fmri", "generic neuroscience", "single-cell rna", "flow cytometry"],
-    "pymc": ["scikit-learn", "sklearn", "generic regression", "causal analysis", "pymoo", "nsga"],
-    "pymoo": ["pymc", "bayesian", "generic optimization", "experiment design", "gradient descent", "causal analysis"],
-    "rowan": ["rdkit", "pubchem", "chembl", "docking", "pka", "conformer search", "quantum chemistry", "not rowan"],
-    "stable-baselines3": ["scikit-learn", "sklearn", "random forest", "supervised learning", "not reinforcement learning"],
-    "timesfm-forecasting": ["scikit-learn", "ordinary regression", "tabular regression", "business forecast", "arima", "not time series"],
-    "torch-geometric": ["cnn", "resnet", "generic neural network", "network graph visualization", "molecule-only", "image classification"],
-}
-
-
 DOC_BOUNDARY_PHRASES = {
     "simpy": ["routing boundary", "simpy", "discrete-event"],
     "fluidsim": ["routing boundary", "fluidsim", "cfd"],
@@ -231,8 +184,14 @@ DOC_BOUNDARY_PHRASES = {
 }
 
 
-def route(prompt: str, task_type: str = "coding", grade: str = "M") -> dict[str, object]:
-    return route_prompt(prompt=prompt, grade=grade, task_type=task_type, repo_root=REPO_ROOT)
+def route(prompt: str, task_type: str = "coding", grade: str = "M", target_root: Path | None = None) -> dict[str, object]:
+    return route_prompt(
+        prompt=prompt,
+        grade=grade,
+        task_type=task_type,
+        repo_root=REPO_ROOT,
+        target_root=str(target_root) if target_root is not None else None,
+    )
 
 
 def selected(result: dict[str, object]) -> tuple[str, str]:
@@ -274,42 +233,6 @@ def load_pack(pack_id: str) -> dict[str, object]:
     raise AssertionError(f"pack missing: {pack_id}")
 
 
-def load_keyword_index() -> dict[str, object]:
-    return json.loads((REPO_ROOT / "config" / "skill-keyword-index.json").read_text(encoding="utf-8-sig"))
-
-
-def skill_keywords(skill_id: str) -> list[str]:
-    index = load_keyword_index()
-    skill = index.get("skills", {}).get(skill_id)
-    assert isinstance(skill, dict), skill_id
-    keywords = skill.get("keywords")
-    assert isinstance(keywords, list), skill
-    return [str(keyword).lower() for keyword in keywords]
-
-
-def load_routing_rules() -> dict[str, object]:
-    return json.loads((REPO_ROOT / "config" / "skill-routing-rules.json").read_text(encoding="utf-8-sig"))
-
-
-def routing_rule(skill_id: str) -> dict[str, object]:
-    rules = load_routing_rules()
-    skill = rules.get("skills", {}).get(skill_id)
-    assert isinstance(skill, dict), skill_id
-    return skill
-
-
-def positive_keywords(skill_id: str) -> list[str]:
-    keywords = routing_rule(skill_id).get("positive_keywords")
-    assert isinstance(keywords, list), skill_id
-    return [str(keyword).lower() for keyword in keywords]
-
-
-def negative_keywords(skill_id: str) -> list[str]:
-    keywords = routing_rule(skill_id).get("negative_keywords")
-    assert isinstance(keywords, list), skill_id
-    return [str(keyword).lower() for keyword in keywords]
-
-
 def skill_body(skill_id: str) -> str:
     path = REPO_ROOT / "bundled" / "skills" / skill_id / "SKILL.md"
     text = path.read_text(encoding="utf-8-sig")
@@ -329,9 +252,16 @@ class LongtailScienceMlPackCleanupTests(unittest.TestCase):
         *,
         task_type: str = "coding",
         grade: str = "M",
+        target_root: Path | None = None,
     ) -> None:
-        result = route(prompt, task_type=task_type, grade=grade)
+        result = route(prompt, task_type=task_type, grade=grade, target_root=target_root)
         self.assertEqual((expected_pack, expected_skill), selected(result), ranked_summary(result))
+
+    def install_target_skills(self, target_root: Path) -> None:
+        skills_root = target_root / "skills"
+        skills_root.mkdir(parents=True, exist_ok=True)
+        for skill_id in TARGET_DIRECT_OWNERS.values():
+            shutil.copytree(REPO_ROOT / "bundled" / "skills" / skill_id, skills_root / skill_id)
 
     def assert_not_selected(
         self,
@@ -363,37 +293,32 @@ class LongtailScienceMlPackCleanupTests(unittest.TestCase):
                 self.assertEqual(skill_id, defaults.get("research"))
 
     def test_explicit_target_prompts_route_to_direct_owners(self) -> None:
-        for prompt, expected_pack, expected_skill, task_type in POSITIVE_ROUTE_CASES:
-            with self.subTest(expected_skill=expected_skill):
-                self.assert_selected(prompt, expected_pack, expected_skill, task_type=task_type)
+        with tempfile.TemporaryDirectory() as tempdir:
+            target_root = Path(tempdir) / ".agents"
+            self.install_target_skills(target_root)
+            for prompt, _expected_pack, expected_skill, task_type in POSITIVE_ROUTE_CASES:
+                with self.subTest(expected_skill=expected_skill):
+                    self.assert_selected(
+                        prompt,
+                        "local-skill-index",
+                        expected_skill,
+                        task_type=task_type,
+                        target_root=target_root,
+                    )
 
     def test_generic_neighbor_prompts_do_not_route_to_longtail_owners(self) -> None:
         for prompt, blocked_pack, blocked_skill, task_type in BLOCKED_ROUTE_CASES:
             with self.subTest(blocked_skill=blocked_skill):
                 self.assert_not_selected(prompt, blocked_pack, blocked_skill, task_type=task_type)
 
-    def test_keyword_index_uses_precise_target_terms(self) -> None:
-        for skill_id, required_terms in REQUIRED_KEYWORDS.items():
-            with self.subTest(skill_id=skill_id):
-                keywords = skill_keywords(skill_id)
-                for term in required_terms:
-                    self.assertIn(term.lower(), keywords)
-
-    def test_keyword_index_removes_broad_ordinary_route_terms(self) -> None:
-        for skill_id, forbidden_terms in FORBIDDEN_POSITIVE_KEYWORDS.items():
-            with self.subTest(skill_id=skill_id):
-                keywords = skill_keywords(skill_id)
-                positives = positive_keywords(skill_id)
-                for term in forbidden_terms:
-                    self.assertNotIn(term.lower(), keywords)
-                    self.assertNotIn(term.lower(), positives)
-
-    def test_routing_rules_encode_negative_boundaries(self) -> None:
-        for skill_id, required_terms in REQUIRED_NEGATIVE_KEYWORDS.items():
-            with self.subTest(skill_id=skill_id):
-                negatives = negative_keywords(skill_id)
-                for term in required_terms:
-                    self.assertIn(term.lower(), negatives)
+    def test_static_keyword_and_routing_rule_files_stay_retired(self) -> None:
+        for relative_path in (
+            "config/skill-keyword-index.json",
+            "config/skill-routing-rules.json",
+            "config/skills-lock.json",
+        ):
+            with self.subTest(path=relative_path):
+                self.assertFalse((REPO_ROOT / relative_path).exists())
 
     def test_skill_docs_state_routing_boundaries(self) -> None:
         for skill_id, phrases in DOC_BOUNDARY_PHRASES.items():

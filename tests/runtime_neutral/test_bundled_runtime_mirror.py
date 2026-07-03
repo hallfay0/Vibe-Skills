@@ -80,8 +80,10 @@ class BundledRuntimePayloadTests(unittest.TestCase):
 
         self.assertIn("profiles", base_packaging)
         self.assertNotIn("copy_directories", base_packaging)
-        self.assertIn("vibe", full_packaging["exclude_bundled_skill_names"])
-        self.assertIn("vibe", minimal_packaging["exclude_bundled_skill_names"])
+        self.assertFalse(full_packaging["internal_skill_corpus"]["enabled"])
+        self.assertFalse(minimal_packaging["internal_skill_corpus"]["enabled"])
+        self.assertEqual([], full_packaging["internal_skill_corpus"]["resident_skill_names"])
+        self.assertEqual([], minimal_packaging["internal_skill_corpus"]["resident_skill_names"])
         self.assertEqual("skills/vibe", full_packaging["canonical_vibe_payload"]["target_relpath"])
         self.assertEqual("skills/vibe", minimal_packaging["canonical_vibe_payload"]["target_relpath"])
 

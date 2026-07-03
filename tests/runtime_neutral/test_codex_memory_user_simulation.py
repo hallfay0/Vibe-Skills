@@ -197,15 +197,12 @@ def require_codex_test_prereqs() -> str:
 
 def install_codex(target_root: Path, *, env: dict[str, str]) -> None:
     bash = require_codex_test_prereqs()
+    skills_dir = target_root / "skills"
     command = [
         bash,
         str(INSTALL_SCRIPT),
-        "--host",
-        "codex",
-        "--profile",
-        "full",
-        "--target-root",
-        _to_bash_path(target_root, bash),
+        "--skills-dir",
+        _to_bash_path(skills_dir, bash),
     ]
     subprocess.run(
         command,

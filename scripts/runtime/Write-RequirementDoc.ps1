@@ -587,6 +587,34 @@ $lines += @(
     '## Autonomy Mode',
     $intentContract.autonomy_mode,
     '',
+    '## Workflow Level Confirmation'
+)
+$workflowLevelConfirmation = if (
+    $intentContract.PSObject.Properties.Name -contains 'workflow_level_confirmation' -and
+    $null -ne $intentContract.workflow_level_confirmation
+) {
+    $intentContract.workflow_level_confirmation
+} else {
+    $null
+}
+if ($workflowLevelConfirmation) {
+    $lines += @(
+        "- User-visible: $([bool]$workflowLevelConfirmation.user_visible)",
+        "- Recommended level: $([string]$workflowLevelConfirmation.recommended_level)",
+        "- Question: $([string]$workflowLevelConfirmation.question)"
+    )
+    if ($workflowLevelConfirmation.PSObject.Properties.Name -contains 'levels' -and $workflowLevelConfirmation.levels) {
+        foreach ($levelName in @('L', 'XL')) {
+            if ($workflowLevelConfirmation.levels.PSObject.Properties.Name -contains $levelName) {
+                $lines += ("- {0}: {1}" -f $levelName, [string]$workflowLevelConfirmation.levels.$levelName)
+            }
+        }
+    }
+} else {
+    $lines += 'No workflow level confirmation was recorded in the intent contract.'
+}
+$lines += @(
+    '',
     '## Assumptions'
 )
 $lines += @($intentContract.assumptions | ForEach-Object { "- $_" })

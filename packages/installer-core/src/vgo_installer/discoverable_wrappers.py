@@ -151,6 +151,8 @@ def _body_lines(host_id: str, entry: DiscoverableEntry, *, contract: dict[str, o
         continuation_lines = [
             "If the latest verified runtime summary exposes `bounded_return_control.explicit_user_reentry_required = true`, return control to the user immediately.",
             "Do not consume `--continue-from-run-id` and `--bounded-reentry-token` in the same assistant turn that produced the bounded stop.",
+            "Do not treat the original detailed user request as approval of the frozen requirement or plan.",
+            "Do not perform equivalent manual planning, execution, workaround delivery, or final artifact delivery outside governed re-entry.",
             "Wait for a new user message that explicitly approves or revises the frozen requirement/plan, then re-enter canonical `vibe` and forward those credentials automatically from the latest bounded summary.",
             "Treat the runtime summary's `terminal_stage`, `next_stage`, and `approval_prompt` as the authoritative boundary contract instead of guessing whether planning/execution should continue.",
         ]
@@ -158,6 +160,7 @@ def _body_lines(host_id: str, entry: DiscoverableEntry, *, contract: dict[str, o
         continuation_lines = [
             "If this wrapper continues a prior canonical run in the same thread or workspace, reuse the latest verified frozen requirement/plan as continuation context.",
             "If the latest verified runtime summary exposes `bounded_return_control.explicit_user_reentry_required = true`, do not continue on prose alone.",
+            "A detailed original request is not approval of the frozen requirement or plan; wait for a later explicit approval or revision.",
             "Forward `--continue-from-run-id <source_run_id>` and `--bounded-reentry-token <reentry_token>` from that latest bounded summary before launching the next wrapper.",
             "Without those credentials, treat the follow-up as blocked instead of auto-continuing later stages.",
             "When extracting keyword intent for the router, include the frozen goal, deliverable, constraints, and capability hints from the earlier governed artifacts instead of reducing the request to a bare `execute plan` summary.",

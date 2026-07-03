@@ -428,6 +428,7 @@ enabled: true
     assert catalog["host_roots"] == [
         str((agent_root / "skills").resolve()),
         str((agent_root.parent / ".codex" / "skills").resolve()),
+        str((agent_root.parent / ".claude" / "skills").resolve()),
     ]
     assert catalog["catalog_source_kinds"] == ["host_installed", "vibe_local"]
     assert any(
@@ -673,13 +674,20 @@ enabled: true
     assert inspected["skills_catalog"]["host_roots"] == [
         str((agent_root / "skills").resolve()),
         str((agent_root.parent / ".codex" / "skills").resolve()),
+        str((agent_root.parent / ".claude" / "skills").resolve()),
     ]
 
 
 def test_inspect_local_run_validates_requested_host_context(tmp_path: Path) -> None:
     agent_root = tmp_path / "agent-root"
     workspace_root = tmp_path / "workspace"
-    host_skill_dir = agent_root.parent / ".config" / "opencode" / "skills" / "write-report"
+    extra_skills_root = workspace_root / "extra-skills"
+    (workspace_root / ".vibeskills").mkdir(parents=True, exist_ok=True)
+    (workspace_root / ".vibeskills" / "skill-roots.json").write_text(
+        json.dumps({"schema_version": 1, "extra_skill_roots": ["extra-skills"]}),
+        encoding="utf-8",
+    )
+    host_skill_dir = extra_skills_root / "write-report"
     host_skill_dir.mkdir(parents=True, exist_ok=True)
     (host_skill_dir / "SKILL.md").write_text(
         """---
@@ -718,8 +726,10 @@ enabled: true
         "host_id": "opencode",
         "workspace_root": str(workspace_root.resolve()),
         "resolved_host_roots": [
-            str((agent_root.parent / ".config" / "opencode" / "skills").resolve()),
-            str((workspace_root / ".opencode" / "skills").resolve()),
+            str(extra_skills_root.resolve()),
+            str((agent_root.parent / ".agents" / "skills").resolve()),
+            str((agent_root.parent / ".codex" / "skills").resolve()),
+            str((agent_root.parent / ".claude" / "skills").resolve()),
         ],
         "matches_run_catalog": True,
     }

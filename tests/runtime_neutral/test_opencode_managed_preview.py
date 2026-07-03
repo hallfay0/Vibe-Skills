@@ -122,9 +122,10 @@ class OpenCodeManagedPreviewTests(unittest.TestCase):
             self.assertIn("mcp", preserved)
             self.assertIsNone(payload["legacy_opencode_config_cleanup"])
 
-    def test_shell_install_and_check_materialize_opencode_preview_wrappers_without_touching_real_config(self) -> None:
+    def test_shell_install_and_check_use_skills_dir_without_touching_real_opencode_config(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             target_root = Path(tempdir)
+            skills_dir = target_root / "skills"
             settings_path = target_root / "opencode.json"
             original = {
                 "$schema": "https://opencode.ai/config.json",
@@ -142,47 +143,38 @@ class OpenCodeManagedPreviewTests(unittest.TestCase):
                 [
                     "bash",
                     str(REPO_ROOT / "install.sh"),
-                    "--host",
-                    "opencode",
-                    "--profile",
-                    "full",
-                    "--target-root",
-                    str(target_root),
+                    "--skills-dir",
+                    str(skills_dir),
                 ],
                 capture_output=True,
                 text=True,
                 check=True,
             )
-            self.assertIn("Mode   : preview-guidance", install_result.stdout)
+            install_payload = json.loads(install_result.stdout)
+            self.assertEqual("vibe-skill-install", install_payload["receipt_kind"])
 
             check_result = subprocess.run(
                 [
                     "bash",
                     str(REPO_ROOT / "check.sh"),
-                    "--host",
-                    "opencode",
-                    "--profile",
-                    "full",
-                    "--target-root",
-                    str(target_root),
+                    "--skills-dir",
+                    str(skills_dir),
                 ],
                 capture_output=True,
                 text=True,
                 check=True,
             )
 
-            self.assertIn("[OK] host settings sidecar", check_result.stdout)
-            self.assertIn("[OK] opencode preview config example", check_result.stdout)
-            self.assertNotIn("[FAIL] opencode command/", check_result.stdout)
-            self.assertNotIn("[FAIL] opencode agent/", check_result.stdout)
+            check_payload = json.loads(check_result.stdout)
+            self.assertTrue(check_payload["ok"])
             self.assertEqual(original, json.loads(settings_path.read_text(encoding="utf-8")))
-            self.assertTrue((target_root / "commands" / "vibe.md").exists())
-            self.assertTrue((target_root / "agents" / "vibe-plan.md").exists())
-            self._assert_opencode_command_wrapper(target_root / "commands" / "vibe.md", agent="vibe-plan")
-            self._assert_opencode_command_wrapper(target_root / "command" / "vibe.md", agent="vibe-plan")
-            self.assertFalse((target_root / "commands" / "vibe-how-do-we-do.md").exists())
-            self.assertFalse((target_root / "command" / "vibe-how-do-we-do.md").exists())
-            self.assertTrue((target_root / ".vibeskills" / "host-settings.json").exists())
+            self.assertTrue((skills_dir / "vibe" / "SKILL.md").exists())
+            self.assertTrue((skills_dir / "vibe" / ".vibeskills" / "install-receipt.json").exists())
+            self.assertFalse((target_root / "commands").exists())
+            self.assertFalse((target_root / "command").exists())
+            self.assertFalse((target_root / "agents").exists())
+            self.assertFalse((target_root / "agent").exists())
+            self.assertFalse((target_root / ".vibeskills" / "host-settings.json").exists())
 
 
 if __name__ == "__main__":

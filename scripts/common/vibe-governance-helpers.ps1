@@ -1633,7 +1633,26 @@ function Test-VgoInstalledRuntimeMaterialization {
         [AllowNull()] [psobject]$RuntimeConfig
     )
 
-    if ([string]::IsNullOrWhiteSpace($RepoRoot) -or $null -eq $RuntimeConfig) {
+    if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
+        return $false
+    }
+
+    $simpleInstallReceipt = Join-Path $RepoRoot '.vibeskills\install-receipt.json'
+    if (Test-Path -LiteralPath $simpleInstallReceipt -PathType Leaf) {
+        try {
+            $receipt = Get-Content -LiteralPath $simpleInstallReceipt -Raw -Encoding UTF8 | ConvertFrom-Json
+            return (
+                $receipt.PSObject.Properties.Name -contains 'receipt_kind' -and
+                [string]$receipt.receipt_kind -eq 'vibe-skill-install' -and
+                $receipt.PSObject.Properties.Name -contains 'install_root' -and
+                [System.IO.Path]::GetFullPath([string]$receipt.install_root) -eq [System.IO.Path]::GetFullPath($RepoRoot)
+            )
+        } catch {
+            return $false
+        }
+    }
+
+    if ($null -eq $RuntimeConfig) {
         return $false
     }
 

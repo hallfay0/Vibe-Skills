@@ -135,6 +135,15 @@ def create_fake_wrapper(directory: Path, name: str, host_id: str) -> Path:
     return wrapper_path
 
 
+def install_systematic_debugging_skill(target_root: Path) -> None:
+    skill_path = target_root / "skills" / "systematic-debugging" / "SKILL.md"
+    skill_path.parent.mkdir(parents=True, exist_ok=True)
+    skill_path.write_text(
+        "---\nname: systematic-debugging\ndescription: Installed systematic-debugging test skill.\n---\n",
+        encoding="utf-8",
+    )
+
+
 class MultiHostSpecialistExecutionTests(unittest.TestCase):
     def test_runtime_packet_records_requested_and_effective_host_adapter(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
@@ -163,6 +172,8 @@ class MultiHostSpecialistExecutionTests(unittest.TestCase):
             with self.subTest(host_id=host_id):
                 with tempfile.TemporaryDirectory() as tempdir:
                     temp_path = Path(tempdir)
+                    target_root = temp_path / ".agents"
+                    install_systematic_debugging_skill(target_root)
                     wrapper = create_fake_wrapper(temp_path, command_name, host_id)
                     payload = run_runtime(
                         TASK,
@@ -174,6 +185,7 @@ class MultiHostSpecialistExecutionTests(unittest.TestCase):
                             "VGO_ENABLE_NATIVE_SPECIALIST_EXECUTION": "1",
                             "VGO_DISABLE_NATIVE_SPECIALIST_EXECUTION": "0",
                             env_name: str(wrapper),
+                            "VIBE_AGENTS_HOME": str(target_root),
                         },
                     )
                     summary = payload["summary"]
@@ -198,15 +210,19 @@ class MultiHostSpecialistExecutionTests(unittest.TestCase):
         for host_id, _env_name, _command_name in HOST_CASES:
             with self.subTest(host_id=host_id):
                 with tempfile.TemporaryDirectory() as tempdir:
+                    temp_path = Path(tempdir)
+                    target_root = temp_path / ".agents"
+                    install_systematic_debugging_skill(target_root)
                     payload = run_runtime(
                         TASK,
-                        artifact_root=Path(tempdir),
+                        artifact_root=temp_path,
                         extra_env={
                             "VCO_HOST_ID": host_id,
                             "VGO_NATIVE_SPECIALIST_EXECUTION_MODE": "host_subprocess",
                             "VGO_SPECIALIST_CONSULTATION_MODE": "host_subprocess",
                             "VGO_ENABLE_NATIVE_SPECIALIST_EXECUTION": "1",
                             "VGO_DISABLE_NATIVE_SPECIALIST_EXECUTION": "0",
+                            "VIBE_AGENTS_HOME": str(target_root),
                         },
                     )
                     summary = payload["summary"]
@@ -228,14 +244,18 @@ class MultiHostSpecialistExecutionTests(unittest.TestCase):
 
     def test_invalid_specialist_execution_mode_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = Path(tempdir)
+            target_root = temp_path / ".agents"
+            install_systematic_debugging_skill(target_root)
             payload = run_runtime(
                 TASK,
-                artifact_root=Path(tempdir),
+                artifact_root=temp_path,
                 extra_env={
                     "VCO_HOST_ID": "openclaw",
                     "VGO_ENABLE_NATIVE_SPECIALIST_EXECUTION": "1",
                     "VGO_DISABLE_NATIVE_SPECIALIST_EXECUTION": "0",
                     "VGO_NATIVE_SPECIALIST_EXECUTION_MODE": "typo-mode",
+                    "VIBE_AGENTS_HOME": str(target_root),
                 },
             )
             summary = payload["summary"]
@@ -258,6 +278,8 @@ class MultiHostSpecialistExecutionTests(unittest.TestCase):
             with self.subTest(host_id=host_id):
                 with tempfile.TemporaryDirectory() as tempdir:
                     temp_path = Path(tempdir)
+                    target_root = temp_path / ".agents"
+                    install_systematic_debugging_skill(target_root)
                     wrapper = create_fake_wrapper(temp_path, command_name, host_id)
                     payload = run_runtime(
                         TASK,
@@ -269,6 +291,7 @@ class MultiHostSpecialistExecutionTests(unittest.TestCase):
                             "VGO_NATIVE_SPECIALIST_EXECUTION_MODE": "host_subprocess",
                             "VGO_SPECIALIST_CONSULTATION_MODE": "host_subprocess",
                             env_name: str(wrapper),
+                            "VIBE_AGENTS_HOME": str(target_root),
                         },
                     )
                     summary = payload["summary"]
@@ -291,15 +314,19 @@ class MultiHostSpecialistExecutionTests(unittest.TestCase):
 
     def test_non_codex_hosts_route_same_session_without_wrapper_env(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = Path(tempdir)
+            target_root = temp_path / ".agents"
+            install_systematic_debugging_skill(target_root)
             payload = run_runtime(
                 TASK,
-                artifact_root=Path(tempdir),
+                artifact_root=temp_path,
                 extra_env={
                     "VCO_HOST_ID": "windsurf",
                     "VGO_ENABLE_NATIVE_SPECIALIST_EXECUTION": "1",
                     "VGO_DISABLE_NATIVE_SPECIALIST_EXECUTION": "0",
                     "VGO_NATIVE_SPECIALIST_EXECUTION_MODE": "host_subprocess",
                     "VGO_SPECIALIST_CONSULTATION_MODE": "host_subprocess",
+                    "VIBE_AGENTS_HOME": str(target_root),
                 },
             )
             summary = payload["summary"]
@@ -322,6 +349,8 @@ class MultiHostSpecialistExecutionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             temp_path = Path(tempdir)
             target_root = temp_path / "openclaw-home"
+            agents_root = temp_path / ".agents"
+            install_systematic_debugging_skill(agents_root)
             target_root.mkdir(parents=True, exist_ok=True)
 
             install_env = dict(os.environ)
@@ -357,6 +386,7 @@ class MultiHostSpecialistExecutionTests(unittest.TestCase):
                     "VGO_DISABLE_NATIVE_SPECIALIST_EXECUTION": "0",
                     "VGO_NATIVE_SPECIALIST_EXECUTION_MODE": "host_subprocess",
                     "VGO_SPECIALIST_CONSULTATION_MODE": "host_subprocess",
+                    "VIBE_AGENTS_HOME": str(agents_root),
                 },
             )
             summary = payload["summary"]

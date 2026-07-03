@@ -52,7 +52,7 @@ These are syntax variants for the same governed runtime, not separate entrypoint
 
 1. `vibe` runtime authority stays intact.
 2. User-facing runtime path stays fixed.
-3. `M`, `L`, `XL` remain internal execution grades only.
+3. `M`, `L`, `XL` are not separate public entry commands; in interactive governed work, L/XL workflow level is a user-visible confirmation before execution planning.
 4. Requirement freezing happens before plan execution.
 5. Cleanup is mandatory before a phase is considered complete.
 6. Silent fallback and silent degradation are forbidden.
@@ -123,6 +123,13 @@ Required fields:
 - autonomy mode
 - open questions
 - inference notes
+
+Required user-visible confirmation gates for L/XL work:
+
+- `workflow_level_confirmation`: explain L versus XL in plain language, recommend one level, then stop for the user's choice when the level affects scope, cost, autonomy, or evidence depth.
+- `skill_use_confirmation`: after specialist skills are recommended and before they become execution obligations, tell the user "我将会在接下来的工作中使用这些 skills，你觉得 OK 吗？" and stop for approval, rejection, or revision.
+
+These gates do not create new runtime entries. They are sub-gates inside the single `vibe` runtime.
 
 ### Stage 3: `requirement_doc`
 
@@ -287,6 +294,7 @@ Expected runtime artifacts:
 - execution-manifest skill execution accounting/disclosure receipts
 - runtime-input packet selected skill execution candidates when bounded skill help is available
 - execution-manifest skill execution accounting when the plan uses bounded skill help
+- workflow-level confirmation and skill-use approval records when L/XL interactive work uses those gates
 - hierarchy-scoped authority markers indicating `root_governed` versus `child_governed` lane
 - explicit escalation artifacts when child-governed lanes propose non-approved skill execution
 - delivery-acceptance report proving whether full downstream completion language is allowed

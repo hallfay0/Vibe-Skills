@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 from pathlib import Path
 import subprocess
 
@@ -14,103 +15,100 @@ from .hosts import (
     resolve_target_root,
 )
 from .install_support import reconcile_install_postconditions
-from .output import parse_json_output, print_install_banner, print_install_completion_hint
+from .output import parse_json_output, print_install_banner, print_install_completion_hint, print_json_payload
 from .process import print_process_output, run_powershell_file, run_subprocess
 from .repo import get_installed_runtime_config
 from .upgrade_service import upgrade_runtime
+from .workspace import extend_workspace_package_path
+
+
+def _resolve_skills_dir(raw_value: str) -> Path:
+    if str(raw_value or '').strip():
+        return Path(raw_value).expanduser().resolve()
+    return (Path.home() / '.agents' / 'skills').resolve()
+
+
+def _git_text(repo_root: Path, *args: str) -> str:
+    result = subprocess.run(
+        ['git', *args],
+        cwd=repo_root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise CliError(f"Unable to read source git state: {result.stderr.strip()}")
+    return result.stdout.strip()
+
+
+def _source_git_state(repo_root: Path) -> tuple[str, bool]:
+    try:
+        commit = _git_text(repo_root, 'rev-parse', 'HEAD')
+        dirty = bool(_git_text(repo_root, 'status', '--porcelain'))
+    except CliError:
+        return "unknown", True
+    return commit, dirty
 
 
 def install_command(args: argparse.Namespace) -> int:
     repo_root = Path(args.repo_root).resolve()
-    host_id = normalize_host_id(args.host)
-    target_root = resolve_target_root(host_id, args.target_root)
-    assert_target_root_matches_host_intent(target_root, host_id)
-    target_root.mkdir(parents=True, exist_ok=True)
+    skills_dir = _resolve_skills_dir(args.skills_dir)
+    extend_workspace_package_path(repo_root)
+    from vgo_installer.simple_skill_installer import install_vibe_skill
 
-    install_mode = install_mode_for_host(host_id)
-    print_install_banner(host_id, install_mode, args.profile, target_root, args)
-
-    command = [
-        '--repo-root', str(repo_root),
-        '--target-root', str(target_root),
-        '--host', host_id,
-        '--profile', args.profile,
-    ]
-    if args.require_closed_ready:
-        command.append('--require-closed-ready')
-    if args.allow_external_skill_fallback:
-        command.append('--allow-external-skill-fallback')
-
-    install_result = run_installer_core(repo_root, command)
-    payload = parse_json_output(install_result)
-    external_fallback_used = list(payload.get('external_fallback_used') or [])
-
-    if args.install_external and not args.strict_offline:
-        maybe_install_external_dependencies(
-            repo_root,
-            str(payload.get('install_mode') or install_mode),
-            strict_offline=bool(args.strict_offline),
-        )
-
-    reconcile_install_postconditions(
-        repo_root,
-        target_root,
-        host_id,
-        profile=args.profile,
-        install_external=bool(args.install_external),
-        frontend=args.frontend,
-        external_fallback_used=external_fallback_used,
-        strict_offline=bool(args.strict_offline),
-        skip_runtime_freshness_gate=bool(args.skip_runtime_freshness_gate),
-        include_frontmatter=args.frontend == 'powershell',
+    commit, dirty = _source_git_state(repo_root)
+    receipt = install_vibe_skill(
+        repo_root=repo_root,
+        skills_dir=skills_dir,
+        installed_at_utc=datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z'),
+        source_git_commit=commit,
+        source_git_dirty=dirty,
     )
-    print_install_completion_hint(args.frontend, host_id=host_id, profile=args.profile, target_root=target_root)
+    print_json_payload(receipt)
     return 0
 
 
 def uninstall_command(args: argparse.Namespace) -> int:
     repo_root = Path(args.repo_root).resolve()
-    host_id = normalize_host_id(args.host)
-    target_root = resolve_target_root(host_id, args.target_root)
-    assert_target_root_matches_host_intent(target_root, host_id)
+    skills_dir = _resolve_skills_dir(args.skills_dir)
+    extend_workspace_package_path(repo_root)
+    from vgo_installer.simple_skill_installer import uninstall_vibe_skill
 
-    command = [
-        '--repo-root', str(repo_root),
-        '--target-root', str(target_root),
-        '--host', host_id,
-        '--profile', args.profile,
-    ]
-    if args.preview:
-        command.append('--preview')
-    if args.purge_empty_dirs:
-        command.append('--purge-empty-dirs')
-    if args.strict_owned_only:
-        command.append('--strict-owned-only')
-    result = run_uninstaller_core(repo_root, command)
-    print_process_output(result)
-    return int(result.returncode)
+    print_json_payload(uninstall_vibe_skill(skills_dir=skills_dir))
+    return 0
+
+
+def update_command(args: argparse.Namespace) -> int:
+    repo_root = Path(args.repo_root).resolve()
+    skills_dir = _resolve_skills_dir(args.skills_dir)
+    extend_workspace_package_path(repo_root)
+    from vgo_installer.simple_skill_installer import update_vibe_skill
+
+    commit, dirty = _source_git_state(repo_root)
+    receipt = update_vibe_skill(
+        repo_root=repo_root,
+        skills_dir=skills_dir,
+        installed_at_utc=datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z'),
+        source_git_commit=commit,
+        source_git_dirty=dirty,
+    )
+    print_json_payload(receipt)
+    return 0
+
+
+def check_command(args: argparse.Namespace) -> int:
+    repo_root = Path(args.repo_root).resolve()
+    skills_dir = _resolve_skills_dir(args.skills_dir)
+    extend_workspace_package_path(repo_root)
+    from vgo_installer.simple_skill_installer import check_vibe_skill
+
+    result = check_vibe_skill(skills_dir=skills_dir)
+    print_json_payload(result)
+    return 0 if result.get("ok") else 1
 
 
 def upgrade_command(args: argparse.Namespace) -> int:
-    repo_root = Path(args.repo_root).resolve()
-    host_id = normalize_host_id(args.host)
-    target_root = resolve_target_root(host_id, args.target_root)
-    assert_target_root_matches_host_intent(target_root, host_id)
-    target_root.mkdir(parents=True, exist_ok=True)
-
-    upgrade_runtime(
-        repo_root=repo_root,
-        target_root=target_root,
-        host_id=host_id,
-        profile=args.profile,
-        frontend=args.frontend,
-        install_external=bool(args.install_external),
-        strict_offline=bool(args.strict_offline),
-        require_closed_ready=bool(args.require_closed_ready),
-        allow_external_skill_fallback=bool(args.allow_external_skill_fallback),
-        skip_runtime_freshness_gate=bool(args.skip_runtime_freshness_gate),
-    )
-    return 0
+    raise CliError("The upgrade command is legacy; use update with --skills-dir.")
 
 
 def index_command(args: argparse.Namespace) -> int:

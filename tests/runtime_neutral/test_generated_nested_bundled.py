@@ -430,12 +430,13 @@ class InstallTimeGeneratedNestedBundledTests(unittest.TestCase):
         env["PATH"] = str(shim_dir) + os.pathsep + env.get("PATH", "")
         return env
 
-    def test_vgo_cli_installer_materializes_generated_nested_compatibility_root(self) -> None:
+    def test_vgo_cli_installer_uses_simple_skills_dir_install_root(self) -> None:
         env = os.environ.copy()
         python_path_entries = [str(self.repo_root / "apps" / "vgo-cli" / "src")]
         if env.get("PYTHONPATH"):
             python_path_entries.append(env["PYTHONPATH"])
         env["PYTHONPATH"] = os.pathsep.join(python_path_entries)
+        skills_dir = self.target_root / "skills"
 
         subprocess.run(
             [
@@ -445,22 +446,18 @@ class InstallTimeGeneratedNestedBundledTests(unittest.TestCase):
                 "install",
                 "--repo-root",
                 str(self.repo_root),
-                "--frontend",
-                "shell",
-                "--host",
-                "openclaw",
-                "--profile",
-                "minimal",
-                "--target-root",
-                str(self.target_root),
-                "--skip-runtime-freshness-gate",
+                "--skills-dir",
+                str(skills_dir),
             ],
             capture_output=True,
             text=True,
             check=True,
             env=env,
         )
-        self.assert_generated_nested_installed()
+        installed_root = skills_dir / "vibe"
+        self.assertTrue((installed_root / "SKILL.md").exists())
+        self.assertTrue((installed_root / ".vibeskills" / "install-receipt.json").exists())
+        self.assertFalse((installed_root / "bundled" / "skills" / "vibe" / "SKILL.runtime-mirror.md").exists())
 
     def test_powershell_installer_prefers_installer_core_module_when_python_available(self) -> None:
         if self.powershell is None:

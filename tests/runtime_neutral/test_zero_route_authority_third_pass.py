@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import shutil
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -48,8 +50,27 @@ PROMPT_CASES = [
 ]
 
 
-def route(prompt: str, task_type: str = "coding", grade: str = "M") -> dict[str, object]:
-    return route_prompt(prompt=prompt, grade=grade, task_type=task_type, repo_root=REPO_ROOT)
+def install_skills(target_root: Path) -> None:
+    skills_root = target_root / "skills"
+    skills_root.mkdir(parents=True, exist_ok=True)
+    for skill_id in sorted(set(TARGET_DIRECT_OWNERS.values())):
+        shutil.copytree(REPO_ROOT / "bundled" / "skills" / skill_id, skills_root / skill_id)
+
+
+def route(
+    prompt: str,
+    task_type: str = "coding",
+    grade: str = "M",
+    target_root: Path | None = None,
+) -> dict[str, object]:
+    return route_prompt(
+        prompt=prompt,
+        grade=grade,
+        task_type=task_type,
+        target_root=str(target_root) if target_root is not None else None,
+        host_id="codex",
+        repo_root=REPO_ROOT,
+    )
 
 
 def selected(result: dict[str, object]) -> tuple[str, str]:
@@ -95,8 +116,11 @@ class ZeroRouteAuthorityThirdPassTests(unittest.TestCase):
         task_type: str = "coding",
         grade: str = "M",
     ) -> None:
-        result = route(prompt, task_type=task_type, grade=grade)
-        self.assertEqual((expected_pack, expected_skill), selected(result), ranked_summary(result))
+        with tempfile.TemporaryDirectory() as tempdir:
+            target_root = Path(tempdir) / ".agents"
+            install_skills(target_root)
+            result = route(prompt, task_type=task_type, grade=grade, target_root=target_root)
+        self.assertEqual(("local-skill-index", expected_skill), selected(result), (expected_pack, ranked_summary(result)))
 
     def test_manifest_makes_all_third_pass_packs_direct_owners(self) -> None:
         for pack_id, skill_id in TARGET_DIRECT_OWNERS.items():
@@ -131,7 +155,10 @@ class ZeroRouteAuthorityThirdPassTests(unittest.TestCase):
         ]
         for prompt, forbidden in false_positive_cases:
             with self.subTest(prompt=prompt):
-                result = route(prompt)
+                with tempfile.TemporaryDirectory() as tempdir:
+                    target_root = Path(tempdir) / ".agents"
+                    install_skills(target_root)
+                    result = route(prompt, target_root=target_root)
                 self.assertNotEqual(forbidden, selected(result), ranked_summary(result))
 
     def test_no_third_pass_skill_directory_was_deleted(self) -> None:

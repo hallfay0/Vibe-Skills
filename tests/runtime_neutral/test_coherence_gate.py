@@ -36,7 +36,7 @@ class CoherenceGateTests(unittest.TestCase):
             "runtime": {
                 "installed_runtime": {
                     "target_relpath": "skills/vibe",
-                    "receipt_relpath": "skills/vibe/outputs/runtime-freshness-receipt.json",
+                    "receipt_relpath": "skills/vibe/.vibeskills/install-receipt.json",
                     "post_install_gate": "scripts/verify/vibe-installed-runtime-freshness-gate.ps1",
                     "coherence_gate": "scripts/verify/vibe-release-install-runtime-coherence-gate.ps1",
                     "receipt_contract_version": 1,
@@ -57,13 +57,45 @@ class CoherenceGateTests(unittest.TestCase):
         (self.root / "docs" / "runtime-freshness-install-sop.md").write_text(
             "receipt contract\nshell degraded behavior\n", encoding="utf-8"
         )
-        (self.root / "install.ps1").write_text("Invoke-InstalledRuntimeFreshnessGate\n", encoding="utf-8")
-        (self.root / "install.sh").write_text("run_runtime_freshness_gate\n", encoding="utf-8")
+        (self.root / "install.ps1").write_text(
+            "param([string]$SkillsDir = '')\n"
+            "vgo_cli.main', 'install', '--repo-root'\n"
+            "if ($SkillsDir) { '--skills-dir' }\n",
+            encoding="utf-8",
+        )
+        (self.root / "install.sh").write_text(
+            "python -m vgo_cli.main install --repo-root \"${SCRIPT_DIR}\" \"$@\"\n",
+            encoding="utf-8",
+        )
         (self.root / "check.ps1").write_text(
-            "Invoke-RuntimeFreshnessCheck\nInvoke-RuntimeCoherenceCheck\n", encoding="utf-8"
+            "param([string]$SkillsDir = '')\n"
+            "vgo_cli.main', 'check', '--repo-root'\n"
+            "if ($SkillsDir) { '--skills-dir' }\n",
+            encoding="utf-8",
         )
         (self.root / "check.sh").write_text(
-            "run_runtime_freshness_gate\nrun_runtime_coherence_gate\nruntime-neutral\n", encoding="utf-8"
+            "python -m vgo_cli.main check --repo-root \"${SCRIPT_DIR}\" \"$@\"\n",
+            encoding="utf-8",
+        )
+        (self.root / "update.ps1").write_text(
+            "param([string]$SkillsDir = '')\n"
+            "vgo_cli.main', 'update', '--repo-root'\n"
+            "if ($SkillsDir) { '--skills-dir' }\n",
+            encoding="utf-8",
+        )
+        (self.root / "update.sh").write_text(
+            "python -m vgo_cli.main update --repo-root \"${SCRIPT_DIR}\" \"$@\"\n",
+            encoding="utf-8",
+        )
+        (self.root / "uninstall.ps1").write_text(
+            "param([string]$SkillsDir = '')\n"
+            "vgo_cli.main', 'uninstall', '--repo-root'\n"
+            "if ($SkillsDir) { '--skills-dir' }\n",
+            encoding="utf-8",
+        )
+        (self.root / "uninstall.sh").write_text(
+            "python -m vgo_cli.main uninstall --repo-root \"${SCRIPT_DIR}\" \"$@\"\n",
+            encoding="utf-8",
         )
         (self.root / "scripts" / "verify" / "vibe-installed-runtime-freshness-gate.ps1").write_text(
             "$receipt = @{ receipt_version = 1; gate_result = 'PASS' }\n", encoding="utf-8"
@@ -97,14 +129,14 @@ class CoherenceGateTests(unittest.TestCase):
         self.assertEqual(1, len(artifact["warnings"]))
 
     def test_bad_receipt_fails_contract(self) -> None:
-        receipt_path = self.target_root / "skills" / "vibe" / "outputs" / "runtime-freshness-receipt.json"
+        receipt_path = self.target_root / "skills" / "vibe" / ".vibeskills" / "install-receipt.json"
         receipt_path.parent.mkdir(parents=True, exist_ok=True)
         receipt_path.write_text('{"gate_result":"FAIL","receipt_version":0}\n', encoding="utf-8")
 
         artifact = self.module.evaluate(self.root, self.target_root)
         self.assertEqual("FAIL", artifact["gate_result"])
 
-    def test_split_freshness_gate_contract_can_live_in_support_module(self) -> None:
+    def test_simplified_wrappers_do_not_need_old_freshness_calls(self) -> None:
         (self.root / "scripts" / "verify" / "vibe-installed-runtime-freshness-gate.ps1").write_text(
             "Write-Host 'freshness'\n", encoding="utf-8"
         )

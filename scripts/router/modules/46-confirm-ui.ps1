@@ -768,10 +768,12 @@ function Build-ConfirmUiText {
     }
     $requiresHumanReview = Test-ConfirmUiRequiresHumanReview -Result $Result -ClarificationQuestions $clarificationQuestions
     if ($requiresHumanReview) {
-        $lines += ('Work confirmation required: current bounded skill pack `{0}`. Available skills:' -f [string]$ConfirmSkillOptions.selected_pack)
+        $lines += ('我将会在接下来的工作中使用这些 skills，你觉得 OK 吗？当前建议的技能包是 `{0}`。' -f [string]$ConfirmSkillOptions.selected_pack)
     } else {
-        $lines += ('Bounded work suggested skill options: current primary pack `{0}`. The host may keep the default primary choice or switch to another skill:' -f [string]$ConfirmSkillOptions.selected_pack)
+        $lines += ('我将会在接下来的工作中使用这些 skills，你觉得 OK 吗？当前建议的技能包是 `{0}`。' -f [string]$ConfirmSkillOptions.selected_pack)
     }
+    $lines += '这只是准备使用，不是实际使用证据；最终实际使用必须看 `skill_usage.used` 和证据文件。'
+    $lines += '可选 skills：'
 
     foreach ($opt in @($ConfirmSkillOptions.options)) {
         $desc = if ($opt.description) { [string]$opt.description } else { "" }

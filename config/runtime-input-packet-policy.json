@@ -125,11 +125,17 @@
   "host_skill_execution_contract": {
     "enabled": true,
     "scope": "root_only",
+    "approval_owner": "user",
+    "requires_user_confirmation_for": [
+      "L",
+      "XL"
+    ],
     "selection_modes": [
       "inherit_runtime_default",
       "curated_only"
     ],
-    "default_selection_mode": "inherit_runtime_default"
+    "default_selection_mode": "inherit_runtime_default",
+    "user_prompt": "我将会在接下来的工作中使用这些 skills，你觉得 OK 吗？"
   },
   "require_specialist_decision_evidence": true,
   "minimum_specialist_recommendation_confidence": 0.2,

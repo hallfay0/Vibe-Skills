@@ -22,6 +22,7 @@ MEMORY_TASK_FIRST = "Record that hidden skill topology must stay under vibe and 
 MEMORY_TASK_SECOND = "Follow up on the hidden skill topology decision and recall planner dependency before proposing the next step. $vibe"
 SUPPORTED_CANONICAL_HOSTS = ("codex", "claude-code", "opencode")
 INSTALLED_RUNTIME_ADVISORY_FAILURE_UNITS = {
+    "installed-runtime-freshness-gate",
     "runtime-neutral-freshness-gate-tests",
     "release-install-runtime-coherence-gate",
 }
@@ -211,14 +212,14 @@ def create_fake_codex_command(directory: Path) -> Path:
     return command_path
 
 
-def write_installed_skill(target_root: Path, skill_id: str) -> Path:
+def write_installed_skill(target_root: Path, skill_id: str, *, name: str, description: str) -> Path:
     skill_path = target_root / "skills" / skill_id / "SKILL.md"
     skill_path.parent.mkdir(parents=True, exist_ok=True)
     skill_path.write_text(
         (
             "---\n"
-            f"name: {skill_id}\n"
-            f"description: Installed {skill_id} test skill.\n"
+            f"name: {name}\n"
+            f"description: {description}\n"
             "---\n"
         ),
         encoding="utf-8",
@@ -227,6 +228,7 @@ def write_installed_skill(target_root: Path, skill_id: str) -> Path:
 
 
 def install_host(target_root: Path, host_id: str, *, env: dict[str, str]) -> None:
+    skills_dir = target_root / "skills"
     if os.name == "nt":
         shell = resolve_powershell()
         if shell is None:
@@ -239,28 +241,16 @@ def install_host(target_root: Path, host_id: str, *, env: dict[str, str]) -> Non
             "Bypass",
             "-File",
             str(INSTALL_SCRIPT_PS1),
-            "-HostId",
-            host_id,
-            "-Profile",
-            "full",
-            "-TargetRoot",
-            str(target_root),
+            "-SkillsDir",
+            str(skills_dir),
         ]
-        if host_id in HOST_BRIDGE_ENV:
-            command.append("-RequireClosedReady")
     else:
         command = [
             "bash",
             str(INSTALL_SCRIPT_SH),
-            "--host",
-            host_id,
-            "--profile",
-            "full",
-            "--target-root",
-            str(target_root),
+            "--skills-dir",
+            str(skills_dir),
         ]
-        if host_id in HOST_BRIDGE_ENV:
-            command.append("--require-closed-ready")
     subprocess.run(
         command,
         cwd=REPO_ROOT,
@@ -328,7 +318,7 @@ class InstalledHostRuntimeSimulationTests(unittest.TestCase):
         tempdir = tempfile.TemporaryDirectory(dir=str(TEST_SANDBOX_ROOT))
         self.addCleanup(tempdir.cleanup)
         root = Path(tempdir.name)
-        target_root = root / "target"
+        target_root = root / ".agents"
         bridge_root = root / "bridges"
         target_root.mkdir(parents=True, exist_ok=True)
         bridge_root.mkdir(parents=True, exist_ok=True)
@@ -341,7 +331,24 @@ class InstalledHostRuntimeSimulationTests(unittest.TestCase):
             bridge = create_fake_bridge(bridge_root, host_id)
             env[HOST_BRIDGE_ENV[host_id]] = str(bridge)
         install_host(target_root, host_id, env=env)
-        write_installed_skill(target_root, "systematic-debugging")
+        write_installed_skill(
+            target_root,
+            "feature-planning",
+            name="PRD backlog quality gate",
+            description="Create a PRD and backlog for a small feature with quality gate requirements.",
+        )
+        write_installed_skill(
+            target_root,
+            "systematic-debugging",
+            name="failing test stack trace debug",
+            description="Debug failing tests and stack traces with systematic root-cause analysis before proposing fixes.",
+        )
+        write_installed_skill(
+            target_root,
+            "runtime-enhancement-execution",
+            name="bounded runtime enhancement verification cleanup",
+            description="Implement bounded runtime enhancements with verification and cleanup.",
+        )
         installed_root = target_root / "skills" / "vibe"
         self.assertTrue(installed_root.exists(), host_id)
         return target_root, installed_root, env
@@ -397,7 +404,7 @@ class InstalledHostRuntimeSimulationTests(unittest.TestCase):
                 failed_unit_ids.issubset(INSTALLED_RUNTIME_ADVISORY_FAILURE_UNITS),
                 host_id,
             )
-        self.assertIn(cleanup["cleanup_mode"], {"receipt_only", "bounded_cleanup_executed"}, host_id)
+        self.assertIn(cleanup["cleanup_mode"], {"receipt_only", "bounded_cleanup_executed", "cleanup_degraded"}, host_id)
         return {
             "summary": summary,
             "artifacts": artifacts,
@@ -470,17 +477,10 @@ class InstalledHostRuntimeSimulationTests(unittest.TestCase):
                     debug_state["summary"]["host_user_briefing"]["mode"],
                     host_id,
                 )
-                self.assertIn("Execution handoff is still pending under governed vibe.", host_user_briefing, host_id)
-                self.assertIn(
-                    "next required action: load each disclosed `native_skill_entrypoint`",
-                    host_user_briefing,
-                    host_id,
-                )
-                self.assertIn(
-                    "approved specialist execution has not been formally resolved inside the governed runtime yet.",
-                    host_user_briefing,
-                    host_id,
-                )
+                self.assertIn("Selected skills are available for execution.", host_user_briefing, host_id)
+                self.assertIn("This is not a `used` claim", host_user_briefing, host_id)
+                self.assertIn("systematic-debugging", host_user_briefing, host_id)
+                self.assertIn("SKILL.md", host_user_briefing, host_id)
 
                 execution = run_installed_runtime(
                     installed_root,

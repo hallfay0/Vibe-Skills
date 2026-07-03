@@ -7,7 +7,15 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 def test_vgo_cli_main_delegates_hosts_process_install_support_and_commands() -> None:
     content = (REPO_ROOT / 'apps' / 'vgo-cli' / 'src' / 'vgo_cli' / 'main.py').read_text(encoding='utf-8')
 
-    assert 'from .commands import install_command, passthrough_command, route_command, runtime_command, uninstall_command, verify_command' in content
+    for command in (
+        'install_command',
+        'passthrough_command',
+        'route_command',
+        'runtime_command',
+        'uninstall_command',
+        'verify_command',
+    ):
+        assert command in content
     assert 'def install_command' not in content
     assert 'def uninstall_command' not in content
     assert 'def passthrough_command' not in content
@@ -81,8 +89,9 @@ def test_vgo_cli_commands_delegate_core_runtime_bridges() -> None:
     commands = (REPO_ROOT / 'apps' / 'vgo-cli' / 'src' / 'vgo_cli' / 'commands.py').read_text(encoding='utf-8')
     core_bridge = (REPO_ROOT / 'apps' / 'vgo-cli' / 'src' / 'vgo_cli' / 'core_bridge.py').read_text(encoding='utf-8')
 
-    assert 'from .core_bridge import run_installer_core, run_router_core, run_uninstaller_core' in commands
-    assert 'from .workspace import extend_workspace_package_path' not in commands
+    for bridge in ('run_installer_core', 'run_router_core', 'run_uninstaller_core'):
+        assert bridge in commands
+    assert 'from .workspace import extend_workspace_package_path' in commands
     assert 'from .process import invoke_python_core' in core_bridge
     assert 'from .workspace import extend_workspace_package_path' in core_bridge
     assert 'from vgo_installer.install_runtime import main as installer_main' not in commands
@@ -95,11 +104,12 @@ def test_vgo_cli_commands_delegate_core_runtime_bridges() -> None:
 
 def test_vgo_cli_install_support_delegates_installer_bridge_and_json_reporting() -> None:
     install_support = (REPO_ROOT / 'apps' / 'vgo-cli' / 'src' / 'vgo_cli' / 'install_support.py').read_text(encoding='utf-8')
+    commands = (REPO_ROOT / 'apps' / 'vgo-cli' / 'src' / 'vgo_cli' / 'commands.py').read_text(encoding='utf-8')
     bridge = (REPO_ROOT / 'apps' / 'vgo-cli' / 'src' / 'vgo_cli' / 'installer_bridge.py').read_text(encoding='utf-8')
     output = (REPO_ROOT / 'apps' / 'vgo-cli' / 'src' / 'vgo_cli' / 'output.py').read_text(encoding='utf-8')
 
     assert 'from .installer_bridge import refresh_install_ledger_payload' in install_support
-    assert 'from .output import print_json_payload' in install_support
+    assert 'print_json_payload' in commands
     assert 'def refresh_install_ledger_payload_summary(' not in install_support
     assert 'def refresh_install_ledger_payload(' in bridge
     assert 'def print_json_payload(' in output

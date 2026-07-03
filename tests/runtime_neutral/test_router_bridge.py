@@ -6,6 +6,7 @@ import json
 import subprocess
 import shutil
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -19,6 +20,32 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 BRIDGE_SCRIPT = REPO_ROOT / "scripts" / "router" / "invoke-pack-route.py"
 ROUTE_FIXTURE = REPO_ROOT / "tests" / "replay" / "route" / "recovery-wave-curated-prompts.json"
 PLATFORM_FIXTURE = REPO_ROOT / "tests" / "replay" / "platform" / "linux-without-pwsh.json"
+ROUTE_SKILLS = [
+    "flashrag-evidence",
+    "generating-test-reports",
+    "gh-fix-ci",
+    "latex-submission-pipeline",
+    "literature-review",
+    "ml-data-leakage-guard",
+    "pdf",
+    "preprocessing-data-with-automated-pipelines",
+    "scientific-reporting",
+    "scientific-schematics",
+    "scientific-visualization",
+    "scikit-learn",
+    "sentry",
+    "systematic-debugging",
+    "webthinker-deep-research",
+]
+
+
+def install_route_skills(target_root: Path) -> None:
+    skills_root = target_root / "skills"
+    skills_root.mkdir(parents=True, exist_ok=True)
+    for skill_id in ROUTE_SKILLS:
+        source = REPO_ROOT / "bundled" / "skills" / skill_id
+        if source.exists():
+            shutil.copytree(source, skills_root / skill_id)
 
 
 def run_bridge(
@@ -28,31 +55,36 @@ def run_bridge(
     requested_skill: str | None = None,
     entry_intent_id: str | None = None,
 ) -> dict:
-    command = [
-        sys.executable,
-        str(BRIDGE_SCRIPT),
-        "--prompt",
-        prompt,
-        "--grade",
-        grade,
-        "--task-type",
-        task_type,
-        "--force-runtime-neutral",
-    ]
-    if requested_skill:
-        command.extend(["--requested-skill", requested_skill])
-    if entry_intent_id:
-        command.extend(["--entry-intent-id", entry_intent_id])
-    completed = subprocess.run(
-        command,
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=True,
-    )
-    return json.loads(completed.stdout)
+    with tempfile.TemporaryDirectory() as tempdir:
+        target_root = Path(tempdir) / ".agents"
+        install_route_skills(target_root)
+        command = [
+            sys.executable,
+            str(BRIDGE_SCRIPT),
+            "--prompt",
+            prompt,
+            "--grade",
+            grade,
+            "--task-type",
+            task_type,
+            "--target-root",
+            str(target_root),
+            "--force-runtime-neutral",
+        ]
+        if requested_skill:
+            command.extend(["--requested-skill", requested_skill])
+        if entry_intent_id:
+            command.extend(["--entry-intent-id", entry_intent_id])
+        completed = subprocess.run(
+            command,
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=True,
+        )
+        return json.loads(completed.stdout)
 
 
 def run_powershell_route(prompt: str, grade: str, task_type: str, requested_skill: str | None = None) -> dict:
@@ -60,34 +92,39 @@ def run_powershell_route(prompt: str, grade: str, task_type: str, requested_skil
     if not powershell:
         raise unittest.SkipTest("PowerShell 7 (pwsh) not found in PATH")
 
-    command = [
-        powershell,
-        "-NoLogo",
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        str(REPO_ROOT / "scripts" / "router" / "resolve-pack-route.ps1"),
-        "-Prompt",
-        prompt,
-        "-Grade",
-        grade,
-        "-TaskType",
-        task_type,
-    ]
-    if requested_skill:
-        command.extend(["-RequestedSkill", requested_skill])
+    with tempfile.TemporaryDirectory() as tempdir:
+        target_root = Path(tempdir) / ".agents"
+        install_route_skills(target_root)
+        command = [
+            powershell,
+            "-NoLogo",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(REPO_ROOT / "scripts" / "router" / "resolve-pack-route.ps1"),
+            "-Prompt",
+            prompt,
+            "-Grade",
+            grade,
+            "-TaskType",
+            task_type,
+            "-TargetRoot",
+            str(target_root),
+        ]
+        if requested_skill:
+            command.extend(["-RequestedSkill", requested_skill])
 
-    completed = subprocess.run(
-        command,
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        encoding="utf-8-sig",
-        errors="replace",
-        check=True,
-    )
-    return json.loads(completed.stdout)
+        completed = subprocess.run(
+            command,
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8-sig",
+            errors="replace",
+            check=True,
+        )
+        return json.loads(completed.stdout)
 
 
 class RouterBridgeTests(unittest.TestCase):
@@ -108,15 +145,9 @@ class RouterBridgeTests(unittest.TestCase):
             },
             "ranked": [
                 {
-                    "pack_id": "synthetic-pack",
-                    "candidate_ranking": [
-                        {"skill": "skill-a", "score": 0.91},
-                        {"skill": "skill-b", "score": 0.81},
-                        {"skill": "skill-c", "score": 0.71},
-                        {"skill": "skill-d", "score": 0.61},
-                        {"skill": "skill-e", "score": 0.51},
-                        {"skill": "selected-skill", "score": 0.42},
-                    ],
+                    "skill": "selected-skill",
+                    "score": 0.42,
+                    "description": "Synthetic selected local skill.",
                 }
             ],
         }
@@ -125,8 +156,8 @@ class RouterBridgeTests(unittest.TestCase):
 
         self.assertIsNotNone(confirm_ui)
         self.assertEqual("selected-skill", confirm_ui["options"][0]["skill"])
-        self.assertTrue(confirm_ui["options"][0]["is_primary"])
-        self.assertIn("selected-skill", confirm_ui["route_decision_contract"]["allowed_skill_ids"])
+        self.assertEqual("selected-skill", confirm_ui["route_decision_contract"]["selected_skill"])
+        self.assertEqual("selected-skill", confirm_ui["route_decision_contract"]["preferred_payload"]["selected_skill"])
 
     def test_linux_without_pwsh_fixture_points_to_bridge_contract(self) -> None:
         platform = json.loads(PLATFORM_FIXTURE.read_text(encoding="utf-8"))
@@ -147,8 +178,7 @@ class RouterBridgeTests(unittest.TestCase):
                 self.assertIn("route_reason", result)
                 self.assertIn("selected", result)
                 self.assertIn("ranked", result)
-                self.assertIn("runtime_neutral_bridge", result)
-                self.assertEqual("python", result["runtime_neutral_bridge"]["engine"])
+                self.assertEqual("local_skill_index", result["candidate_source"])
 
                 if "route_mode" in expected:
                     self.assertEqual(expected["route_mode"], result["route_mode"])
@@ -187,12 +217,11 @@ class RouterBridgeTests(unittest.TestCase):
             "L",
             "planning",
         )
-        self.assertEqual("confirm_required", result["route_mode"])
-        self.assertEqual("legacy_fallback_guard", result["route_reason"])
-        self.assertGreaterEqual(len(result["deep_discovery_advice"]["interview_questions"]), 6)
-        self.assertTrue(result["deep_discovery_advice"]["confirm_required"])
+        self.assertEqual("no_local_candidate", result["route_mode"])
+        self.assertEqual("no_local_candidate_above_threshold", result["route_reason"])
         self.assertIsNone(result["selected"])
         self.assertNotIn("confirm_ui", result)
+        self.assertEqual("local_index_no_match", result["truth_level"])
 
     def test_planning_prompt_uses_fallback_guard_without_reopening_generic_clarifiers(self) -> None:
         result = run_bridge(
@@ -201,11 +230,11 @@ class RouterBridgeTests(unittest.TestCase):
             "planning",
         )
 
-        self.assertEqual("confirm_required", result["route_mode"])
-        self.assertEqual("legacy_fallback_guard", result["route_reason"])
+        self.assertEqual("no_local_candidate", result["route_mode"])
+        self.assertEqual("no_local_candidate_above_threshold", result["route_reason"])
         self.assertIsNone(result["selected"])
         self.assertNotIn("confirm_ui", result)
-        self.assertFalse(result["deep_discovery_advice"]["should_apply_hook"])
+        self.assertEqual("local_index_no_match", result["truth_level"])
 
     def test_powershell_planning_prompt_uses_fallback_guard_without_reopening_generic_clarifiers(self) -> None:
         result = run_powershell_route(
@@ -214,8 +243,8 @@ class RouterBridgeTests(unittest.TestCase):
             "planning",
         )
 
-        self.assertEqual("confirm_required", result["route_mode"])
-        self.assertEqual("legacy_fallback_guard", result["route_reason"])
+        self.assertEqual("no_local_candidate", result["route_mode"])
+        self.assertEqual("no_local_candidate_above_threshold", result["route_reason"])
         self.assertIsNone(result["selected"])
         self.assertNotIn("confirm_ui", result)
 
@@ -226,8 +255,8 @@ class RouterBridgeTests(unittest.TestCase):
             "research",
         )
 
-        self.assertEqual("pack_overlay", result["route_mode"])
-        self.assertEqual("data-ml", result["selected"]["pack_id"])
+        self.assertEqual("local_skill_overlay", result["route_mode"])
+        self.assertEqual("local-skill-index", result["selected"]["pack_id"])
         self.assertEqual("ml-data-leakage-guard", result["selected"]["skill"])
 
     def test_ml_threshold_question_does_not_false_positive_to_vibe(self) -> None:
@@ -238,7 +267,7 @@ class RouterBridgeTests(unittest.TestCase):
         )
 
         self.assertNotEqual("vibe", result["selected"]["skill"])
-        self.assertEqual("data-ml", result["selected"]["pack_id"])
+        self.assertEqual("local-skill-index", result["selected"]["pack_id"])
 
     def test_requested_mixed_case_active_skill_routes_authoritatively_in_runtime_neutral_lane(self) -> None:
         result = run_bridge(
@@ -248,8 +277,8 @@ class RouterBridgeTests(unittest.TestCase):
             requested_skill="Scikit-Learn",
         )
 
-        self.assertEqual("pack_overlay", result["route_mode"])
-        self.assertEqual("data-ml", result["selected"]["pack_id"])
+        self.assertEqual("local_skill_overlay", result["route_mode"])
+        self.assertEqual("local-skill-index", result["selected"]["pack_id"])
         self.assertEqual("scikit-learn", result["selected"]["skill"])
 
     def test_wrapper_entry_intent_does_not_override_runtime_neutral_router_selection(self) -> None:
@@ -286,9 +315,9 @@ class RouterBridgeTests(unittest.TestCase):
         )
 
         self.assertEqual("vibe", result["alias"]["requested_canonical"])
-        self.assertNotEqual("orchestration-core", result["selected"]["pack_id"])
-        self.assertIn("brainstorm_planning", result["intent_contract"]["capabilities"])
-        self.assertEqual(["vibe"], result["deep_discovery_advice"]["recommended_skills"])
+        self.assertEqual("no_local_candidate", result["route_mode"])
+        self.assertIsNone(result["selected"])
+        self.assertNotIn("confirm_ui", result)
 
     def test_scientific_figure_route_uses_only_direct_figure_candidates(self) -> None:
         result = run_bridge(
@@ -297,21 +326,14 @@ class RouterBridgeTests(unittest.TestCase):
             "research",
         )
 
-        self.assertEqual("science-figures-visualization", result["selected"]["pack_id"])
+        self.assertEqual("local-skill-index", result["selected"]["pack_id"])
         self.assertEqual("scientific-visualization", result["selected"]["skill"])
 
-        figure_row = next(row for row in result["ranked"] if row["pack_id"] == "science-figures-visualization")
-        ranking_by_skill = {row["skill"]: row for row in figure_row["candidate_ranking"]}
-        self.assertEqual(
-            {"scientific-visualization", "scientific-schematics"},
-            set(ranking_by_skill),
-        )
-        self.assertNotIn("legacy_role", ranking_by_skill["scientific-visualization"])
-        self.assertNotIn("route_authority_eligible", ranking_by_skill["scientific-visualization"])
-        self.assertNotIn("legacy_role", ranking_by_skill["scientific-schematics"])
-        self.assertNotIn("route_authority_eligible", ranking_by_skill["scientific-schematics"])
-        self.assertNotIn("stage_assistant_candidates", figure_row)
-        self.assertNotIn("route_authority_eligible", figure_row)
+        ranked_by_skill = {row["skill"]: row for row in result["ranked"]}
+        self.assertIn("scientific-visualization", ranked_by_skill)
+        self.assertNotIn("legacy_role", ranked_by_skill["scientific-visualization"])
+        self.assertNotIn("route_authority_eligible", ranked_by_skill["scientific-visualization"])
+        self.assertNotIn("stage_assistant_candidates", ranked_by_skill["scientific-visualization"])
 
     def test_full_text_evidence_table_is_absorbed_by_literature_review(self) -> None:
         result = run_bridge(
@@ -320,8 +342,8 @@ class RouterBridgeTests(unittest.TestCase):
             "research",
         )
 
-        self.assertIn(result["route_mode"], {"pack_overlay", "confirm_required"})
-        self.assertEqual("science-literature-citations", result["selected"]["pack_id"])
+        self.assertEqual("local_skill_overlay", result["route_mode"])
+        self.assertEqual("local-skill-index", result["selected"]["pack_id"])
         self.assertEqual("literature-review", result["selected"]["skill"])
 
     def test_deep_research_pack_has_no_legacy_stage_assistants(self) -> None:
@@ -331,18 +353,14 @@ class RouterBridgeTests(unittest.TestCase):
             "research",
         )
 
-        self.assertEqual("ruc-nlpir-augmentation", result["selected"]["pack_id"])
+        self.assertEqual("local-skill-index", result["selected"]["pack_id"])
         self.assertEqual("webthinker-deep-research", result["selected"]["skill"])
 
-        deep_research_row = next(row for row in result["ranked"] if row["pack_id"] == "ruc-nlpir-augmentation")
-        ranking_by_skill = {row["skill"]: row for row in deep_research_row["candidate_ranking"]}
-        self.assertEqual({"flashrag-evidence", "webthinker-deep-research"}, set(ranking_by_skill))
-        self.assertNotIn("legacy_role", ranking_by_skill["webthinker-deep-research"])
-        self.assertNotIn("route_authority_eligible", ranking_by_skill["webthinker-deep-research"])
-        self.assertNotIn("legacy_role", ranking_by_skill["flashrag-evidence"])
-        self.assertNotIn("route_authority_eligible", ranking_by_skill["flashrag-evidence"])
-        self.assertNotIn("stage_assistant_candidates", deep_research_row)
-        self.assertNotIn("route_authority_eligible", deep_research_row)
+        ranked_by_skill = {row["skill"]: row for row in result["ranked"]}
+        self.assertIn("webthinker-deep-research", ranked_by_skill)
+        self.assertNotIn("legacy_role", ranked_by_skill["webthinker-deep-research"])
+        self.assertNotIn("route_authority_eligible", ranked_by_skill["webthinker-deep-research"])
+        self.assertNotIn("stage_assistant_candidates", ranked_by_skill["webthinker-deep-research"])
 
     def test_data_leakage_audit_can_route_to_ml_data_leakage_guard(self) -> None:
         result = run_bridge(
@@ -351,8 +369,8 @@ class RouterBridgeTests(unittest.TestCase):
             "review",
         )
 
-        self.assertIn(result["route_mode"], {"pack_overlay", "confirm_required"})
-        self.assertEqual("data-ml", result["selected"]["pack_id"])
+        self.assertEqual("local_skill_overlay", result["route_mode"])
+        self.assertEqual("local-skill-index", result["selected"]["pack_id"])
         self.assertEqual("ml-data-leakage-guard", result["selected"]["skill"])
 
     def test_baseline_leakage_research_stays_with_dedicated_guard(self) -> None:
@@ -362,8 +380,8 @@ class RouterBridgeTests(unittest.TestCase):
             "research",
         )
 
-        self.assertIn(result["route_mode"], {"pack_overlay", "confirm_required"})
-        self.assertEqual("data-ml", result["selected"]["pack_id"])
+        self.assertEqual("local_skill_overlay", result["route_mode"])
+        self.assertEqual("local-skill-index", result["selected"]["pack_id"])
         self.assertEqual("ml-data-leakage-guard", result["selected"]["skill"])
 
     def test_test_report_packaging_routes_to_generating_test_reports(self) -> None:
@@ -373,8 +391,8 @@ class RouterBridgeTests(unittest.TestCase):
             "review",
         )
 
-        self.assertIn(result["route_mode"], {"pack_overlay", "confirm_required"})
-        self.assertEqual("code-quality", result["selected"]["pack_id"])
+        self.assertEqual("local_skill_overlay", result["route_mode"])
+        self.assertEqual("local-skill-index", result["selected"]["pack_id"])
         self.assertEqual("generating-test-reports", result["selected"]["skill"])
 
     def test_regression_analysis_routes_to_data_ml_owner(self) -> None:
@@ -384,8 +402,8 @@ class RouterBridgeTests(unittest.TestCase):
             "research",
         )
 
-        self.assertIn(result["route_mode"], {"pack_overlay", "confirm_required"})
-        self.assertEqual("data-ml", result["selected"]["pack_id"])
+        self.assertEqual("local_skill_overlay", result["route_mode"])
+        self.assertEqual("local-skill-index", result["selected"]["pack_id"])
         self.assertEqual("scikit-learn", result["selected"]["skill"])
 
     def test_preprocessing_pipeline_routes_as_direct_data_ml_owner(self) -> None:
@@ -395,16 +413,14 @@ class RouterBridgeTests(unittest.TestCase):
             "coding",
         )
 
-        self.assertIn(result["route_mode"], {"pack_overlay", "confirm_required"})
-        self.assertEqual("data-ml", result["selected"]["pack_id"])
+        self.assertEqual("local_skill_overlay", result["route_mode"])
+        self.assertEqual("local-skill-index", result["selected"]["pack_id"])
         self.assertEqual("preprocessing-data-with-automated-pipelines", result["selected"]["skill"])
 
-        data_ml_row = next(row for row in result["ranked"] if row["pack_id"] == "data-ml")
-        ranking_by_skill = {row["skill"]: row for row in data_ml_row["candidate_ranking"]}
-        self.assertNotIn("legacy_role", ranking_by_skill["preprocessing-data-with-automated-pipelines"])
-        self.assertNotIn("route_authority_eligible", ranking_by_skill["preprocessing-data-with-automated-pipelines"])
-        self.assertNotIn("stage_assistant_candidates", data_ml_row)
-        self.assertNotIn("route_authority_eligible", data_ml_row)
+        ranked_by_skill = {row["skill"]: row for row in result["ranked"]}
+        self.assertNotIn("legacy_role", ranked_by_skill["preprocessing-data-with-automated-pipelines"])
+        self.assertNotIn("route_authority_eligible", ranked_by_skill["preprocessing-data-with-automated-pipelines"])
+        self.assertNotIn("stage_assistant_candidates", ranked_by_skill["preprocessing-data-with-automated-pipelines"])
 
     def test_research_report_authoring_stays_on_scientific_reporting(self) -> None:
         result = run_bridge(
@@ -413,8 +429,8 @@ class RouterBridgeTests(unittest.TestCase):
             "research",
         )
 
-        self.assertEqual("pack_overlay", result["route_mode"])
-        self.assertEqual("science-reporting", result["selected"]["pack_id"])
+        self.assertEqual("local_skill_overlay", result["route_mode"])
+        self.assertEqual("local-skill-index", result["selected"]["pack_id"])
         self.assertEqual("scientific-reporting", result["selected"]["skill"])
 
     def test_requested_vibe_can_preserve_runtime_authority_while_router_selects_specialist(self) -> None:
@@ -425,13 +441,11 @@ class RouterBridgeTests(unittest.TestCase):
             requested_skill="vibe",
         )
 
-        self.assertEqual("pack_overlay", result["route_mode"])
-        self.assertEqual("code-quality", result["selected"]["pack_id"])
+        self.assertEqual("local_skill_overlay", result["route_mode"])
+        self.assertEqual("local-skill-index", result["selected"]["pack_id"])
         self.assertEqual("systematic-debugging", result["selected"]["skill"])
         self.assertEqual("vibe", result["alias"]["requested_canonical"])
         self.assertNotEqual("orchestration-core", result["selected"]["pack_id"])
-        self.assertIn("confirm_ui", result)
-        self.assertTrue(result["confirm_ui"]["enabled"])
 
     def test_vibe_do_it_wrapper_keywords_fold_back_to_canonical_vibe_before_prelaunch_routing(self) -> None:
         result = run_bridge(
@@ -441,7 +455,7 @@ class RouterBridgeTests(unittest.TestCase):
             requested_skill="vibe-do-it",
         )
 
-        self.assertEqual("pack_overlay", result["route_mode"])
+        self.assertEqual("local_skill_overlay", result["route_mode"])
         self.assertNotEqual("orchestration-core", result["selected"]["pack_id"])
         self.assertEqual("vibe", result["alias"]["requested_canonical"])
 

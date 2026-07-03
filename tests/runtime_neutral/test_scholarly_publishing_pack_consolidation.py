@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import shutil
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -31,6 +33,17 @@ MOVED_OUT_SKILLS = [
     "scientific-slides",
 ]
 
+ROUTE_SKILLS = sorted(
+    set(
+        SCHOLARLY_PUBLISHING_SKILLS
+        + MOVED_OUT_SKILLS
+        + [
+            "pdf",
+            "scientific-reporting",
+        ]
+    )
+)
+
 FORBIDDEN_INLINE_HELPER_REFERENCES = sorted(
     set(SCHOLARLY_PUBLISHING_SKILLS + MOVED_OUT_SKILLS)
     | {
@@ -42,11 +55,25 @@ FORBIDDEN_INLINE_HELPER_REFERENCES = sorted(
 )
 
 
-def route(prompt: str, task_type: str = "research", grade: str = "L") -> dict[str, object]:
+def install_skills(target_root: Path) -> None:
+    skills_root = target_root / "skills"
+    skills_root.mkdir(parents=True, exist_ok=True)
+    for skill_id in ROUTE_SKILLS:
+        shutil.copytree(REPO_ROOT / "bundled" / "skills" / skill_id, skills_root / skill_id)
+
+
+def route(
+    prompt: str,
+    task_type: str = "research",
+    grade: str = "L",
+    target_root: Path | None = None,
+) -> dict[str, object]:
     return route_prompt(
         prompt=prompt,
         grade=grade,
         task_type=task_type,
+        target_root=str(target_root) if target_root is not None else None,
+        host_id="codex",
         repo_root=REPO_ROOT,
     )
 
@@ -108,14 +135,16 @@ class ScholarlyPublishingPackConsolidationTests(unittest.TestCase):
     def assert_selected(
         self,
         prompt: str,
-        expected_pack: str,
         expected_skill: str,
         *,
         task_type: str = "research",
         grade: str = "L",
     ) -> None:
-        result = route(prompt, task_type=task_type, grade=grade)
-        self.assertEqual((expected_pack, expected_skill), selected(result), ranked_summary(result))
+        with tempfile.TemporaryDirectory() as tempdir:
+            target_root = Path(tempdir) / ".agents"
+            install_skills(target_root)
+            result = route(prompt, task_type=task_type, grade=grade, target_root=target_root)
+        self.assertEqual(("local-skill-index", expected_skill), selected(result), ranked_summary(result))
 
     def assert_not_scholarly_publishing(
         self,
@@ -124,14 +153,17 @@ class ScholarlyPublishingPackConsolidationTests(unittest.TestCase):
         task_type: str = "research",
         grade: str = "L",
     ) -> None:
-        result = route(prompt, task_type=task_type, grade=grade)
+        with tempfile.TemporaryDirectory() as tempdir:
+            target_root = Path(tempdir) / ".agents"
+            install_skills(target_root)
+            result = route(prompt, task_type=task_type, grade=grade, target_root=target_root)
         selected_pack = selected_pack_or_none(result)
         if selected_pack is not None:
-            self.assertNotEqual("scholarly-publishing-workflow", selected_pack, ranked_summary(result))
+            self.assertNotEqual(("local-skill-index", "scholarly-publishing"), selected(result), ranked_summary(result))
             return
         pre_fallback_top = result.get("pre_fallback_top")
         assert isinstance(pre_fallback_top, dict), result
-        self.assertNotEqual("scholarly-publishing-workflow", str(pre_fallback_top.get("pack_id") or ""), ranked_summary(result))
+        self.assertNotEqual("scholarly-publishing", str(pre_fallback_top.get("skill") or ""), ranked_summary(result))
 
     def test_manifest_is_publishing_workflow_only(self) -> None:
         pack = pack_by_id("scholarly-publishing-workflow")
@@ -173,7 +205,6 @@ class ScholarlyPublishingPackConsolidationTests(unittest.TestCase):
     def test_publishing_workflow_routes_to_scholarly_publishing(self) -> None:
         self.assert_selected(
             "规划一套期刊投稿工作流，包含投稿包、校样和 camera-ready",
-            "scholarly-publishing-workflow",
             "scholarly-publishing",
             task_type="planning",
         )
@@ -181,7 +212,6 @@ class ScholarlyPublishingPackConsolidationTests(unittest.TestCase):
     def test_rebuttal_matrix_routes_to_submission_checklist(self) -> None:
         self.assert_selected(
             "写 cover letter 和 response to reviewers rebuttal matrix",
-            "scholarly-publishing-workflow",
             "submission-checklist",
             task_type="planning",
         )
@@ -189,7 +219,6 @@ class ScholarlyPublishingPackConsolidationTests(unittest.TestCase):
     def test_manuscript_as_code_routes_to_manuscript_as_code(self) -> None:
         self.assert_selected(
             "把论文仓库改成 manuscript-as-code，可复现构建 PDF",
-            "scholarly-publishing-workflow",
             "manuscript-as-code",
             task_type="planning",
         )
@@ -197,7 +226,6 @@ class ScholarlyPublishingPackConsolidationTests(unittest.TestCase):
     def test_latex_pipeline_routes_to_latex_submission_pipeline(self) -> None:
         self.assert_selected(
             "配置 latexmk/chktex/latexindent 编译论文 PDF 并打包 submission zip",
-            "scholarly-publishing-workflow",
             "latex-submission-pipeline",
             task_type="coding",
             grade="XL",
@@ -206,7 +234,6 @@ class ScholarlyPublishingPackConsolidationTests(unittest.TestCase):
     def test_scientific_writing_routes_to_scientific_writing(self) -> None:
         self.assert_selected(
             "请按 IMRAD 结构写科研论文正文",
-            "scholarly-publishing-workflow",
             "scientific-writing",
             task_type="research",
         )
@@ -214,7 +241,6 @@ class ScholarlyPublishingPackConsolidationTests(unittest.TestCase):
     def test_venue_template_routes_to_venue_templates(self) -> None:
         self.assert_selected(
             "查 NeurIPS 模板和匿名投稿格式要求",
-            "scholarly-publishing-workflow",
             "venue-templates",
             task_type="planning",
         )
@@ -222,7 +248,6 @@ class ScholarlyPublishingPackConsolidationTests(unittest.TestCase):
     def test_latex_poster_routes_to_latex_posters(self) -> None:
         self.assert_selected(
             "用 beamerposter 做会议学术海报",
-            "scholarly-publishing-workflow",
             "latex-posters",
             task_type="coding",
         )
@@ -230,7 +255,6 @@ class ScholarlyPublishingPackConsolidationTests(unittest.TestCase):
     def test_paper2web_routes_to_paper_2_web(self) -> None:
         self.assert_selected(
             "把论文转换成 paper2web 项目主页和视频摘要",
-            "scholarly-publishing-workflow",
             "paper-2-web",
             task_type="planning",
         )
@@ -238,7 +262,6 @@ class ScholarlyPublishingPackConsolidationTests(unittest.TestCase):
     def test_result_figures_stay_in_science_figures(self) -> None:
         self.assert_selected(
             "绘制机器学习模型评估结果图和投稿图",
-            "science-figures-visualization",
             "scientific-visualization",
             task_type="coding",
         )
@@ -246,7 +269,6 @@ class ScholarlyPublishingPackConsolidationTests(unittest.TestCase):
     def test_schematics_stay_in_science_figures(self) -> None:
         self.assert_selected(
             "画一个机制示意图和流程图",
-            "science-figures-visualization",
             "scientific-schematics",
             task_type="planning",
         )
@@ -254,7 +276,6 @@ class ScholarlyPublishingPackConsolidationTests(unittest.TestCase):
     def test_slidev_stays_in_science_communication_slides(self) -> None:
         self.assert_selected(
             "用 Slidev 做组会汇报并导出 PDF",
-            "science-communication-slides",
             "slides-as-code",
             task_type="coding",
         )
@@ -262,7 +283,6 @@ class ScholarlyPublishingPackConsolidationTests(unittest.TestCase):
     def test_scientific_slide_deck_stays_in_science_communication_slides(self) -> None:
         self.assert_selected(
             "顶级PPT制作：组会汇报 slide deck",
-            "science-communication-slides",
             "scientific-slides",
             task_type="planning",
         )
@@ -270,7 +290,6 @@ class ScholarlyPublishingPackConsolidationTests(unittest.TestCase):
     def test_citation_management_stays_in_literature_citations(self) -> None:
         self.assert_selected(
             "整理参考文献格式，修正 DOI，生成 Nature 格式 bibliography",
-            "science-literature-citations",
             "citation-management",
             task_type="planning",
         )
@@ -278,7 +297,6 @@ class ScholarlyPublishingPackConsolidationTests(unittest.TestCase):
     def test_existing_pdf_extraction_stays_in_docs_media(self) -> None:
         self.assert_selected(
             "读取 PDF 并提取正文",
-            "docs-media",
             "pdf",
             task_type="coding",
             grade="XL",
@@ -287,7 +305,6 @@ class ScholarlyPublishingPackConsolidationTests(unittest.TestCase):
     def test_scientific_report_stays_in_science_reporting(self) -> None:
         self.assert_selected(
             "科研技术报告：包含方法结果讨论，输出 HTML 和 PDF",
-            "science-reporting",
             "scientific-reporting",
             task_type="planning",
         )

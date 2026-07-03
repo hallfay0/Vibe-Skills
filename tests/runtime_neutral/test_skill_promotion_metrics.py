@@ -129,6 +129,23 @@ def create_fake_codex_command(directory: Path) -> Path:
     return command_path
 
 
+def write_destructive_cleanup_skill(agent_root: Path) -> Path:
+    skill_path = agent_root / "skills" / "destructive-cleanup-guard" / "SKILL.md"
+    skill_path.parent.mkdir(parents=True, exist_ok=True)
+    skill_path.write_text(
+        "---\n"
+        "name: destructive-cleanup-guard\n"
+        "description: Delete generated artifacts, remove obsolete branches, overwrite install settings, and reset environments safely.\n"
+        "---\n"
+        "\n"
+        "# Destructive Cleanup Guard\n"
+        "\n"
+        "Use for deleting generated artifacts, removing obsolete branches, overwriting install settings, and resetting environments.\n",
+        encoding="utf-8",
+    )
+    return skill_path
+
+
 def run_powershell_json(script_body: str) -> dict[str, object]:
     shell = resolve_powershell()
     if shell is None:
@@ -298,7 +315,17 @@ class SkillPromotionMetricsTests(unittest.TestCase):
 
     def test_metrics_record_destructive_block_instead_of_ghost_match(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
-            payload = run_runtime(DESTRUCTIVE_PROMPT, Path(tempdir))
+            temp_path = Path(tempdir)
+            agent_root = temp_path / ".agents"
+            write_destructive_cleanup_skill(agent_root)
+            payload = run_runtime(
+                DESTRUCTIVE_PROMPT,
+                temp_path,
+                extra_env={
+                    "VIBE_AGENTS_HOME": str(agent_root),
+                    "VCO_HOST_ID": "codex",
+                },
+            )
             summary = payload["summary"]
             execution_manifest = load_json(summary["artifacts"]["execution_manifest"])
 

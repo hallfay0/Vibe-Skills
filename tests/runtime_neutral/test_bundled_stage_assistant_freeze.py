@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -49,7 +50,20 @@ class BundledStageAssistantFreezeTests(unittest.TestCase):
             self.skipTest("PowerShell executable not available in PATH")
 
         with tempfile.TemporaryDirectory() as tempdir:
-            artifact_root = Path(tempdir) / "artifacts"
+            root = Path(tempdir)
+            target_root = root / "home" / ".agents"
+            skill_dir = target_root / "skills" / "scientific-visualization"
+            skill_dir.mkdir(parents=True)
+            task = "Create a journal-ready multi-panel figure with a colorblind-safe palette and vector export."
+            (skill_dir / "SKILL.md").write_text(
+                f"---\nname: {task}\ndescription: scientific-visualization handles journal-ready figures.\n---\n# Scientific Visualization\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            env = os.environ.copy()
+            env["VCO_HOST_ID"] = "codex"
+            env["VIBE_AGENTS_HOME"] = str(target_root)
+            artifact_root = root / "artifacts"
             run_id = "pytest-bundled-stage-assistant"
             command = [
                 shell,
@@ -60,7 +74,7 @@ class BundledStageAssistantFreezeTests(unittest.TestCase):
                 "-File",
                 str(FREEZE_SCRIPT),
                 "-Task",
-                "Create a journal-ready multi-panel figure with a colorblind-safe palette and vector export.",
+                task,
                 "-Mode",
                 "interactive_governed",
                 "-RunId",
@@ -68,7 +82,7 @@ class BundledStageAssistantFreezeTests(unittest.TestCase):
                 "-ArtifactRoot",
                 str(artifact_root),
             ]
-            subprocess.run(command, cwd=REPO_ROOT, capture_output=True, text=True, check=True)
+            subprocess.run(command, cwd=REPO_ROOT, env=env, capture_output=True, text=True, encoding="utf-8", check=True)
 
             packet_path = next(artifact_root.rglob("runtime-input-packet.json"))
             packet = json.loads(packet_path.read_text(encoding="utf-8"))

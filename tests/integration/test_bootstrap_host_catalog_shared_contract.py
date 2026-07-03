@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -9,14 +10,14 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 def test_adapter_registry_query_exposes_bootstrap_host_catalog() -> None:
     supported = subprocess.run(
-        ['python3', 'scripts/common/adapter_registry_query.py', '--repo-root', '.', '--supported-hosts'],
+        [sys.executable, 'scripts/common/adapter_registry_query.py', '--repo-root', '.', '--supported-hosts'],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
         check=True,
     )
     choices = subprocess.run(
-        ['python3', 'scripts/common/adapter_registry_query.py', '--repo-root', '.', '--bootstrap-choice-lines'],
+        [sys.executable, 'scripts/common/adapter_registry_query.py', '--repo-root', '.', '--bootstrap-choice-lines'],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -38,7 +39,7 @@ def test_powershell_governance_helpers_expose_bootstrap_host_catalog() -> None:
         "Write-Output ($choices[1].aliases -join ',')"
     )
     result = subprocess.run(
-        ['pwsh', '-NoProfile', '-Command', command],
+        ['pwsh', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', command],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,

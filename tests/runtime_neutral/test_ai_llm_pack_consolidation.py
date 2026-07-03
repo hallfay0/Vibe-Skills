@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -31,13 +32,17 @@ MOVED_OUT_SKILLS = [
 
 
 def route(prompt: str, task_type: str = "research", grade: str = "M") -> dict[str, object]:
-    return route_prompt(
-        prompt=prompt,
-        grade=grade,
-        task_type=task_type,
-        requested_skill=None,
-        repo_root=REPO_ROOT,
-    )
+    with tempfile.TemporaryDirectory() as temp_dir:
+        agent_root = Path(temp_dir) / "home" / ".agents"
+        return route_prompt(
+            prompt=prompt,
+            grade=grade,
+            task_type=task_type,
+            requested_skill=None,
+            target_root=str(agent_root),
+            host_id="codex",
+            repo_root=REPO_ROOT,
+        )
 
 
 def selected(result: dict[str, object]) -> tuple[str, str]:
@@ -71,9 +76,12 @@ class AiLlmPackConsolidationTests(unittest.TestCase):
         assert isinstance(pack, dict)
         return pack
 
-    def assert_selected(self, prompt: str, expected_skill: str, **kwargs: object) -> None:
+    def assert_no_local_selection(self, prompt: str, **kwargs: object) -> None:
         result = route(prompt, **kwargs)
-        self.assertEqual(("ai-llm", expected_skill), selected(result), ranked_summary(result))
+        self.assertEqual(("", ""), selected(result), ranked_summary(result))
+        self.assertEqual("local_skill_index", result.get("candidate_source"))
+        self.assertEqual("no_local_candidate", result.get("route_mode"))
+        self.assertEqual("no_local_candidate_above_threshold", result.get("route_reason"))
 
     def test_manifest_keeps_only_core_ai_llm_route_authorities(self) -> None:
         pack = self.load_pack()
@@ -92,17 +100,17 @@ class AiLlmPackConsolidationTests(unittest.TestCase):
         for skill in MOVED_OUT_SKILLS:
             self.assertNotIn(skill, pack["skill_candidates"])
 
-    def test_core_ai_llm_skills_own_their_prompts(self) -> None:
+    def test_core_ai_llm_prompts_do_not_select_internal_pack_without_local_skill(self) -> None:
         cases = [
-            ("查询OpenAI官方文档中的Responses API用法", "openai-docs", "research"),
-            ("帮我检索提示词模板并优化prompt", "prompt-lookup", "research"),
-            ("设计向量嵌入策略用于语义检索", "embedding-strategies", "planning"),
-            ("设计vector database nearest neighbor similarity search方案", "similarity-search-patterns", "planning"),
-            ("用MMLU和GSM8K做大模型评测", "evaluating-llms-harness", "research"),
+            ("查询OpenAI官方文档中的Responses API用法", "research"),
+            ("帮我检索提示词模板并优化prompt", "research"),
+            ("设计向量嵌入策略用于语义检索", "planning"),
+            ("设计vector database nearest neighbor similarity search方案", "planning"),
+            ("用MMLU和GSM8K做大模型评测", "research"),
         ]
-        for prompt, expected_skill, task_type in cases:
+        for prompt, task_type in cases:
             with self.subTest(prompt=prompt):
-                self.assert_selected(prompt, expected_skill, task_type=task_type)
+                self.assert_no_local_selection(prompt, task_type=task_type)
 
     def test_moved_out_and_cold_skills_do_not_route_to_ai_llm(self) -> None:
         prompts = [

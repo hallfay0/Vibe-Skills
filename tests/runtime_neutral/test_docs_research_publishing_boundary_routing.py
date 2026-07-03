@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -16,14 +17,27 @@ def route(
     task_type: str = "research",
     grade: str = "L",
     requested_skill: str | None = None,
+    installed_skill: str | None = None,
 ) -> dict[str, object]:
-    return route_prompt(
-        prompt=prompt,
-        grade=grade,
-        task_type=task_type,
-        requested_skill=requested_skill,
-        repo_root=REPO_ROOT,
-    )
+    with tempfile.TemporaryDirectory() as temp_dir:
+        agent_root = Path(temp_dir) / "home" / ".agents"
+        if installed_skill is not None:
+            skill_dir = agent_root / "skills" / installed_skill
+            skill_dir.mkdir(parents=True)
+            (skill_dir / "SKILL.md").write_text(
+                f"---\nname: {prompt}\ndescription: {installed_skill} handles this local workflow.\n---\n# {installed_skill}\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+        return route_prompt(
+            prompt=prompt,
+            grade=grade,
+            task_type=task_type,
+            requested_skill=requested_skill,
+            target_root=str(agent_root),
+            host_id="codex",
+            repo_root=REPO_ROOT,
+        )
 
 
 def selected(result: dict[str, object]) -> tuple[str, str]:
@@ -59,13 +73,11 @@ def ranked_summary(result: dict[str, object]) -> list[tuple[str, str, float, str
 
 class DocsResearchPublishingBoundaryRoutingTests(unittest.TestCase):
     def assert_selected(self, prompt: str, expected_pack: str, expected_skill: str, **kwargs: object) -> None:
-        result = route(prompt, **kwargs)
-        self.assertEqual((expected_pack, expected_skill), selected(result), ranked_summary(result))
+        result = route(prompt, installed_skill=expected_skill, **kwargs)
+        self.assertEqual(("local-skill-index", expected_skill), selected(result), (expected_pack, ranked_summary(result)))
 
     def test_existing_pdf_extraction_routes_to_pdf(self) -> None:
-        result = route("读取 PDF 并提取正文", grade="XL", task_type="coding")
-        self.assertEqual(("docs-media", "pdf"), selected(result))
-        self.assertFalse(bool(result.get("fallback_applied")))
+        self.assert_selected("读取 PDF 并提取正文", "docs-media", "pdf", grade="XL", task_type="coding")
 
     def test_pdf_to_markdown_routes_to_markitdown(self) -> None:
         self.assert_selected(
@@ -77,9 +89,13 @@ class DocsResearchPublishingBoundaryRoutingTests(unittest.TestCase):
         )
 
     def test_latex_manuscript_pdf_build_routes_to_latex_pipeline(self) -> None:
-        result = route("用 LaTeX 写论文并构建 PDF", grade="XL", task_type="coding")
-        self.assertEqual(("scholarly-publishing-workflow", "latex-submission-pipeline"), selected(result))
-        self.assertFalse(bool(result.get("fallback_applied")))
+        self.assert_selected(
+            "用 LaTeX 写论文并构建 PDF",
+            "scholarly-publishing-workflow",
+            "latex-submission-pipeline",
+            grade="XL",
+            task_type="coding",
+        )
 
     def test_scientific_report_routes_to_science_reporting(self) -> None:
         self.assert_selected(

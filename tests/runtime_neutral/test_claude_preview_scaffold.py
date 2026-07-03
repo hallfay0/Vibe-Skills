@@ -168,7 +168,7 @@ class ClaudePreviewScaffoldTests(unittest.TestCase):
         self.assertEqual('preview-guidance', payload['install_mode'])
         self.assertEqual(str(closure_path), payload['host_closure_path'])
 
-    def test_preview_check_accepts_preview_settings_file_without_touching_real_settings(self) -> None:
+    def test_shell_install_rejects_legacy_claude_host_root_options_without_touching_real_settings(self) -> None:
         install_cmd = [
             'bash',
             str(REPO_ROOT / 'install.sh'),
@@ -179,35 +179,17 @@ class ClaudePreviewScaffoldTests(unittest.TestCase):
             '--profile',
             'full',
         ]
-        subprocess.run(install_cmd, capture_output=True, text=True, check=True)
+        result = subprocess.run(install_cmd, capture_output=True, text=True)
 
-        check_cmd = [
-            'bash',
-            str(REPO_ROOT / 'check.sh'),
-            '--host',
-            'claude-code',
-            '--profile',
-            'full',
-            '--target-root',
-            str(self.target_root),
-        ]
-        result = subprocess.run(check_cmd, capture_output=True, text=True, check=True)
-
-        self.assertIn('[OK] host closure manifest', result.stdout)
-        self.assertIn('[OK] host settings sidecar', result.stdout)
-        self.assertIn('managed settings.json surface', result.stdout)
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn('unrecognized arguments', result.stderr)
+        self.assertIn('--host claude-code', result.stderr)
+        self.assertIn('--target-root', result.stderr)
         settings = json.loads((self.target_root / 'settings.json').read_text(encoding='utf-8'))
         self.assertEqual(self.existing_settings['env'], settings['env'])
         self.assertEqual(self.existing_settings['model'], settings['model'])
-        self.assertEqual('claude-code', settings['vibeskills']['host_id'])
-        self.assertTrue((self.target_root / '.vibeskills' / 'host-settings.json').exists())
-        self.assertTrue(list((self.target_root / '.vibeskills').glob('global-instruction-bootstrap*.json')))
-        self.assertTrue((self.target_root / 'CLAUDE.md').exists())
-        for name in self.EXPECTED_WRAPPER_SKILLS:
-            self.assertTrue((self.target_root / 'skills' / name / 'SKILL.md').exists())
-        self.assertFalse((self.target_root / 'commands').exists())
 
-    def test_preview_check_deep_runs_bootstrap_doctor_for_claude_code(self) -> None:
+    def test_powershell_install_rejects_legacy_claude_host_root_options_without_touching_real_settings(self) -> None:
         powershell = resolve_powershell()
         if powershell is None:
             self.skipTest('PowerShell executable not available in PATH')
@@ -226,27 +208,14 @@ class ClaudePreviewScaffoldTests(unittest.TestCase):
             '-Profile',
             'full',
         ]
-        subprocess.run(install_cmd, capture_output=True, text=True, check=True)
+        result = subprocess.run(install_cmd, capture_output=True, text=True)
 
-        check_cmd = [
-            powershell,
-            '-NoProfile',
-            '-ExecutionPolicy',
-            'Bypass',
-            '-File',
-            str(REPO_ROOT / 'check.ps1'),
-            '-HostId',
-            'claude-code',
-            '-Profile',
-            'full',
-            '-TargetRoot',
-            str(self.target_root),
-            '-Deep',
-        ]
-        result = subprocess.run(check_cmd, capture_output=True, text=True)
-
-        self.assertNotIn("deep doctor skipped", result.stdout)
-        self.assertIn("[OK] vibe bootstrap doctor gate", result.stdout)
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn('parameter', result.stderr.lower())
+        self.assertIn('HostId', result.stderr)
+        settings = json.loads((self.target_root / 'settings.json').read_text(encoding='utf-8'))
+        self.assertEqual(self.existing_settings['env'], settings['env'])
+        self.assertEqual(self.existing_settings['model'], settings['model'])
 
 
 if __name__ == '__main__':

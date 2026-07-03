@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import shutil
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -22,12 +24,28 @@ KEPT_SKILLS = [
     "clinical-decision-support",
 ]
 
+ROUTE_SKILLS = sorted(set(KEPT_SKILLS + ["pydicom", "pubmed-database", "rdkit", "scientific-reporting"]))
 
-def route(prompt: str, task_type: str = "research", grade: str = "M") -> dict[str, object]:
+
+def install_skills(target_root: Path) -> None:
+    skills_root = target_root / "skills"
+    skills_root.mkdir(parents=True, exist_ok=True)
+    for skill_id in ROUTE_SKILLS:
+        shutil.copytree(REPO_ROOT / "bundled" / "skills" / skill_id, skills_root / skill_id)
+
+
+def route(
+    prompt: str,
+    task_type: str = "research",
+    grade: str = "M",
+    target_root: Path | None = None,
+) -> dict[str, object]:
     return route_prompt(
         prompt=prompt,
         grade=grade,
         task_type=task_type,
+        target_root=str(target_root) if target_root is not None else None,
+        host_id="codex",
         repo_root=REPO_ROOT,
     )
 
@@ -72,14 +90,16 @@ class ScienceClinicalRegulatoryPackConsolidationTests(unittest.TestCase):
     def assert_selected(
         self,
         prompt: str,
-        expected_pack: str,
         expected_skill: str,
         *,
         task_type: str = "research",
         grade: str = "M",
     ) -> None:
-        result = route(prompt, task_type=task_type, grade=grade)
-        self.assertEqual((expected_pack, expected_skill), selected(result), ranked_summary(result))
+        with tempfile.TemporaryDirectory() as tempdir:
+            target_root = Path(tempdir) / ".agents"
+            install_skills(target_root)
+            result = route(prompt, task_type=task_type, grade=grade, target_root=target_root)
+        self.assertEqual(("local-skill-index", expected_skill), selected(result), ranked_summary(result))
 
     def assert_not_clinical_regulatory(
         self,
@@ -88,8 +108,11 @@ class ScienceClinicalRegulatoryPackConsolidationTests(unittest.TestCase):
         task_type: str = "research",
         grade: str = "M",
     ) -> None:
-        result = route(prompt, task_type=task_type, grade=grade)
-        self.assertNotEqual("science-clinical-regulatory", selected(result)[0], ranked_summary(result))
+        with tempfile.TemporaryDirectory() as tempdir:
+            target_root = Path(tempdir) / ".agents"
+            install_skills(target_root)
+            result = route(prompt, task_type=task_type, grade=grade, target_root=target_root)
+        self.assertNotIn(selected(result)[1], KEPT_SKILLS, ranked_summary(result))
 
     def test_manifest_keeps_seven_direct_route_owners(self) -> None:
         pack = pack_by_id("science-clinical-regulatory")
@@ -109,28 +132,24 @@ class ScienceClinicalRegulatoryPackConsolidationTests(unittest.TestCase):
     def test_clinicaltrials_routes_to_clinicaltrials_database(self) -> None:
         self.assert_selected(
             "在 ClinicalTrials.gov 按 NCT 编号 NCT01234567 查询试验入排标准、终点和 trial phase",
-            "science-clinical-regulatory",
             "clinicaltrials-database",
         )
 
     def test_fda_label_routes_to_fda_database(self) -> None:
         self.assert_selected(
             "根据 FDA drug label 提取适应症、禁忌、不良反应、recall 和用法用量",
-            "science-clinical-regulatory",
             "fda-database",
         )
 
     def test_clinpgx_routes_to_clinpgx_database(self) -> None:
         self.assert_selected(
             "查询 CPIC 药物基因组指南，解释 CYP2C19 和 clopidogrel 的 gene-drug 用药建议",
-            "science-clinical-regulatory",
             "clinpgx-database",
         )
 
     def test_clinical_report_routes_to_clinical_reports(self) -> None:
         self.assert_selected(
             "撰写 CARE guidelines 病例报告，包含临床时间线、诊断、治疗、知情同意和去标识化检查",
-            "science-clinical-regulatory",
             "clinical-reports",
             task_type="planning",
         )
@@ -138,7 +157,6 @@ class ScienceClinicalRegulatoryPackConsolidationTests(unittest.TestCase):
     def test_clinical_report_review_routes_to_clinical_reports(self) -> None:
         self.assert_selected(
             "审查 clinical report 的 HIPAA 合规性、去标识化、完整性和医学术语规范",
-            "science-clinical-regulatory",
             "clinical-reports",
             task_type="review",
         )
@@ -146,7 +164,6 @@ class ScienceClinicalRegulatoryPackConsolidationTests(unittest.TestCase):
     def test_treatment_plan_routes_to_treatment_plans(self) -> None:
         self.assert_selected(
             "为糖尿病患者生成一页式 treatment plan，包含 SMART 目标、用药方案和随访计划",
-            "science-clinical-regulatory",
             "treatment-plans",
             task_type="planning",
         )
@@ -154,7 +171,6 @@ class ScienceClinicalRegulatoryPackConsolidationTests(unittest.TestCase):
     def test_iso_13485_routes_to_iso_certification(self) -> None:
         self.assert_selected(
             "准备 ISO 13485 医疗器械 QMS 认证差距分析、质量手册和 CAPA 程序文件",
-            "science-clinical-regulatory",
             "iso-13485-certification",
             task_type="planning",
         )
@@ -162,7 +178,6 @@ class ScienceClinicalRegulatoryPackConsolidationTests(unittest.TestCase):
     def test_clinical_decision_support_routes_to_cds(self) -> None:
         self.assert_selected(
             "生成 clinical decision support 文档，包含 GRADE 证据、治疗算法、队列生存分析和 biomarker 分层",
-            "science-clinical-regulatory",
             "clinical-decision-support",
             task_type="planning",
             grade="L",
@@ -171,7 +186,6 @@ class ScienceClinicalRegulatoryPackConsolidationTests(unittest.TestCase):
     def test_dicom_imaging_stays_outside_clinical_regulatory(self) -> None:
         self.assert_selected(
             "读取DICOM并提取tags",
-            "science-medical-imaging",
             "pydicom",
             task_type="research",
         )
@@ -179,7 +193,6 @@ class ScienceClinicalRegulatoryPackConsolidationTests(unittest.TestCase):
     def test_pubmed_literature_stays_outside_clinical_regulatory(self) -> None:
         self.assert_selected(
             "检索PubMed文献并导出BibTeX",
-            "science-literature-citations",
             "pubmed-database",
             task_type="research",
         )
@@ -187,7 +200,6 @@ class ScienceClinicalRegulatoryPackConsolidationTests(unittest.TestCase):
     def test_rdkit_smiles_stays_outside_clinical_regulatory(self) -> None:
         self.assert_selected(
             "用RDKit解析SMILES并计算Morgan fingerprint",
-            "science-chem-drug",
             "rdkit",
             task_type="coding",
         )
@@ -195,7 +207,6 @@ class ScienceClinicalRegulatoryPackConsolidationTests(unittest.TestCase):
     def test_scientific_report_stays_outside_clinical_regulatory(self) -> None:
         self.assert_selected(
             "科研技术报告：包含方法结果讨论，输出 HTML 和 PDF",
-            "science-reporting",
             "scientific-reporting",
             task_type="planning",
             grade="L",

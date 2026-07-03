@@ -44,6 +44,8 @@ class InstalledSkillManifest:
     skill_id: str
     name: str
     description: str
+    capabilities: tuple[str, ...] = ()
+    not_for: tuple[str, ...] = ()
     tags: tuple[str, ...] = ()
     headings: tuple[str, ...] = ()
     root_dir: str = ""
@@ -220,6 +222,44 @@ def _extract_heading_lines(body_lines: list[str], *, limit: int = 8) -> tuple[st
     return tuple(headings)
 
 
+def _dedupe_non_empty(values: tuple[str, ...]) -> tuple[str, ...]:
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        text = str(value).strip()
+        if not text or text in seen:
+            continue
+        deduped.append(text)
+        seen.add(text)
+    return tuple(deduped)
+
+
+def _extract_body_not_for_lines(body_lines: list[str]) -> tuple[str, ...]:
+    items: list[str] = []
+    in_not_for_section = False
+    for line in body_lines:
+        stripped = line.strip()
+        lowered = stripped.casefold()
+        if not in_not_for_section:
+            if lowered.startswith("do not use this skill for") or lowered.startswith("do not use for"):
+                in_not_for_section = True
+            continue
+        if not stripped:
+            if items:
+                break
+            continue
+        if stripped.startswith("#"):
+            break
+        if not stripped.startswith("- "):
+            if items:
+                break
+            continue
+        item = stripped[2:].strip()
+        if item:
+            items.append(item)
+    return _dedupe_non_empty(tuple(items))
+
+
 def validate_skill_manifest(manifest: SkillManifest) -> None:
     for field_name in REQUIRED_STRING_FIELDS:
         value = getattr(manifest, field_name)
@@ -283,10 +323,15 @@ def parse_installed_skill_manifest(skill_file: Path, *, skill_id: str | None = N
         raise ValueError(f"skill id cannot be empty for {resolved_file}")
     name = _coerce_string_field(frontmatter, "name", resolved_file)
     description = _coerce_string_field(frontmatter, "description", resolved_file)
+    not_for = _dedupe_non_empty(
+        _coerce_string_list(frontmatter.get("not_for")) + _extract_body_not_for_lines(body_lines)
+    )
     return InstalledSkillManifest(
         skill_id=resolved_skill_id,
         name=name,
         description=description,
+        capabilities=_coerce_string_list(frontmatter.get("capabilities")),
+        not_for=not_for,
         tags=_coerce_string_list(frontmatter.get("tags")),
         headings=_extract_heading_lines(body_lines),
         root_dir=str(resolved_file.parent),

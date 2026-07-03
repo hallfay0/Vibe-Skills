@@ -10,17 +10,6 @@ SELF_REPO_RAW = "https://raw.githubusercontent.com/foryourhealth111-pixel/Vibe-S
 
 DOC_SCRIPT_SUFFIXES = {".md", ".ps1", ".py", ".sh", ".yml", ".yaml", ".json"}
 DOC_SCRIPT_ROOTS = ("docs", "scripts", ".github")
-INSTALL_PROMPTS = (
-    "docs/install/prompts/framework-only-install.md",
-    "docs/install/prompts/framework-only-install.en.md",
-    "docs/install/prompts/framework-only-update.md",
-    "docs/install/prompts/framework-only-update.en.md",
-    "docs/install/prompts/full-version-install.md",
-    "docs/install/prompts/full-version-install.en.md",
-    "docs/install/prompts/full-version-update.md",
-    "docs/install/prompts/full-version-update.en.md",
-)
-
 
 def _repo_relative(path: Path) -> str:
     return path.relative_to(REPO_ROOT).as_posix()
@@ -54,15 +43,5 @@ def test_documentation_surfaces_do_not_bind_internal_links_to_github_blob_or_raw
     assert violations == []
 
 
-def test_install_prompts_use_source_placeholder_instead_of_github_fixed_source() -> None:
-    violations: list[str] = []
-    for relative in INSTALL_PROMPTS:
-        path = REPO_ROOT / relative
-        text = path.read_text(encoding="utf-8")
-        if "<source>" not in text:
-            violations.append(f"{relative}: missing <source> placeholder")
-        for line_number, line in enumerate(text.splitlines(), start=1):
-            if SELF_REPO_GITHUB in line and ("Repository:" in line or "仓库地址：" in line):
-                violations.append(f"{relative}:{line_number}: {line.strip()}")
-
-    assert violations == []
+def test_active_install_docs_do_not_keep_legacy_prompt_install_recipes() -> None:
+    assert not (REPO_ROOT / "docs" / "install" / "prompts").exists()

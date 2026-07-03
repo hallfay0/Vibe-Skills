@@ -288,7 +288,7 @@ class CustomAdmissionBridgeTests(unittest.TestCase):
             self.assertEqual(admitted["_route_usable"], admitted["pack"]["custom_admission"]["_route_usable"])
             self.assertNotIn("route_authority_eligible", admitted["pack"]["custom_admission"])
 
-    def test_runtime_neutral_router_admits_advisory_custom_candidate_without_route_authority(self) -> None:
+    def test_runtime_neutral_router_keeps_custom_admission_disabled_while_local_index_can_select_custom_skill(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             target_root = Path(tempdir) / ".codex"
             write_custom_skill(target_root, skill_id="genomics-qc-flow", trigger_mode="advisory")
@@ -301,27 +301,15 @@ class CustomAdmissionBridgeTests(unittest.TestCase):
                 task_type="planning",
             )
 
-            self.assertEqual("admitted", result["custom_admission"]["status"])
-            self.assertIn(
-                "genomics-qc-flow",
-                [row["skill_id"] for row in result["custom_admission"]["admitted_candidates"]],
-            )
-            for admitted in result["custom_admission"]["admitted_candidates"]:
-                self.assertNotIn("route_authority_eligible", admitted)
-                self.assertNotIn("_route_usable", admitted)
-                pack = admitted.get("pack")
-                self.assertIsInstance(pack, dict)
-                custom_metadata = pack.get("custom_admission")
-                self.assertIsInstance(custom_metadata, dict)
-                self.assertNotIn("_route_usable", custom_metadata)
+            self.assertEqual("disabled_default_local_index_only", result["custom_admission"]["status"])
+            self.assertEqual([], result["custom_admission"]["admitted_candidates"])
 
-            custom_ranked = next(
-                (row for row in result["ranked"] if row["pack_id"] == "custom-workflow-genomics-qc-flow"),
-                None,
-            )
+            custom_ranked = next((row for row in result["ranked"] if row["skill"] == "genomics-qc-flow"), None)
             self.assertIsNotNone(custom_ranked)
             self.assertNotIn("route_authority_eligible", custom_ranked)
-            self.assertNotEqual("genomics-qc-flow", result["selected"]["skill"])
+            self.assertEqual("genomics-qc-flow", result["selected"]["skill"])
+            self.assertEqual("local-skill-index", result["selected"]["pack_id"])
+            self.assertEqual("local_skill_index", result["selected"]["candidate_source"])
 
     def test_runtime_neutral_router_explicit_request_can_activate_custom_route_authority(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
@@ -336,9 +324,10 @@ class CustomAdmissionBridgeTests(unittest.TestCase):
                 task_type="planning",
             )
 
-            self.assertEqual("admitted", result["custom_admission"]["status"])
+            self.assertEqual("disabled_default_local_index_only", result["custom_admission"]["status"])
             self.assertEqual("genomics-qc-flow", result["selected"]["skill"])
-            self.assertEqual("custom-workflow-genomics-qc-flow", result["selected"]["pack_id"])
+            self.assertEqual("local-skill-index", result["selected"]["pack_id"])
+            self.assertEqual("explicit_local_skill", result["route_reason"])
 
     def test_runtime_neutral_router_reports_missing_custom_dependencies(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
@@ -357,13 +346,9 @@ class CustomAdmissionBridgeTests(unittest.TestCase):
                 task_type="planning",
             )
 
-            self.assertEqual("custom_dependencies_missing", result["custom_admission"]["status"])
+            self.assertEqual("disabled_default_local_index_only", result["custom_admission"]["status"])
             self.assertEqual([], result["custom_admission"]["admitted_candidates"])
-            self.assertEqual(1, len(result["custom_admission"]["dependency_failures"]))
-            self.assertEqual(
-                ["missing-dependency-skill"],
-                result["custom_admission"]["dependency_failures"][0]["missing_dependencies"],
-            )
+            self.assertEqual([], result["custom_admission"]["dependency_failures"])
 
     def test_runtime_freeze_exports_custom_specialist_dispatch_contract(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
@@ -385,15 +370,15 @@ class CustomAdmissionBridgeTests(unittest.TestCase):
             )
             packet = payload["packet"]
 
-            self.assertEqual("admitted", packet["custom_admission"]["status"])
+            self.assertEqual("disabled_default_local_index_only", packet["custom_admission"]["status"])
             self.assertEqual(normalize_path_text(str(target_root.resolve())), normalize_path_text(packet["custom_admission"]["target_root"]))
 
             custom_recommendation = next(
                 item for item in selected_rows_from_packet(packet) if item["skill_id"] == "genomics-qc-flow"
             )
-            self.assertEqual("workflow", custom_recommendation["binding_profile"])
+            self.assertEqual("default", custom_recommendation["binding_profile"])
             self.assertEqual("in_execution", custom_recommendation["dispatch_phase"])
-            self.assertEqual("bounded_native_custom_skill", custom_recommendation["lane_policy"])
+            self.assertEqual("inherit_grade", custom_recommendation["lane_policy"])
             self.assertTrue(bool(custom_recommendation["parallelizable_in_root_xl"]))
             self.assertTrue(bool(custom_recommendation["native_usage_required"]))
             self.assertTrue(bool(custom_recommendation["must_preserve_workflow"]))
@@ -406,7 +391,7 @@ class CustomAdmissionBridgeTests(unittest.TestCase):
             self.assertNotIn("legacy_skill_routing", packet)
             self.assertIn("genomics-qc-flow", [item["skill_id"] for item in selected_rows_from_packet(packet)])
 
-    def test_runtime_freeze_uses_resolved_runtime_mirror_entrypoint_in_progressive_load_policy(self) -> None:
+    def test_runtime_freeze_ignores_non_standard_runtime_mirror_entrypoint(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             target_root = Path(tempdir) / ".codex"
             artifact_root = Path(tempdir) / "artifacts"
@@ -425,21 +410,8 @@ class CustomAdmissionBridgeTests(unittest.TestCase):
                 artifact_root=artifact_root,
             )
             packet = payload["packet"]
-            custom_recommendation = next(
-                item for item in selected_rows_from_packet(packet) if item["skill_id"] == "genomics-qc-flow"
-            )
-
-            self.assertTrue(
-                normalize_path_text(custom_recommendation["native_skill_entrypoint"]).endswith("SKILL.runtime-mirror.md")
-            )
-            self.assertEqual(
-                f"Open the specialist {custom_recommendation['native_skill_entrypoint']} entrypoint first.",
-                list(custom_recommendation["progressive_load_policy"])[0],
-            )
-            self.assertIn(
-                "do not replace it with Skill(genomics-qc-flow)",
-                list(custom_recommendation["progressive_load_policy"])[1],
-            )
+            self.assertEqual("disabled_default_local_index_only", packet["custom_admission"]["status"])
+            self.assertNotIn("genomics-qc-flow", [item["skill_id"] for item in selected_rows_from_packet(packet)])
 
     def test_full_runtime_carries_custom_specialist_into_execution_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:

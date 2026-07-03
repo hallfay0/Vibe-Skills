@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -59,7 +60,8 @@ class BinarySkillUsageContractTests(unittest.TestCase):
     def test_full_skill_load_records_hash_path_line_and_byte_counts(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             root = Path(tempdir)
-            skill_dir = root / "bundled" / "skills" / "demo-skill"
+            target_root = root / "home" / ".agents"
+            skill_dir = root / "home" / ".agents" / "skills" / "demo-skill"
             skill_dir.mkdir(parents=True)
             skill_text = "---\nname: demo-skill\ndescription: demo\n---\n# Demo\nUse the demo workflow.\n"
             skill_path = skill_dir / "SKILL.md"
@@ -70,7 +72,7 @@ class BinarySkillUsageContractTests(unittest.TestCase):
                 "& { "
                 f". {ps_quote(str(RUNTIME_COMMON))}; "
                 f". {ps_quote(str(SKILL_USAGE_COMMON))}; "
-                f"$record = New-VibeSkillUsageLoadedSkill -RepoRoot {ps_quote(str(root))} -SkillId 'demo-skill' -LoadedAtStage 'skeleton_check'; "
+                f"$record = New-VibeSkillUsageLoadedSkill -RepoRoot {ps_quote(str(REPO_ROOT))} -SkillId 'demo-skill' -LoadedAtStage 'skeleton_check' -TargetRoot {ps_quote(str(target_root))} -HostId 'codex'; "
                 "$record | ConvertTo-Json -Depth 20 "
                 "}"
             )
@@ -86,7 +88,8 @@ class BinarySkillUsageContractTests(unittest.TestCase):
     def test_artifact_impact_promotes_loaded_skill_to_used_and_removes_unused_reason(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             root = Path(tempdir)
-            skill_dir = root / "bundled" / "skills" / "demo-skill"
+            target_root = root / "home" / ".agents"
+            skill_dir = root / "home" / ".agents" / "skills" / "demo-skill"
             skill_dir.mkdir(parents=True)
             (skill_dir / "SKILL.md").write_text("# Demo\nUse it.\n", encoding="utf-8", newline="\n")
 
@@ -94,7 +97,7 @@ class BinarySkillUsageContractTests(unittest.TestCase):
                 "& { "
                 f". {ps_quote(str(RUNTIME_COMMON))}; "
                 f". {ps_quote(str(SKILL_USAGE_COMMON))}; "
-                f"$loaded = New-VibeSkillUsageLoadedSkill -RepoRoot {ps_quote(str(root))} -SkillId 'demo-skill' -LoadedAtStage 'skeleton_check'; "
+                f"$loaded = New-VibeSkillUsageLoadedSkill -RepoRoot {ps_quote(str(REPO_ROOT))} -SkillId 'demo-skill' -LoadedAtStage 'skeleton_check' -TargetRoot {ps_quote(str(target_root))} -HostId 'codex'; "
                 "$usage = New-VibeInitialSkillUsage -LoadedSkills @($loaded) -TouchedSkills @([pscustomobject]@{ skill_id = 'demo-skill'; reason = 'loaded_but_no_artifact_impact' }); "
                 "$usage = Update-VibeSkillUsageArtifactImpact -SkillUsage $usage -SkillId 'demo-skill' -Stage 'xl_plan' -ArtifactRef 'xl_plan.md' -ImpactSummary 'Plan follows the loaded demo skill workflow.'; "
                 "$usage | ConvertTo-Json -Depth 20 "
@@ -116,7 +119,8 @@ class BinarySkillUsageContractTests(unittest.TestCase):
     def test_artifact_impact_can_update_after_empty_unused_json_roundtrip(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             root = Path(tempdir)
-            skill_dir = root / "bundled" / "skills" / "demo-skill"
+            target_root = root / "home" / ".agents"
+            skill_dir = root / "home" / ".agents" / "skills" / "demo-skill"
             skill_dir.mkdir(parents=True)
             (skill_dir / "SKILL.md").write_text("# Demo\nUse it.\n", encoding="utf-8", newline="\n")
 
@@ -124,7 +128,7 @@ class BinarySkillUsageContractTests(unittest.TestCase):
                 "& { "
                 f". {ps_quote(str(RUNTIME_COMMON))}; "
                 f". {ps_quote(str(SKILL_USAGE_COMMON))}; "
-                f"$loaded = New-VibeSkillUsageLoadedSkill -RepoRoot {ps_quote(str(root))} -SkillId 'demo-skill' -LoadedAtStage 'skeleton_check'; "
+                f"$loaded = New-VibeSkillUsageLoadedSkill -RepoRoot {ps_quote(str(REPO_ROOT))} -SkillId 'demo-skill' -LoadedAtStage 'skeleton_check' -TargetRoot {ps_quote(str(target_root))} -HostId 'codex'; "
                 "$usage = New-VibeInitialSkillUsage -LoadedSkills @($loaded) -TouchedSkills @([pscustomobject]@{ skill_id = 'demo-skill'; reason = 'loaded_but_no_artifact_impact' }); "
                 "$usage = Update-VibeSkillUsageArtifactImpact -SkillUsage $usage -SkillId 'demo-skill' -Stage 'requirement_doc' -ArtifactRef 'requirement.md' -ImpactSummary 'Requirement uses the demo skill.'; "
                 "$usage = ($usage | ConvertTo-Json -Depth 20 | ConvertFrom-Json); "
@@ -145,8 +149,20 @@ class BinarySkillUsageContractTests(unittest.TestCase):
             self.skipTest("PowerShell executable not available")
 
         with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            target_root = root / "home" / ".agents"
+            skill_dir = root / "home" / ".agents" / "skills" / "biopython-fasta"
+            skill_dir.mkdir(parents=True)
+            (skill_dir / "SKILL.md").write_text(
+                "---\nname: biopython-fasta\ndescription: Use biopython to parse FASTA and summarize sequence lengths.\n---\n# Biopython FASTA\n",
+                encoding="utf-8",
+                newline="\n",
+            )
             artifact_root = Path(tempdir) / "artifacts"
             run_id = "pytest-binary-skill-usage-freeze"
+            env = os.environ.copy()
+            env["VCO_HOST_ID"] = "codex"
+            env["VIBE_AGENTS_HOME"] = str(target_root)
             command = [
                 shell,
                 "-NoLogo",
@@ -164,7 +180,7 @@ class BinarySkillUsageContractTests(unittest.TestCase):
                 "-ArtifactRoot",
                 str(artifact_root),
             ]
-            subprocess.run(command, cwd=REPO_ROOT, capture_output=True, text=True, encoding="utf-8", check=True)
+            subprocess.run(command, cwd=REPO_ROOT, env=env, capture_output=True, text=True, encoding="utf-8", check=True)
 
             packet_path = next(artifact_root.rglob("runtime-input-packet.json"))
             packet = json.loads(packet_path.read_text(encoding="utf-8"))

@@ -378,7 +378,7 @@ def test_runtime_packet_sibling_recommendations_use_neutral_ranking_language() -
 
     assert "route_authority_eligible" not in text
     assert "additional XL route-authority specialist candidate" not in text
-    assert "additional XL ranked specialist candidate" in text
+    assert "additional XL ranked local installed specialist candidate" in text
 
 
 def test_current_unit_and_integration_fixtures_do_not_write_retired_root_fields() -> None:

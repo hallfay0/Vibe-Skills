@@ -103,31 +103,28 @@ class OpenClawRuntimeCoreTests(unittest.TestCase):
             self.assertFalse((target_root / "settings.json").exists())
             self.assertFalse((target_root / "config" / "plugins-manifest.codex.json").exists())
 
-    def test_shell_install_and_check_support_openclaw_runtime_core_preview_lane(self) -> None:
+    def test_shell_install_and_check_use_simplified_skills_dir_without_openclaw_sidecars(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             target_root = Path(tempdir)
+            skills_dir = target_root / "skills"
             install_result = subprocess.run(
                 [
                     "bash",
                     str(REPO_ROOT / "install.sh"),
-                    "--host",
-                    "openclaw",
-                    "--target-root",
-                    str(target_root),
-                    "--profile",
-                    "full",
+                    "--skills-dir",
+                    str(skills_dir),
                 ],
                 capture_output=True,
                 text=True,
                 check=True,
             )
-            self.assertIn("Host   : openclaw", install_result.stdout)
-            self.assertIn("Mode   : runtime-core", install_result.stdout)
-            self.assertTrue((target_root / "skills" / "vibe" / "SKILL.md").exists())
-            for name in self.EXPECTED_WRAPPER_SKILLS:
-                self.assertTrue((target_root / "skills" / name / "SKILL.md").exists())
-            self.assertTrue((target_root / ".vibeskills" / "host-settings.json").exists())
-            self.assertTrue((target_root / ".vibeskills" / "host-closure.json").exists())
+            install_payload = json.loads(install_result.stdout)
+            self.assertEqual("vibe-skill-install", install_payload["receipt_kind"])
+            self.assertTrue((skills_dir / "vibe" / "SKILL.md").exists())
+            self.assertTrue((skills_dir / "vibe" / ".vibeskills" / "install-receipt.json").exists())
+            self.assertFalse((skills_dir / "vibe" / "adapters").exists())
+            self.assertFalse((target_root / ".vibeskills" / "host-settings.json").exists())
+            self.assertFalse((target_root / ".vibeskills" / "host-closure.json").exists())
             self.assertFalse((target_root / "commands").exists())
             self.assertFalse((target_root / "global_workflows").exists())
             self.assertFalse((target_root / "mcp_config.json").exists())
@@ -137,30 +134,15 @@ class OpenClawRuntimeCoreTests(unittest.TestCase):
                 [
                     "bash",
                     str(REPO_ROOT / "check.sh"),
-                    "--host",
-                    "openclaw",
-                    "--target-root",
-                    str(target_root),
-                    "--profile",
-                    "full",
+                    "--skills-dir",
+                    str(skills_dir),
                 ],
                 capture_output=True,
                 text=True,
                 check=True,
             )
-            self.assertIn("Host: openclaw", check_result.stdout)
-            self.assertIn("Mode: runtime-core", check_result.stdout)
-            self.assertIn("[OK] host closure manifest", check_result.stdout)
-            closure = json.loads((target_root / ".vibeskills" / "host-closure.json").read_text(encoding="utf-8"))
-            self.assertEqual("closed_ready", closure["host_closure_state"])
-            self.assertEqual(str(target_root.resolve()), closure["runtime_root"])
-            self.assertEqual(str(target_root.resolve()), closure["host_bridge_root"])
-            self.assertNotEqual(str(target_root.resolve()), closure["desired_shared_runtime_root"])
-            self.assertEqual("legacy-host-root-override", closure["runtime_layout_mode"])
-            self.assertIn("[OK] npm check skipped for non-governed adapter mode", check_result.stdout)
-            self.assertNotIn("[FAIL] settings.json", check_result.stdout)
-            self.assertNotIn("[FAIL] config/plugins-manifest.codex.json", check_result.stdout)
-            self.assertNotIn("[FAIL] mcp_config.json", check_result.stdout)
+            check_payload = json.loads(check_result.stdout)
+            self.assertTrue(check_payload["ok"])
 
     def test_python_installer_can_split_runtime_root_into_shared_agents_home(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:

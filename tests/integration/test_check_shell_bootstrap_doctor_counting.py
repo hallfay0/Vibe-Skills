@@ -8,23 +8,13 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 class CheckShellBootstrapDoctorCountingTests(unittest.TestCase):
-    def test_bootstrap_doctor_plain_fail_branch_only_increments_fail(self) -> None:
+    def test_check_shell_delegates_to_simplified_cli_check(self) -> None:
         content = (REPO_ROOT / "check.sh").read_text(encoding="utf-8")
-        self.assertIn(
-            '    else\n'
-            '      echo "[FAIL] vibe bootstrap doctor gate"\n'
-            '      FAIL=$((FAIL+1))\n'
-            '    fi',
-            content,
-        )
-        self.assertNotIn(
-            '    else\n'
-            '      echo "[FAIL] vibe bootstrap doctor gate"\n'
-            '      WARN=$((WARN+1))\n'
-            '      FAIL=$((FAIL+1))\n'
-            '    fi',
-            content,
-        )
+
+        self.assertIn("vgo_cli.main check", content)
+        self.assertNotIn("vibe bootstrap doctor gate", content)
+        self.assertNotIn("FAIL=$((FAIL+1))", content)
+        self.assertNotIn("WARN=$((WARN+1))", content)
 
 
 if __name__ == "__main__":

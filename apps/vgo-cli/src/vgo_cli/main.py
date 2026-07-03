@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from .commands import canonical_entry_command, compatibility_exit_command, index_command, inspect_run_command, install_command, locate_entry_command, passthrough_command, route_command, run_command, runtime_command, uninstall_command, upgrade_command, verify_command
+from .commands import canonical_entry_command, check_command, compatibility_exit_command, index_command, inspect_run_command, install_command, locate_entry_command, passthrough_command, route_command, run_command, runtime_command, uninstall_command, update_command, upgrade_command, verify_command
 from .errors import CliError
 
 
@@ -13,39 +13,21 @@ def build_parser() -> argparse.ArgumentParser:
 
     install_parser = subparsers.add_parser('install')
     install_parser.add_argument('--repo-root', required=True)
-    install_parser.add_argument('--frontend', choices=('shell', 'powershell'), default='shell')
-    install_parser.add_argument('--profile', choices=('minimal', 'full'), default='minimal')
-    install_parser.add_argument('--host', default='codex')
-    install_parser.add_argument('--target-root', default='')
-    install_parser.add_argument('--install-external', action='store_true')
-    install_parser.add_argument('--strict-offline', action='store_true')
-    install_parser.add_argument('--require-closed-ready', action='store_true')
-    install_parser.add_argument('--allow-external-skill-fallback', action='store_true')
-    install_parser.add_argument('--skip-runtime-freshness-gate', action='store_true')
+    install_parser.add_argument('--skills-dir', default='')
     install_parser.set_defaults(handler=install_command)
 
     uninstall_parser = subparsers.add_parser('uninstall')
     uninstall_parser.add_argument('--repo-root', required=True)
-    uninstall_parser.add_argument('--frontend', choices=('shell', 'powershell'), default='shell')
-    uninstall_parser.add_argument('--profile', choices=('minimal', 'full'), default='minimal')
-    uninstall_parser.add_argument('--host', default='codex')
-    uninstall_parser.add_argument('--target-root', default='')
-    uninstall_parser.add_argument('--preview', action='store_true')
-    uninstall_parser.add_argument('--purge-empty-dirs', action='store_true')
-    uninstall_parser.add_argument('--strict-owned-only', action='store_true')
+    uninstall_parser.add_argument('--skills-dir', default='')
     uninstall_parser.set_defaults(handler=uninstall_command)
+
+    update_parser = subparsers.add_parser('update')
+    update_parser.add_argument('--repo-root', required=True)
+    update_parser.add_argument('--skills-dir', default='')
+    update_parser.set_defaults(handler=update_command)
 
     upgrade_parser = subparsers.add_parser('upgrade')
     upgrade_parser.add_argument('--repo-root', required=True)
-    upgrade_parser.add_argument('--frontend', choices=('shell', 'powershell'), default='shell')
-    upgrade_parser.add_argument('--profile', choices=('minimal', 'full'), default='minimal')
-    upgrade_parser.add_argument('--host', default='codex')
-    upgrade_parser.add_argument('--target-root', default='')
-    upgrade_parser.add_argument('--install-external', action='store_true')
-    upgrade_parser.add_argument('--strict-offline', action='store_true')
-    upgrade_parser.add_argument('--require-closed-ready', action='store_true')
-    upgrade_parser.add_argument('--allow-external-skill-fallback', action='store_true')
-    upgrade_parser.add_argument('--skip-runtime-freshness-gate', action='store_true')
     upgrade_parser.set_defaults(handler=upgrade_command)
 
     index_parser = subparsers.add_parser('index')
@@ -115,9 +97,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     check_parser = subparsers.add_parser('check')
     check_parser.add_argument('--repo-root', required=True)
-    check_parser.add_argument('--frontend', choices=('shell', 'powershell'), default='shell')
-    check_parser.add_argument('rest', nargs=argparse.REMAINDER)
-    check_parser.set_defaults(handler=lambda ns: passthrough_command(ns, shell_script='check.sh', powershell_script='check.ps1'))
+    check_parser.add_argument('--skills-dir', default='')
+    check_parser.set_defaults(handler=check_command)
 
     verify_parser = subparsers.add_parser('verify')
     verify_parser.add_argument('--repo-root', required=True)

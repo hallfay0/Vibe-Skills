@@ -15,7 +15,7 @@ This document describes the interfaces needed to make that story inspectable wit
 
 ## What We Keep
 
-The current runtime package already has useful building blocks. The goal is not to throw them away. The goal is to move ownership downward into the kernel and make the external-first discovery contract visible in files, commands, and run artifacts.
+The current runtime package already has useful building blocks. The goal is not to throw them away. The goal is to move ownership downward into the kernel and make the local-skill-root discovery contract visible in files, commands, and run artifacts.
 
 The practical result should be:
 
@@ -437,7 +437,6 @@ The install root should still look like this:
 ```text
 <agent_root>/
     vibe/
-    skills/local/
     generated/
     runs/
 ```
@@ -526,7 +525,7 @@ Suggested order:
 
 After this migration wave, an operator should be able to inspect one install root and answer three practical questions:
 
-1. which external and local roots were eligible
+1. which local roots were eligible
 2. which entries were active in discovery
 3. which skill and source actually won at runtime
 

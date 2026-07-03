@@ -82,12 +82,6 @@ The installed runtime should look like this:
       executor/
       verifier/
       state/
-    skills/
-      local/
-        <skill-id>/
-          SKILL.md
-          examples/
-          tests/
     generated/
       skills-catalog.json
       skills-index.json
@@ -105,7 +99,6 @@ Host-declared local skill roots may live outside `<agent_root>`. They are refere
 ### Meaning Of Each Area
 
 - `kernel/` is the semantic core. It owns process and bounded work.
-- `skills/local/` is a normal user-owned surface inside the install root.
 - `generated/` contains derived catalog and index artifacts.
 - `runs/` contains execution records, including `work_binding`.
 - host-declared local roots are the specialist reference surface.
@@ -340,7 +333,7 @@ The extension surface should be wide even while the kernel stays small.
 
 A new ordinary skill should require only:
 
-1. put a skill folder under a declared user-owned root or `skills/local/<skill-id>/`
+1. put a skill folder under a declared local skill root
 2. write `SKILL.md`
 3. optionally add examples or tests
 4. let the catalog and index rebuild
@@ -370,7 +363,7 @@ This does not mean every old file must disappear on day one. It means those file
 ### Phase 2: Add Local-Only Discovery
 
 - resolve host-declared local skill roots
-- keep `skills/local/` as a normal user-owned surface
+- allow users to add declared local skill roots through runtime configuration
 - add `generated/skills-catalog.json`
 - add `generated/skills-index.json`
 

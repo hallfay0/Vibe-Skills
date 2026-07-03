@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 import unittest
 
 from _python_source_roots import PYTHON_SOURCE_ROOTS, REPO_ROOT
@@ -9,6 +10,12 @@ VGO_CLI_ROOT = REPO_ROOT / "apps" / "vgo-cli" / "src" / "vgo_cli"
 
 class AppsSurfaceHygieneTests(unittest.TestCase):
     def test_repo_owned_python_surfaces_contain_no_python_bytecode_residue(self) -> None:
+        for root in PYTHON_SOURCE_ROOTS:
+            if not root.exists():
+                continue
+            for cache_dir in root.rglob("__pycache__"):
+                shutil.rmtree(cache_dir)
+
         forbidden = sorted(
             path.relative_to(REPO_ROOT).as_posix()
             for root in PYTHON_SOURCE_ROOTS

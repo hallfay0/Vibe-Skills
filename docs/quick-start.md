@@ -20,7 +20,7 @@ VibeSkills 重点解决五件事：
 | AI 容易跳过需求、计划或测试 | `vibe` 把任务推进成有边界的阶段 |
 | 用户总要手动提醒“先规划”“去验证” | 用户只给目标，流程控制交给 harness |
 | 长任务换会话后上下文丢失 | 需求、计划、决策和证据会结构化保存 |
-| 新领域 Skills 接入成本高 | 核心保持用户自管、外部 skill 友好，所以宿主管理的外部 skill 文件夹或本地 skill 都能接入同一套流程，而不用把产品再做成更大的中心目录 |
+| 新领域 Skills 接入成本高 | 核心直接扫描已安装的本地 skill 根目录，所以新 skill 能接入同一套流程，而不用把产品再做成更大的中心目录 |
 
 如果你只记一句话：
 
@@ -87,7 +87,7 @@ VibeSkills 重点解决五件事：
 | 使用 OpenClaw | [`install/openclaw-path.md`](./install/openclaw-path.md) |
 | 想手动/离线安装 | [`install/manual-copy-install.md`](./install/manual-copy-install.md) |
 | 想看安装后的正常 skill 扩展路径 | [`install/README.md`](./install/README.md) |
-| 想接高级 manifest 驱动 custom workflow | [`install/custom-workflow-onboarding.md`](./install/custom-workflow-onboarding.md) |
+| 想添加或扫描更多本地 skill 根目录 | [`install/README.md`](./install/README.md) |
 | 想理解项目为什么存在 | [`manifesto.md`](./manifesto.md) |
 
 ## 5. 几个容易混淆的点

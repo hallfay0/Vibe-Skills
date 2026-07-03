@@ -87,7 +87,7 @@ Pick by intent:
 | Using OpenClaw | [`install/openclaw-path.en.md`](./install/openclaw-path.en.md) |
 | Manual/offline install | [`install/manual-copy-install.en.md`](./install/manual-copy-install.en.md) |
 | Normal skill extension path after install | [`install/README.en.md`](./install/README.en.md) |
-| Advanced manifest-driven custom workflow onboarding | [`install/custom-workflow-onboarding.en.md`](./install/custom-workflow-onboarding.en.md) |
+| Add or scan more local skill roots | [`install/README.en.md`](./install/README.en.md) |
 | Why the project exists | [`manifesto.en.md`](./manifesto.en.md) |
 
 ## 5. Common confusion

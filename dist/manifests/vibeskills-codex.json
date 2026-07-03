@@ -40,7 +40,7 @@
     "repo_provided_reference_surfaces": [],
     "host_managed_surfaces": [
       "plugin provisioning",
-      "provider credentials",
+      "MCP provider credentials",
       "external CLI availability",
       "operator-specific secrets"
     ],
@@ -92,7 +92,7 @@
   },
   "host_managed_surfaces": [
     "plugin provisioning",
-    "provider credentials",
+    "MCP provider credentials",
     "external CLI availability",
     "operator-specific secrets"
   ],

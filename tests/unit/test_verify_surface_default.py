@@ -1,4 +1,3 @@
-import re
 from pathlib import Path
 
 
@@ -32,10 +31,10 @@ def test_default_closure_story_mentions_only_small_gate_set() -> None:
     assert "vibe-pack-routing-smoke.ps1" not in "\n".join(ordered_lines)
 
 
-def test_check_ps1_exposes_matching_default_closure_gates() -> None:
+def test_check_ps1_uses_simplified_skills_dir_check_without_closure_gate_list() -> None:
     text = (REPO_ROOT / "check.ps1").read_text(encoding="utf-8")
-    match = re.search(r"\$DefaultClosureGateNames\s*=\s*@\((.*?)\)", text, re.DOTALL)
 
-    assert match is not None
-    assert re.findall(r"'([^']+)'", match.group(1)) == EXPECTED_DEFAULT_CLOSURE_GATES
-    assert 'Default closure gates:' in text
+    assert "$DefaultClosureGateNames" not in text
+    assert "Default closure gates:" not in text
+    assert "'vgo_cli.main', 'check', '--repo-root'" in text
+    assert "'--skills-dir'" in text

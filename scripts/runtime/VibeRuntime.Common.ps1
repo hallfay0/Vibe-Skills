@@ -945,12 +945,42 @@ function Get-VibeHostSkillExecutionContract {
     if ($defaultSelectionMode -notin $selectionModes) {
         $defaultSelectionMode = 'inherit_runtime_default'
     }
+    $requiresUserConfirmationFor = if (
+        $null -ne $dispatchPolicy -and
+        (Test-VibeObjectHasProperty -InputObject $dispatchPolicy -PropertyName 'requires_user_confirmation_for') -and
+        $null -ne $dispatchPolicy.requires_user_confirmation_for
+    ) {
+        @(Get-VibeNormalizedStringList -Values $dispatchPolicy.requires_user_confirmation_for)
+    } else {
+        @()
+    }
+    $approvalOwner = if (
+        $null -ne $dispatchPolicy -and
+        (Test-VibeObjectHasProperty -InputObject $dispatchPolicy -PropertyName 'approval_owner') -and
+        -not [string]::IsNullOrWhiteSpace([string]$dispatchPolicy.approval_owner)
+    ) {
+        [string]$dispatchPolicy.approval_owner
+    } else {
+        'root_vibe'
+    }
+    $userPrompt = if (
+        $null -ne $dispatchPolicy -and
+        (Test-VibeObjectHasProperty -InputObject $dispatchPolicy -PropertyName 'user_prompt') -and
+        -not [string]::IsNullOrWhiteSpace([string]$dispatchPolicy.user_prompt)
+    ) {
+        [string]$dispatchPolicy.user_prompt
+    } else {
+        ''
+    }
 
     return [pscustomobject]@{
         enabled = if ($null -ne $dispatchPolicy -and (Test-VibeObjectHasProperty -InputObject $dispatchPolicy -PropertyName 'enabled')) { [bool]$dispatchPolicy.enabled } else { $true }
         scope = if ($null -ne $dispatchPolicy -and (Test-VibeObjectHasProperty -InputObject $dispatchPolicy -PropertyName 'scope') -and -not [string]::IsNullOrWhiteSpace([string]$dispatchPolicy.scope)) { [string]$dispatchPolicy.scope } else { 'root_only' }
         selection_modes = @($selectionModes)
         default_selection_mode = [string]$defaultSelectionMode
+        requires_user_confirmation_for = @($requiresUserConfirmationFor)
+        approval_owner = [string]$approvalOwner
+        user_prompt = [string]$userPrompt
     }
 }
 
@@ -1177,7 +1207,9 @@ function Copy-VibeSkillExecutionLockDispatchRecord {
         $entrypointFileName -notin @('SKILL.md', 'SKILL.runtime-mirror.md') -or
         -not (Test-Path -LiteralPath $entrypoint -PathType Leaf)
     ) {
-        return $null
+        if (-not [string]::IsNullOrWhiteSpace([string]$RepoRoot)) {
+            return $null
+        }
     }
 
     if (-not (Test-VibeObjectHasProperty -InputObject $copy -PropertyName 'task_slice') -or [string]::IsNullOrWhiteSpace([string]$copy.task_slice)) {
@@ -1343,18 +1375,13 @@ function New-VibeSkillExecutionLockProjection {
             if (-not [string]::IsNullOrWhiteSpace($skillId) -and $skillId -in @($hostExcluded)) {
                 continue
             }
+            $nativeEntrypoint = if (Test-VibeObjectHasProperty -InputObject $entry -PropertyName 'native_skill_entrypoint') { [string]$entry.native_skill_entrypoint } else { '' }
+            $skillMdPath = if (Test-VibeObjectHasProperty -InputObject $entry -PropertyName 'skill_md_path') { [string]$entry.skill_md_path } else { '' }
+            if ([string]::IsNullOrWhiteSpace($nativeEntrypoint) -and [string]::IsNullOrWhiteSpace($skillMdPath)) {
+                continue
+            }
             $state = if ($skillId -in @($currentSelectedSkillIds)) { 'current_surfaced' } else { 'inherited_not_currently_surfaced' }
             Add-VibeSkillExecutionLockRecord -Rows $rows -Seen $seen -Record (Copy-VibeSkillExecutionLockDispatchRecord -Record $entry -LockSource 'previous_skill_execution_lock' -ReconciliationState $state -RepoRoot $RepoRoot -TargetRoot $TargetRoot -HostId $HostId)
-        }
-        foreach ($skillId in @(Get-VibeSkillExecutionLockSkillIds -SkillExecutionLock $previousLock)) {
-            if ($skillId -in @($hostExcluded)) {
-                continue
-            }
-            if ($seen.ContainsKey($skillId)) {
-                continue
-            }
-            $state = if ($skillId -in @($currentSelectedSkillIds)) { 'current_surfaced' } else { 'inherited_not_currently_surfaced' }
-            Add-VibeSkillExecutionLockRecord -Rows $rows -Seen $seen -Record (New-VibeMinimalSkillExecutionLockDispatchRecord -SkillId $skillId -LockSource 'previous_skill_execution_lock' -ReconciliationState $state -RepoRoot $RepoRoot -TargetRoot $TargetRoot -HostId $HostId)
         }
     } elseif (-not $curatedOnly -and -not $explicitZeroHostApproval -and $null -ne $PreviousRuntimeInputPacket -and (Test-VibeObjectHasProperty -InputObject $PreviousRuntimeInputPacket -PropertyName 'skill_routing') -and $null -ne $PreviousRuntimeInputPacket.skill_routing) {
         foreach ($entry in @(Get-VibeSkillRoutingSelected -RuntimeInputPacket $PreviousRuntimeInputPacket)) {
@@ -3041,11 +3068,22 @@ function New-VibeBoundedReturnControlProjection {
         }
     }
     $token = [guid]::NewGuid().ToString('N')
+    $forbiddenActions = @(
+        'write_plan',
+        'execute_task',
+        'manual_workaround',
+        'deliver_final_artifacts',
+        'consume_reentry_token_in_same_turn'
+    )
         $renderedLines = @(
             'Bounded governed stop reached. Return control to the user now.',
             ('- terminal stage: `{0}`' -f [string]$terminalStage),
             ('- source run id: `{0}`' -f [string]$RunId),
             ('- explicit user re-entry required before later stages: `true`'),
+            '- assistant must stop now: `true`',
+            '- Do not continue in the same assistant turn; wait for a new user approval or revision message',
+            '- manual execution outside governed re-entry is forbidden',
+            '- the original detailed prompt is not approval of the frozen requirement or plan',
             ('- allowed follow-up entries: `{0}`' -f (@($allowedFollowupEntryIds) -join '`, `')),
             ('- next governed stage after approval: `{0}`' -f $(if ([string]::IsNullOrWhiteSpace($nextStage)) { 'none' } else { [string]$nextStage })),
             ('- approval kind: `{0}`' -f [string]$approvalKind),
@@ -3060,6 +3098,13 @@ function New-VibeBoundedReturnControlProjection {
         enabled = $true
         explicit_user_reentry_required = $true
         explicit_new_user_message_required = $true
+        assistant_must_stop = $true
+        same_turn_continuation_forbidden = $true
+        manual_execution_forbidden = $true
+        completion_allowed = $false
+        original_prompt_is_not_approval = $true
+        next_allowed_assistant_action = 'wait_for_new_user_approval_or_revision'
+        forbidden_actions = @($forbiddenActions)
         control_owner = 'user'
         source_run_id = $RunId
         source_entry_intent_id = $resolvedEntryIntentId
@@ -4462,8 +4507,10 @@ function New-VibeHostUserBriefingProjection {
             ('- approval kind: `{0}`' -f [string]$approvalKind),
             ('- preferred structured approval action: `{0}`' -f [string]$preferredDecisionAction),
             ('- approval instruction: {0}' -f [string]$approvalPrompt),
-            '- do not continue in the same assistant turn; wait for a new user message before consuming re-entry credentials',
-            ('- if you intentionally continue, forward `--continue-from-run-id {0}` and `--bounded-reentry-token {1}` from the latest runtime summary' -f [string]$BoundedReturnControl.source_run_id, [string]$BoundedReturnControl.reentry_token)
+            '- Do not continue in the same assistant turn; wait for a new user message before consuming re-entry credentials',
+            '- manual execution outside governed re-entry is forbidden',
+            '- the original detailed prompt is not approval of the frozen requirement or plan',
+            ('- after the user approves in a later message, forward `--continue-from-run-id {0}` and `--bounded-reentry-token {1}` from the latest runtime summary' -f [string]$BoundedReturnControl.source_run_id, [string]$BoundedReturnControl.reentry_token)
         )
         $boundedSegment = [pscustomobject]@{
             segment_id = 'bounded_return_control'
@@ -5107,6 +5154,7 @@ function New-VibeIntentContractObject {
     $Mode = Resolve-VibeRuntimeMode -Mode $Mode
     $title = Get-VibeTitleFromTask -Task $Task
     $grade = Get-VibeInternalGrade -Task $Task
+    $recommendedWorkflowLevel = if ([string]$grade -eq 'XL') { 'XL' } else { 'L' }
     $assumptions = @()
     $assumptions += 'Interactive clarification is allowed if unresolved ambiguity materially changes implementation.'
     return [pscustomobject]@{
@@ -5125,9 +5173,20 @@ function New-VibeIntentContractObject {
             'Phase cleanup receipt is produced.'
         )
         non_goals = @(
-            'Do not treat M/L/XL as user-facing entry branches.',
+            'Do not create separate M/L/XL entry commands.',
             'Do not introduce a second router or control plane.'
         )
+        workflow_level_confirmation = [pscustomobject]@{
+            enabled = $true
+            user_visible = $true
+            required_for_levels = @('L', 'XL')
+            recommended_level = [string]$recommendedWorkflowLevel
+            question = '你希望走 L 级还是 XL 级工作流？'
+            levels = [pscustomobject]@{
+                L = 'L 级适合多步骤但主要串行的工作：会确认需求和计划，证据要求完整，但一般由一个主流程推进。'
+                XL = 'XL 级适合研究交付、多产物、多技能协作或风险更高的任务：会有更严格的需求冻结、计划冻结、分阶段执行、证据清单和收尾检查。'
+            }
+        }
         risk_tolerance = 'moderate'
         autonomy_mode = $Mode
         open_questions = @()

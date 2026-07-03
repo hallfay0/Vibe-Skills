@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from typing import Any
@@ -21,8 +22,25 @@ def load_json(relative_path: str) -> Any:
     return json.loads((REPO_ROOT / relative_path).read_text(encoding="utf-8-sig"))
 
 
-def route(prompt: str, task_type: str = "coding", grade: str = "M") -> dict[str, object]:
-    return route_prompt(prompt=prompt, grade=grade, task_type=task_type, repo_root=REPO_ROOT)
+def route(prompt: str, task_type: str = "coding", grade: str = "M", installed_skill: str | None = None) -> dict[str, object]:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        agent_root = Path(temp_dir) / "home" / ".agents"
+        if installed_skill is not None:
+            skill_dir = agent_root / "skills" / installed_skill
+            skill_dir.mkdir(parents=True)
+            (skill_dir / "SKILL.md").write_text(
+                f"---\nname: {prompt}\ndescription: {installed_skill} handles this local workflow.\n---\n# {installed_skill}\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+        return route_prompt(
+            prompt=prompt,
+            grade=grade,
+            task_type=task_type,
+            target_root=str(agent_root),
+            host_id="codex",
+            repo_root=REPO_ROOT,
+        )
 
 
 def selected(result: dict[str, object]) -> tuple[str, str]:
@@ -83,16 +101,11 @@ class ColdPlatformQuantumPackDeletionTests(unittest.TestCase):
         self.assertEqual(set(), remaining)
 
     def test_live_routing_configs_have_no_deleted_skill_keys(self) -> None:
-        keyword_index = load_json("config/skill-keyword-index.json")
-        routing_rules = load_json("config/skill-routing-rules.json")
-
-        self.assertFalse(set(keyword_index["skills"]) & DELETED_SKILLS)
-        self.assertFalse(set(routing_rules["skills"]) & DELETED_SKILLS)
+        self.assertFalse((REPO_ROOT / "config" / "skill-keyword-index.json").exists())
+        self.assertFalse((REPO_ROOT / "config" / "skill-routing-rules.json").exists())
 
     def test_skills_lock_has_no_deleted_skills(self) -> None:
-        lock = load_json("config/skills-lock.json")
-        locked = {str(row.get("name") or "") for row in lock["skills"]}
-        self.assertFalse(locked & DELETED_SKILLS, sorted(locked & DELETED_SKILLS))
+        self.assertFalse((REPO_ROOT / "config" / "skills-lock.json").exists())
 
     def test_removed_modal_prompts_do_not_select_or_rank_deleted_surfaces(self) -> None:
         prompts = [
@@ -130,8 +143,9 @@ class ColdPlatformQuantumPackDeletionTests(unittest.TestCase):
                 self.assertFalse(ranked_candidate_skills(result) & DELETED_SKILLS, result)
 
     def test_rowan_quantum_chemistry_boundary_still_has_its_owner(self) -> None:
-        result = route("用 Rowan 云端量子化学平台做 pKa prediction 和 conformer search", task_type="research")
-        self.assertEqual(("science-rowan-chemistry", "rowan"), selected(result), result)
+        prompt = "用 Rowan 云端量子化学平台做 pKa prediction 和 conformer search"
+        result = route(prompt, task_type="research", installed_skill="rowan")
+        self.assertEqual(("local-skill-index", "rowan"), selected(result), result)
 
     def test_remaining_packs_keep_simple_route_shape(self) -> None:
         manifest = load_json("config/pack-manifest.json")

@@ -57,8 +57,8 @@ def write_installed_skill(target_root: Path, skill_id: str) -> Path:
     skill_path.write_text(
         (
             "---\n"
-            f"name: {skill_id}\n"
-            f"description: Installed {skill_id} test skill.\n"
+            "name: failing test stack trace debug\n"
+            "description: Debug failing tests and stack traces with systematic root-cause analysis before proposing fixes.\n"
             "---\n"
         ),
         encoding="utf-8",

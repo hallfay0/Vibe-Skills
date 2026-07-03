@@ -101,8 +101,8 @@ def test_local_skill_index_uses_agents_then_codex_then_claude_duplicate_priority
     assert [row["active"] for row in rows] == [True, False, False]
     assert [row["duplicate_state"] for row in rows] == [
         "active",
-        "inactive_duplicate",
-        "inactive_duplicate",
+        "shadowed_duplicate",
+        "shadowed_duplicate",
     ]
     assert build_skill_index_from_catalog(catalog)["skills"][0]["display_name"] == "Stats Agents"
     assert catalog["discovery_diagnostics"]["duplicates"][0]["active_entrypoint"] == str(agents_path.resolve())
@@ -161,6 +161,36 @@ def test_local_router_selects_new_installed_skill_not_present_in_old_pack_files(
     assert result["ranked"][0]["native_skill_entrypoint"] == str(skill_path.resolve())
 
 
+def test_local_router_offers_confirm_for_plausible_local_near_match(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    agent_root = home / ".agents"
+    skills_root = agent_root / "skills"
+    skill_path = _write_skill(
+        skills_root,
+        "sleep-stress-focus",
+        _frontmatter(
+            "Sleep Stress Focus",
+            "Analyze sleep logs, stress scores, focus ratings, and daily wellness tables.",
+            "tags:\n  - wellness\n",
+        ),
+    )
+
+    result = route_prompt(
+        prompt="Review sleep and stress patterns from wearable exports before I decide next steps.",
+        grade="L",
+        task_type="research",
+        target_root=str(agent_root),
+        host_id="codex",
+        repo_root=REPO_ROOT,
+    )
+
+    assert result["route_reason"] == "candidate_signal_confirm_override"
+    assert result["confirm_required"] is True
+    assert result["selected"]["skill"] == "sleep-stress-focus"
+    assert result["confirm_options"][0]["skill"] == "sleep-stress-focus"
+    assert result["confirm_options"][0]["native_skill_entrypoint"] == str(skill_path.resolve())
+
+
 def test_local_router_allows_explicit_existing_skill_and_rejects_absent_old_skill(tmp_path: Path) -> None:
     home = tmp_path / "home"
     agent_root = home / ".agents"
@@ -217,3 +247,6 @@ def test_local_router_does_not_fallback_when_no_local_candidate_matches(tmp_path
     assert result["route_reason"] == "no_local_candidate_above_threshold"
     assert result["ranked"][0]["skill"] == "spreadsheet-cleanup"
     assert result["ranked"][0]["selected_candidate"] is None
+    assert result["confirm_required"] is False
+    assert result["confirm_options"] == []
+    assert "confirm_ui" not in result

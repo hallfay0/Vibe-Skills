@@ -41,7 +41,7 @@ $prompt = @'
 {prompt}
 '@
 Invoke-VibeCapturedProcess `
-    -Command '{shutil.which("python3") or sys.executable}' `
+    -Command '{sys.executable.replace("'", "''")}' `
     -Arguments @(
         '{script_path.as_posix()}',
         '{captured_args_path.as_posix()}',
@@ -56,7 +56,7 @@ Invoke-VibeCapturedProcess `
 """
 
     subprocess.run(
-        [powershell, "-NoLogo", "-NoProfile", "-Command", command],
+        [powershell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", command],
         cwd=REPO_ROOT,
         check=True,
         capture_output=True,
@@ -84,7 +84,7 @@ def test_invoke_vibe_captured_process_applies_environment_overrides(tmp_path: Pa
     command = f"""
 . '{(REPO_ROOT / "scripts" / "runtime" / "VibeExecution.Common.ps1").as_posix()}'
 Invoke-VibeCapturedProcess `
-    -Command '{shutil.which("python3") or sys.executable}' `
+    -Command '{sys.executable.replace("'", "''")}' `
     -Arguments @(
         '{script_path.as_posix()}',
         '{captured_env_path.as_posix()}'
@@ -97,7 +97,7 @@ Invoke-VibeCapturedProcess `
 """
 
     subprocess.run(
-        [powershell, "-NoLogo", "-NoProfile", "-Command", command],
+        [powershell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", command],
         cwd=REPO_ROOT,
         check=True,
         capture_output=True,
@@ -126,7 +126,7 @@ def test_invoke_vibe_captured_process_closes_stdin_for_child_process(tmp_path: P
     command = f"""
 . '{(REPO_ROOT / "scripts" / "runtime" / "VibeExecution.Common.ps1").as_posix()}'
 Invoke-VibeCapturedProcess `
-    -Command '{shutil.which("python3") or sys.executable}' `
+    -Command '{sys.executable.replace("'", "''")}' `
     -Arguments @(
         '{script_path.as_posix()}',
         '{stdin_state_path.as_posix()}'
@@ -138,7 +138,7 @@ Invoke-VibeCapturedProcess `
 """
 
     subprocess.run(
-        [powershell, "-NoLogo", "-NoProfile", "-Command", command],
+        [powershell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", command],
         cwd=REPO_ROOT,
         check=True,
         capture_output=True,

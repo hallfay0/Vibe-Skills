@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -25,6 +26,21 @@ def resolve_powershell() -> str | None:
     return None
 
 
+def prepare_local_skill_env(root: Path) -> dict[str, str]:
+    target_root = root / "home" / ".agents"
+    skill_dir = root / "home" / ".agents" / "skills" / "biopython-fasta"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text(
+        "---\nname: biopython-fasta\ndescription: Use biopython to parse FASTA and summarize sequence lengths.\n---\n# Biopython FASTA\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    env = os.environ.copy()
+    env["VCO_HOST_ID"] = "codex"
+    env["VIBE_AGENTS_HOME"] = str(target_root)
+    return env
+
+
 class BinarySkillUsageRuntimeFlowTests(unittest.TestCase):
     def test_requirement_and_plan_promote_loaded_skill_to_used(self) -> None:
         shell = resolve_powershell()
@@ -32,7 +48,9 @@ class BinarySkillUsageRuntimeFlowTests(unittest.TestCase):
             self.skipTest("PowerShell executable not available")
 
         with tempfile.TemporaryDirectory() as tempdir:
-            artifact_root = Path(tempdir) / "artifacts"
+            root = Path(tempdir)
+            artifact_root = root / "artifacts"
+            env = prepare_local_skill_env(root)
             run_id = "pytest-binary-skill-usage-flow"
             task = "Use biopython to parse FASTA and summarize sequence lengths."
             for script_name in (
@@ -59,7 +77,7 @@ class BinarySkillUsageRuntimeFlowTests(unittest.TestCase):
                     "-ArtifactRoot",
                     str(artifact_root),
                 ]
-                subprocess.run(command, cwd=REPO_ROOT, capture_output=True, text=True, encoding="utf-8", check=True)
+                subprocess.run(command, cwd=REPO_ROOT, env=env, capture_output=True, text=True, encoding="utf-8", check=True)
 
             session_root = next(artifact_root.rglob(run_id))
             packet = json.loads((session_root / "runtime-input-packet.json").read_text(encoding="utf-8"))
@@ -85,7 +103,9 @@ class BinarySkillUsageRuntimeFlowTests(unittest.TestCase):
             self.skipTest("PowerShell executable not available")
 
         with tempfile.TemporaryDirectory() as tempdir:
-            artifact_root = Path(tempdir) / "artifacts"
+            root = Path(tempdir)
+            artifact_root = root / "artifacts"
+            env = prepare_local_skill_env(root)
             run_id = "pytest-binary-skill-usage-execute"
             task = "Use biopython to parse FASTA and summarize sequence lengths."
             for script_name in (
@@ -114,7 +134,7 @@ class BinarySkillUsageRuntimeFlowTests(unittest.TestCase):
                     "-ArtifactRoot",
                     str(artifact_root),
                 ]
-                subprocess.run(command, cwd=REPO_ROOT, capture_output=True, text=True, encoding="utf-8", check=True)
+                subprocess.run(command, cwd=REPO_ROOT, env=env, capture_output=True, text=True, encoding="utf-8", check=True)
 
             session_root = next(artifact_root.rglob(run_id))
             usage = json.loads((session_root / "skill-usage.json").read_text(encoding="utf-8"))

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import shutil
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -14,10 +16,30 @@ from vgo_runtime.router_contract_runtime import route_prompt  # noqa: E402
 
 REMOVED_SECOND_PASS_PACKS = {"cloud-modalcom", "science-quantum"}
 REMOVED_SECOND_PASS_SKILLS = {"modal", "modal-labs", "qiskit", "cirq", "pennylane", "qutip"}
+ROUTE_SKILLS = ["torch-geometric"]
 
 
-def route(prompt: str, task_type: str = "coding", grade: str = "M") -> dict[str, object]:
-    return route_prompt(prompt=prompt, grade=grade, task_type=task_type, repo_root=REPO_ROOT)
+def install_skills(target_root: Path) -> None:
+    skills_root = target_root / "skills"
+    skills_root.mkdir(parents=True, exist_ok=True)
+    for skill_id in ROUTE_SKILLS:
+        shutil.copytree(REPO_ROOT / "bundled" / "skills" / skill_id, skills_root / skill_id)
+
+
+def route(
+    prompt: str,
+    task_type: str = "coding",
+    grade: str = "M",
+    target_root: Path | None = None,
+) -> dict[str, object]:
+    return route_prompt(
+        prompt=prompt,
+        grade=grade,
+        task_type=task_type,
+        target_root=str(target_root) if target_root is not None else None,
+        host_id="codex",
+        repo_root=REPO_ROOT,
+    )
 
 
 def selected(result: dict[str, object]) -> tuple[str, str]:
@@ -63,8 +85,11 @@ class ZeroRouteAuthoritySecondPassTests(unittest.TestCase):
         task_type: str = "coding",
         grade: str = "M",
     ) -> None:
-        result = route(prompt, task_type=task_type, grade=grade)
-        self.assertEqual((expected_pack, expected_skill), selected(result), ranked_summary(result))
+        with tempfile.TemporaryDirectory() as tempdir:
+            target_root = Path(tempdir) / ".agents"
+            install_skills(target_root)
+            result = route(prompt, task_type=task_type, grade=grade, target_root=target_root)
+        self.assertEqual(("local-skill-index", expected_skill), selected(result), (expected_pack, ranked_summary(result)))
 
     def test_removed_second_pass_packs_are_absent(self) -> None:
         manifest = load_manifest()
@@ -91,7 +116,10 @@ class ZeroRouteAuthoritySecondPassTests(unittest.TestCase):
         self.assert_selected("训练 PyG graph classification pipeline", "ml-torch-geometric", "torch-geometric")
 
     def test_ml_torch_geometric_does_not_capture_generic_pytorch(self) -> None:
-        result = route("用 PyTorch 训练 CNN 图像分类模型，不涉及 graph neural network 或 PyG", task_type="coding")
+        with tempfile.TemporaryDirectory() as tempdir:
+            target_root = Path(tempdir) / ".agents"
+            install_skills(target_root)
+            result = route("用 PyTorch 训练 CNN 图像分类模型，不涉及 graph neural network 或 PyG", task_type="coding", target_root=target_root)
         self.assertNotEqual(("ml-torch-geometric", "torch-geometric"), selected(result), ranked_summary(result))
 
     def test_selected_packs_do_not_reintroduce_stage_assistants(self) -> None:

@@ -96,8 +96,8 @@ def test_install_runtime_delegates_host_closure_semantics() -> None:
     assert 'def materialize_host_closure' not in install_runtime
     assert 'def is_closed_ready_required' not in install_runtime
 
-    assert 'def resolve_bridge_command' in host_closure
-    assert 'def materialize_host_specialist_wrapper' in host_closure
+    assert 'def resolve_bridge_command' not in host_closure
+    assert 'def materialize_host_specialist_wrapper' not in host_closure
     assert 'def install_claude_managed_settings' in host_closure
     assert 'def materialize_host_settings' in host_closure
     assert 'def materialize_host_closure' in host_closure

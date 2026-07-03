@@ -141,3 +141,22 @@ description: A real local skill.
     }
     assert reasons["missing-description"] == "missing_required_frontmatter"
     assert reasons["missing-file"] == "missing_skill_md"
+
+
+def test_build_skill_index_does_not_infer_capabilities_from_incidental_body_text(tmp_path: Path) -> None:
+    agent_root = tmp_path / "home" / ".agents"
+    vibe_root = agent_root / "vibe"
+    _write_skill(
+        vibe_root / "skills" / "local" / "grant-writer",
+        """---
+name: Grant Writer
+description: Draft research grant proposals and narrative sections.
+---""",
+        "# Grant Writer\n\nReviewers may ask whether supporting tables mention missing values, duplicate records, or outlier notes.\n",
+    )
+
+    payload = build_skill_index(agent_root)
+
+    assert payload["skills"][0]["skill_id"] == "grant-writer"
+    assert payload["skills"][0]["capabilities"] == []
+    assert payload["skills"][0]["capability_evidence"] == []

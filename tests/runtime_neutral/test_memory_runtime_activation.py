@@ -364,12 +364,20 @@ class MemoryRuntimeActivationTests(unittest.TestCase):
     def test_runtime_helper_keeps_native_specialist_disabled_when_caller_env_conflicts(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             temp_root = Path(tempdir)
+            target_root = temp_root / ".agents"
+            skill_path = target_root / "skills" / "systematic-debugging" / "SKILL.md"
+            skill_path.parent.mkdir(parents=True, exist_ok=True)
+            skill_path.write_text(
+                "---\nname: systematic-debugging\ndescription: Installed systematic-debugging test skill.\n---\n",
+                encoding="utf-8",
+            )
             payload = run_governed_runtime(
                 "I have a failing test and a stack trace. Help me debug systematically before proposing fixes.",
                 artifact_root=temp_root / "runtime",
                 env={
                     "VGO_DISABLE_NATIVE_SPECIALIST_EXECUTION": "0",
                     "VGO_CODEX_EXECUTABLE": str(create_fake_codex_command(temp_root)),
+                    "VIBE_AGENTS_HOME": str(target_root),
                 },
             )
 

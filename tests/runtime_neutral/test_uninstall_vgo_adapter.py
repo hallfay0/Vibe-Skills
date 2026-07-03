@@ -12,6 +12,8 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CLI_SRC = REPO_ROOT / "apps" / "vgo-cli" / "src"
+INSTALLER_SRC = REPO_ROOT / "packages" / "installer-core" / "src"
+CONTRACTS_SRC = REPO_ROOT / "packages" / "contracts" / "src"
 SHELL_ENTRYPOINT = REPO_ROOT / "uninstall.sh"
 POWERSHELL_ENTRYPOINT = REPO_ROOT / "uninstall.ps1"
 POWERSHELL_COMPAT_UNINSTALLER = REPO_ROOT / "scripts" / "uninstall" / "Uninstall-VgoAdapter.ps1"
@@ -43,6 +45,25 @@ def write_json(path: Path, data: object) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+def write_simple_vibe_receipt(skills_dir: Path) -> Path:
+    install_root = skills_dir / "vibe"
+    skill_path = install_root / "SKILL.md"
+    skill_path.parent.mkdir(parents=True, exist_ok=True)
+    skill_path.write_text("---\nname: vibe\n---\n", encoding="utf-8")
+    write_json(
+        install_root / ".vibeskills" / "install-receipt.json",
+        {
+            "schema_version": 1,
+            "receipt_kind": "vibe-skill-install",
+            "skill_id": "vibe",
+            "skills_dir": str(skills_dir.resolve()),
+            "install_root": str(install_root.resolve()),
+            "files": [{"path": "SKILL.md", "sha256": "fixture"}],
+        },
+    )
+    return skill_path
+
+
 class UnifiedUninstallTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tempdir = tempfile.TemporaryDirectory()
@@ -61,7 +82,7 @@ class UnifiedUninstallTests(unittest.TestCase):
         purge_empty_dirs: bool = False,
     ) -> tuple[subprocess.CompletedProcess[str], dict[str, object]]:
         env = os.environ.copy()
-        python_path_entries = [str(CLI_SRC)]
+        python_path_entries = [str(CLI_SRC), str(INSTALLER_SRC), str(CONTRACTS_SRC)]
         if env.get("PYTHONPATH"):
             python_path_entries.append(env["PYTHONPATH"])
         env["PYTHONPATH"] = os.pathsep.join(python_path_entries)
@@ -69,12 +90,9 @@ class UnifiedUninstallTests(unittest.TestCase):
         cmd = [
             sys.executable,
             "-m",
-            "vgo_cli.main",
-            "uninstall",
+            "vgo_installer.uninstall_runtime",
             "--repo-root",
             str(REPO_ROOT),
-            "--frontend",
-            "shell",
             "--target-root",
             str(self.target_root),
             "--host",
@@ -89,33 +107,32 @@ class UnifiedUninstallTests(unittest.TestCase):
         result = subprocess.run(cmd, capture_output=True, text=True, check=True, env=env)
         return result, json.loads(result.stdout)
 
-    def test_entrypoint_shell_preview_routes_to_python_core(self) -> None:
+    def test_entrypoint_shell_uninstalls_receipt_owned_vibe_skill(self) -> None:
+        skills_dir = self.target_root / "skills"
+        skill_path = write_simple_vibe_receipt(skills_dir)
+
         result = subprocess.run(
             [
                 "bash",
                 str(SHELL_ENTRYPOINT),
-                "--host",
-                "cursor",
-                "--target-root",
-                str(self.target_root),
-                "--profile",
-                "full",
-                "--preview",
+                "--skills-dir",
+                str(skills_dir),
             ],
             capture_output=True,
             text=True,
             check=True,
         )
         payload = json.loads(result.stdout)
-        self.assertEqual("cursor", payload["host_id"])
-        self.assertEqual("preview-guidance", payload["install_mode"])
-        self.assertEqual("preview", payload["mode"])
-        self.assertEqual(str(self.target_root.resolve()), payload["target_root"])
+        self.assertEqual(["SKILL.md"], payload["removed_files"])
+        self.assertFalse(skill_path.exists())
 
-    def test_entrypoint_powershell_preview_routes_to_python_core(self) -> None:
+    def test_entrypoint_powershell_uninstalls_receipt_owned_vibe_skill(self) -> None:
         powershell = resolve_powershell()
         if powershell is None:
             self.skipTest("PowerShell not available")
+        skills_dir = self.target_root / "skills"
+        skill_path = write_simple_vibe_receipt(skills_dir)
+
         result = subprocess.run(
             [
                 powershell,
@@ -125,21 +142,16 @@ class UnifiedUninstallTests(unittest.TestCase):
                 "Bypass",
                 "-File",
                 str(POWERSHELL_ENTRYPOINT),
-                "-HostId",
-                "cursor",
-                "-TargetRoot",
-                str(self.target_root),
-                "-Profile",
-                "full",
-                "-Preview",
+                "-SkillsDir",
+                str(skills_dir),
             ],
             capture_output=True,
             text=True,
             check=True,
         )
         payload = json.loads(result.stdout)
-        self.assertEqual("cursor", payload["host_id"])
-        self.assertEqual("preview", payload["mode"])
+        self.assertEqual(["SKILL.md"], payload["removed_files"])
+        self.assertFalse(skill_path.exists())
 
     def test_powershell_compat_uninstaller_preview_routes_to_installer_core(self) -> None:
         powershell = resolve_powershell()

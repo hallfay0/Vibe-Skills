@@ -89,7 +89,8 @@ def test_distribution_build_creates_generated_outputs(tmp_path) -> None:
     assert 'surface_contracts' not in runtime_core_roles
     assert runtime_core_roles['copy_directories']['active_sources'] == [{'source': 'commands', 'target': 'commands'}]
     assert (dist_out / 'catalog' / 'profiles' / 'index.json').exists()
-    assert (dist_out / 'catalog' / 'skills' / 'systematic-debugging' / 'SKILL.md').exists()
+    assert list((dist_out / 'catalog' / 'skills').iterdir()) == []
+    assert not (dist_out / 'catalog' / 'skills' / 'systematic-debugging').exists()
     assert not (dist_out / 'catalog' / 'skills' / 'brainstorming').exists()
     assert not (dist_out / 'catalog' / 'skills' / 'scikit-learn').exists()
 

@@ -601,7 +601,7 @@ class NativeExecutionTopologyTests(unittest.TestCase):
             self.assertEqual("XL", plan_receipt["internal_grade"])
             self.assertEqual("XL", execution_manifest["internal_grade"])
 
-    def test_confirm_required_stops_at_skeleton_before_wrapper_stage_target(self) -> None:
+    def test_vibe_what_do_i_want_stops_at_requirement_doc_without_wrapper_confirm(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             payload = run_runtime(
                 task="Design architecture migration with staged review and planning gates.",
@@ -613,11 +613,14 @@ class NativeExecutionTopologyTests(unittest.TestCase):
             runtime_input = load_json(summary["artifacts"]["runtime_input_packet"])
             stage_lineage = load_json(summary["artifacts"]["stage_lineage"])
 
-            self.assertTrue(bool(runtime_input["route_snapshot"]["confirm_required"]))
-            self.assertEqual("skeleton_check", summary["terminal_stage"])
-            self.assertEqual(["skeleton_check"], list(summary["executed_stage_order"]))
-            self.assertEqual(["skeleton_check"], [item["stage_name"] for item in stage_lineage["stages"]])
-            self.assertFalse(summary["artifacts"]["requirement_doc"])
+            self.assertFalse(bool(runtime_input["route_snapshot"]["confirm_required"]))
+            self.assertEqual("requirement_doc", summary["terminal_stage"])
+            self.assertEqual(["skeleton_check", "deep_interview", "requirement_doc"], list(summary["executed_stage_order"]))
+            self.assertEqual(
+                ["skeleton_check", "deep_interview", "requirement_doc"],
+                [item["stage_name"] for item in stage_lineage["stages"]],
+            )
+            self.assertTrue(summary["artifacts"]["requirement_doc"])
             self.assertTrue(summary["artifacts"]["host_user_briefing"])
 
     def test_direct_plan_and_execute_scripts_do_not_let_stale_packet_grade_undercut_floor(self) -> None:
@@ -1024,8 +1027,9 @@ class NativeExecutionTopologyTests(unittest.TestCase):
                         self.assertTrue(bool(result["verification_passed"]))
 
             specialist_accounting = execution_manifest["specialist_accounting"]
-            self.assertEqual("none", specialist_accounting["effective_execution_status"])
-            self.assertEqual(0, int(specialist_accounting["direct_routed_skill_execution_unit_count"]))
+            self.assertEqual("direct_current_session_routed", specialist_accounting["effective_execution_status"])
+            self.assertGreaterEqual(int(specialist_accounting["direct_routed_skill_execution_unit_count"]), 1)
+            self.assertEqual(0, len(list(specialist_accounting["executed_skill_execution_units"])))
 
             serial_order = list(topology.get("serial_execution_order") or [])
             self.assertEqual(
@@ -1668,7 +1672,7 @@ class NativeExecutionTopologyTests(unittest.TestCase):
                 any(len(list(step.get("units") or [])) >= 1 for step in specialist_steps)
             )
 
-    def test_runtime_packaging_uses_canonical_sources_and_install_only_generated_compatibility(self) -> None:
+    def test_runtime_packaging_uses_canonical_sources_without_nested_runtime_compatibility(self) -> None:
         governance = json.loads((REPO_ROOT / "config" / "version-governance.json").read_text(encoding="utf-8"))
         generated_compat = governance["packaging"]["generated_compatibility"]["nested_runtime_root"]
         canonical_runtime_root = REPO_ROOT / "scripts" / "runtime"
@@ -1677,8 +1681,8 @@ class NativeExecutionTopologyTests(unittest.TestCase):
             REPO_ROOT / "bundled" / "skills" / "vibe" / "bundled" / "skills" / "vibe" / "scripts" / "runtime",
         ]
 
-        self.assertEqual("bundled/skills/vibe", generated_compat["relative_path"])
-        self.assertEqual("install_only", generated_compat["materialization_mode"])
+        self.assertEqual("", generated_compat["relative_path"])
+        self.assertEqual("disabled", generated_compat["materialization_mode"])
         self.assertTrue(canonical_runtime_root.exists())
         for bundled_runtime in bundled_runtime_roots:
             with self.subTest(bundled_runtime=str(bundled_runtime)):

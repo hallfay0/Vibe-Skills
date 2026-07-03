@@ -13,7 +13,7 @@ CLI_SRC = REPO_ROOT / 'apps' / 'vgo-cli' / 'src'
 if str(CLI_SRC) not in sys.path:
     sys.path.insert(0, str(CLI_SRC))
 
-from vgo_cli.commands import canonical_entry_command, compatibility_exit_command, index_command, inspect_run_command, install_command, locate_entry_command, route_command, run_command, runtime_command, upgrade_command, verify_command
+from vgo_cli.commands import canonical_entry_command, check_command, compatibility_exit_command, index_command, inspect_run_command, install_command, locate_entry_command, route_command, run_command, runtime_command, uninstall_command, update_command, upgrade_command, verify_command
 from vgo_cli.errors import CliError
 from vgo_cli.main import build_parser
 from vgo_cli.output import parse_json_output, print_install_completion_hint, print_json_payload
@@ -384,42 +384,9 @@ def test_runtime_command_uses_runtime_contract_for_powershell_dispatch(monkeypat
     assert recorded['rest'] == ['--task', 'smoke']
 
 
-def test_upgrade_command_delegates_to_upgrade_service(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    import vgo_cli.commands as cli_commands
-
-    recorded: dict[str, object] = {}
-
-    monkeypatch.setattr(cli_commands, 'normalize_host_id', lambda host: host)
-    monkeypatch.setattr(cli_commands, 'resolve_target_root', lambda host_id, target_root: Path(target_root or tmp_path / 'target').resolve())
-    monkeypatch.setattr(
-        cli_commands,
-        'assert_target_root_matches_host_intent',
-        lambda target_root, host_id: recorded.setdefault('intent_checked', (target_root, host_id)),
-    )
-
-    def fake_upgrade_runtime(**kwargs: object) -> dict[str, object]:
-        recorded['kwargs'] = kwargs
-        return {'changed': False}
-
-    monkeypatch.setattr(cli_commands, 'upgrade_runtime', fake_upgrade_runtime)
-
-    args = argparse.Namespace(
-        repo_root=str(tmp_path / 'repo'),
-        host='codex',
-        target_root=str(tmp_path / 'target'),
-        profile='full',
-        frontend='shell',
-        install_external=False,
-        strict_offline=False,
-        require_closed_ready=False,
-        allow_external_skill_fallback=False,
-        skip_runtime_freshness_gate=False,
-    )
-
-    assert upgrade_command(args) == 0
-    assert recorded['kwargs']['repo_root'] == (tmp_path / 'repo').resolve()
-    assert recorded['kwargs']['target_root'] == (tmp_path / 'target').resolve()
-    assert recorded['kwargs']['host_id'] == 'codex'
+def test_upgrade_command_points_to_update() -> None:
+    with pytest.raises(CliError, match='use update'):
+        upgrade_command(argparse.Namespace(repo_root='/tmp/repo'))
 
 
 def test_build_parser_includes_upgrade_subcommand() -> None:
@@ -428,19 +395,98 @@ def test_build_parser_includes_upgrade_subcommand() -> None:
 
     assert args.command == 'upgrade'
     assert args.handler is upgrade_command
-    assert args.frontend == 'shell'
+    with pytest.raises(SystemExit):
+        parser.parse_args(['upgrade', '--repo-root', '/tmp/repo', '--host', 'codex'])
 
 
-def test_build_parser_defaults_profile_bearing_subcommands_to_minimal() -> None:
+def test_build_parser_uses_skills_dir_for_install_and_rejects_old_host_flag() -> None:
+    parser = build_parser()
+    args = parser.parse_args(['install', '--repo-root', '/tmp/repo', '--skills-dir', '/tmp/skills'])
+
+    assert args.command == 'install'
+    assert args.skills_dir == '/tmp/skills'
+    assert not hasattr(args, 'host')
+    with pytest.raises(SystemExit):
+        parser.parse_args(['install', '--repo-root', '/tmp/repo', '--host', 'codex'])
+
+
+def test_build_parser_uses_skills_dir_for_file_level_installer_commands() -> None:
     parser = build_parser()
 
     install_args = parser.parse_args(['install', '--repo-root', '/tmp/repo'])
-    uninstall_args = parser.parse_args(['uninstall', '--repo-root', '/tmp/repo'])
-    upgrade_args = parser.parse_args(['upgrade', '--repo-root', '/tmp/repo'])
+    uninstall_args = parser.parse_args(['uninstall', '--repo-root', '/tmp/repo', '--skills-dir', '/tmp/skills'])
+    update_args = parser.parse_args(['update', '--repo-root', '/tmp/repo', '--skills-dir', '/tmp/skills'])
 
-    assert install_args.profile == 'minimal'
-    assert uninstall_args.profile == 'minimal'
-    assert upgrade_args.profile == 'minimal'
+    assert install_args.skills_dir == ''
+    assert uninstall_args.skills_dir == '/tmp/skills'
+    assert update_args.skills_dir == '/tmp/skills'
+
+
+def test_install_command_uses_simplified_skills_dir_install(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    skills_dir = tmp_path / 'skills'
+    args = argparse.Namespace(repo_root=str(REPO_ROOT), skills_dir=str(skills_dir))
+
+    assert install_command(args) == 0
+
+    receipt_path = skills_dir / 'vibe' / '.vibeskills' / 'install-receipt.json'
+    assert receipt_path.is_file()
+    assert (skills_dir / 'vibe' / 'SKILL.md').is_file()
+    assert not (skills_dir / 'vibe' / 'adapters').exists()
+    assert '"receipt_kind": "vibe-skill-install"' in capsys.readouterr().out
+
+
+def test_install_command_marks_non_git_source_as_unknown_dirty(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    repo_root = tmp_path / 'repo'
+    (repo_root / 'SKILL.md').parent.mkdir(parents=True, exist_ok=True)
+    (repo_root / 'SKILL.md').write_text('# vibe\n', encoding='utf-8')
+    skills_dir = tmp_path / 'skills'
+
+    assert install_command(argparse.Namespace(repo_root=str(repo_root), skills_dir=str(skills_dir))) == 0
+
+    output = capsys.readouterr().out
+    assert '"source_git_commit": "unknown"' in output
+    assert '"source_git_dirty": true' in output
+
+
+def test_uninstall_command_uses_simplified_skills_dir_uninstall(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    skills_dir = tmp_path / 'skills'
+    assert install_command(argparse.Namespace(repo_root=str(REPO_ROOT), skills_dir=str(skills_dir))) == 0
+    capsys.readouterr()
+
+    assert uninstall_command(argparse.Namespace(repo_root=str(REPO_ROOT), skills_dir=str(skills_dir))) == 0
+
+    assert not (skills_dir / 'vibe').exists()
+    assert '"removed_files"' in capsys.readouterr().out
+
+
+def test_update_command_uses_simplified_skills_dir_update(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    skills_dir = tmp_path / 'skills'
+    assert install_command(argparse.Namespace(repo_root=str(REPO_ROOT), skills_dir=str(skills_dir))) == 0
+    capsys.readouterr()
+
+    assert update_command(argparse.Namespace(repo_root=str(REPO_ROOT), skills_dir=str(skills_dir))) == 0
+
+    assert (skills_dir / 'vibe' / '.vibeskills' / 'install-receipt.json').is_file()
+    assert '"receipt_kind": "vibe-skill-install"' in capsys.readouterr().out
+
+
+def test_check_command_uses_simplified_skills_dir_check(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    skills_dir = tmp_path / 'skills'
+    assert install_command(argparse.Namespace(repo_root=str(REPO_ROOT), skills_dir=str(skills_dir))) == 0
+    capsys.readouterr()
+
+    assert check_command(argparse.Namespace(repo_root=str(REPO_ROOT), skills_dir=str(skills_dir))) == 0
+
+    assert '"ok": true' in capsys.readouterr().out
 
 
 def test_build_parser_includes_index_subcommand() -> None:
@@ -599,81 +645,8 @@ def test_build_parser_accepts_legacy_wrapper_metadata_flag_for_canonical_entry()
     assert args.allow_public_grade_flags == 'false'
 
 
-def test_install_command_skips_external_dependency_install_when_strict_offline(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    import vgo_cli.commands as cli_commands
+def test_build_parser_rejects_old_install_external_flag() -> None:
+    parser = build_parser()
 
-    recorded: dict[str, object] = {}
-
-    def fake_normalize_host_id(host: str) -> str:
-        return host
-
-    def fake_resolve_target_root(host_id: str, target_root: str | None) -> Path:
-        recorded['resolved_host'] = host_id
-        return Path(target_root or tmp_path / 'target').resolve()
-
-    def fake_assert_target_root_matches_host_intent(target_root: Path, host_id: str) -> None:
-        recorded['intent_checked'] = (target_root, host_id)
-
-    def fake_install_mode_for_host(host_id: str) -> str:
-        return 'preview-guidance'
-
-    def fake_run_installer_core(repo_root: Path, argv: list[str]) -> subprocess.CompletedProcess[str]:
-        recorded['installer_repo_root'] = repo_root
-        recorded['installer_argv'] = list(argv)
-        return subprocess.CompletedProcess(
-            args=list(argv),
-            returncode=0,
-            stdout='{"install_mode":"preview-guidance","external_fallback_used":[]}\n',
-            stderr='',
-        )
-
-    def fake_reconcile_install_postconditions(
-        repo_root: Path,
-        target_root: Path,
-        host_id: str,
-        **kwargs: object,
-    ) -> dict[str, object]:
-        recorded['reconcile'] = {
-            'repo_root': repo_root,
-            'target_root': target_root,
-            'host_id': host_id,
-            **kwargs,
-        }
-        return {'install_receipt': {}, 'mcp_receipt': {}}
-
-    def fake_maybe_install_external_dependencies(repo_root: Path, install_mode: str, *, strict_offline: bool = False) -> None:
-        recorded['external_called'] = {
-            'repo_root': repo_root,
-            'install_mode': install_mode,
-            'strict_offline': strict_offline,
-        }
-
-    monkeypatch.setattr(cli_commands, 'normalize_host_id', fake_normalize_host_id)
-    monkeypatch.setattr(cli_commands, 'resolve_target_root', fake_resolve_target_root)
-    monkeypatch.setattr(cli_commands, 'assert_target_root_matches_host_intent', fake_assert_target_root_matches_host_intent)
-    monkeypatch.setattr(cli_commands, 'install_mode_for_host', fake_install_mode_for_host)
-    monkeypatch.setattr(cli_commands, 'run_installer_core', fake_run_installer_core)
-    monkeypatch.setattr(cli_commands, 'reconcile_install_postconditions', fake_reconcile_install_postconditions)
-    monkeypatch.setattr(cli_commands, 'maybe_install_external_dependencies', fake_maybe_install_external_dependencies)
-    monkeypatch.setattr(cli_commands, 'print_install_banner', lambda *args, **kwargs: None)
-    monkeypatch.setattr(cli_commands, 'print_install_completion_hint', lambda *args, **kwargs: None)
-
-    args = argparse.Namespace(
-        repo_root=str(tmp_path),
-        host='cursor',
-        target_root=str(tmp_path / 'target'),
-        profile='full',
-        require_closed_ready=False,
-        allow_external_skill_fallback=False,
-        install_external=True,
-        strict_offline=True,
-        skip_runtime_freshness_gate=False,
-        frontend='shell',
-    )
-
-    assert install_command(args) == 0
-    assert 'external_called' not in recorded
-    assert recorded['reconcile']['strict_offline'] is True
+    with pytest.raises(SystemExit):
+        parser.parse_args(['install', '--repo-root', '/tmp/repo', '--install-external'])

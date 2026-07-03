@@ -56,6 +56,8 @@ Freeze only when the task primarily changes or delivers a document artifact. Oth
 
 ## Generalization Evidence Bundle
 
+## Workflow Level Confirmation
+
 ## Non-Goals
 
 ## Autonomy Mode

@@ -127,7 +127,7 @@
     "runtime":  {
                     "installed_runtime":  {
                                               "target_relpath":  "skills/vibe",
-                                              "receipt_relpath":  "skills/vibe/outputs/runtime-freshness-receipt.json",
+                                              "receipt_relpath":  "skills/vibe/.vibeskills/install-receipt.json",
                                               "post_install_gate":  "scripts/verify/vibe-installed-runtime-freshness-gate.ps1",
                                               "frontmatter_gate":  "scripts/verify/vibe-bom-frontmatter-gate.ps1",
                                               "coherence_gate":  "scripts/verify/vibe-release-install-runtime-coherence-gate.ps1",
