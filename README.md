@@ -25,7 +25,7 @@ Install VibeSkills, type `vibe`, and let the kernel handle the real job: underst
 
 Installed local skills are the only specialist reference surface. Codex scans `~/.agents/skills` before `~/.codex/skills`; Claude Code scans `~/.claude/skills`. When the same skill id appears more than once, the earlier root wins, and `work_binding` stays the runtime truth for what was actually selected and run.
 
-For this runtime boundary, Python owns task semantics, `work_binding`, specialist decision truth, and runtime summary data. PowerShell stays only as a thin host wrapper for launch, host receipts, shell-native checks, and leaf execution. A future full-Python runtime is optional, not required for this version.
+For this runtime boundary, Python owns final truth artifacts, canonical validation, task semantics, `work_binding`, specialist decision truth, and structured runtime result data. PowerShell still performs stage orchestration, environment setup, script bridging, host receipts, shell-native checks, and leaf execution. A future full-Python runtime is optional, not required for this version.
 
 <br/>
 

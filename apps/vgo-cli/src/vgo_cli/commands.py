@@ -6,20 +6,12 @@ from pathlib import Path
 import subprocess
 import sys
 
-from .core_bridge import run_canonical_entry_core, run_compatibility_exit_core, run_entry_locator_core, run_inspect_run_core, run_installer_core, run_local_kernel_core, run_router_core, run_skill_index_core, run_uninstaller_core
+from .core_bridge import run_canonical_entry_core, run_compatibility_exit_core, run_entry_locator_core, run_inspect_run_core, run_local_kernel_core, run_router_core, run_skill_index_core
 from .errors import CliError
-from .external import maybe_install_external_dependencies
-from .hosts import (
-    assert_target_root_matches_host_intent,
-    install_mode_for_host,
-    normalize_host_id,
-    resolve_target_root,
-)
-from .install_support import reconcile_install_postconditions
-from .output import parse_json_output, print_install_banner, print_install_completion_hint, print_json_payload
+from .hosts import normalize_host_id
+from .output import print_json_payload
 from .process import print_process_output, run_powershell_file, run_subprocess
 from .repo import get_installed_runtime_config
-from .upgrade_service import upgrade_runtime
 from .workspace import extend_workspace_package_path
 
 

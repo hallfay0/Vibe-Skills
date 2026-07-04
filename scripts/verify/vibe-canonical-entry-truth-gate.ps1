@@ -179,14 +179,14 @@ if ($hasReceipt -and $hasRuntimePacket -and $hasGovernanceCapsule -and $hasStage
         [string]::IsNullOrWhiteSpace($selectedSkill) -or $selectedSkillIds.Count -eq 0 -or $selectedSkillIds -contains $selectedSkill
     ) -Message 'runtime packet route_snapshot selected_skill stays a removable optional compatibility summary'
 
-    if (Test-ObjectHasProperty -InputObject $runtimePacket -PropertyName 'skill_usage') {
+    $hasSkillUsageTruth = Test-ObjectHasProperty -InputObject $runtimePacket -PropertyName 'skill_usage'
+    Add-Assertion -Assertions $assertions -Pass $hasSkillUsageTruth -Message 'runtime packet includes skill_usage truth artifact'
+    if ($hasSkillUsageTruth) {
         $skillUsage = $runtimePacket.skill_usage
         $hasLegacyUsageShape = (Test-ObjectHasProperty -InputObject $skillUsage -PropertyName 'used') -and (Test-ObjectHasProperty -InputObject $skillUsage -PropertyName 'unused')
         $hasBinaryUsageShape = (Test-ObjectHasProperty -InputObject $skillUsage -PropertyName 'used_skills') -and (Test-ObjectHasProperty -InputObject $skillUsage -PropertyName 'unused_skills')
         Add-Assertion -Assertions $assertions -Pass ($hasLegacyUsageShape -or $hasBinaryUsageShape) -Message 'runtime packet skill_usage includes used/unused or used_skills/unused_skills'
         Add-Assertion -Assertions $assertions -Pass (Test-ObjectHasProperty -InputObject $skillUsage -PropertyName 'evidence') -Message 'runtime packet skill_usage includes evidence'
-    } else {
-        Add-Assertion -Assertions $assertions -Pass $true -Message 'runtime packet skill_usage stays optional packet proof mirror'
     }
 
     Add-Assertion -Assertions $assertions -Pass ([string]$governanceCapsule.runtime_selected_skill -eq 'vibe') -Message 'governance capsule keeps vibe as runtime authority'

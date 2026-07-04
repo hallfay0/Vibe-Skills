@@ -27,8 +27,8 @@ The new cut is simpler:
 
 The runtime boundary for this pass is also explicit:
 
-- Python owns task semantics, `work_binding`, specialist decision truth, and runtime summary data.
-- PowerShell owns launcher wrappers, host receipts, shell-native checks, and leaf execution only.
+- Python owns final truth artifacts, canonical validation, task semantics, `work_binding`, specialist decision truth, and structured runtime result data.
+- PowerShell still performs stage orchestration, environment setup, script bridging, host receipts, shell-native checks, and leaf execution.
 - A future full-Python runtime is optional. It is not required for this version.
 
 This keeps problems local. If discovery quality is weak, we improve discovery. If plans are weak, we improve planning. If proof is weak, we improve verification.
@@ -299,16 +299,19 @@ The router disappears as a top-level state because it is no longer the owner of 
 
 ## Language Split
 
-Python should own the kernel because it is better suited for data contracts, planning logic, testing, and semantic modules.
+Python should own the kernel because it is better suited for data contracts, final truth artifacts, canonical validation, planning logic, testing, and structured runtime result modules.
 
-PowerShell should stay only where it has real leverage:
+PowerShell still performs stage orchestration where it has real leverage:
 
 - install
 - check
+- stage coordination
+- environment setup
+- script bridging
 - Windows host wiring
 - leaf execution when a specific step truly needs PowerShell
 
-This keeps one semantic core and thin host adapters.
+This keeps the final semantic authority in Python without pretending the current PowerShell runtime is only a thin host adapter.
 
 ## Small Hot Path
 

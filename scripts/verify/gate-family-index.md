@@ -8,7 +8,7 @@
 - verify entrypoint: [`README.md`](./README.md)
 - broader operator surface: [`../governance/README.md`](../governance/README.md)
 
-## Typical Closure Order
+## Default release closure
 
 1. `vibe-governed-runtime-contract-gate.ps1`
 2. `vibe-canonical-entry-truth-gate.ps1`
@@ -18,8 +18,9 @@
 
 Default closure should stay small. Packaging, mirror, freshness, and retired-routing audit gates are still useful, but they are opt-in audit tools instead of the normal closeout path.
 
-## Families
+## Touched-surface extension gates
 
+- Install receipt / installed-copy health: `check.ps1`, `vibe-installed-runtime-freshness-gate.ps1`
 - Routing / retired-routing audits: `vibe-pack-routing-smoke.ps1`, `vibe-router-contract-gate.ps1`, `vibe-current-routing-debt-gate.ps1`
 - Runtime / packaging: `vibe-bom-frontmatter-gate.ps1`, `vibe-version-packaging-gate.ps1`, `vibe-installed-runtime-freshness-gate.ps1`
 - Release / truth honesty: `vibe-dist-manifest-gate.ps1`, `vibe-release-notes-quality-gate.ps1`, `vibe-release-truth-consistency-gate.ps1`

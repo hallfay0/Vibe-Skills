@@ -58,12 +58,12 @@ def test_vgo_cli_install_gates_delegate_repo_and_process_infrastructure() -> Non
     assert 'def run_subprocess(' in process
 
 
-def test_vgo_cli_commands_delegate_external_provisioning() -> None:
+def test_public_vgo_cli_commands_do_not_delegate_legacy_external_provisioning() -> None:
     commands = (REPO_ROOT / 'apps' / 'vgo-cli' / 'src' / 'vgo_cli' / 'commands.py').read_text(encoding='utf-8')
     install_support = (REPO_ROOT / 'apps' / 'vgo-cli' / 'src' / 'vgo_cli' / 'install_support.py').read_text(encoding='utf-8')
     external = (REPO_ROOT / 'apps' / 'vgo-cli' / 'src' / 'vgo_cli' / 'external.py').read_text(encoding='utf-8')
 
-    assert 'from .external import maybe_install_external_dependencies' in commands
+    assert 'from .external import maybe_install_external_dependencies' not in commands
     assert 'def maybe_install_external_dependencies(' not in install_support
     assert 'def report_external_fallback_usage(' not in install_support
     assert 'def maybe_install_external_dependencies(' in external
@@ -75,22 +75,25 @@ def test_vgo_cli_commands_delegate_output_presentation() -> None:
     install_support = (REPO_ROOT / 'apps' / 'vgo-cli' / 'src' / 'vgo_cli' / 'install_support.py').read_text(encoding='utf-8')
     output = (REPO_ROOT / 'apps' / 'vgo-cli' / 'src' / 'vgo_cli' / 'output.py').read_text(encoding='utf-8')
 
-    assert 'from .output import parse_json_output, print_install_banner, print_install_completion_hint' in commands
+    assert 'from .output import print_json_payload' in commands
     assert 'def parse_json_output(' not in commands
     assert 'def print_install_banner(' not in commands
     assert 'def print_install_completion_hint(' not in commands
-    assert 'def print_install_banner(' not in install_support
+    assert 'def print_install_banner(' not in output
+    assert 'def print_install_completion_hint(' not in output
+    assert 'def print_install_completion_report(' in install_support
     assert 'def parse_json_output(' in output
-    assert 'def print_install_banner(' in output
-    assert 'def print_install_completion_hint(' in output
+    assert 'def print_json_payload(' in output
 
 
 def test_vgo_cli_commands_delegate_core_runtime_bridges() -> None:
     commands = (REPO_ROOT / 'apps' / 'vgo-cli' / 'src' / 'vgo_cli' / 'commands.py').read_text(encoding='utf-8')
     core_bridge = (REPO_ROOT / 'apps' / 'vgo-cli' / 'src' / 'vgo_cli' / 'core_bridge.py').read_text(encoding='utf-8')
 
-    for bridge in ('run_installer_core', 'run_router_core', 'run_uninstaller_core'):
+    for bridge in ('run_router_core', 'run_canonical_entry_core', 'run_skill_index_core'):
         assert bridge in commands
+    assert 'run_installer_core' not in commands
+    assert 'run_uninstaller_core' not in commands
     assert 'from .workspace import extend_workspace_package_path' in commands
     assert 'from .process import invoke_python_core' in core_bridge
     assert 'from .workspace import extend_workspace_package_path' in core_bridge

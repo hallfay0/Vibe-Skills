@@ -32,6 +32,10 @@ def test_install_copies_only_the_simplified_vibe_package(tmp_path: Path) -> None
         "config/runtime.json",
         "protocols/runtime.md",
         "apps/vgo-cli/src/vgo_cli/main.py",
+        "apps/vgo-cli/src/vgo_cli/upgrade_service.py",
+        "apps/vgo-cli/src/vgo_cli/install_support.py",
+        "apps/vgo-cli/src/vgo_cli/install_gates.py",
+        "apps/vgo-cli/src/vgo_cli/installer_bridge.py",
         "apps/vgo-cli/src/vgo_cli/__pycache__/main.cpython-310.pyc",
         "packages/contracts/src/vgo_contracts/__init__.py",
         "packages/runtime-core/src/vgo_runtime/__init__.py",
@@ -67,6 +71,10 @@ def test_install_copies_only_the_simplified_vibe_package(tmp_path: Path) -> None
     assert (install_root / "config/runtime.json").is_file()
     assert (install_root / "protocols/runtime.md").is_file()
     assert not (install_root / "adapters").exists()
+    assert not (install_root / "apps" / "vgo-cli" / "src" / "vgo_cli" / "upgrade_service.py").exists()
+    assert not (install_root / "apps" / "vgo-cli" / "src" / "vgo_cli" / "install_support.py").exists()
+    assert not (install_root / "apps" / "vgo-cli" / "src" / "vgo_cli" / "install_gates.py").exists()
+    assert not (install_root / "apps" / "vgo-cli" / "src" / "vgo_cli" / "installer_bridge.py").exists()
     assert not (install_root / "apps" / "vgo-cli" / "src" / "vgo_cli" / "__pycache__").exists()
     assert (install_root / "scripts" / "common" / "vibe-governance-helpers.ps1").is_file()
     assert (install_root / "scripts" / "verify" / "vibe-release-install-runtime-coherence-gate.ps1").is_file()

@@ -391,7 +391,7 @@ def test_truth_gate_accepts_fallback_skill_usage_shape(tmp_path: Path) -> None:
     assert "[PASS] runtime packet skill_usage includes used/unused or used_skills/unused_skills" in result.stdout
 
 
-def test_truth_gate_accepts_missing_skill_usage_packet_mirror(tmp_path: Path) -> None:
+def test_truth_gate_rejects_missing_skill_usage_truth_artifact(tmp_path: Path) -> None:
     session_root = tmp_path / "session"
     _write_valid_canonical_entry_artifacts(session_root)
     runtime_packet_path = session_root / "runtime-input-packet.json"
@@ -401,8 +401,8 @@ def test_truth_gate_accepts_missing_skill_usage_packet_mirror(tmp_path: Path) ->
 
     result = _run_truth_gate(session_root)
 
-    assert result.returncode == 0, result.stdout + result.stderr
-    assert "[PASS] runtime packet skill_usage stays optional packet proof mirror" in result.stdout
+    assert result.returncode != 0
+    assert "[FAIL] runtime packet includes skill_usage truth artifact" in result.stdout
 
 
 def test_truth_gate_accepts_presentational_entry_intent_with_canonical_authority(tmp_path: Path) -> None:

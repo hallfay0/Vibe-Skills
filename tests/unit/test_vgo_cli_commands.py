@@ -16,7 +16,7 @@ if str(CLI_SRC) not in sys.path:
 from vgo_cli.commands import canonical_entry_command, check_command, compatibility_exit_command, index_command, inspect_run_command, install_command, locate_entry_command, route_command, run_command, runtime_command, uninstall_command, update_command, upgrade_command, verify_command
 from vgo_cli.errors import CliError
 from vgo_cli.main import build_parser
-from vgo_cli.output import parse_json_output, print_install_completion_hint, print_json_payload
+from vgo_cli.output import parse_json_output, print_json_payload
 
 
 def test_parse_json_output_returns_payload() -> None:
@@ -30,21 +30,6 @@ def test_parse_json_output_rejects_invalid_json() -> None:
 
     with pytest.raises(CliError, match='Invalid JSON output from core command'):
         parse_json_output(result)
-
-
-def test_print_install_completion_hint_for_shell_includes_host(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
-    print_install_completion_hint('shell', host_id='cursor', profile='full', target_root=tmp_path)
-
-    captured = capsys.readouterr()
-    assert f'Install done. Run: bash check.sh --profile full --host cursor --target-root {tmp_path}' in captured.out
-
-
-def test_print_install_completion_hint_for_powershell_includes_host(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
-    print_install_completion_hint('powershell', host_id='cursor', profile='full', target_root=tmp_path)
-
-    captured = capsys.readouterr()
-    assert '-HostId cursor' in captured.out
-    assert f'-TargetRoot {tmp_path}' in captured.out
 
 
 def test_route_command_delegates_to_runtime_core_bridge(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -415,6 +400,36 @@ def test_build_parser_includes_upgrade_subcommand() -> None:
     assert args.skills_dir == '/tmp/skills'
     with pytest.raises(SystemExit):
         parser.parse_args(['upgrade', '--repo-root', '/tmp/repo', '--host', 'codex'])
+
+
+def test_public_installer_commands_do_not_import_legacy_adapter_install_path() -> None:
+    commands_content = (CLI_SRC / "vgo_cli" / "commands.py").read_text(encoding="utf-8")
+
+    forbidden_terms = (
+        "run_installer_core",
+        "run_uninstaller_core",
+        "upgrade_runtime",
+        "reconcile_install_postconditions",
+        "print_install_banner",
+        "print_install_completion_hint",
+    )
+    for term in forbidden_terms:
+        assert term not in commands_content
+
+
+def test_public_cli_output_does_not_advertise_legacy_adapter_install_commands() -> None:
+    output_content = (CLI_SRC / "vgo_cli" / "output.py").read_text(encoding="utf-8")
+
+    forbidden_terms = (
+        "-HostId",
+        "-Profile",
+        "-TargetRoot",
+        "--host",
+        "--profile",
+        "--target-root",
+    )
+    for term in forbidden_terms:
+        assert term not in output_content
 
 
 def test_build_parser_uses_skills_dir_for_install_and_rejects_old_host_flag() -> None:

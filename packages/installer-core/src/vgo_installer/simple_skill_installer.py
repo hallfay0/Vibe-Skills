@@ -17,6 +17,12 @@ PACKAGE_DIRS = (
     "scripts/router",
     "scripts/verify",
 )
+PACKAGE_EXCLUDED_FILES = {
+    "apps/vgo-cli/src/vgo_cli/install_gates.py",
+    "apps/vgo-cli/src/vgo_cli/install_support.py",
+    "apps/vgo-cli/src/vgo_cli/installer_bridge.py",
+    "apps/vgo-cli/src/vgo_cli/upgrade_service.py",
+}
 RECEIPT_RELPATH = ".vibeskills/install-receipt.json"
 
 
@@ -53,9 +59,12 @@ def _copy_tree(source_root: Path, install_root: Path, relpath: str) -> None:
         _copy_file(source, install_root / relpath)
         return
     for file_path in sorted(path for path in source.rglob("*") if path.is_file()):
+        installed_relpath = file_path.relative_to(source_root).as_posix()
         if "__pycache__" in file_path.parts or file_path.suffix == ".pyc":
             continue
-        _copy_file(file_path, install_root / file_path.relative_to(source_root))
+        if installed_relpath in PACKAGE_EXCLUDED_FILES:
+            continue
+        _copy_file(file_path, install_root / installed_relpath)
 
 
 def _installed_files(install_root: Path) -> list[dict[str, str]]:

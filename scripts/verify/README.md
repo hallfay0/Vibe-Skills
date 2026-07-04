@@ -1,5 +1,9 @@
 This directory stores executable verification gates for local and CI use.
 
+The default release closure is intentionally small. Use it to prove the normal release path. Use touched-surface extension gates only when the change actually touches that family.
+
+`check.ps1` checks installed-copy health and receipt health for a selected `SkillsDir`; it does not replace release verification.
+
 ## Start Here
 
 - family map and typical run order: [`gate-family-index.md`](./gate-family-index.md)

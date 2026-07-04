@@ -4,10 +4,9 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_vgo_cli_uses_installer_core_modules() -> None:
+def test_vgo_cli_public_commands_use_simplified_installer_contract() -> None:
     main_content = (REPO_ROOT / 'apps' / 'vgo-cli' / 'src' / 'vgo_cli' / 'main.py').read_text(encoding='utf-8')
     commands_content = (REPO_ROOT / 'apps' / 'vgo-cli' / 'src' / 'vgo_cli' / 'commands.py').read_text(encoding='utf-8')
-    core_bridge = (REPO_ROOT / 'apps' / 'vgo-cli' / 'src' / 'vgo_cli' / 'core_bridge.py').read_text(encoding='utf-8')
 
     assert 'install_command' in main_content
     assert 'route_command' in main_content
@@ -16,12 +15,13 @@ def test_vgo_cli_uses_installer_core_modules() -> None:
     assert 'verify_command' in main_content
     assert 'canonical_entry_command' in main_content
     assert 'from .core_bridge import ' in commands_content
-    assert 'run_installer_core' in commands_content
     assert 'run_router_core' in commands_content
-    assert 'run_uninstaller_core' in commands_content
     assert 'run_canonical_entry_core' in commands_content
-    assert 'vgo_installer.install_runtime' in core_bridge
-    assert 'vgo_installer.uninstall_runtime' in core_bridge
+    assert 'vgo_installer.simple_skill_installer' in commands_content
+    assert 'run_installer_core' not in commands_content
+    assert 'run_uninstaller_core' not in commands_content
+    assert 'vgo_installer.install_runtime' not in commands_content
+    assert 'vgo_installer.uninstall_runtime' not in commands_content
     assert 'scripts/install/install_vgo_adapter.py' not in main_content
     assert 'scripts/install/install_vgo_adapter.py' not in commands_content
     assert 'scripts/uninstall/uninstall_vgo_adapter.py' not in main_content
