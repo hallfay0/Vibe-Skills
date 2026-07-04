@@ -71,7 +71,7 @@ For this runtime boundary, Python owns task semantics, `work_binding`, specialis
 
 <br/><br/>
 
-<a href="docs/install/one-click-install-release-copy.en.md">
+<a href="docs/install/README.en.md">
   <img src="docs/assets/install-cta-en.svg" width="327" height="56" alt="Click to Install">
 </a>
 
@@ -88,7 +88,7 @@ For this runtime boundary, Python owns task semantics, `work_binding`, specialis
 <br/><br/>
 
 <kbd>Install</kbd> &nbsp;→&nbsp;
-<kbd>vibe | vibe-upgrade</kbd> &nbsp;→&nbsp;
+<kbd>vibe | update</kbd> &nbsp;→&nbsp;
 <kbd>Work Kernel</kbd> &nbsp;→&nbsp;
 <kbd>Skill Composition</kbd> &nbsp;→&nbsp;
 <kbd>TDD / Verification</kbd> &nbsp;→&nbsp;
@@ -119,7 +119,7 @@ For this runtime boundary, Python owns task semantics, `work_binding`, specialis
 |:---|:---|
 | **Harness** | The workflow layer around your AI agent. It decides the next step, calls the right Skills, checks the work, and saves useful context. |
 | **Skill** | A focused expert capability, such as `tdd-guide`, `code-review`, data analysis, writing, or research support. |
-| **Vibe / VCO** | The canonical runtime that runs the harness. Public entrypoints are `vibe` and `vibe-upgrade`. |
+| **Vibe / VCO** | The canonical runtime that runs the harness. The public work entry is `vibe`; installed-copy updates stay on the `update` management path. |
 | **Bound skill composition** | The kernel calls different Skills only where they help the current work unit move forward. |
 | **Local-skill-only reference plane** | The kernel treats declared local skill roots as the only specialist source. A skill must have a readable `SKILL.md` before it can be selected. |
 | **TDD / verified delivery** | Work should be backed by tests, checks, artifacts, or explicit manual-review notes before completion is claimed. |
@@ -186,7 +186,7 @@ flowchart LR
 
 | Signal | What it means |
 |:---|:---|
-| `one entry` | Start with `vibe`; keep `vibe-upgrade` for updates. |
+| `one entry` | Start with `vibe`; use `update` to refresh the same installed skills directory. |
 | `late skill binding` | Skills are attached after the work shape is clear, not used as the control plane. |
 | `local-skill-only reference plane` | The kernel checks declared local skill roots and only considers entries with a readable `SKILL.md`. Duplicate skill ids keep the highest-priority root active. |
 | `work_binding truth` | The runtime truth for selected skill provenance lives in `work_binding`, even when discovery or benchmark artifacts are also written. |
@@ -288,7 +288,7 @@ The operating model is intentionally simple:
 
 | Feature | What you get |
 |:---|:---|
-| **One entry** | Start with `vibe`; use `vibe-upgrade` to update. No long command menu to learn first. |
+| **One entry** | Start with `vibe`; use `update` to refresh the installed copy. No long command menu to learn first. |
 | **A clear work rhythm** | The agent moves through ask → plan → work → check → remember. |
 | **Late skill binding** | The harness shapes the work first, then binds helpful Skills to the bounded units that need them. |
 | **Less micromanagement** | You do not need to keep saying "plan first", "test it", or "save the context". |
@@ -414,9 +414,9 @@ After the kernel has a bounded work model, it still chooses how large the run sh
 
 <br/>
 
-- Public discoverable entries are `vibe` and `vibe-upgrade`.
+- The public discoverable work entry is `vibe`.
 - `vibe` is progressive: it stops after `requirement_doc`, then after `xl_plan`, and only reaches `phase_cleanup` after explicit bounded re-entry approval at each boundary.
-- `vibe-upgrade` runs the governed upgrade path.
+- Installed-copy upgrades stay on the command path: use `update` with the same `--skills-dir`.
 - Compatibility stage IDs such as `vibe-what-do-i-want`, `vibe-how-do-we-do`, and `vibe-do-it` are disabled as public host entries. They may remain in runtime metadata for continuity, but installers must not materialize them as host-visible command or skill wrappers.
 - The only lightweight public grade overrides are `--l` and `--xl`. Aliases like `vibe-l`, `vibe-xl`, or stage-plus-grade combinations are intentionally unsupported.
 - When Skills such as `tdd-guide` or `code-review` are selected, they work only inside the current phase or bounded unit. They do not take over global coordination.
@@ -546,8 +546,8 @@ Old host/profile install docs are legacy migration material. They are useful for
 
 ### Open More Docs Only When Needed
 
-- Need legacy host/profile details for an existing old install? Use the [legacy command reference](docs/install/recommended-full-path.en.md).
-- Need offline setup? Use the [manual install guide](docs/install/manual-copy-install.en.md), but keep the target as a skills directory.
+- Need legacy host/profile details for an existing old install? Start with the [simple install guide](docs/install/README.en.md); it points to archived legacy material when needed.
+- Need offline setup? Start with the [simple install guide](docs/install/README.en.md), then follow the archived notes only if the default path does not fit.
 
 <details>
 <summary><b>🔧 Advanced install details</b></summary>
@@ -564,7 +564,7 @@ Duplicate skill ids are recorded, but only the first root by scan order stays ac
 **Uninstall and custom skills**
 
 - uninstall path: `uninstall.ps1 -SkillsDir <skills-dir>`
-- custom skill onboarding: [custom workflow & skill onboarding guide](docs/install/custom-workflow-onboarding.en.md)
+- custom skill onboarding: [simple install & local roots guide](docs/install/README.en.md)
 
 </details>
 
@@ -613,7 +613,7 @@ _If VibeSkills is already installed, start with one invocation._
 
 - First try a small request such as planning, clarifying, or breaking down a task.
 - If you want later turns to stay inside the governed workflow, append `$vibe` or `/vibe` to each message.
-- If VibeSkills is not installed yet, start with [Prompt-based install (recommended)](docs/install/one-click-install-release-copy.en.md).
+- If VibeSkills is not installed yet, start with [Simple install (recommended)](docs/install/README.en.md).
 
 > Note: `$vibe` or `/vibe` only enters the governed runtime. It does not by itself prove that host plugins, providers, or online enhancement are fully configured.
 
@@ -630,16 +630,16 @@ _If VibeSkills is already installed, start with one invocation._
 
 **Start here**
 
-- ⚡️ [Prompt-based install (recommended)](docs/install/one-click-install-release-copy.en.md)
+- ⚡️ [Simple install (recommended)](docs/install/README.en.md)
 - 📖 [System architecture & philosophy](docs/quick-start.en.md)
 
 **Open only if needed**
 
-- 🛠 [Command install reference](docs/install/recommended-full-path.en.md)
-- 🧩 [Custom workflow onboarding](docs/install/custom-workflow-onboarding.en.md)
-- 📄 [OpenClaw host notes](docs/install/openclaw-path.en.md)
-- 📄 [OpenCode host notes](docs/install/opencode-path.en.md)
-- 📁 [Manual copy install (offline)](docs/install/manual-copy-install.en.md)
+- 🛠 [Command install reference](docs/install/README.en.md)
+- 🧩 [Custom workflow onboarding](docs/install/README.en.md)
+- 📄 [OpenClaw host notes](docs/cold-start-install-paths.en.md)
+- 📄 [OpenCode host notes](docs/cold-start-install-paths.en.md)
+- 📁 [Manual copy install (offline)](docs/install/README.en.md)
 - 🧊 [Cold start & other environments](docs/cold-start-install-paths.en.md)
 
 </details>

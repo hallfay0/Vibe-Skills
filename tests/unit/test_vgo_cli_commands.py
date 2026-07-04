@@ -384,17 +384,35 @@ def test_runtime_command_uses_runtime_contract_for_powershell_dispatch(monkeypat
     assert recorded['rest'] == ['--task', 'smoke']
 
 
-def test_upgrade_command_points_to_update() -> None:
-    with pytest.raises(CliError, match='use update'):
-        upgrade_command(argparse.Namespace(repo_root='/tmp/repo'))
+def test_upgrade_command_aliases_update_with_migration_warning(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    import vgo_cli.commands as cli_commands
+
+    recorded: dict[str, object] = {}
+
+    def fake_update_command(args: argparse.Namespace) -> int:
+        recorded["repo_root"] = args.repo_root
+        recorded["skills_dir"] = args.skills_dir
+        return 0
+
+    monkeypatch.setattr(cli_commands, "update_command", fake_update_command)
+
+    result = upgrade_command(argparse.Namespace(repo_root='/tmp/repo', skills_dir='/tmp/skills'))
+
+    assert result == 0
+    assert recorded == {"repo_root": "/tmp/repo", "skills_dir": "/tmp/skills"}
+    assert "deprecated" in capsys.readouterr().err
 
 
 def test_build_parser_includes_upgrade_subcommand() -> None:
     parser = build_parser()
-    args = parser.parse_args(['upgrade', '--repo-root', '/tmp/repo'])
+    args = parser.parse_args(['upgrade', '--repo-root', '/tmp/repo', '--skills-dir', '/tmp/skills'])
 
     assert args.command == 'upgrade'
     assert args.handler is upgrade_command
+    assert args.skills_dir == '/tmp/skills'
     with pytest.raises(SystemExit):
         parser.parse_args(['upgrade', '--repo-root', '/tmp/repo', '--host', 'codex'])
 
@@ -416,10 +434,12 @@ def test_build_parser_uses_skills_dir_for_file_level_installer_commands() -> Non
     install_args = parser.parse_args(['install', '--repo-root', '/tmp/repo'])
     uninstall_args = parser.parse_args(['uninstall', '--repo-root', '/tmp/repo', '--skills-dir', '/tmp/skills'])
     update_args = parser.parse_args(['update', '--repo-root', '/tmp/repo', '--skills-dir', '/tmp/skills'])
+    upgrade_args = parser.parse_args(['upgrade', '--repo-root', '/tmp/repo', '--skills-dir', '/tmp/skills'])
 
     assert install_args.skills_dir == ''
     assert uninstall_args.skills_dir == '/tmp/skills'
     assert update_args.skills_dir == '/tmp/skills'
+    assert upgrade_args.skills_dir == '/tmp/skills'
 
 
 def test_install_command_uses_simplified_skills_dir_install(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

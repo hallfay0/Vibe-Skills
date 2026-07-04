@@ -187,7 +187,8 @@ def test_copy_command_tree_with_public_vibe_entries_skips_nonpublic_vibe_command
     )
 
     installed = {path.name for path in dst_root.iterdir()}
-    assert {"non-vibe-helper.md", "vibe.md", "vibe-upgrade.md"}.issubset(installed)
+    assert {"non-vibe-helper.md", "vibe.md"}.issubset(installed)
+    assert "vibe-upgrade.md" not in installed
     assert "vibe-implement.md" not in installed
     assert "vibe-review.md" not in installed
     assert "vibe-what-do-i-want.md" not in installed

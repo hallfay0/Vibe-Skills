@@ -85,7 +85,7 @@ def run_runtime(task: str, artifact_root: Path) -> dict[str, object]:
 
 
 class ActiveConsultationSimplificationTests(unittest.TestCase):
-    def test_default_runtime_closes_without_active_consultation_artifacts(self) -> None:
+    def test_default_runtime_closes_without_active_consultation_artifacts_even_with_selected_skill(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             payload = run_runtime(SPECIALIST_TASK, Path(tempdir))
 
@@ -114,10 +114,12 @@ class ActiveConsultationSimplificationTests(unittest.TestCase):
                 self.assertNotIn("consultation truth", text)
                 self.assertNotIn("stage assistant", text.lower())
             self.assertIn("## Skill Execution Decision", requirement_doc)
-            self.assertIn("Decision state: no_specialist_recommendations", requirement_doc)
-            self.assertIn("No bounded specialist recommendations matched this run", requirement_doc)
+            self.assertIn("Decision state: approved_dispatch", requirement_doc)
+            self.assertIn("## Selected Skill", requirement_doc)
+            self.assertIn("Selected Skill: diagnose", requirement_doc)
             self.assertIn("## Skill Execution Decision Plan", execution_plan)
-            self.assertIn("Frozen decision state: no_specialist_recommendations", execution_plan)
+            self.assertIn("Frozen decision state: approved_dispatch", execution_plan)
+            self.assertIn("## Selected Skill Execution Plan", execution_plan)
 
     def test_legacy_consultation_projection_remains_readable_without_usage_claim(self) -> None:
         shell = resolve_powershell()

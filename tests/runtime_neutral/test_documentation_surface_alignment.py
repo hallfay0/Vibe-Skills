@@ -22,15 +22,23 @@ def _public_entry_ids() -> set[str]:
 
 
 def test_readmes_describe_only_public_vibe_entry_surface() -> None:
-    assert _public_entry_ids() == {"vibe", "vibe-upgrade"}
+    assert _public_entry_ids() == {"vibe"}
 
     for path in ("README.md", "README.zh.md", "docs/quick-start.en.md", "docs/quick-start.md"):
         content = _read(path)
-        assert "vibe-upgrade" in content
+        assert "vibe-upgrade" not in content
         assert "host-rendered" not in content
         assert "宿主渲染标签" not in content
         for legacy_alias in ("vibe-want", "vibe-how", "vibe-do"):
             assert re.search(rf"(?<![\w-]){re.escape(legacy_alias)}(?![\w-])", content) is None
+
+
+def test_root_skill_keeps_update_on_the_command_path_not_a_public_skill() -> None:
+    content = _read("SKILL.md")
+
+    assert "vibe-upgrade" not in content
+    assert "update" in content
+    assert "--skills-dir" in content
 
 
 def test_governance_navigation_separates_current_contracts_from_archived_history() -> None:

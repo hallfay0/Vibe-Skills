@@ -33,7 +33,7 @@ def test_runtime_route_index_is_projected_from_discoverable_entry_surface() -> N
     assert skills[0]["resolved_root_dir"].endswith("config")
     assert skills[0]["path_contract"] == "runtime_surface_relative"
     assert (Path(skills[0]["path_base"]) / skills[0]["source_root"]).resolve() == Path(skills[0]["resolved_source_root"]).resolve()
-    assert next(entry for entry in skills if entry["id"] == "vibe-upgrade")["publicly_exposed"] is True
+    assert next(entry for entry in skills if entry["id"] == "vibe-upgrade")["publicly_exposed"] is False
     assert next(entry for entry in skills if entry["id"] == "vibe-how-do-we-do")["publicly_exposed"] is False
     assert next(entry for entry in skills if entry["id"] == "vibe-upgrade")["tags"] == [
         "upgrade",

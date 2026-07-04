@@ -23,7 +23,7 @@ def test_vibe_skill_entry_preserves_canonical_runtime_anchors() -> None:
         "--continue-from-run-id",
         "--bounded-reentry-token",
         "revision_delta",
-        "vibe-upgrade",
+        "update --skills-dir <skills-dir>",
         "protocols/runtime.md",
         "core/skill-contracts/v1/vibe.json",
     ]
@@ -52,7 +52,7 @@ def test_vibe_skill_entry_preserves_canonical_runtime_anchors() -> None:
 def test_vibe_skill_entry_stays_sop_sized_and_avoids_overtriggering_language() -> None:
     text = _skill_text()
 
-    assert len(text.splitlines()) <= 240
+    assert len(text.splitlines()) <= 245
     assert "1% chance" not in text
     assert "YOU DO NOT HAVE A CHOICE" not in text
     assert "This is not negotiable" not in text

@@ -4,6 +4,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+from .kernel.capability_bridge import CAPABILITY_BRIDGE, ROUTER_CAPABILITY_HINTS
 from .kernel.host_skill_roots import resolve_host_skill_roots
 from .kernel.skill_index import build_skill_catalog, build_skill_index_from_catalog
 from .kernel.text_tokens import SKILL_MATCH_STOPWORDS, tokens_from_text, tokens_from_values
@@ -44,53 +45,11 @@ GENERIC_CONFIRM_TOKENS = frozenset(
         "work",
     }
 )
-CAPABILITY_HINTS = (
-    ("data.quality_check", ("data quality", "quality check", "missing", "duplicate", "outlier", "数据质量", "缺失", "重复", "异常")),
-    ("data.eda", ("eda", "exploratory", "exploratory analysis", "exploratory data analysis", "探索", "探索性")),
-    ("statistics.relationship_modeling", ("relationship", "relation", "impact", "effect", "compare", "关系", "影响", "比较")),
-    ("statistics.correlation", ("correlation", "correlate", "relationship", "trend", "相关", "关联", "趋势")),
-    ("statistics.regression", ("regression", "model", "impact", "effect", "relationship", "回归", "建模", "模型")),
-    ("model.training", ("prediction model", "predictive model", "machine learning", "scikit-learn", "train model", "训练模型", "预测模型", "机器学习")),
-    ("model.evaluation", ("model evaluation", "evaluate model", "metrics", "cross validation", "模型评估", "交叉验证")),
-    ("model.explainability", ("shap", "explain", "explanation", "interpretation", "importance", "解释", "可解释", "重要性")),
-    ("visualization.figure", ("figure", "figures", "chart", "plot", "visual", "matplotlib", "tiff", "图表", "作图", "可视化", "科研绘图", "多子图", "结果图", "投稿图", "绘制")),
-    ("visualization.infographic", ("infographic", "infographics", "visual summary", "信息图")),
-    ("visualization.schematic", ("schematic", "schematics", "diagram", "diagrams", "flowchart", "flowcharts", "示意图", "流程图", "机制图")),
-    ("presentation.deck", ("ppt", "pptx", "slide", "slides", "deck", "presentation", "幻灯片", "演示文稿", "组会汇报", "汇报")),
-    ("presentation.slidev", ("slidev", "marp", "reveal.js", "可复现导出")),
-    ("presentation.poster", ("research poster", "academic poster", "conference poster", "poster", "海报", "学术海报")),
-    ("presentation.pptx_poster", ("pptx poster", "powerpoint poster", "ppt poster", "pptx 学术海报", "powerpoint pptx")),
-    ("chem.activity_database", ("chembl", "ic50", "assay", "bioactivity", "活性数据")),
-    ("chem.medchem_filtering", ("medicinal chemistry", "drug-likeness", "lipinski", "pains", "lead optimization", "药物化学", "先导化合物", "先导优化")),
-    ("clinical.case_report", ("clinical report", "care guidelines", "case report", "hipaa", "de-identification", "病例报告", "去标识化")),
-    ("writing.reader_report", ("reader report", "report", "ordinary reader", "plain language", "报告", "普通读者", "通俗")),
-    ("writing.scientific_report", ("scientific report", "scientific reporting", "research report", "executive summary", "quarto", "科研报告", "科研技术报告", "科学报告", "实验结果")),
-    ("debug.systematic_workflow", ("debug systematically", "failing test", "stack trace", "debug workflow", "系统化调试", "错误日志", "排查", "测试失败", "构建失败", "接口失败", "运行失败")),
-    ("devops.github_actions_ci", ("github actions", "ci failure", "ci失败", "workflow logs", "pr checks")),
-    ("devops.mcp_integration", ("mcp", "model context protocol", ".mcp.json", "mcp server", "mcp integration")),
-    ("observability.sentry", ("sentry", "production error", "线上报错", "线上告警")),
-    ("deploy.vercel", ("vercel", "deploy to vercel", "部署到vercel")),
-    ("deploy.netlify", ("netlify", "deploy to netlify", "部署到netlify")),
-    ("runtime.node_zombie_cleanup", ("zombie node", "僵尸node", "node process", "node进程")),
-    ("research.causal_analysis", ("causal analysis", "causal effect", "treatment effect", "did", "synthetic control", "因果分析", "因果效应", "稳健性检验")),
-    ("research.experimental_design", ("experiment design", "study design", "quasi-experiment", "design experiments", "设计准实验", "准实验方案", "实验设计", "实验失败", "验证实验", "设计下一轮")),
-    ("research.ideation", ("scientific ideation", "research gaps", "literature matrix", "paper-combination", "a+b", "科研构思", "头脑风暴", "研究方向", "论文组合矩阵", "研究创新点")),
-    ("research.pubmed_search", ("pubmed", "mesh")),
-    ("research.zotero_management", ("pyzotero", "zotero library", "zotero")),
-    ("research.citation_management", ("citation management", "bibliography", "bibtex", "doi", "参考文献")),
-    ("research.literature_search", ("pubmed", "bibtex", "mesh", "literature search", "文献检索", "检索", "文献")),
-    ("research.literature_review", ("full-text", "systematic review", "literature review", "meta-analysis", "evidence table", "biorxiv", "preprint", "preprints", "系统综述", "文献综述", "证据表", "样本量", "方法学细节")),
-    ("research.critical_appraisal", ("critical appraisal", "critical thinking", "bias", "confounding", "批判性", "证据强度", "偏倚", "混杂")),
-    ("research.scholar_evaluation", ("scholareval", "rubric", "formulation", "methodology")),
-    ("research.hypothesis_generation", ("hypothesis generation", "testable hypothesis", "hypogenic", "generate hypotheses", "科研假设", "可检验", "假设", "预测")),
-    ("document.venue_template", ("venue template", "venue-specific", "author guidelines", "page limits", "anonymity rules", "formatting requirements", "submission compliance", "neurips", "模板", "匿名投稿", "投稿格式")),
-    ("document.latex_submission", ("latex", "latexmk", "chktex", "latexindent", "submission zip", "manuscript pdf")),
-    ("model.data_leakage_guard", ("data leakage", "fit before split", "prediction time", "train-test split", "train test split", "数据泄漏")),
-    ("model.preprocessing_pipeline", ("data preprocessing pipeline", "preprocessing pipeline", "feature encoding", "standardize data", "validate input data", "预处理流水线", "清洗数据")),
-    ("quality.test_report", ("pytest", "coverage", "test report", "test reports", "测试报告", "失败摘要", "覆盖率", "质量门禁")),
-    ("research.evidence_retrieval", ("flashrag", "evidence retrieval", "repo/config", "证据检索", "文件和行号")),
-    ("research.deep_research", ("webthinker", "deep research", "multi-hop", "trace.jsonl", "sources.json", "多跳浏览", "证据链")),
-)
+CAPABILITY_HINTS = ROUTER_CAPABILITY_HINTS
+CAPABILITY_SEARCH_HINTS_BY_CAPABILITY = {
+    capability: tuple(spec["skill_inference_hints"])
+    for capability, spec in CAPABILITY_BRIDGE
+}
 
 
 def _dedupe_strings(values: list[str]) -> list[str]:
@@ -157,7 +116,31 @@ def _entry_search_tokens(entry: dict[str, Any]) -> set[str]:
     tokens.update(tokens_from_values(entry.get("capabilities"), stem=True, stopwords=SKILL_MATCH_STOPWORDS))
     tokens.update(tokens_from_values(entry.get("tags"), stem=True, stopwords=SKILL_MATCH_STOPWORDS))
     tokens.update(tokens_from_values(entry.get("when_to_use"), stem=True, stopwords=SKILL_MATCH_STOPWORDS))
+    tokens.update(tokens_from_values(_capability_bridge_search_hints(entry), stem=True, stopwords=SKILL_MATCH_STOPWORDS))
     return tokens
+
+
+def _capability_bridge_search_hints(entry: dict[str, Any]) -> list[str]:
+    weak_text_capabilities: set[str] = set()
+    body_intent_weak_text_capabilities: set[str] = set()
+    for row in entry.get("capability_evidence") or []:
+        if not isinstance(row, dict):
+            continue
+        capability = str(row.get("capability") or "").strip()
+        if not capability or str(row.get("evidence_level") or "").strip() != "weak_text":
+            continue
+        weak_text_capabilities.add(capability)
+        if str(row.get("source") or "").strip() == "body_text":
+            body_intent_weak_text_capabilities.add(capability)
+    hints: list[str] = []
+    for capability in entry.get("capabilities") or []:
+        capability_text = str(capability).strip()
+        if not capability_text:
+            continue
+        if capability_text in weak_text_capabilities and capability_text not in body_intent_weak_text_capabilities:
+            continue
+        hints.extend(CAPABILITY_SEARCH_HINTS_BY_CAPABILITY.get(capability_text, ()))
+    return hints
 
 
 def _capability_strengths(entry: dict[str, Any]) -> dict[str, float]:
@@ -322,7 +305,7 @@ def _matched_not_for_boundaries(entry: dict[str, Any], prompt_lower: str, query_
             continue
         overlap = {token for token in boundary_tokens & query_tokens if keyword_hit(prompt_lower, token)}
         required = 2 if len(boundary_tokens) >= 2 else 1
-        if len(overlap) >= required and len(overlap) / float(min(4, len(boundary_tokens))) >= 0.5:
+        if len(overlap) >= required and len(overlap) / float(min(4, len(boundary_tokens))) >= 0.75:
             matches.append(boundary)
     return _dedupe_strings(matches)
 
@@ -372,6 +355,8 @@ def _score_entry(prompt: str, prompt_lower: str, entry: dict[str, Any], task_car
     primary_capabilities = set(task_card.get("primary_capabilities") or [])
     supporting_capabilities = set(task_card.get("supporting_capabilities") or [])
     rejected_capabilities = set(task_card.get("rejected_capabilities") or [])
+    if skill_id == "pdf" and "document.latex_submission" in required_capabilities:
+        name_score = 0.0
     entry_capabilities = set(entry.get("capabilities") or [])
     matched_capabilities = sorted(required_capabilities & entry_capabilities)
     matched_primary_capabilities = sorted(primary_capabilities & entry_capabilities)
@@ -484,6 +469,14 @@ def _candidate_row(entry: dict[str, Any], score: dict[str, Any], *, selected: bo
         "authority_eligible": bool(selected) and not score["rejected_capabilities"],
         "authority_rejection_reasons": [] if selected else ["rejected_by_task_card"] if score["rejected_capabilities"] else ["candidate_signal_below_local_threshold"],
     }
+
+
+def _top1_top2_gap(scored_rows: list[dict[str, Any]]) -> float:
+    if not scored_rows:
+        return 0.0
+    top = float(scored_rows[0]["score"])
+    second = float(scored_rows[1]["score"]) if len(scored_rows) > 1 else 0.0
+    return round(max(0.0, top - second), 4)
 
 
 def _has_confirmable_near_match(row: dict[str, Any]) -> bool:
@@ -1076,6 +1069,9 @@ def route_prompt(
             str(row["skill"]),
         )
     )
+    top1_top2_gap = _top1_top2_gap(scored_rows)
+    if scored_rows:
+        scored_rows[0]["candidate_top1_top2_gap"] = top1_top2_gap
 
     selected_row: dict[str, Any] | None = None
     route_reason = "no_local_candidate_above_threshold"
@@ -1105,17 +1101,23 @@ def route_prompt(
             )
             route_reason = "explicit_local_skill"
             selection_reason = "requested_skill"
+            selected_row["candidate_top1_top2_gap"] = 1.0
         else:
             route_reason = "requested_local_skill_not_found"
             selection_reason = "requested_skill_missing"
             rejected_reasons.append(requested_canonical)
-    elif scored_rows and float(scored_rows[0]["score"]) >= float(thresholds["min_candidate_signal_for_auto_route"]):
+    elif (
+        scored_rows
+        and float(scored_rows[0]["score"]) >= float(thresholds["min_candidate_signal_for_auto_route"])
+        and float(top1_top2_gap) >= float(thresholds["min_top1_top2_gap"])
+    ):
         selected_row = dict(scored_rows[0])
         selected_row["selected_candidate"] = selected_row["skill"]
         selected_row["candidate_selection_reason"] = "capability_ranked" if selected_row["matched_capabilities"] else "keyword_ranked"
         selected_row["authority_eligible"] = True
         selected_row["authority_rejection_reasons"] = []
         selected_row["role"] = "primary_owner"
+        selected_row["candidate_top1_top2_gap"] = top1_top2_gap
         route_reason = "auto_route"
         selection_reason = selected_row["candidate_selection_reason"]
     elif scored_rows and float(scored_rows[0]["score"]) >= float(thresholds["confirm_required"]):
@@ -1125,6 +1127,7 @@ def route_prompt(
         selected_row["authority_eligible"] = True
         selected_row["authority_rejection_reasons"] = []
         selected_row["role"] = "primary_owner"
+        selected_row["candidate_top1_top2_gap"] = top1_top2_gap
         route_reason = "candidate_signal_host_selection"
         selection_reason = selected_row["candidate_selection_reason"]
     elif (
@@ -1139,6 +1142,7 @@ def route_prompt(
         selected_row["authority_eligible"] = True
         selected_row["authority_rejection_reasons"] = []
         selected_row["role"] = "primary_owner"
+        selected_row["candidate_top1_top2_gap"] = top1_top2_gap
         route_reason = "candidate_signal_confirm_override"
         selection_reason = "near_match_confirm_required"
 
@@ -1160,6 +1164,7 @@ def route_prompt(
     primary_row = selected_rows[0] if selected_rows else None
     selected = _selected_payload(primary_row, reason=selection_reason) if primary_row is not None else None
     confidence = float(primary_row["score"]) if primary_row is not None else (float(ranked_rows[0]["score"]) if ranked_rows else 0.0)
+    public_top1_top2_gap = float(primary_row["candidate_top1_top2_gap"]) if primary_row is not None else 0.0
     route_mode = "local_skill_overlay" if selected is not None else "no_local_candidate"
     result: dict[str, Any] = {
         "prompt": prompt,
@@ -1172,7 +1177,7 @@ def route_prompt(
         "route_reason": route_reason,
         "task_card": task_card,
         "confidence": round(confidence, 4),
-        "top1_top2_gap": round(confidence, 4),
+        "top1_top2_gap": round(public_top1_top2_gap, 4),
         "candidate_signal": round(confidence, 4),
         "legacy_fallback_guard_applied": False,
         "legacy_fallback_original_reason": None,

@@ -124,14 +124,14 @@ def test_profile_runtime_core_packaging_roles_keep_surface_truth_top_level() -> 
         assert minimal['internal_skill_corpus']['resident_skill_names'] == []
         assert minimal['public_skill_surface']['mode'] == 'discoverable_wrapper_projection'
         assert minimal['public_skill_surface']['discoverable_entry_surface'] == 'config/vibe-entry-surfaces.json'
-        assert minimal['public_skill_surface']['projected_skill_names'] == ['vibe', 'vibe-upgrade']
+        assert minimal['public_skill_surface']['projected_skill_names'] == ['vibe']
     if _supports_surface_split(full):
         assert full['compatibility_skill_projections']['projected_skill_names'] == []
         assert full['internal_skill_corpus']['enabled'] is False
         assert full['internal_skill_corpus']['resident_skill_names'] == []
         assert full['public_skill_surface']['mode'] == 'discoverable_wrapper_projection'
         assert full['public_skill_surface']['discoverable_entry_surface'] == 'config/vibe-entry-surfaces.json'
-        assert full['public_skill_surface']['projected_skill_names'] == ['vibe', 'vibe-upgrade']
+        assert full['public_skill_surface']['projected_skill_names'] == ['vibe']
 
 
 def test_profile_runtime_core_packaging_role_sources_match_copy_projection() -> None:

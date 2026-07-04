@@ -26,8 +26,9 @@ def build_parser() -> argparse.ArgumentParser:
     update_parser.add_argument('--skills-dir', default='')
     update_parser.set_defaults(handler=update_command)
 
-    upgrade_parser = subparsers.add_parser('upgrade')
+    upgrade_parser = subparsers.add_parser('upgrade', help='Compatibility alias for update.')
     upgrade_parser.add_argument('--repo-root', required=True)
+    upgrade_parser.add_argument('--skills-dir', default='')
     upgrade_parser.set_defaults(handler=upgrade_command)
 
     index_parser = subparsers.add_parser('index')

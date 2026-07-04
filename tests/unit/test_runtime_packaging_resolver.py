@@ -40,8 +40,8 @@ def test_runtime_packaging_resolver_loads_profile_projection_from_authoritative_
     assert full['public_skill_surface']['mode'] == 'discoverable_wrapper_projection'
     assert minimal['public_skill_surface']['discoverable_entry_surface'] == 'config/vibe-entry-surfaces.json'
     assert full['public_skill_surface']['discoverable_entry_surface'] == 'config/vibe-entry-surfaces.json'
-    assert minimal['public_skill_surface']['projected_skill_names'] == ['vibe', 'vibe-upgrade']
-    assert full['public_skill_surface']['projected_skill_names'] == ['vibe', 'vibe-upgrade']
+    assert minimal['public_skill_surface']['projected_skill_names'] == ['vibe']
+    assert full['public_skill_surface']['projected_skill_names'] == ['vibe']
     assert 'skills_allowlist' not in minimal
     assert 'skills_allowlist' not in full
 

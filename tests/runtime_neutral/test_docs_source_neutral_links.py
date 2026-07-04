@@ -10,6 +10,12 @@ SELF_REPO_RAW = "https://raw.githubusercontent.com/foryourhealth111-pixel/Vibe-S
 
 DOC_SCRIPT_SUFFIXES = {".md", ".ps1", ".py", ".sh", ".yml", ".yaml", ".json"}
 DOC_SCRIPT_ROOTS = ("docs", "scripts", ".github")
+PUBLIC_DOC_SURFACES = (
+    "README.md",
+    "README.zh.md",
+    "docs/quick-start.en.md",
+    "docs/quick-start.md",
+)
 
 def _repo_relative(path: Path) -> str:
     return path.relative_to(REPO_ROOT).as_posix()
@@ -45,3 +51,31 @@ def test_documentation_surfaces_do_not_bind_internal_links_to_github_blob_or_raw
 
 def test_active_install_docs_do_not_keep_legacy_prompt_install_recipes() -> None:
     assert not (REPO_ROOT / "docs" / "install" / "prompts").exists()
+
+
+def _public_doc_links(path: Path) -> list[str]:
+    text = path.read_text(encoding="utf-8")
+    patterns = (
+        re.compile(r"\[[^\]]+\]\(([^)]+)\)"),
+        re.compile(r"""href=["']([^"']+)["']"""),
+    )
+    links: list[str] = []
+    for pattern in patterns:
+        links.extend(pattern.findall(text))
+    return links
+
+
+def test_public_docs_link_only_to_existing_local_files() -> None:
+    violations: list[str] = []
+
+    for relpath in PUBLIC_DOC_SURFACES:
+        path = REPO_ROOT / relpath
+        for raw_target in _public_doc_links(path):
+            target = raw_target.strip().strip("<>").split("#", 1)[0].strip()
+            if not target or re.match(r"^[a-z]+://", target) or target.startswith("mailto:"):
+                continue
+            resolved = (path.parent / target).resolve() if target.startswith(".") else (REPO_ROOT / target).resolve()
+            if not resolved.exists():
+                violations.append(f"{relpath}: {target}")
+
+    assert violations == []

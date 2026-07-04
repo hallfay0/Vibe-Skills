@@ -20,9 +20,9 @@ Do not route every loosely related task into `vibe`. Lightweight questions,
 single-command checks, or tasks better served by another explicitly requested
 skill may proceed outside `vibe` unless the user explicitly invoked this entry.
 
-`vibe-upgrade` is a separate public skill for upgrading the installed
-Vibe-Skills project. Do not relaunch an upgrade request as `entry_id = vibe`;
-use the `vibe-upgrade` skill and its backend instead.
+Installed-copy upgrades stay on the command path. Use the repo's `update`
+entry with `--skills-dir` for the same managed skills directory instead of
+introducing a second public runtime skill.
 
 User instructions remain highest priority. If CLAUDE.md, GEMINI.md, AGENTS.md,
 or the direct user request narrows or forbids a workflow such as TDD, follow the
@@ -173,7 +173,10 @@ grades, user-visible L/XL workflow confirmation, cleanup rules, and output inven
 Public wrapper entries remain limited to:
 
 - `vibe`
-- `vibe-upgrade`
+
+Installed-copy updates remain a command-path action:
+
+- `update --skills-dir <skills-dir>`
 
 Compatibility stage IDs are non-public metadata and must not be materialized as
 host-visible command or skill wrappers:

@@ -9,6 +9,9 @@ RUNTIME_SRC = REPO_ROOT / "packages" / "runtime-core" / "src"
 if str(RUNTIME_SRC) not in sys.path:
     sys.path.insert(0, str(RUNTIME_SRC))
 
+from vgo_runtime import router_contract_runtime
+from vgo_runtime.kernel import skill_index
+from vgo_runtime.kernel.capability_bridge import CAPABILITY_BRIDGE
 from vgo_runtime.kernel.skill_index import build_skill_index, write_skill_index
 from vgo_runtime.kernel.skill_manifest import parse_skill_manifest
 
@@ -160,3 +163,65 @@ description: Draft research grant proposals and narrative sections.
     assert payload["skills"][0]["skill_id"] == "grant-writer"
     assert payload["skills"][0]["capabilities"] == []
     assert payload["skills"][0]["capability_evidence"] == []
+
+
+def test_build_skill_index_ignores_non_leading_use_lines_in_related_skill_examples(tmp_path: Path) -> None:
+    agent_root = tmp_path / "home" / ".agents"
+    vibe_root = agent_root / "vibe"
+    _write_skill(
+        vibe_root / "skills" / "local" / "imaging-data-helper",
+        """---
+name: Imaging Data Helper
+description: Query cancer imaging datasets by metadata.
+---""",
+        (
+            "# Imaging Data Helper\n\n"
+            "Use this skill for cancer imaging cohort lookup and DICOMWeb retrieval.\n\n"
+            "- **seaborn** - statistical visualization with pandas integration. use for quick exploration of metadata distributions and relationships between variables.\n"
+            "- **plotly** - interactive visualization. use when you need hover info, zoom, and pan.\n"
+        ),
+    )
+
+    payload = build_skill_index(agent_root)
+
+    assert payload["skills"][0]["skill_id"] == "imaging-data-helper"
+    assert payload["skills"][0]["capabilities"] == []
+    assert payload["skills"][0]["capability_evidence"] == []
+
+
+def test_build_skill_index_extracts_not_for_phrases_from_routing_boundary(tmp_path: Path) -> None:
+    agent_root = tmp_path / "home" / ".agents"
+    vibe_root = agent_root / "vibe"
+    _write_skill(
+        vibe_root / "skills" / "local" / "imaging-data-helper",
+        """---
+name: Imaging Data Helper
+description: Query cancer imaging datasets by metadata.
+---""",
+        (
+            "# Imaging Data Helper\n\n"
+            "## Routing Boundary\n\n"
+            "Use this skill for Imaging Data Commons and DICOMWeb retrieval. "
+            "This is not generic Data Commons, population indicators, statistical variables, DCIDs, or public dataset search.\n"
+        ),
+    )
+
+    payload = build_skill_index(agent_root)
+    entry = payload["skills"][0]
+
+    assert "generic Data Commons" in entry["not_for"]
+    assert "population indicators" in entry["not_for"]
+    assert "statistical variables" in entry["not_for"]
+    assert "DCIDs" in entry["not_for"]
+    assert "public dataset search" in entry["not_for"]
+
+
+def test_local_skill_index_and_router_share_the_same_capability_bridge() -> None:
+    assert router_contract_runtime.CAPABILITY_HINTS == tuple(
+        (capability, tuple(spec["prompt_hints"]))
+        for capability, spec in CAPABILITY_BRIDGE
+    )
+    assert skill_index.CAPABILITY_INFERENCE_HINTS == tuple(
+        (capability, tuple(spec["skill_inference_hints"]))
+        for capability, spec in CAPABILITY_BRIDGE
+    )

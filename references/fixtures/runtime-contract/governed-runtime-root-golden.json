@@ -30,13 +30,13 @@
       },
       "route_snapshot": {
         "task_type": "debug",
-        "route_mode": "no_local_candidate",
+        "route_mode": "local_skill_overlay",
         "confirm_required": false
       },
       "authority_flags": {
         "runtime_entry": "vibe",
         "explicit_runtime_skill": "vibe",
-        "router_truth_level": "local_index_no_match",
+        "router_truth_level": "authoritative",
         "shadow_only": true,
         "non_authoritative": false,
         "allow_requirement_freeze": true,
@@ -64,7 +64,7 @@
         "completion_claim_allowed": true
       },
       "route_runtime_alignment": {
-        "router_selected_skill": "",
+        "router_selected_skill": "diagnose",
         "runtime_selected_skill": "vibe",
         "skill_mismatch": true,
         "confirm_required": false,

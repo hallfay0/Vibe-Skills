@@ -8,6 +8,7 @@ from pathlib import Path
 import re
 from typing import Any
 
+from .capability_bridge import SKILL_INDEX_CAPABILITY_HINTS
 from .host_skill_roots import resolve_host_skill_roots
 from .skill_manifest import parse_installed_skill_manifest
 
@@ -20,53 +21,9 @@ VIBE_LOCAL_SOURCE_KIND = "vibe_local"
 SOURCE_ROOT_RELATIVE_PATH_CONTRACT = "source_root_relative"
 CONTROLLER_SKILL_IDS = frozenset({"vibe", "vibe-upgrade"})
 DISCOVERY_CHILD_DIRS = ("", "custom")
-CAPABILITY_INFERENCE_HINTS = (
-    ("data.quality_check", ("data quality", "quality check", "diagnostic", "missing", "duplicate", "outlier")),
-    ("data.eda", ("eda", "exploratory", "exploratory analysis", "exploratory data analysis")),
-    ("statistics.relationship_modeling", ("statistical analysis", "统计分析", "relationship", "relation", "impact", "effect", "compare")),
-    ("statistics.correlation", ("statistical analysis", "统计分析", "correlation", "correlate")),
-    ("statistics.regression", ("statistical analysis", "统计分析", "regression", "linear model")),
-    ("model.training", ("machine learning", "model training", "predictive model", "prediction model", "scikit-learn")),
-    ("model.evaluation", ("model evaluation", "metrics", "cross validation")),
-    ("model.explainability", ("shap", "model explanation", "feature importance", "explainability", "interpretation")),
-    ("visualization.figure", ("figure", "chart", "plot", "graph", "visualization")),
-    ("visualization.infographic", ("infographic", "infographics", "visual summary", "信息图")),
-    ("visualization.schematic", ("schematic", "schematics", "diagram", "diagrams", "flowchart", "flowcharts", "示意图", "流程图")),
-    ("presentation.deck", ("ppt", "pptx", "slide", "slides", "deck")),
-    ("presentation.slidev", ("slidev", "marp", "reveal.js", "reproducible export", "可复现导出")),
-    ("presentation.poster", ("research poster", "academic poster", "conference poster", "poster", "海报", "学术海报")),
-    ("presentation.pptx_poster", ("pptx poster", "powerpoint poster", "ppt poster", "pptx 学术海报", "powerpoint pptx")),
-    ("chem.activity_database", ("chembl", "ic50", "assay", "bioactivity", "activity data")),
-    ("chem.medchem_filtering", ("medicinal chemistry", "drug-likeness", "lipinski", "pains", "lead optimization", "药物化学", "先导化合物", "先导优化")),
-    ("clinical.case_report", ("clinical report", "care guidelines", "case report", "hipaa", "de-identification", "病例报告", "去标识化")),
-    ("writing.reader_report", ("reader report", "plain language", "ordinary reader")),
-    ("writing.scientific_report", ("scientific-reporting", "scientific reporting", "scientific report")),
-    ("debug.systematic_workflow", ("systematic-debugging", "systematic debugging", "debugging test", "debug workflow")),
-    ("devops.github_actions_ci", ("github actions", "failing github pr checks", "pr checks", "workflow logs", "ci failure")),
-    ("devops.mcp_integration", ("mcp", "model context protocol", ".mcp.json", "mcp server", "mcp integration")),
-    ("observability.sentry", ("sentry", "production error", "production errors", "线上报错", "线上告警")),
-    ("deploy.vercel", ("vercel", "preview deployment", "deploy to vercel")),
-    ("deploy.netlify", ("netlify", "preview link", "deploy to netlify")),
-    ("runtime.node_zombie_cleanup", ("zombie node", "zombie node processes", "僵尸node", "node process")),
-    ("research.causal_analysis", ("causal analysis", "causal effects", "treatment-effect", "treatment effects", "did", "synthetic control", "因果分析", "因果效应")),
-    ("research.experimental_design", ("designing-experiments", "experiment design", "study design", "quasi-experiment", "quasi-experiments", "实验设计", "准实验")),
-    ("research.ideation", ("scientific ideation", "research gaps", "mechanism exploration", "research directions", "literature matrix", "paper-combination", "a+b idea")),
-    ("research.pubmed_search", ("pubmed", "mesh")),
-    ("research.zotero_management", ("pyzotero", "zotero library", "zotero")),
-    ("research.citation_management", ("citation management", "bibliography", "bibtex", "doi", "参考文献")),
-    ("research.literature_search", ("pubmed", "bibtex", "mesh", "citation management", "literature search", "文献检索")),
-    ("research.literature_review", ("literature-review", "systematic literature review", "meta-analysis", "evidence table", "full-text", "systematic review")),
-    ("research.critical_appraisal", ("critical thinking", "critical appraisal", "bias", "confounding", "证据强度", "偏倚", "混杂")),
-    ("research.scholar_evaluation", ("scholareval", "rubric", "formulation", "methodology")),
-    ("research.hypothesis_generation", ("hypothesis-generation", "testable hypotheses", "hypothesis generation", "hypogenic", "generate hypotheses")),
-    ("document.venue_template", ("venue-specific templates", "author guidelines", "page limits", "anonymity rules", "formatting requirements", "submission compliance", "模板", "匿名投稿")),
-    ("document.latex_submission", ("latex", "latexmk", "chktex", "latexindent", "submission", "manuscript")),
-    ("model.data_leakage_guard", ("data leakage", "fit before split", "prediction time", "train-test split", "train test split", "leakage")),
-    ("model.preprocessing_pipeline", ("preprocessing pipeline", "data preprocessing pipeline", "cleaning", "encoding", "transforming", "validating input data", "input-preparation pipelines")),
-    ("quality.test_report", ("test reports", "test-result packaging", "pass/fail rollups", "coverage summaries", "pytest", "coverage")),
-    ("research.evidence_retrieval", ("flashrag", "evidence retrieval", "repo/config", "file and line")),
-    ("research.deep_research", ("webthinker", "deep research", "multi-hop", "trace.jsonl", "sources.json")),
-)
+CAPABILITY_INFERENCE_HINTS = SKILL_INDEX_CAPABILITY_HINTS
+ROUTING_BOUNDARY_HEADING = re.compile(r"^#{1,6}\s+Routing Boundary\s*$", re.IGNORECASE)
+ROUTING_BOUNDARY_NOT_FOR = re.compile(r"\bThis is not\s+(.+?)(?:\.(?=\s|$)|。|$)", re.IGNORECASE)
 
 
 def _utc_now() -> str:
@@ -191,6 +148,7 @@ def _build_entry(*, skill_dir: Path, skill_file: Path, source_spec: dict[str, ob
     skill_file_value = _relative_to_source(Path(manifest.skill_file), source_spec)
     capability_evidence = _build_capability_evidence(manifest, Path(manifest.skill_file))
     capabilities = _unique_ordered([str(row["capability"]) for row in capability_evidence])
+    not_for = _unique_ordered([*manifest.not_for, *_extract_routing_boundary_not_for(Path(manifest.skill_file))])
     return {
         "skill_id": manifest.skill_id,
         "id": manifest.skill_id,
@@ -200,7 +158,7 @@ def _build_entry(*, skill_dir: Path, skill_file: Path, source_spec: dict[str, ob
         "capabilities": capabilities,
         "capability_evidence": capability_evidence,
         "when_to_use": list(manifest.headings),
-        "not_for": list(manifest.not_for),
+        "not_for": not_for,
         "outputs": [],
         "tags": list(manifest.tags),
         "enabled": True,
@@ -246,11 +204,11 @@ def _build_capability_evidence(manifest: object, skill_file: Path) -> list[dict[
             " ".join(getattr(manifest, "headings")),
         ]
     ).casefold()
-    full_text = skill_file.read_text(encoding="utf-8-sig").casefold()
+    body_lines = _skill_body_lines(skill_file)
     body_intent_text = "\n".join(
-        line
-        for line in full_text.splitlines()
-        if any(anchor in line for anchor in ("use for", "use when", "used when", "用于", "适用于", "when to use"))
+        line.casefold()
+        for line in body_lines
+        if _is_explicit_body_intent_line(line)
     )
 
     for capability, hints in CAPABILITY_INFERENCE_HINTS:
@@ -276,6 +234,51 @@ def _build_capability_evidence(manifest: object, skill_file: Path) -> list[dict[
                 }
             )
     return evidence
+
+
+def _is_explicit_body_intent_line(line: str) -> bool:
+    stripped = line.strip()
+    if not stripped:
+        return False
+    while stripped.startswith(("-", "*")):
+        stripped = stripped[1:].lstrip()
+    while stripped.startswith("#"):
+        stripped = stripped[1:].lstrip()
+    stripped = stripped.lstrip("*_`").strip()
+    lowered = stripped.casefold()
+    return lowered.startswith(("use this skill for ", "use for ", "use when ", "used when ", "用于", "适用于"))
+
+
+def _skill_body_lines(skill_file: Path) -> list[str]:
+    lines = skill_file.read_text(encoding="utf-8-sig").splitlines()
+    if lines and lines[0].strip() == "---":
+        for index, line in enumerate(lines[1:], start=1):
+            if line.strip() == "---":
+                return lines[index + 1 :]
+    return lines
+
+
+def _extract_routing_boundary_not_for(skill_file: Path) -> list[str]:
+    body_lines = _skill_body_lines(skill_file)
+    in_routing_boundary = False
+    phrases: list[str] = []
+    for line in body_lines:
+        stripped = line.strip()
+        if ROUTING_BOUNDARY_HEADING.match(stripped):
+            in_routing_boundary = True
+            continue
+        if in_routing_boundary and stripped.startswith("#"):
+            break
+        if not in_routing_boundary or not stripped:
+            continue
+        match = ROUTING_BOUNDARY_NOT_FOR.search(stripped)
+        if match is None:
+            continue
+        for phrase in re.split(r",|\bor\b", match.group(1)):
+            text = phrase.strip(" .;:,-")
+            if text:
+                phrases.append(text)
+    return _unique_ordered(phrases)
 
 
 def _card_file_name(skill_id: str) -> str:

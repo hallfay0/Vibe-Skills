@@ -4,6 +4,7 @@ import argparse
 from datetime import datetime, timezone
 from pathlib import Path
 import subprocess
+import sys
 
 from .core_bridge import run_canonical_entry_core, run_compatibility_exit_core, run_entry_locator_core, run_inspect_run_core, run_installer_core, run_local_kernel_core, run_router_core, run_skill_index_core, run_uninstaller_core
 from .errors import CliError
@@ -108,7 +109,10 @@ def check_command(args: argparse.Namespace) -> int:
 
 
 def upgrade_command(args: argparse.Namespace) -> int:
-    raise CliError("The upgrade command is legacy; use update with --skills-dir.")
+    print("[WARN] The upgrade command is deprecated; use update with --skills-dir.", file=sys.stderr)
+    if not hasattr(args, "skills_dir"):
+        args.skills_dir = ""
+    return update_command(args)
 
 
 def index_command(args: argparse.Namespace) -> int:

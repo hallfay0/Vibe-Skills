@@ -28,17 +28,11 @@ If you remember one line:
 
 ## 2. Start fast
 
-Open the install entry:
+Open the simple install guide:
 
-- [`install/one-click-install-release-copy.en.md`](./install/one-click-install-release-copy.en.md)
+- [`install/README.en.md`](./install/README.en.md)
 
-Choose three things on that page:
-
-1. Host: `codex`, `claude-code`, `cursor`, `windsurf`, `openclaw`, or `opencode`
-2. Action: choose `install` for a first install, or `update` if VibeSkills is already installed
-3. Version: use `minimal` for the recommended default, or `full` if you need the full-profile host wiring. Specialist Skills still come only from local installed roots.
-
-Then copy the matching prompt into the AI app where you want VibeSkills installed, and let it run the install and checks.
+Use the default skills directory if you want the shortest path. If VibeSkills is already installed, run `update` against the same skills directory.
 
 After install, invoke it through your host's Skills entry:
 
@@ -49,20 +43,20 @@ After install, invoke it through your host's Skills entry:
 | OpenCode | Use `/vibe` or the host-supported Skills invocation |
 | Cursor / Windsurf / OpenClaw | Follow the host's Skills entry documentation |
 
-For updates, keep:
+For updates, keep the same management path:
 
-- `vibe-upgrade`
+- `update.ps1 -SkillsDir <skills-dir>`
+- `update.sh --skills-dir <skills-dir>`
 
 ## 3. Current public entries
 
-The current public, host-visible entries are only:
+The current public, host-visible entry is:
 
 - `vibe`
-- `vibe-upgrade`
 
 `vibe` is the main entry. It stops at requirement, plan, and execution boundaries, then continues only after explicit confirmation.
 
-`vibe-upgrade` is the governed upgrade entry for the current host installation.
+Installed-copy upgrades stay on the command path. Use `update` with the same skills directory instead of a second public runtime entry.
 
 Older stage-specific and legacy CLI entries are retired from the public host-visible surface and should not be advertised or installed.
 
@@ -80,12 +74,12 @@ Pick by intent:
 | Goal | Read |
 |:---|:---|
 | Full project introduction | [`../README.md`](../README.md) |
-| Install or update | [`install/one-click-install-release-copy.en.md`](./install/one-click-install-release-copy.en.md) |
-| Direct command reference | [`install/recommended-full-path.en.md`](./install/recommended-full-path.en.md) |
+| Install or update | [`install/README.en.md`](./install/README.en.md) |
+| Direct command reference | [`install/README.en.md`](./install/README.en.md) |
 | Unsure about host roots | [`cold-start-install-paths.en.md`](./cold-start-install-paths.en.md) |
-| Using OpenCode | [`install/opencode-path.en.md`](./install/opencode-path.en.md) |
-| Using OpenClaw | [`install/openclaw-path.en.md`](./install/openclaw-path.en.md) |
-| Manual/offline install | [`install/manual-copy-install.en.md`](./install/manual-copy-install.en.md) |
+| Using OpenCode | [`cold-start-install-paths.en.md`](./cold-start-install-paths.en.md) |
+| Using OpenClaw | [`cold-start-install-paths.en.md`](./cold-start-install-paths.en.md) |
+| Manual/offline install | [`install/README.en.md`](./install/README.en.md) |
 | Normal skill extension path after install | [`install/README.en.md`](./install/README.en.md) |
 | Add or scan more local skill roots | [`install/README.en.md`](./install/README.en.md) |
 | Why the project exists | [`manifesto.en.md`](./manifesto.en.md) |
@@ -102,7 +96,7 @@ Pick by intent:
 For the shortest path:
 
 1. [`../README.md`](../README.md)
-2. [`install/one-click-install-release-copy.en.md`](./install/one-click-install-release-copy.en.md)
+2. [`install/README.en.md`](./install/README.en.md)
 3. Try `vibe` on a small task
 
 Start with something simple, for example:

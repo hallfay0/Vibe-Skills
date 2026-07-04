@@ -191,6 +191,172 @@ def test_local_router_offers_confirm_for_plausible_local_near_match(tmp_path: Pa
     assert result["confirm_options"][0]["native_skill_entrypoint"] == str(skill_path.resolve())
 
 
+def test_local_router_uses_declared_capability_bridge_for_semantic_near_match(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    agent_root = home / ".agents"
+    skills_root = agent_root / "skills"
+    skill_path = _write_skill(
+        skills_root,
+        "vercel-helper",
+        _frontmatter(
+            "Vercel Helper",
+            "Deploy web apps.",
+            "capabilities:\n  - deploy.vercel\n",
+        ),
+    )
+
+    result = route_prompt(
+        prompt="Need a preview deployment for this Next.js app before merge.",
+        grade="L",
+        task_type="coding",
+        target_root=str(agent_root),
+        host_id="codex",
+        repo_root=REPO_ROOT,
+    )
+
+    assert result["route_reason"] in {"candidate_signal_host_selection", "candidate_signal_confirm_override"}
+    assert result["confirm_required"] is True
+    assert result["selected"]["skill"] == "vercel-helper"
+    assert result["confirm_options"][0]["skill"] == "vercel-helper"
+    assert result["confirm_options"][0]["native_skill_entrypoint"] == str(skill_path.resolve())
+
+
+def test_local_router_uses_body_intent_weak_capability_bridge_for_semantic_near_match(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    agent_root = home / ".agents"
+    skills_root = agent_root / "skills"
+    skill_path = _write_skill(
+        skills_root,
+        "managed-release-helper",
+        _frontmatter(
+            "Managed Release Helper",
+            "Deploy web apps.",
+        ),
+        "# Usage\n\nUse for preview deployment workflows.\n",
+    )
+
+    result = route_prompt(
+        prompt="Need a preview deployment for this Next.js app before merge.",
+        grade="L",
+        task_type="coding",
+        target_root=str(agent_root),
+        host_id="codex",
+        repo_root=REPO_ROOT,
+    )
+
+    assert result["route_reason"] in {"candidate_signal_host_selection", "candidate_signal_confirm_override"}
+    assert result["confirm_required"] is True
+    assert result["selected"]["skill"] == "managed-release-helper"
+    assert result["confirm_options"][0]["skill"] == "managed-release-helper"
+    assert result["confirm_options"][0]["native_skill_entrypoint"] == str(skill_path.resolve())
+
+
+def test_local_router_does_not_use_metadata_only_weak_capability_bridge_for_semantic_near_match(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    agent_root = home / ".agents"
+    skills_root = agent_root / "skills"
+    _write_skill(
+        skills_root,
+        "vercel-helper",
+        _frontmatter(
+            "Vercel Helper",
+            "Deploy web apps.",
+        ),
+    )
+
+    result = route_prompt(
+        prompt="Need a preview deployment for this Next.js app before merge.",
+        grade="L",
+        task_type="coding",
+        target_root=str(agent_root),
+        host_id="codex",
+        repo_root=REPO_ROOT,
+    )
+
+    assert result["selected"] is None
+    assert result["route_reason"] == "no_local_candidate_above_threshold"
+    assert result["top1_top2_gap"] == 0.0
+    assert result["confirm_required"] is False
+    assert result["confirm_options"] == []
+
+
+def test_local_router_reports_actual_top1_top2_gap_for_selected_candidate(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    agent_root = home / ".agents"
+    skills_root = agent_root / "skills"
+    _write_skill(
+        skills_root,
+        "vercel-helper",
+        _frontmatter(
+            "Vercel Helper",
+            "Deploy web apps.",
+            "capabilities:\n  - deploy.vercel\n",
+        ),
+    )
+    _write_skill(
+        skills_root,
+        "netlify-helper",
+        _frontmatter(
+            "Netlify Helper",
+            "Deploy static sites.",
+            "capabilities:\n  - deploy.netlify\n",
+        ),
+    )
+
+    result = route_prompt(
+        prompt="Need a preview deployment for this app before merge.",
+        grade="L",
+        task_type="coding",
+        target_root=str(agent_root),
+        host_id="codex",
+        repo_root=REPO_ROOT,
+    )
+
+    expected_gap = round(result["ranked"][0]["score"] - result["ranked"][1]["score"], 4)
+    assert result["selected"]["skill"] == "vercel-helper"
+    assert result["top1_top2_gap"] == expected_gap
+    assert result["selected"]["top1_top2_gap"] == expected_gap
+
+
+def test_local_router_does_not_auto_route_when_top_gap_is_below_threshold(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    agent_root = home / ".agents"
+    skills_root = agent_root / "skills"
+    common_frontmatter = "capabilities:\n  - quality.test_report\n"
+    _write_skill(
+        skills_root,
+        "test-report-alpha",
+        _frontmatter(
+            "Test Report Alpha",
+            "Summarize pytest coverage pass fail rollups.",
+            common_frontmatter,
+        ),
+    )
+    _write_skill(
+        skills_root,
+        "test-report-beta",
+        _frontmatter(
+            "Test Report Beta",
+            "Summarize pytest coverage pass fail rollups.",
+            common_frontmatter,
+        ),
+    )
+
+    result = route_prompt(
+        prompt="Package pass/fail rollups and coverage summaries for this pytest run.",
+        grade="L",
+        task_type="coding",
+        target_root=str(agent_root),
+        host_id="codex",
+        repo_root=REPO_ROOT,
+    )
+
+    assert result["top1_top2_gap"] == 0.0
+    assert result["route_reason"] == "candidate_signal_host_selection"
+    assert result["confirm_required"] is True
+    assert result["selected"]["skill"] == "test-report-alpha"
+
+
 def test_local_router_allows_explicit_existing_skill_and_rejects_absent_old_skill(tmp_path: Path) -> None:
     home = tmp_path / "home"
     agent_root = home / ".agents"

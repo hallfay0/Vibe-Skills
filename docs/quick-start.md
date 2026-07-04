@@ -28,17 +28,11 @@ VibeSkills 重点解决五件事：
 
 ## 2. 最快开始使用
 
-打开安装入口：
+先打开简化安装说明：
 
-- [`install/one-click-install-release-copy.md`](./install/one-click-install-release-copy.md)
+- [`install/README.md`](./install/README.md)
 
-按页面选择三件事：
-
-1. 选择宿主：`codex`、`claude-code`、`cursor`、`windsurf`、`openclaw` 或 `opencode`
-2. 选择动作：第一次安装选 `install`，已经装过选 `update`
-3. 选择版本：默认推荐 `minimal`；如果你想在同一个小内核上多带少量内置工作流辅助 skill，再选 `full`
-
-然后把对应提示词复制到你要安装 VibeSkills 的 AI 客户端里，让它执行安装和检查。
+如果你想走最短路径，就直接用默认 skills 目录。若已经安装过 VibeSkills，就对同一个 skills 目录执行 `update`。
 
 安装完成后，从宿主的 Skills 入口调用：
 
@@ -49,20 +43,20 @@ VibeSkills 重点解决五件事：
 | OpenCode | 使用 `/vibe` 或宿主支持的 Skills 调用方式 |
 | Cursor / Windsurf / OpenClaw | 参考对应宿主的 Skills 入口说明 |
 
-更新时保留：
+更新时继续走同一条管理路径：
 
-- `vibe-upgrade`
+- `update.ps1 -SkillsDir <skills-dir>`
+- `update.sh --skills-dir <skills-dir>`
 
 ## 3. 当前公开入口
 
 当前公开、宿主可见的入口只有：
 
 - `vibe`
-- `vibe-upgrade`
 
 `vibe` 是主入口。它会在需求、计划和执行边界停下来，等到明确确认后再继续推进。
 
-`vibe-upgrade` 是受管升级入口，用来更新当前宿主安装。
+已安装副本的升级走命令路径。请对同一个 skills 目录使用 `update`，而不是再暴露第二个公开运行时入口。
 
 旧阶段专用入口和旧 CLI 入口已经退出公开的宿主可见入口，不应再宣传或安装。
 
@@ -80,12 +74,12 @@ VibeSkills 重点解决五件事：
 | 你想做什么 | 看这里 |
 |:---|:---|
 | 想看项目完整介绍 | [`../README.zh.md`](../README.zh.md) |
-| 想安装或更新 | [`install/one-click-install-release-copy.md`](./install/one-click-install-release-copy.md) |
-| 想看完整命令参考 | [`install/recommended-full-path.md`](./install/recommended-full-path.md) |
+| 想安装或更新 | [`install/README.md`](./install/README.md) |
+| 想看完整命令参考 | [`install/README.md`](./install/README.md) |
 | 不确定宿主根目录 | [`cold-start-install-paths.md`](./cold-start-install-paths.md) |
-| 使用 OpenCode | [`install/opencode-path.md`](./install/opencode-path.md) |
-| 使用 OpenClaw | [`install/openclaw-path.md`](./install/openclaw-path.md) |
-| 想手动/离线安装 | [`install/manual-copy-install.md`](./install/manual-copy-install.md) |
+| 使用 OpenCode | [`cold-start-install-paths.md`](./cold-start-install-paths.md) |
+| 使用 OpenClaw | [`cold-start-install-paths.md`](./cold-start-install-paths.md) |
+| 想手动/离线安装 | [`install/README.md`](./install/README.md) |
 | 想看安装后的正常 skill 扩展路径 | [`install/README.md`](./install/README.md) |
 | 想添加或扫描更多本地 skill 根目录 | [`install/README.md`](./install/README.md) |
 | 想理解项目为什么存在 | [`manifesto.md`](./manifesto.md) |
@@ -102,7 +96,7 @@ VibeSkills 重点解决五件事：
 如果你只想走最短路径：
 
 1. [`../README.zh.md`](../README.zh.md)
-2. [`install/one-click-install-release-copy.md`](./install/one-click-install-release-copy.md)
+2. [`install/README.md`](./install/README.md)
 3. 用一个小任务试试 `vibe`
 
 从一个简单请求开始就好，比如：

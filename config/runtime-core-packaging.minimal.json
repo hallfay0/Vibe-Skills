@@ -1,7 +1,7 @@
 {
   "schema_version": 4,
   "package_id": "runtime-core-minimal",
-  "summary": "Governed runtime foundation payload with the canonical Vibe controller and public upgrade entry exposed. Specialist skills come only from host-declared local skill roots.",
+  "summary": "Governed runtime foundation payload with the canonical Vibe controller exposed. Specialist skills come only from host-declared local skill roots.",
   "profile_manifests": {
     "minimal": "config/runtime-core-packaging.minimal.json",
     "full": "config/runtime-core-packaging.full.json"
@@ -89,8 +89,7 @@
     "canonical_vibe_target_relpath": "skills/vibe",
     "discoverable_entry_surface": "config/vibe-entry-surfaces.json",
     "projected_skill_names": [
-      "vibe",
-      "vibe-upgrade"
+      "vibe"
     ]
   },
   "internal_skill_corpus": {
