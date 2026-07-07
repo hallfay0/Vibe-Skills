@@ -7,7 +7,7 @@
 <div align="center">
 
 <a href="https://github.com/foryourhealth111-pixel/Vibe-Skills">
-  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=45&pause=1000&color=7B61FF&center=true&vCenter=true&width=700&height=100&lines=Vibe+Skills;Work+Kernel+First;Skills+As+Materials" alt="VibeSkills Typing Logo" />
+  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=45&pause=1000&color=7B61FF&center=true&vCenter=true&width=700&height=100&lines=Vibe+Skills;One+Entry+for+Agent+Work;Local+Skills+With+Evidence" alt="VibeSkills Typing Logo" />
 </a>
 
 <br/>
@@ -16,14 +16,16 @@
 
 <br/><br/>
 
-### Give your AI agent a real work kernel
+### Use `vibe` as the main work entry
 
-Install VibeSkills, type `vibe`, and let the kernel handle the real job: understand the goal, organize useful Skills into bounded work, prepare the next evidence-bearing step, verify what the evidence can prove, and keep the context for next time. It is designed so new local domain Skills can plug into the same work loop without turning the system back into a giant routing surface.
+Install VibeSkills, start with `vibe`, and let the runtime handle the standard flow: clarify the goal, freeze requirements, split composite work into bounded units, bind relevant local Skills where they help, verify what the evidence supports, and keep enough context for the next session.
 
 &nbsp;
-*You bring the goal. VibeSkills helps the agent move from idea to plan, from plan to work, and from work to verified evidence. The point is not more menu entries. The point is a smaller core that can organize skills without claiming completion before real execution evidence exists.*
+*VibeSkills keeps the public surface small. The public entry is `vibe`, extra Skills come from declared local skill roots, and completion claims stay tied to execution evidence. Its strongest behavior is organizing several local Skills inside one governed run.*
 
-Installed local skills are the only specialist reference surface. Vibe treats the chosen `<SkillsDir>` as the public skills directory: Vibe itself lives at `<SkillsDir>/vibe`, and ordinary skills live under `<SkillsDir>/*`. When the same skill id appears more than once, the earlier root wins, and `work_binding` stays the runtime truth for what was bound. A skill is not reported as materially used unless evidence ties it to real execution output.
+Declared local skill roots are the only place where additional Skills are discovered. Vibe treats the chosen `<SkillsDir>` as the public skills directory: Vibe itself lives at `<SkillsDir>/vibe`, ordinary skills can live under `<SkillsDir>/*`, and the runtime can also read configured user-level or workspace-level local roots. When the same skill id appears more than once, the earlier root wins, and `work_binding` stays the runtime truth for what was bound. A skill is reported as materially used only when evidence ties it to real execution output. On composite tasks, one request can become several bounded units, and different local Skills can be bound to those units for planning, implementation, review, docs, or research.
+
+Installed local skills are the only specialist reference surface in the public runtime story. Host-declared extra local roots extend that same local surface without a new central catalog. This is not a claim that the final architecture is complete.
 
 For this runtime boundary, Python owns final truth artifacts, canonical validation, task semantics, `work_binding`, specialist decision truth, and structured runtime result data. PowerShell still performs stage orchestration, environment setup, script bridging, host receipts, shell-native checks, and leaf execution. Do not add new task semantics to PowerShell; existing PowerShell stage scripts are transitional orchestration surfaces. A future full-Python runtime is optional, not required for this version.
 
@@ -57,11 +59,11 @@ For this runtime boundary, Python owns final truth artifacts, canonical validati
 &nbsp;
 <img src="https://img.shields.io/badge/Architecture-VCO_Runtime-orange?style=for-the-badge" alt="Arch">
 &nbsp;
-<img src="https://img.shields.io/badge/Design-Work_Kernel_First-blueviolet?style=for-the-badge" alt="Work Kernel First">
+<img src="https://img.shields.io/badge/Design-One_Public_Entry-blueviolet?style=for-the-badge" alt="One Public Entry">
 &nbsp;
 <img src="https://img.shields.io/badge/Harness-Bounded_Work_Loop-32CD32?style=for-the-badge" alt="Bounded Work Loop">
 &nbsp;
-<img src="https://img.shields.io/badge/Package-Work_Kernel_Entry-45a1ff?style=for-the-badge" alt="Work Kernel Entry">
+<img src="https://img.shields.io/badge/Package-Vibe_Runtime_Entry-45a1ff?style=for-the-badge" alt="Vibe Runtime Entry">
 &nbsp;
 <img src="https://img.shields.io/badge/Extensible-User_Owned_Skills-ff5f87?style=for-the-badge" alt="User Owned Skills">
 
@@ -89,8 +91,8 @@ For this runtime boundary, Python owns final truth artifacts, canonical validati
 
 <kbd>Install</kbd> &nbsp;→&nbsp;
 <kbd>vibe | update</kbd> &nbsp;→&nbsp;
-<kbd>Work Kernel</kbd> &nbsp;→&nbsp;
-<kbd>Skill Composition</kbd> &nbsp;→&nbsp;
+<kbd>Structured Workflow</kbd> &nbsp;→&nbsp;
+<kbd>Local Skill Binding</kbd> &nbsp;→&nbsp;
 <kbd>TDD / Verification</kbd> &nbsp;→&nbsp;
 <kbd>Persistent Context</kbd>
 
@@ -100,12 +102,12 @@ For this runtime boundary, Python owns final truth artifacts, canonical validati
 
 - [Runtime at a Glance](#-runtime-at-a-glance)
 - [Practice Demos](#-practice-demos-real-work-you-can-see)
-- [A New Kind of Work Entry](#-a-new-kind-of-work-entry)
+- [One runtime entry, small public surface](#-one-runtime-entry-small-public-surface)
 - [What makes it different](#-what-makes-it-different)
 - [Who is it for](#-who-is-it-for)
 - [Work Organization](#-work-organization-how-skills-become-bounded-work)
 - [Memory System](#-memory-system-resume-context-across-the-same-workspace)
-- [Representative Work Areas](#-representative-work-areas-not-a-skill-menu)
+- [Representative Work Areas](#-representative-work-areas)
 - [Installation & Management](#️-installation--skills-management)
 - [Getting Started](#-getting-started)
 
@@ -120,25 +122,22 @@ For this runtime boundary, Python owns final truth artifacts, canonical validati
 | **Harness** | The workflow layer around your AI agent. It decides the next step, calls the right Skills, checks the work, and saves useful context. |
 | **Skill** | A focused expert capability, such as `tdd-guide`, `code-review`, data analysis, writing, or research support. |
 | **Vibe / VCO** | The canonical runtime that runs the harness. The public work entry is `vibe`; installed-copy updates stay on the `update` management path. |
-| **Bound skill composition** | The kernel calls different Skills only where they help the current work unit move forward. |
-| **Local-skill-only reference plane** | The kernel treats declared local skill roots as the only specialist source. A skill must have a readable `SKILL.md` before it can be selected. |
+| **Late skill binding** | The runtime binds different Skills only where they help the current work unit move forward. |
+| **Local skill roots** | The runtime reads declared local skill roots as the only source for additional Skills. A skill must have a readable `SKILL.md` before it can be selected. |
 | **TDD / verified delivery** | Work should be backed by tests, checks, artifacts, or explicit manual-review notes before completion is claimed. |
 | **Workspace memory** | Structured project information, decisions, and evidence are stored so later sessions can continue without starting over. |
-| **Work binding truth** | The final record of what skill was actually bound lives in `work_binding`, not in a discovery cache or a broad product claim. |
+| **Actual binding record** | The final record of what skill was actually bound lives in `work_binding`, not in a discovery cache or a broad product claim. |
 
 </details>
 
 > [!IMPORTANT]
 > ### 🎯 Core Vision
 >
-> VibeSkills starts from a simple idea: Skills are powerful, but a long tool list is not enough.
+> VibeSkills is built for agents that need more than a tool list.
 >
-> A useful AI agent should know when to ask, when to plan, when to call an expert Skill, and when to prove the work is ready. You should not have to act as the full-time dispatcher.
+> The runtime clarifies the request, plans the work, binds local Skills where they fit, records the actual binding in `work_binding`, and keeps the proof needed for review or continuation.
 >
-> VibeSkills packages that rhythm into one work-kernel entry. It gives the agent a clear path to follow, pushes work toward tests and evidence, and keeps useful context for the next session.
->
-> **Install it, call `vibe`, and your agent gets a better way to move.**
-> The current public story is narrower and more practical: installed local skill roots are the only specialist source, duplicate skill ids are resolved by host root priority, and `work_binding` remains the runtime truth for what the kernel actually bound. This is a next-step architecture story, not a claim that the final architecture is complete.
+> In the current release, the public entry stays narrow: `vibe` is the public entry, additional Skills are discovered only from declared local skill roots, duplicate skill ids follow host root priority, and `work_binding` is the runtime record of what was actually bound.
 
 <br/>
 
@@ -150,7 +149,7 @@ For this runtime boundary, Python owns final truth artifacts, canonical validati
 
 ## 🛰️ Runtime at a Glance
 
-VibeSkills is simple to use because `vibe` owns the flow. You bring the intent; the harness turns it into staged work, scans the local skill roots declared by the host, resolves duplicate skill ids by root priority, binds only the Skills that fit the bounded work, checks the result, and keeps the context for the next session.
+Start with `vibe`. The runtime freezes the request, builds bounded work, scans the local skill roots declared by the host, binds relevant Skills when needed, verifies the result, and saves context for the next session. That matters most when the task is composite and needs more than one local Skill to finish well.
 
 ```mermaid
 flowchart LR
@@ -158,12 +157,12 @@ flowchart LR
     accDescr: User intent enters the vibe harness. The harness freezes intent, builds a work model, binds helpful Skills late, verifies evidence, and preserves workspace context.
 
     user["User Intent"]
-    vibe["vibe<br/>Work Kernel Entry"]
+    vibe["vibe<br/>Runtime Entry"]
     freeze["Freeze<br/>Requirement"]
     plan["Build<br/>Work Model"]
     route["Bind Skills<br/>Late"]
-    skills["Installed local Skills only<br/>real SKILL.md required"]
-    future["User-owned skill folders grow<br/>without a new central catalog"]
+    skills["Declared local Skills only<br/>real SKILL.md required"]
+    future["Local skill folders can grow<br/>while the public entry stays the same"]
     verify["Verify<br/>Tests + Evidence"]
     memory["Remember<br/>Workspace Context"]
 
@@ -188,8 +187,8 @@ flowchart LR
 |:---|:---|
 | `one entry` | Start with `vibe`; use `update` to refresh the same installed skills directory. |
 | `late skill binding` | Skills are attached after the work shape is clear, not used as the control plane. |
-| `local-skill-only reference plane` | The kernel checks declared local skill roots and only considers entries with a readable `SKILL.md`. Duplicate skill ids keep the highest-priority root active. |
-| `work_binding truth` | The runtime truth for selected skill provenance lives in `work_binding`, even when discovery or benchmark artifacts are also written. |
+| `local skill roots` | The runtime checks declared local skill roots and only considers entries with a readable `SKILL.md`. Duplicate skill ids keep the highest-priority root active. |
+| `actual binding record` | The runtime truth for selected skill provenance lives in `work_binding`, even when discovery or benchmark artifacts are also written. |
 | `proof trail` | Tests, checks, artifacts, or manual-review state support delivery claims. |
 | `memory plane` | Requirements, plans, decisions, and evidence survive the chat window. |
 
@@ -223,7 +222,7 @@ _People asked what VibeSkills looks like in real work. These examples are easier
 
 </div>
 
-The useful pattern is not just the final screenshot. A good demo also shows how the work moved:
+A useful demo should show both the result and the path that produced it:
 
 ```mermaid
 flowchart LR
@@ -253,40 +252,31 @@ flowchart LR
 
 ---
 
-## 🧬 A New Kind of Work Entry
+## 🧬 One runtime entry, small public surface
 
-The agent-skills world is moving past "give the model more tools."
+Projects like **[Superpowers](https://github.com/obra/superpowers)** show the value of stronger development habits: clarify before coding, design before implementation, and test before claiming success. **[GSD / Get Shit Done](https://github.com/gsd-build/get-shit-done)** shows the value of specs, milestones, context, and steady project flow.
 
-Projects like **[Superpowers](https://github.com/obra/superpowers)** show that Skills can give coding agents real discipline: clarify before coding, design before implementation, test before claiming success. **[GSD / Get Shit Done](https://github.com/gsd-build/get-shit-done)** shows another useful truth: agents need specs, milestones, context, and a way to keep work moving instead of drifting in chat history.
-
-VibeSkills builds on that same direction, but pushes the package shape further:
-
-> **A normal Skill says:** "Here is one thing I can do."
->
-> **A work entry says:** "Here is how the work should run."
-
-VibeSkills is the second kind. It wraps the workflow, expert Skills, verification, and workspace memory into one portable work-kernel entry. More importantly, it organizes the Skills the user has actually installed: the same `vibe` entry can keep the work staged, checked, and easy to continue as the local skill set grows, without shipping a central specialist corpus.
+VibeSkills applies the same discipline at the runtime entry. The public entry is `vibe`. During a run, it can bind relevant local Skills from declared roots when those entries have readable `SKILL.md` files and match the current bounded work. The distinguishing part is the organization step: on composite tasks, the runtime can decompose the request and let different local Skills cover different bounded units inside the same run.
 
 <div align="center">
 
-| Project style | What it is great at | Where VibeSkills goes further |
+| Related direction | Useful idea | How VibeSkills applies it |
 |:---|:---|:---|
-| **Traditional skill collections** | Give the agent more tools | Turns those tools into a staged, checked workflow |
-| **Superpowers-style methodology** | Gives coding agents stronger habits | Brings the same idea into a broader harness that can call expert Skills by stage |
-| **GSD-style project flow** | Keeps projects moving with specs, context, and milestones | Adds Skill dispatch, verification, and workspace memory as part of the runtime |
-| **VibeSkills** | One portable work-kernel entry for Skills-capable agents | One entry, less micromanagement, verified delivery, cross-session memory, and room for local domain Skills |
+| **Traditional skill collections** | Give the agent more tools | Keeps the public entry small and turns those tools into staged, checked work |
+| **Superpowers-style methodology** | Gives coding agents stronger habits | Extends that discipline to a runtime that can bind relevant local Skills by stage |
+| **GSD-style project flow** | Keeps projects moving with specs, context, and milestones | Adds Skill binding, verification, and workspace memory inside the same runtime |
+| **VibeSkills** | Provides one portable runtime entry for Skills-capable agents | Uses one public entry, explicit checks, continuation context, and local-skill extension |
 
 </div>
-
-The point is not simply "more Skills." The point is that Skills should not sit in a list; they should help the agent move the work.
 
 ---
 
 
 ## ✨ What makes it different?
 
-> Most skill repos answer: _"What tools can my AI use?"_
-> **VibeSkills asks the question users actually feel every day: _"Can my AI pick the right Skill, use it at the right time, and prove the work is ready without making me manage every step?"_**
+VibeSkills focuses on the execution path after a user gives a request. The runtime clarifies the task, plans it, binds local Skills where needed, and asks for evidence before it claims delivery.
+
+Its main advantage is local-skill coordination. When a task is composite, the runtime does not have to funnel the whole job through one Skill. It can split the request into bounded units, then bind the right local Skill to each unit.
 
 The operating model is intentionally simple:
 
@@ -295,13 +285,14 @@ The operating model is intentionally simple:
 | Feature | What you get |
 |:---|:---|
 | **One entry** | Start with `vibe`; use `update` to refresh the installed copy. No long command menu to learn first. |
-| **A clear work rhythm** | The agent moves through ask → plan → work → check → remember. |
+| **A clear workflow** | The agent moves through ask → plan → work → check → remember. |
 | **Late skill binding** | The harness shapes the work first, then binds helpful Skills to the bounded units that need them. |
+| **Multi-skill coordination** | Composite tasks can be decomposed so different local Skills handle different bounded units in the same run. |
 | **Less micromanagement** | You do not need to keep saying "plan first", "test it", or "save the context". |
 | **Verified delivery** | Work is pushed toward tests, checks, evidence, and explicit acceptance. |
 | **Cross-session context** | Requirements, plans, decisions, handoff notes, and evidence are stored in predictable places. |
-| **Local installed extension** | Declared local skill roots are the main way to extend the workflow. A skill needs a real `SKILL.md` before the kernel can bind it. |
-| **Portable entry** | The core is one work-kernel entry, so Skills-capable agents can get the same workflow upgrade across supported hosts. |
+| **Local extension** | Declared local skill roots are the main way to extend the workflow. A skill needs a real `SKILL.md` before the runtime can bind it. |
+| **Portable entry** | The core is one portable runtime entry, so Skills-capable agents can use the same workflow across supported hosts. |
 
 </div>
 
@@ -309,14 +300,14 @@ The operating model is intentionally simple:
 
 <div align="center">
 
-| Without a harness | With VibeSkills |
+| Common workflow problem | How VibeSkills handles it |
 |:---|:---|
-| You keep deciding the next prompt, tool, and quality check. | `vibe` gives the agent a path and asks for confirmation where it matters. |
-| Skills are a long list the agent may forget. | Skills become expert helpers called by stage and task type. |
-| Each new domain tends to create another workflow for the user to learn. | New user-owned skill folders can plug into the same `vibe` workflow without turning the product into a giant central catalog again. |
-| "Done" can mean the model stopped talking. | Delivery is tied to tests, checks, artifacts, or explicit review state. |
+| The user keeps deciding the next prompt, tool, and quality check. | `vibe` provides a governed path and asks for confirmation where it matters. |
+| Skills are easy to forget or overuse. | Skills are bound by stage and task type, and only when they fit the bounded work. |
+| New domains create extra workflow overhead. | New local skill folders can plug into the same `vibe` workflow through declared roots. |
+| "Done" can mean the model stopped talking. | Delivery stays tied to tests, checks, artifacts, or explicit review state. |
 | Long projects lose context across sessions. | Requirements, plans, decisions, and evidence are stored for continuation. |
-| Every host needs a different workflow story. | The core stays one portable work-kernel entry, with host adapters around it. |
+| Every host needs a different workflow explanation. | The core stays one portable runtime entry, with host adapters around it. |
 
 </div>
 
@@ -346,7 +337,7 @@ VibeSkills is for people who want AI agents to be easy to start, useful across m
 
 </div>
 
-> _If you only need one isolated script, VibeSkills may be more structure than you need. If you want an AI agent that can handle real work across phases and sessions, this is the friendly layer that makes Skills usable at scale._
+> _VibeSkills fits longer tasks better than isolated scripts. Its value shows up when work has requirements, multiple stages, and follow-up._
 
 </details>
 
@@ -357,49 +348,49 @@ VibeSkills is for people who want AI agents to be easy to start, useful across m
 
 ## 🔀 Work Organization: How Skills Become Bounded Work
 
-The core point is simple: the Skills are not the product by themselves. The work kernel is what turns them into a usable working system.
+`vibe` owns the workflow. It decides when the agent should clarify, when it should plan, how a composite task should be split, which local Skills can help with each work unit, when tests or checks should run, and when delivery can be claimed.
 
-`vibe` owns the work loop. It decides when the agent should clarify, when it should plan, which Skills can help with the current work unit, when tests or checks should run, and when delivery can be claimed. The user gets one simple entry instead of a pile of routing decisions.
+The discovery rules stay narrow:
 
-The discovery story stays intentionally narrow:
-
-- installed local skill roots are the only specialist source
+- additional Skills are discovered only from declared local skill roots
 - a skill without a readable `SKILL.md` can be diagnostic only, never selected or locked
 - `work_binding` is still the first runtime truth for what was bound
 
 <div align="center">
 
-| Common worry | What actually happens |
+| Common concern | Runtime behavior |
 |:---|:---|
-| "There are too many Skills." | You do not manually choose from the whole list. The kernel narrows the work, then uses only the Skills that help the current bounded unit. |
+| "There are too many Skills." | You do not manually choose from the whole list. The runtime narrows the work, then uses only the Skills that help the current bounded unit. |
 | "Similar Skills might conflict." | Selected Skills stay scoped to the current phase or work unit instead of taking over the whole run. |
+| "How do several Skills work together?" | The runtime first breaks the task into bounded units, then assigns Skills to those units with explicit ownership and verification. |
 | "Multi-agent work will get chaotic." | Larger work is split into bounded units, with explicit ownership, verification, and coordinator approval. |
 
 </div>
 
-### How the work kernel operates in practice
+### How the runtime works in practice
 
 - **Start with one governed entry**: Most work enters through `vibe`, so the user does not have to choose a workflow tree manually.
-- **Freeze intent before execution**: Requirements and plans become stable artifacts instead of disappearing into chat history.
-- **Compose skills only where needed**: Requirement, planning, implementation, testing, review, and cleanup can each use different Skills without making discovery itself the control plane.
+- **Freeze intent before execution**: Requirements and plans become stable artifacts.
+- **Split composite tasks before binding Skills**: The runtime turns one large request into bounded units that can be owned and checked separately.
+- **Bind Skills only where needed**: Requirement work, planning, implementation, testing, review, and cleanup can each use different Skills when they fit the bounded unit.
 - **Drive toward evidence**: TDD, targeted checks, artifact review, and delivery acceptance keep completion claims grounded.
 - **Preserve context**: The runtime stores enough structure for another session or agent to continue.
-- **Record the actual binding**: `work_binding` records which skill was actually chosen for each bounded unit, with provenance that can be inspected later.
+- **Record the actual binding**: `work_binding` records which skill was actually chosen for each bounded unit.
 
 ---
 
-### Why many expert Skills can still coexist
+### Why many local Skills can still coexist
 
-- They are not all active at once.
-- Some serve different stages: one clarifies, one plans, one implements, one reviews, one verifies.
-- Some serve different domains: code, research, data, writing, design, documents, operations.
-- The kernel stays in charge of the workflow, so individual Skills remain materials instead of becoming mini-runtimes.
+- Different Skills serve different stages: clarifying, planning, implementation, review, and verification.
+- Different Skills also serve different domains: code, research, data, writing, design, documents, and operations.
+- A single delivery can mix several local Skills, as long as each one has a clear bounded unit.
+- The runtime keeps workflow control, so each Skill stays scoped to the work it was selected for.
 
 ---
 
 ### M / L / XL Work Sizes
 
-After the kernel has a bounded work model, it still chooses how large the run should be:
+After the runtime has a bounded work model, it still chooses how large the run should be:
 
 <div align="center">
 
@@ -411,7 +402,7 @@ After the kernel has a bounded work model, it still chooses how large the run sh
 
 </div>
 
-> Even in XL, this is not a free-for-all. The system first bounds the work, then attaches Skills to each bounded unit under the same governed coordinator.
+> Even in XL, the runtime still bounds the work first, then attaches Skills to each bounded unit under the same coordinator.
 
 ---
 
@@ -455,7 +446,7 @@ VibeSkills stores just enough governed context to make work easier to continue:
 | Agent handoff | Handoff notes and links to the relevant artifacts |
 | Different project | Isolated memory by default |
 
-Memory is a continuity layer, not a replacement for project truth. Git, README files, requirement docs, execution plans, and verification receipts remain the source of record. Durable memory writes stay governed, and failures are surfaced instead of silently pretending continuity exists.
+Memory helps the next session continue. Git, README files, requirement docs, execution plans, and verification receipts remain the source of record. Memory writes stay governed, and missing memory support is surfaced as a real issue.
 
 See [workspace memory plane design](./docs/design/workspace-memory-plane.md) for the technical contract and [non-regression proof bundle](./docs/status/non-regression-proof-bundle.md) for the release/operator closeout proof contract.
 
@@ -463,48 +454,44 @@ See [workspace memory plane design](./docs/design/workspace-memory-plane.md) for
 ---
 
 
-## ✦ Representative Work Areas: Not a Skill Menu
+## ✦ Representative Work Areas
 
-_This section is not a menu and not a warehouse list. It is a practical map of the kinds of work the kernel can organize with help from Skills._
-
-_If you only want to judge whether VibeSkills fits your task, the table below is the fastest way to read it._
+_Use this table to judge whether VibeSkills fits your task. It groups the kinds of work that the `vibe` entry can organize._
 
 <br/>
 
 <div align="center">
 
-| Work Area | What It Helps With | Representative Skills |
+| Work Area | What It Helps With | Typical Capabilities |
 |:---|:---|:---|
-| **💡 Planning and Scoping** | Clarify messy asks, freeze requirements, and turn them into executable plans | `brainstorming`, `writing-plans`, `speckit-specify` |
-| **🏗️ Engineering and Governed Delivery** | Design systems, implement changes, and coordinate bounded multi-step execution | `aios-architect`, `autonomous-builder`, `vibe` |
-| **🔧 Debugging and Verification** | Investigate failures, add tests, review risk, and prove the change is ready | `systematic-debugging`, `verification-before-completion`, `code-review` |
-| **📊 Data, ML, and Research Work** | Analyze data, train or evaluate models, and support research-heavy workflows | `statistical-analysis`, `scikit-learn`, `literature-review` |
-| **🎨 Output and External Delivery** | Turn results into docs, figures, browser actions, or deployable outputs | `docs-write`, `plotly`, `playwright` |
+| **💡 Planning and Scoping** | Clarify messy asks, freeze requirements, and turn them into executable plans | Requirement clarification, plan writing, specification drafting |
+| **🏗️ Engineering and Governed Delivery** | Design systems, implement changes, and coordinate bounded multi-step execution | Architecture work, implementation support, governed execution |
+| **🔧 Debugging and Verification** | Investigate failures, add tests, review risk, and prove the change is ready | Debugging, test design, review, verification |
+| **📊 Data, ML, and Research Work** | Analyze data, train or evaluate models, and support research-heavy workflows | Statistical analysis, modeling, experiment design, literature review |
+| **🎨 Output and External Delivery** | Turn results into docs, figures, browser actions, or deployable outputs | Documentation, charts, browser-driven checks, deliverable packaging |
 
 </div>
 
 <br/>
 
-The point of this section is to show shape, not to turn the README into a catalog. If your work looks roughly like one of these rows, the kernel is meant to organize it. If not, the normal extension path is still a user-owned skill folder under a declared local skill root, not a bigger central catalog.
+The capability column gives examples of the kind of local Skills the runtime can use. The actual available Skills still depend on the local skill roots declared on your host.
 
 <br/>
 
 ---
 
 
-## 📊 Why is it powerful?
+## 📊 What the runtime core does
 
-_The point is not a bigger catalog. The point is a smaller core that still carries real work to completion._
-
-The runtime core behind **VibeSkills** is **VCO**. It is not trying to be a smarter router or a longer menu. It is trying to be a thinner work kernel:
+The runtime core behind **VibeSkills** is **VCO**. It keeps workflow control in a small runtime, leaves domain-specific work to local Skills, and keeps extension boundaries explicit.
 
 <br/>
 
 <div align="center">
 
-|                           🧩 Skill Materials                            |                              ✅ Work Loop                               |                             ⚖️ Boundary Discipline                             |
+|                              🧩 Local Skills                              |                              ✅ Work Loop                               |                               ⚖️ Runtime Boundaries                               |
 | :-------------------------------------------------------------------: | :--------------------------------------------------------------------: | :------------------------------------------------------------------------: |
-| <h2>Composable</h2>Installed local Skills only<br/>with real entry files required | <h2>Practical</h2>Goals become bounded work<br/>then tests, checks, and artifacts | <h2>Thin</h2>Small kernel and clear boundaries<br/>so extension stays cheaper than router surgery |
+| <h2>Selection rules</h2>Declared local Skills only<br/>with real entry files required | <h2>Execution flow</h2>Goals become bounded work<br/>then tests, checks, and artifacts | <h2>Extension rules</h2>Small runtime surface<br/>clear boundaries for review and extension |
 
 </div>
 
@@ -515,9 +502,9 @@ The runtime core behind **VibeSkills** is **VCO**. It is not trying to be a smar
 
 ## ⚙️ Installation & Skills Management
 
-Install first, learn the internals later. The public install path is now intentionally small: download the release zip from the published release, extract it, then place `vibe` into a skills directory from that release copy.
+Public installation starts from a published release zip. Download the release zip, extract it, and run the wrappers from that extracted directory.
 
-The public release asset is a host-neutral, SkillsDir-centered bundle such as `vibe-skills-3.1.1-public.zip`. After extraction, run the wrappers from that extracted release directory.
+The public release asset is a host-neutral, SkillsDir-centered bundle such as `vibe-skills-3.1.1-public.zip`. The installer writes Vibe-owned files under `<SkillsDir>/vibe`. The public release installs the `vibe` runtime itself. It does not add a separate built-in skill catalog. After install, the public entry is `vibe`, and additional Skills are discovered separately from that shared skills directory and any configured local skill roots.
 
 The default target is `~/.agents/skills`, so the shortest Windows install from a published release zip is:
 
@@ -546,7 +533,7 @@ After install, Vibe treats `<SkillsDir>` as the shared skills directory. If a ho
 
 Extra scan roots are runtime configuration, not installation. Put them in `~/.vibeskills/skill-roots.json` for user-wide roots or `<workspace>/.vibeskills/skill-roots.json` for project roots.
 
-Repo checkout install is now a developer/internal path, not the normal public install path. Old host/profile install docs are legacy migration material. They are useful for understanding older installs, but they are not the recommended path for new installs.
+Repo checkout install is now a developer/internal path. Public installation should start from a published release zip. Old host/profile install docs remain as legacy migration material for existing installs.
 
 ### Open More Docs Only When Needed
 
@@ -572,11 +559,11 @@ Duplicate skill ids are recorded, but only the first root by scan order stays ac
 
 </details>
 
-## 📦 Standing on the Shoulders of Giants
+## 📦 Upstream references and reused ideas
 
-_These capabilities were not built in isolation. VibeSkills draws on existing open-source projects, patterns, and tools, then adapts them into one governed runtime._
+_VibeSkills reuses ideas and tools from existing open-source projects, then adapts the parts that fit this runtime._
 
-VibeSkills does not claim to replace or fully reproduce every upstream project listed below. The practical goal is narrower: reuse proven ideas where they fit, then keep the user-facing surface smaller than the pile of sources behind it.
+VibeSkills does not claim to replace or fully reproduce every upstream project listed below. The goal is narrower: reuse proven ideas where they fit, then keep the user-facing surface smaller and easier to follow.
 
 > 🙏 **Acknowledgements**
 >
@@ -635,7 +622,7 @@ _If VibeSkills is already installed, start with one invocation._
 **Start here**
 
 - ⚡️ [Simple install (recommended)](docs/install/README.en.md)
-- 📖 [System architecture & philosophy](docs/quick-start.en.md)
+- 📖 [Quick start and runtime overview](docs/quick-start.en.md)
 
 **Open only if needed**
 
@@ -652,13 +639,13 @@ _If VibeSkills is already installed, start with one invocation._
 
 ### 🤝 Join the Community · Build Together
 
-Give it a try! If you have questions, ideas, or suggestions, feel free to open an issue — I'll take every piece of feedback seriously and make improvements.
+Try it and open an issue if something feels unclear or broken. Questions, suggestions, and corrections are welcome.
 
 <br/>
 
 **This project is fully open source. All contributions are welcome!**
 
-Whether it's fixing bugs, improving performance, adding features, or improving documentation — every PR is deeply appreciated.
+Bug fixes, performance work, features, and documentation updates all help.
 
 ```
 Fork → Modify → Pull Request → Merge ✅
@@ -666,9 +653,8 @@ Fork → Modify → Pull Request → Merge ✅
 
 <br/>
 
-> ⭐ If this project helps you, a **Star** is the greatest support you can give!
-> Its underlying philosophy has been well-received; however, the current codebase carries some technical debt, and certain features still require refinement. We welcome you to point out any such issues in the Issues section.
-> Your support is the enriched uranium that fuels this nuclear-powered donkey 🫏
+> ⭐ If this project helps, a **Star** helps more people find it.
+> The current codebase is usable, but it still has technical debt and rough edges. Clear issue reports and well-scoped PRs are useful.
 
 <br/>
 
@@ -676,7 +662,7 @@ Thank you to the **LinuxDo** community for your support!
 
 [![LinuxDo](https://img.shields.io/badge/Community-LinuxDo-blue?style=for-the-badge)](https://linux.do/)
 
-Tech discussions, AI frontiers, AI experience sharing — all at Linuxdo!
+Tech discussions, AI practice notes, and experience sharing all continue on LinuxDo.
 
 </div>
 
