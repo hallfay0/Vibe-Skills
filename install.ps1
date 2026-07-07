@@ -10,7 +10,7 @@ $RepoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 function Show-WrapperUsage {
   Write-Output 'Usage: install.ps1 [-SkillsDir <path>] [-Help|-?]'
-  Write-Output 'Installs Vibe into <SkillsDir>\vibe. Defaults to ~/.agents/skills.'
+  Write-Output 'Run this from an extracted public release copy to install Vibe into <SkillsDir>\vibe. Defaults to ~/.agents/skills.'
 }
 
 function Get-PreferredPythonInvocation {

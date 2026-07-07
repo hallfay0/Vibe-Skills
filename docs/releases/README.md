@@ -8,19 +8,16 @@ This directory stores governed VCO release notes and the minimum runtime-facing 
 
 ## Start Here
 
-### Current Release Surface
+### Current Published Release
 
 - [`v3.1.1.md`](v3.1.1.md): current routing contract hardening / specialist execution lock closure / runtime-neutral verification stabilization / docs and install-surface refresh
+- Public install/update asset: published `vibe-skills-<version>-public.zip` release zip, extracted locally before running `install` or `update`
 
 ### Release Runtime / Proof Handoff
 
-- [`../runtime-freshness-install-sop.md`](../runtime-freshness-install-sop.md): install, freshness, and coherence SOP
-- [`../../scripts/verify/gate-family-index.md`](../../scripts/verify/gate-family-index.md): gate family navigation and typical run order
+- [`../version-packaging-governance.md`](../version-packaging-governance.md): installed runtime, packaging, and coherence contract
 - [`../../scripts/verify/README.md`](../../scripts/verify/README.md): verify surface entrypoint
-- `scripts/verify/vibe-skill-promotion-execution-gate.ps1`: skill-promotion closure gate proving non-destructive dispatch resolution, destructive blocking, and zero ghost-match coverage
 - [`../status/non-regression-proof-bundle.md`](../status/non-regression-proof-bundle.md): minimum closure proof contract
-- `scripts/verify/vibe-release-truth-consistency-gate.ps1`: fallback and degraded-truth consistency proof for release and promotion surfaces
-- archived release notes: [`../archive/releases/README.md`](../archive/releases/README.md)
 
 ## Recent Governed Releases
 
@@ -35,7 +32,7 @@ This directory stores governed VCO release notes and the minimum runtime-facing 
 - [`v2.3.54.md`](v2.3.54.md) - 2026-03-30 - release operator closure / runtime contract schema baseline / outputs-boundary migration / install-time generated nested compatibility / release truth hardening
 - [`v2.3.53.md`](v2.3.53.md) - 2026-03-30 - governed specialist dispatch and custom admission closure / Windows PowerShell host resolution / managed host install guarantees / cleanup-truth tightening
 
-Older release notes remain in this directory as historical version records, but they are not part of the active release surface.
+Older release notes remain in this directory as historical version records, but they are not part of the active public install surface.
 
 ## Historical Release Archive
 

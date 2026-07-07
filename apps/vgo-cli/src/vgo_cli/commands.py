@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import json
 from pathlib import Path
 import subprocess
 import sys
@@ -11,7 +12,7 @@ from .errors import CliError
 from .hosts import normalize_host_id
 from .output import print_json_payload
 from .process import print_process_output, run_powershell_file, run_subprocess
-from .repo import get_installed_runtime_config
+from .repo import get_installed_runtime_config, get_local_release_metadata
 from .workspace import extend_workspace_package_path
 
 
@@ -43,19 +44,66 @@ def _source_git_state(repo_root: Path) -> tuple[str, bool]:
     return commit, dirty
 
 
+def _load_public_release_bundle(source_root: Path) -> dict[str, object] | None:
+    bundle_path = source_root / "release-bundle.json"
+    if not bundle_path.is_file():
+        return None
+    payload = json.loads(bundle_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise CliError(f"Expected JSON object: {bundle_path}")
+    return payload
+
+
+def _local_release_version(source_root: Path) -> str:
+    try:
+        return str(get_local_release_metadata(source_root).get("version") or "").strip()
+    except Exception:
+        return ""
+
+
+def _install_source_kwargs(source_root: Path) -> dict[str, object]:
+    bundle = _load_public_release_bundle(source_root)
+    if bundle is not None:
+        public_install = bundle.get("public_install") or {}
+        if str(public_install.get("source_kind") or "").strip() == "public_release":
+            release = bundle.get("release") or {}
+            asset = bundle.get("asset") or {}
+            version = str(release.get("version") or "").strip()
+            asset_name = str(asset.get("file_name") or "").strip()
+            if not version or not asset_name:
+                raise CliError("Public release bundle is missing release version or asset name.")
+            digest = str(asset.get("payload_digest_sha256") or "").strip()
+            return {
+                "source_kind": "public_release",
+                "release_version": version,
+                "release_asset_name": asset_name,
+                "release_asset_digest": digest,
+                "installer_version": version,
+                "package_version": version,
+            }
+
+    commit, dirty = _source_git_state(source_root)
+    version = _local_release_version(source_root) or "0.1.0"
+    return {
+        "source_kind": "developer_repo",
+        "source_git_commit": commit,
+        "source_git_dirty": dirty,
+        "installer_version": version,
+        "package_version": version,
+    }
+
+
 def install_command(args: argparse.Namespace) -> int:
     repo_root = Path(args.repo_root).resolve()
     skills_dir = _resolve_skills_dir(args.skills_dir)
     extend_workspace_package_path(repo_root)
     from vgo_installer.simple_skill_installer import install_vibe_skill
 
-    commit, dirty = _source_git_state(repo_root)
     receipt = install_vibe_skill(
         repo_root=repo_root,
         skills_dir=skills_dir,
         installed_at_utc=datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z'),
-        source_git_commit=commit,
-        source_git_dirty=dirty,
+        **_install_source_kwargs(repo_root),
     )
     print_json_payload(receipt)
     return 0
@@ -77,13 +125,11 @@ def update_command(args: argparse.Namespace) -> int:
     extend_workspace_package_path(repo_root)
     from vgo_installer.simple_skill_installer import update_vibe_skill
 
-    commit, dirty = _source_git_state(repo_root)
     receipt = update_vibe_skill(
         repo_root=repo_root,
         skills_dir=skills_dir,
         installed_at_utc=datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z'),
-        source_git_commit=commit,
-        source_git_dirty=dirty,
+        **_install_source_kwargs(repo_root),
     )
     print_json_payload(receipt)
     return 0
@@ -105,6 +151,21 @@ def upgrade_command(args: argparse.Namespace) -> int:
     if not hasattr(args, "skills_dir"):
         args.skills_dir = ""
     return update_command(args)
+
+
+def _require_powershell_frontend(
+    args: argparse.Namespace,
+    *,
+    command_name: str,
+    proof_hint: str,
+) -> None:
+    if args.frontend == 'powershell':
+        return
+    raise CliError(
+        f"{command_name} is a PowerShell-first operator command. "
+        f"It does not fall back to check.sh. Use `check` when you need `installed locally` proof; "
+        f"use the returned runtime artifacts when you need {proof_hint}."
+    )
 
 
 def index_command(args: argparse.Namespace) -> int:
@@ -249,6 +310,11 @@ def canonical_entry_command(args: argparse.Namespace) -> int:
 
 
 def verify_command(args: argparse.Namespace) -> int:
+    _require_powershell_frontend(
+        args,
+        command_name='verify',
+        proof_hint='`runtime coherent` proof',
+    )
     repo_root = Path(args.repo_root).resolve()
     runtime_cfg = get_installed_runtime_config(repo_root)
     return passthrough_command(
@@ -259,6 +325,11 @@ def verify_command(args: argparse.Namespace) -> int:
 
 
 def runtime_command(args: argparse.Namespace) -> int:
+    _require_powershell_frontend(
+        args,
+        command_name='runtime',
+        proof_hint='`runtime coherent` proof',
+    )
     repo_root = Path(args.repo_root).resolve()
     runtime_cfg = get_installed_runtime_config(repo_root)
     return passthrough_command(

@@ -32,7 +32,7 @@ VibeSkills 重点解决五件事：
 
 - [`install/README.md`](./install/README.md)
 
-如果你想走最短路径，就直接用默认 skills 目录。若已经安装过 VibeSkills，就对同一个 skills 目录执行 `update`。
+如果你想走最短路径，就从发布版本 zip 开始，不要从仓库 checkout 开始。若已经安装过 VibeSkills，就先下载更新版本的发布版本 zip，再对同一个 skills 目录执行 `update`。
 
 安装完成后，从宿主的 Skills 入口调用：
 
@@ -43,7 +43,7 @@ VibeSkills 重点解决五件事：
 | OpenCode | 使用 `/vibe` 或宿主支持的 Skills 调用方式 |
 | Cursor / Windsurf / OpenClaw | 参考对应宿主的 Skills 入口说明 |
 
-更新时继续走同一条管理路径：
+更新时继续走同一条管理路径，但命令要从新的解压发布目录里运行：
 
 - `update.ps1 -SkillsDir <skills-dir>`
 - `update.sh --skills-dir <skills-dir>`
@@ -87,9 +87,10 @@ VibeSkills 重点解决五件事：
 ## 5. 几个容易混淆的点
 
 - `$vibe` 或 `/vibe` 只表示进入 governed runtime，不单独证明宿主插件、provider 或在线增强已经完成。
-- 安装报告应该分开说明 `installed locally`、`vibe host-ready` 和 `online-ready`。
+- `check` 证明的是 `installed locally`。
+- `runtime coherent` 只会在一次真实的 `vibe` 运行返回 `session_root` 且运行时真相产物齐备之后成立。
+- `delivery accepted` 来自 `delivery-acceptance-report.json` / `.md`。
 - VibeSkills 是 Skills 格式运行时，不是让你在终端里直接运行的独立 CLI。
-- `minimal` 是默认推荐版本；如果你想在同一个小内核上多带少量内置工作流辅助 skill，再选 `full`。
 
 ## 推荐阅读顺序
 

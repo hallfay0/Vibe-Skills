@@ -637,29 +637,13 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
         self.assertIn("config/capability-catalog.json", payload["missing_files"])
         self.assertIn("config/deep-discovery-policy.json", payload["drifted_files"])
 
-    def test_installed_runtime_bootstrap_supports_openclaw_without_self_deleting_source(self) -> None:
+    def test_installed_runtime_does_not_ship_legacy_one_shot_bootstrap(self) -> None:
         self.install_shell_runtime(host="openclaw")
 
         installed_root = self.target_root / "skills" / "vibe"
-        env = os.environ.copy()
-        env["HOME"] = str(self.root / "home")
-        env["OPENCLAW_HOME"] = str(self.target_root)
-        bootstrap_cmd = [
-            "bash",
-            str(installed_root / "scripts" / "bootstrap" / "one-shot-setup.sh"),
-            "--host",
-            "openclaw",
-            "--profile",
-            "full",
-            "--target-root",
-            str(self.target_root),
-        ]
-        bootstrap_result = subprocess.run(bootstrap_cmd, capture_output=True, text=True, check=True, env=env)
 
-        self.assertIn("Host                  : openclaw", bootstrap_result.stdout)
-        self.assertIn("One-shot setup completed.", bootstrap_result.stdout)
+        self.assertFalse((installed_root / "scripts" / "bootstrap" / "one-shot-setup.sh").exists())
         self.assertTrue((installed_root / "SKILL.md").exists())
-        self.assertTrue((self.target_root / ".vibeskills" / "host-settings.json").exists())
         self.assertFalse((self.target_root / "mcp_config.json").exists())
 
     def test_shell_install_prunes_stale_managed_entries_without_recursive_dir_wipe(self) -> None:

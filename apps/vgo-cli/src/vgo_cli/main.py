@@ -11,7 +11,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest='command', required=True)
 
-    install_parser = subparsers.add_parser('install')
+    install_parser = subparsers.add_parser(
+        'install',
+        help='Install Vibe into a skills directory from the current source or an extracted public release copy.',
+    )
     install_parser.add_argument('--repo-root', required=True)
     install_parser.add_argument('--skills-dir', default='')
     install_parser.set_defaults(handler=install_command)
@@ -21,7 +24,10 @@ def build_parser() -> argparse.ArgumentParser:
     uninstall_parser.add_argument('--skills-dir', default='')
     uninstall_parser.set_defaults(handler=uninstall_command)
 
-    update_parser = subparsers.add_parser('update')
+    update_parser = subparsers.add_parser(
+        'update',
+        help='Update an installed Vibe copy from the current source or an extracted newer public release copy.',
+    )
     update_parser.add_argument('--repo-root', required=True)
     update_parser.add_argument('--skills-dir', default='')
     update_parser.set_defaults(handler=update_command)
@@ -96,18 +102,30 @@ def build_parser() -> argparse.ArgumentParser:
     canonical_entry_parser.add_argument('--allow-public-grade-flags', nargs='?', const='true', help=argparse.SUPPRESS)
     canonical_entry_parser.set_defaults(handler=canonical_entry_command)
 
-    check_parser = subparsers.add_parser('check')
+    check_parser = subparsers.add_parser(
+        'check',
+        help='Verify the installed vibe skill receipt and owned files.',
+        description='Prove only that the installed vibe skill is present and matches its install receipt.',
+    )
     check_parser.add_argument('--repo-root', required=True)
     check_parser.add_argument('--skills-dir', default='')
     check_parser.set_defaults(handler=check_command)
 
-    verify_parser = subparsers.add_parser('verify')
+    verify_parser = subparsers.add_parser(
+        'verify',
+        help='PowerShell-only operator entry for runtime coherence / release audit gates.',
+        description='Run the PowerShell coherence gate. This is not the public install proof command.',
+    )
     verify_parser.add_argument('--repo-root', required=True)
     verify_parser.add_argument('--frontend', choices=('shell', 'powershell'), default='powershell')
     verify_parser.add_argument('rest', nargs=argparse.REMAINDER)
     verify_parser.set_defaults(handler=verify_command)
 
-    runtime_parser = subparsers.add_parser('runtime')
+    runtime_parser = subparsers.add_parser(
+        'runtime',
+        help='PowerShell-only operator entry for the governed runtime script.',
+        description='Run the PowerShell governed runtime entrypoint. This is not the install proof command.',
+    )
     runtime_parser.add_argument('--repo-root', required=True)
     runtime_parser.add_argument('--frontend', choices=('shell', 'powershell'), default='powershell')
     runtime_parser.add_argument('rest', nargs=argparse.REMAINDER)

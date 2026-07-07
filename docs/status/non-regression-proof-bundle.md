@@ -5,6 +5,14 @@ Updated: 2026-06-24
 ## Positioning
 
 This page is the minimum proof contract for structure-changing work after the 2026-04-04 architecture-closure sign-off.
+It is an operator and contributor closeout contract.
+It is not the everyday public proof ladder.
+
+Keep the narrow public claims separate from this bundle:
+
+- `installed locally` -> `check`
+- `runtime coherent` -> returned `session_root` truth artifacts
+- `delivery accepted` -> delivery-acceptance report
 
 It defines which commands must be rerun before a later cleanup or topology-changing batch can claim success. It does not carry the authoritative PASS/FAIL state itself. Current truth always lives in `outputs/verify/*.json`, fresh regression output, and the current closure receipt.
 

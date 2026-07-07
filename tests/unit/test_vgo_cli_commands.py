@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 import subprocess
 import sys
@@ -335,6 +336,20 @@ def test_verify_command_uses_runtime_contract_for_powershell_dispatch(monkeypatc
     assert recorded['rest'] == ['--artifacts']
 
 
+def test_verify_command_rejects_shell_frontend_without_check_fallback(tmp_path: Path) -> None:
+    with pytest.raises(
+        CliError,
+        match="PowerShell-first operator command.*installed locally",
+    ):
+        verify_command(
+            argparse.Namespace(
+                repo_root=str(tmp_path),
+                frontend='shell',
+                rest=[],
+            )
+        )
+
+
 
 def test_runtime_command_uses_runtime_contract_for_powershell_dispatch(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     import vgo_cli.commands as cli_commands
@@ -367,6 +382,20 @@ def test_runtime_command_uses_runtime_contract_for_powershell_dispatch(monkeypat
     assert recorded['shell_script'] == 'check.sh'
     assert recorded['powershell_script'] == 'scripts/runtime/custom-runtime-entrypoint.ps1'
     assert recorded['rest'] == ['--task', 'smoke']
+
+
+def test_runtime_command_rejects_shell_frontend_without_check_fallback(tmp_path: Path) -> None:
+    with pytest.raises(
+        CliError,
+        match="PowerShell-first operator command.*runtime coherent",
+    ):
+        runtime_command(
+            argparse.Namespace(
+                repo_root=str(tmp_path),
+                frontend='shell',
+                rest=[],
+            )
+        )
 
 
 def test_upgrade_command_aliases_update_with_migration_warning(
@@ -483,6 +512,38 @@ def test_install_command_marks_non_git_source_as_unknown_dirty(tmp_path: Path, c
     assert '"source_git_dirty": true' in output
 
 
+def test_install_command_uses_public_release_bundle_metadata_when_present(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    release_root = tmp_path / 'release-root'
+    release_root.mkdir(parents=True, exist_ok=True)
+    (release_root / 'SKILL.md').write_text('# vibe\n', encoding='utf-8')
+    (release_root / 'release-bundle.json').write_text(
+        json.dumps(
+            {
+                'release': {'version': '3.1.1'},
+                'asset': {
+                    'file_name': 'vibe-skills-3.1.1-public.zip',
+                    'payload_digest_sha256': 'bundle-digest-123',
+                },
+                'public_install': {'source_kind': 'public_release'},
+            }
+        ),
+        encoding='utf-8',
+    )
+    skills_dir = tmp_path / 'skills'
+
+    assert install_command(argparse.Namespace(repo_root=str(release_root), skills_dir=str(skills_dir))) == 0
+
+    output = capsys.readouterr().out
+    assert '"source_kind": "public_release"' in output
+    assert '"version": "3.1.1"' in output
+    assert '"asset_name": "vibe-skills-3.1.1-public.zip"' in output
+    assert '"source_git_commit"' not in output
+    assert '"source_git_dirty"' not in output
+
+
 def test_uninstall_command_uses_simplified_skills_dir_uninstall(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -521,7 +582,14 @@ def test_check_command_uses_simplified_skills_dir_check(
 
     assert check_command(argparse.Namespace(repo_root=str(REPO_ROOT), skills_dir=str(skills_dir))) == 0
 
-    assert '"ok": true' in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert '"ok": true' in output
+    assert '"scope": "installed_vibe_skill"' in output
+    assert '"result": "passed"' in output
+    assert '"task completion"' in output
+    assert '"material skill execution"' in output
+    assert '"runtime coherent"' in output
+    assert '"delivery accepted"' in output
 
 
 def test_build_parser_includes_index_subcommand() -> None:

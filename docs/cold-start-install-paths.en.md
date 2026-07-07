@@ -1,170 +1,19 @@
-# Cold-Start Install Paths
+# Cold Start Install Paths
 
-This document answers the only cold-start questions that matter right now: which hosts are supported, and what the shortest truth-first install path looks like for each.
+This page used to describe the old multi-host one-shot bootstrap path. That path is retired.
 
-## One-Line Conclusion
-
-The current public surface supports six hosts:
-
-- `codex`
-- `claude-code`
-- `cursor`
-- `windsurf`
-- `openclaw`
-- `opencode`
-
-Within that scope:
-
-- `codex`: strongest governed lane
-- `claude-code`: supported install/use path with bounded managed closure
-- `cursor`: preview-guidance path
-- `windsurf`: runtime-core path
-- `openclaw`: preview runtime-core adapter path
-- `opencode`: preview-guidance adapter path, with a thinner direct install/check public path
-
-Other hosts should not currently be described as supported installation targets.
-
-Note: `one-shot-setup.*` is now a registry-driven wrapper across all six public hosts. `opencode` still keeps direct install/check as the thinner default command path.
-
-## Codex
+The current public install contract is simpler: install the `vibe` skill into a skills directory, then check that same directory.
 
 ```bash
-bash ./scripts/bootstrap/one-shot-setup.sh --host codex --profile full
-bash ./check.sh --host codex --profile full --deep
+bash ./install.sh --skills-dir "$HOME/.agents/skills"
+bash ./check.sh --skills-dir "$HOME/.agents/skills"
 ```
 
-If the goal is to keep one reusable global install, this default path goes straight to `~/.agents`, and the current host should discover `$vibe` from that shared root.
-Set `VIBE_AGENTS_HOME` only when you explicitly want a different shared root.
+PowerShell users can run:
 
-What you get:
-
-- governed runtime payload
-- the shared Codex runtime payload
-- deep health check
-
-What you do not get:
-
-- automatic hooks
-- automatic governance-AI online readiness
-
-## Claude Code
-
-```bash
-CLAUDE_HOME="$HOME/.claude" bash ./scripts/bootstrap/one-shot-setup.sh --host claude-code --profile full
-CLAUDE_HOME="$HOME/.claude" bash ./check.sh --host claude-code --profile full --deep
+```powershell
+.\install.ps1 -SkillsDir "$env:USERPROFILE\.agents\skills"
+.\check.ps1 -SkillsDir "$env:USERPROFILE\.agents\skills"
 ```
 
-What you get:
-
-- bounded managed `vibeskills` settings surface
-- incremental merge and verification against the real `~/.claude/settings.json`
-- supported-with-constraints health check
-
-What you do not get:
-
-- full closure
-- overwrite of the real `~/.claude/settings.json`
-- automatic takeover of broader Claude plugin / MCP / credential surfaces
-
-## Cursor
-
-```bash
-bash ./scripts/bootstrap/one-shot-setup.sh --host cursor --profile full
-bash ./check.sh --host cursor --profile full --deep
-```
-
-What you get:
-
-- preview-guidance payload
-- preview health check
-
-What you do not get:
-
-- full closure
-- overwrite of the real `~/.cursor/settings.json`
-- Cursor host-native provider / MCP / hook closure
-
-## Windsurf
-
-```bash
-bash ./scripts/bootstrap/one-shot-setup.sh --host windsurf --profile full
-bash ./check.sh --host windsurf --profile full --deep
-```
-
-What you get:
-
-- shared runtime payload
-- a runtime-core install under the real host root `~/.codeium/windsurf`
-- `.vibeskills/host-settings.json` and `.vibeskills/host-closure.json`
-- a skills-only activation path that stays dormant until Vibe is explicitly invoked
-
-What you do not get:
-
-- full closure
-- automatic takeover of host-local config files
-
-## OpenClaw
-
-```bash
-bash ./scripts/bootstrap/one-shot-setup.sh --host openclaw --profile full
-bash ./check.sh --host openclaw --profile full --deep
-```
-
-What you get:
-
-- shared runtime payload
-- an OpenClaw runtime-core install path, with default target root from `OPENCLAW_HOME` or `~/.openclaw`
-- `.vibeskills/host-settings.json` and `.vibeskills/host-closure.json`
-- explicit attach / copy / bundle path semantics:
-  - attach: connect and validate an existing `OPENCLAW_HOME` (or `~/.openclaw`) target root
-  - copy: use install/check entrypoints to copy runtime-core payload into the target root
-  - bundle: consume runtime-core distribution manifests from `dist/host-openclaw/manifest.json` and `dist/manifests/vibeskills-openclaw.json`
-- explicit host-managed boundaries
-
-What you do not get:
-
-- full closure
-- automatic takeover of OpenClaw-local configuration
-
-## OpenCode
-
-The thinner default path is:
-
-```bash
-bash ./install.sh --host opencode --profile full
-bash ./check.sh --host opencode --profile full
-```
-
-If you want to keep the same bootstrap wrapper as other hosts, this is also valid:
-
-```bash
-bash ./scripts/bootstrap/one-shot-setup.sh --host opencode --profile full
-bash ./check.sh --host opencode --profile full --deep
-```
-
-What you get:
-
-- a preview-guidance adapter path
-- runtime payload
-- `.vibeskills/host-settings.json` and `.vibeskills/host-closure.json`
-- `opencode.json.example`
-
-What you do not get:
-
-- overwrite of the real `~/.config/opencode/opencode.json`
-- automatic plugin installation
-- automatic provider credential wiring
-- automatic MCP trust decisions
-
-Next actions:
-
-- the default target root is `OPENCODE_HOME`, otherwise the real host root `~/.config/opencode`
-- for project-local isolation, use `--target-root ./.opencode`
-- read [`install/opencode-path.en.md`](./install/opencode-path.en.md)
-
-## Boundaries That Must Hold During Cold Start
-
-- `HostId` / `--host` decides host semantics
-- the current public surface is not a claim that every host is fully managed
-- if local provider fields are not configured, the environment must not be described as online-ready
-- do not ask users to paste secrets into chat
+Read `docs/install/README.en.md` for the current install contract.

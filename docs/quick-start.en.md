@@ -32,7 +32,7 @@ Open the simple install guide:
 
 - [`install/README.en.md`](./install/README.en.md)
 
-Use the default skills directory if you want the shortest path. If VibeSkills is already installed, run `update` against the same skills directory.
+Use the default skills directory if you want the shortest path. Start from the published release zip, not from a repo checkout. If VibeSkills is already installed, download the newer published release zip and run `update` against the same skills directory.
 
 After install, invoke it through your host's Skills entry:
 
@@ -43,7 +43,7 @@ After install, invoke it through your host's Skills entry:
 | OpenCode | Use `/vibe` or the host-supported Skills invocation |
 | Cursor / Windsurf / OpenClaw | Follow the host's Skills entry documentation |
 
-For updates, keep the same management path:
+For updates, keep the same management path from the newer extracted release copy:
 
 - `update.ps1 -SkillsDir <skills-dir>`
 - `update.sh --skills-dir <skills-dir>`
@@ -87,9 +87,10 @@ Pick by intent:
 ## 5. Common confusion
 
 - `$vibe` or `/vibe` only enters the governed runtime. It does not by itself prove that host plugins, providers, or online enhancement are fully configured.
-- Install reports should separate `installed locally`, `vibe host-ready`, and `online-ready`.
+- `check` proves `installed locally`.
+- `runtime coherent` starts only after a real `vibe` run returns a `session_root` with runtime truth artifacts.
+- `delivery accepted` comes from `delivery-acceptance-report.json` / `.md`.
 - VibeSkills is a Skills-format runtime, not a standalone CLI you run directly in a terminal.
-- `minimal` is the recommended default; choose `full` only when you want a few extra built-in workflow helpers on top of the same small kernel.
 
 ## Recommended reading order
 

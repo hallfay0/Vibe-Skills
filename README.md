@@ -18,14 +18,14 @@
 
 ### Give your AI agent a real work kernel
 
-Install VibeSkills, type `vibe`, and let the kernel handle the real job: understand the goal, organize useful Skills into bounded work, complete the work, verify the result, and keep the context for next time. It is designed so new local domain Skills can plug into the same work loop without turning the system back into a giant routing surface.
+Install VibeSkills, type `vibe`, and let the kernel handle the real job: understand the goal, organize useful Skills into bounded work, prepare the next evidence-bearing step, verify what the evidence can prove, and keep the context for next time. It is designed so new local domain Skills can plug into the same work loop without turning the system back into a giant routing surface.
 
 &nbsp;
-*You bring the goal. VibeSkills helps the agent move from idea to plan, from plan to work, and from work to verified delivery. The point is not more menu entries. The point is a smaller core that can organize skills into finished work.*
+*You bring the goal. VibeSkills helps the agent move from idea to plan, from plan to work, and from work to verified evidence. The point is not more menu entries. The point is a smaller core that can organize skills without claiming completion before real execution evidence exists.*
 
-Installed local skills are the only specialist reference surface. Codex scans `~/.agents/skills` before `~/.codex/skills`; Claude Code scans `~/.claude/skills`. When the same skill id appears more than once, the earlier root wins, and `work_binding` stays the runtime truth for what was actually selected and run.
+Installed local skills are the only specialist reference surface. Vibe treats the chosen `<SkillsDir>` as the public skills directory: Vibe itself lives at `<SkillsDir>/vibe`, and ordinary skills live under `<SkillsDir>/*`. When the same skill id appears more than once, the earlier root wins, and `work_binding` stays the runtime truth for what was bound. A skill is not reported as materially used unless evidence ties it to real execution output.
 
-For this runtime boundary, Python owns final truth artifacts, canonical validation, task semantics, `work_binding`, specialist decision truth, and structured runtime result data. PowerShell still performs stage orchestration, environment setup, script bridging, host receipts, shell-native checks, and leaf execution. A future full-Python runtime is optional, not required for this version.
+For this runtime boundary, Python owns final truth artifacts, canonical validation, task semantics, `work_binding`, specialist decision truth, and structured runtime result data. PowerShell still performs stage orchestration, environment setup, script bridging, host receipts, shell-native checks, and leaf execution. Do not add new task semantics to PowerShell; existing PowerShell stage scripts are transitional orchestration surfaces. A future full-Python runtime is optional, not required for this version.
 
 <br/>
 
@@ -203,7 +203,13 @@ The normal closeout path should stay small: prove the governed runtime, entry tr
 
 _People asked what VibeSkills looks like in real work. These examples are easier to judge than a feature list: each one starts with a plain goal, goes through a governed `vibe` run, and ends with something you can open, inspect, or rerun._
 
-> Current benchmark evidence is now anchored by external-style bounded-work briefs, matching release holdouts, and a smaller compatibility shell than the older route-era packet story. To regenerate the latest local proof bundle, run `py -3 -m vgo_cli.main benchmark-kernel --repo-root <repo-root> --suite development --phase phase_4`. That command writes a local bundle containing `kernel-benchmark-report.md`, `release-proof-summary.md`, `holdout-summary.md`, and `compatibility-cut-summary.md`. The claim stays narrow: more realistic bounded work, work-binding-first truth, and less compatibility residue, not final architecture completion.
+> Keep the public proof story narrow and explicit:
+>
+> - `installed locally`: run `py -3 -m vgo_cli.main check --repo-root <repo-root> --skills-dir <skills-dir>`.
+> - `runtime coherent`: after a real `vibe` run returns a `session_root`, inspect `host-launch-receipt.json`, `runtime-input-packet.json`, `governance-capsule.json`, `stage-lineage.json`, and `runtime-summary.json`.
+> - `delivery accepted`: inspect `delivery-acceptance-report.json` or `delivery-acceptance-report.md`.
+>
+> Release proof bundles stay as explicitly named local operator artifacts. `check` proves only `installed locally`; it does not prove task completion, `runtime coherent`, or `delivery accepted`.
 
 <div align="center">
 
@@ -359,7 +365,7 @@ The discovery story stays intentionally narrow:
 
 - installed local skill roots are the only specialist source
 - a skill without a readable `SKILL.md` can be diagnostic only, never selected or locked
-- `work_binding` is still the first runtime truth for what was actually selected
+- `work_binding` is still the first runtime truth for what was bound
 
 <div align="center">
 
@@ -451,7 +457,7 @@ VibeSkills stores just enough governed context to make work easier to continue:
 
 Memory is a continuity layer, not a replacement for project truth. Git, README files, requirement docs, execution plans, and verification receipts remain the source of record. Durable memory writes stay governed, and failures are surfaced instead of silently pretending continuity exists.
 
-See [workspace memory plane design](./docs/design/workspace-memory-plane.md) for the technical contract and [quantitative Codex memory simulation](./tests/runtime_neutral/test_codex_memory_user_simulation.py) for the benchmark coverage.
+See [workspace memory plane design](./docs/design/workspace-memory-plane.md) for the technical contract and [non-regression proof bundle](./docs/status/non-regression-proof-bundle.md) for the release/operator closeout proof contract.
 
 
 ---
@@ -509,40 +515,38 @@ The runtime core behind **VibeSkills** is **VCO**. It is not trying to be a smar
 
 ## ⚙️ Installation & Skills Management
 
-Install first, learn the internals later. The public install path is now intentionally small: choose a skills directory, then place the `vibe` skill there.
+Install first, learn the internals later. The public install path is now intentionally small: download the release zip from the published release, extract it, then place `vibe` into a skills directory from that release copy.
 
-The default target is `~/.agents/skills`, so the shortest Windows install is:
+The public release asset is a host-neutral, SkillsDir-centered bundle such as `vibe-skills-3.1.1-public.zip`. After extraction, run the wrappers from that extracted release directory.
+
+The default target is `~/.agents/skills`, so the shortest Windows install from a published release zip is:
 
 ```powershell
 .\install.ps1
 .\check.ps1
 ```
 
-To install into a specific skills directory, pass it directly:
+To install into a specific skills directory, pass it directly from the extracted release copy:
 
 ```powershell
 .\install.ps1 -SkillsDir C:\Users\you\.agents\skills
 .\check.ps1 -SkillsDir C:\Users\you\.agents\skills
 ```
 
-Update and uninstall use the same boundary:
+Update and uninstall use the same boundary. For updates, download the newer published release zip first, extract it, and then run `update` from that newer release copy against the same `SkillsDir`:
 
 ```powershell
 .\update.ps1 -SkillsDir C:\Users\you\.agents\skills
 .\uninstall.ps1 -SkillsDir C:\Users\you\.agents\skills
 ```
 
-The installer writes only `<SkillsDir>/vibe`. It does not edit Codex, Claude, Agents, host settings, command wrappers, or global prompt files.
+The installer writes only Vibe-owned files under `<SkillsDir>/vibe`. It does not edit Codex, Claude, Agents, host settings, command wrappers, or global prompt files. Re-running install or update preserves user-added files and refuses unowned path conflicts instead of deleting the directory.
 
-After install, Vibe scans these default skill roots in order:
-
-- `~/.agents/skills`
-- `~/.codex/skills`
-- `~/.claude/skills`
+After install, Vibe treats `<SkillsDir>` as the shared skills directory. If a host or your own workflow needs a different skills directory, pass that path explicitly. The runtime contract still stays SkillsDir-centered.
 
 Extra scan roots are runtime configuration, not installation. Put them in `~/.vibeskills/skill-roots.json` for user-wide roots or `<workspace>/.vibeskills/skill-roots.json` for project roots.
 
-Old host/profile install docs are legacy migration material. They are useful for understanding older installs, but they are not the recommended path for new installs.
+Repo checkout install is now a developer/internal path, not the normal public install path. Old host/profile install docs are legacy migration material. They are useful for understanding older installs, but they are not the recommended path for new installs.
 
 ### Open More Docs Only When Needed
 
@@ -637,10 +641,8 @@ _If VibeSkills is already installed, start with one invocation._
 
 - 🛠 [Command install reference](docs/install/README.en.md)
 - 🧩 [Custom workflow onboarding](docs/install/README.en.md)
-- 📄 [OpenClaw host notes](docs/cold-start-install-paths.en.md)
-- 📄 [OpenCode host notes](docs/cold-start-install-paths.en.md)
 - 📁 [Manual copy install (offline)](docs/install/README.en.md)
-- 🧊 [Cold start & other environments](docs/cold-start-install-paths.en.md)
+- 🧊 [Other environments & legacy host notes](docs/cold-start-install-paths.en.md)
 
 </details>
 

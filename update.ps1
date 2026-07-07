@@ -10,7 +10,7 @@ $RepoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 function Show-WrapperUsage {
   Write-Output 'Usage: update.ps1 [-SkillsDir <path>] [-Help|-?]'
-  Write-Output 'Updates the installed Vibe package under <SkillsDir>\vibe when the receipt is clean.'
+  Write-Output 'Run this from a newer extracted public release copy to update the installed Vibe package under <SkillsDir>\vibe when the receipt is clean.'
 }
 
 function Get-PreferredPythonInvocation {

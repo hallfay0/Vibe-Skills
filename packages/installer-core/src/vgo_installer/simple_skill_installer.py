@@ -12,6 +12,7 @@ PACKAGE_DIRS = (
     "apps/vgo-cli",
     "packages/contracts",
     "packages/runtime-core",
+    "packages/verification-core",
     "scripts/common",
     "scripts/runtime",
     "scripts/router",
@@ -22,6 +23,9 @@ PACKAGE_EXCLUDED_FILES = {
     "apps/vgo-cli/src/vgo_cli/install_support.py",
     "apps/vgo-cli/src/vgo_cli/installer_bridge.py",
     "apps/vgo-cli/src/vgo_cli/upgrade_service.py",
+}
+PACKAGE_RUNTIME_TEST_ENTRYPOINTS = {
+    "packages/verification-core/src/vgo_verify/test_baseline_audit.py",
 }
 RECEIPT_RELPATH = ".vibeskills/install-receipt.json"
 
@@ -51,6 +55,14 @@ def _copy_file(source: Path, destination: Path) -> None:
     shutil.copy2(source, destination)
 
 
+def _is_package_development_test(relpath: str) -> bool:
+    if relpath in PACKAGE_RUNTIME_TEST_ENTRYPOINTS:
+        return False
+    if not relpath.startswith(("packages/runtime-core/", "packages/verification-core/")):
+        return False
+    return Path(relpath).name.startswith("test_") and relpath.endswith(".py")
+
+
 def _copy_tree(source_root: Path, install_root: Path, relpath: str) -> None:
     source = source_root / relpath
     if not source.exists():
@@ -64,21 +76,84 @@ def _copy_tree(source_root: Path, install_root: Path, relpath: str) -> None:
             continue
         if installed_relpath in PACKAGE_EXCLUDED_FILES:
             continue
+        if _is_package_development_test(installed_relpath):
+            continue
         _copy_file(file_path, install_root / installed_relpath)
 
 
-def _installed_files(install_root: Path) -> list[dict[str, str]]:
+def _package_file_relpaths(source_root: Path) -> list[str]:
+    relpaths: list[str] = []
+    for relpath in ("SKILL.md", *PACKAGE_DIRS):
+        source = source_root / relpath
+        if not source.exists():
+            continue
+        if source.is_file():
+            relpaths.append(relpath)
+            continue
+        for file_path in sorted(path for path in source.rglob("*") if path.is_file()):
+            installed_relpath = file_path.relative_to(source_root).as_posix()
+            if "__pycache__" in file_path.parts or file_path.suffix == ".pyc":
+                continue
+            if installed_relpath in PACKAGE_EXCLUDED_FILES:
+                continue
+            if _is_package_development_test(installed_relpath):
+                continue
+            relpaths.append(installed_relpath)
+    return sorted(set(relpaths))
+
+
+def _copy_package_files(source_root: Path, install_root: Path, relpaths: list[str]) -> None:
+    for relpath in relpaths:
+        _copy_file(source_root / relpath, install_root / relpath)
+
+
+def _installed_files(install_root: Path, relpaths: list[str]) -> list[dict[str, str]]:
     files: list[dict[str, str]] = []
-    for file_path in sorted(path for path in install_root.rglob("*") if path.is_file()):
-        relpath = file_path.relative_to(install_root).as_posix()
-        if relpath == RECEIPT_RELPATH:
+    for relpath in relpaths:
+        file_path = install_root / relpath
+        if not file_path.is_file():
             continue
         files.append({"path": relpath, "sha256": _sha256_file(file_path)})
     return files
 
 
+def _receipt_file_paths(receipt: dict[str, object]) -> set[str]:
+    owned: set[str] = set()
+    for entry in receipt.get("files") or []:
+        if isinstance(entry, dict):
+            owned.add(str(entry["path"]))
+    return owned
+
+
+def _remove_retired_owned_files(install_root: Path, *, old_owned: set[str], next_owned: set[str]) -> None:
+    for relpath in sorted(old_owned - next_owned, reverse=True):
+        file_path = install_root / relpath
+        if file_path.is_file():
+            file_path.unlink()
+
+
 def _receipt_path(skills_dir: Path) -> Path:
     return skills_dir.resolve() / "vibe" / RECEIPT_RELPATH
+
+
+def _scoped_check_result(payload: dict[str, object]) -> dict[str, object]:
+    ok = bool(payload.get("ok"))
+    return {
+        **payload,
+        "scope": "installed_vibe_skill",
+        "result": "passed" if ok else "failed",
+        "proves": [
+            "Vibe install receipt exists",
+            "receipt-owned files are present",
+            "receipt-owned file hashes match",
+        ],
+        "does_not_prove": [
+            "task completion",
+            "material skill execution",
+            "runtime coherent",
+            "delivery accepted",
+        ],
+    }
 
 
 def install_vibe_skill(
@@ -86,8 +161,12 @@ def install_vibe_skill(
     repo_root: Path,
     skills_dir: Path,
     installed_at_utc: str,
-    source_git_commit: str,
-    source_git_dirty: bool,
+    source_kind: str = "developer_repo",
+    source_git_commit: str = "",
+    source_git_dirty: bool = False,
+    release_version: str = "",
+    release_asset_name: str = "",
+    release_asset_digest: str = "",
     installer_version: str = "0.1.0",
     package_version: str = "0.1.0",
 ) -> dict[str, object]:
@@ -98,31 +177,51 @@ def install_vibe_skill(
     if install_root.exists() and not receipt_path.is_file():
         raise RuntimeError(f"Install root already exists without a Vibe install receipt: {install_root}")
 
-    if install_root.exists():
-        shutil.rmtree(install_root)
     install_root.mkdir(parents=True, exist_ok=True)
+    next_owned = _package_file_relpaths(source_root)
+    old_owned: set[str] = set()
+    if receipt_path.is_file():
+        old_owned = _receipt_file_paths(_read_json(receipt_path))
+    for relpath in next_owned:
+        destination = install_root / relpath
+        if destination.exists() and relpath not in old_owned:
+            raise RuntimeError(f"Install path exists but is not owned by the Vibe receipt: {destination}")
+    _remove_retired_owned_files(install_root, old_owned=old_owned, next_owned=set(next_owned))
 
-    _copy_tree(source_root, install_root, "SKILL.md")
-    for relpath in PACKAGE_DIRS:
-        _copy_tree(source_root, install_root, relpath)
+    _copy_package_files(source_root, install_root, next_owned)
 
-    files = _installed_files(install_root)
+    files = _installed_files(install_root, next_owned)
     package_digest = hashlib.sha256(json.dumps(files, sort_keys=True).encode("utf-8")).hexdigest()
     receipt: dict[str, object] = {
         "schema_version": 1,
         "receipt_kind": "vibe-skill-install",
         "skill_id": "vibe",
+        "source_kind": str(source_kind or "").strip() or "developer_repo",
         "skills_dir": str(resolved_skills_dir),
         "install_root": str(install_root.resolve()),
         "installed_at_utc": installed_at_utc,
         "installer_version": installer_version,
         "package_version": package_version,
         "package_digest_sha256": package_digest,
-        "source_path": str(source_root),
-        "source_git_commit": source_git_commit,
-        "source_git_dirty": bool(source_git_dirty),
         "files": files,
     }
+    if receipt["source_kind"] == "public_release":
+        version = str(release_version or "").strip()
+        asset_name = str(release_asset_name or "").strip()
+        if not version or not asset_name:
+            raise RuntimeError("Public release install requires release version and asset name.")
+        release_payload: dict[str, object] = {
+            "version": version,
+            "asset_name": asset_name,
+        }
+        digest = str(release_asset_digest or "").strip()
+        if digest:
+            release_payload["asset_digest_sha256"] = digest
+        receipt["release"] = release_payload
+    else:
+        receipt["source_path"] = str(source_root)
+        receipt["source_git_commit"] = source_git_commit
+        receipt["source_git_dirty"] = bool(source_git_dirty)
     _write_json(receipt_path, receipt)
     return receipt
 
@@ -130,16 +229,18 @@ def install_vibe_skill(
 def check_vibe_skill(*, skills_dir: Path) -> dict[str, object]:
     receipt_path = _receipt_path(skills_dir)
     if not receipt_path.is_file():
-        return {"ok": False, "missing_receipt": str(receipt_path)}
+        return _scoped_check_result({"ok": False, "missing_receipt": str(receipt_path)})
 
     receipt = _read_json(receipt_path)
     install_root = Path(str(receipt["install_root"]))
     missing_files: list[str] = []
     drifted_files: list[str] = []
+    receipt_files: set[str] = set()
     for entry in receipt.get("files") or []:
         if not isinstance(entry, dict):
             continue
         relpath = str(entry["path"])
+        receipt_files.add(relpath)
         expected_sha = str(entry["sha256"])
         file_path = install_root / relpath
         if not file_path.is_file():
@@ -148,11 +249,19 @@ def check_vibe_skill(*, skills_dir: Path) -> dict[str, object]:
         if _sha256_file(file_path) != expected_sha:
             drifted_files.append(relpath)
 
-    return {
+    actual_files = {
+        path.relative_to(install_root).as_posix()
+        for path in install_root.rglob("*")
+        if path.is_file() and path.relative_to(install_root).as_posix() != RECEIPT_RELPATH
+    }
+    extra_files = sorted(actual_files - receipt_files)
+
+    return _scoped_check_result({
         "ok": not missing_files and not drifted_files,
         "missing_files": missing_files,
         "drifted_files": drifted_files,
-    }
+        "extra_files": extra_files,
+    })
 
 
 def update_vibe_skill(
@@ -160,11 +269,15 @@ def update_vibe_skill(
     repo_root: Path,
     skills_dir: Path,
     installed_at_utc: str,
-    source_git_commit: str,
-    source_git_dirty: bool,
+    source_kind: str = "developer_repo",
+    source_git_commit: str = "",
+    source_git_dirty: bool = False,
+    release_version: str = "",
+    release_asset_name: str = "",
+    release_asset_digest: str = "",
     installer_version: str = "0.1.0",
     package_version: str = "0.1.0",
-) -> dict[str, object]:
+    ) -> dict[str, object]:
     check_result = check_vibe_skill(skills_dir=skills_dir)
     if not check_result.get("ok"):
         raise RuntimeError(f"Refusing to update drifted Vibe install: {check_result}")
@@ -172,8 +285,12 @@ def update_vibe_skill(
         repo_root=repo_root,
         skills_dir=skills_dir,
         installed_at_utc=installed_at_utc,
+        source_kind=source_kind,
         source_git_commit=source_git_commit,
         source_git_dirty=source_git_dirty,
+        release_version=release_version,
+        release_asset_name=release_asset_name,
+        release_asset_digest=release_asset_digest,
         installer_version=installer_version,
         package_version=package_version,
     )
