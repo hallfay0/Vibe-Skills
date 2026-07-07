@@ -124,15 +124,15 @@ def test_gate_reports_json_and_clean_current_surfaces() -> None:
     assert payload["summary"]["P2"] == 0
     assert payload["summary"]["legacy_allowed_hits"] > 0
     assert "legacy_skill_routing" in payload["retired_terms"]
+    assert "work_binding" in payload["current_fields"]
+    assert "specialist_decision" in payload["current_fields"]
     assert "skill_routing.selected" in payload["current_fields"]
     assert payload["current_model"] == [
-        "skill_candidates",
-        "skill_routing.selected",
-        "skill_execution_lock",
-        "selected_skill_execution",
-        "skill_usage.used",
-        "skill_usage.unused",
-        "skill_usage.evidence",
+        "task_card",
+        "work_plan",
+        "work_binding",
+        "work_results",
+        "verification",
     ]
 
 

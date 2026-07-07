@@ -61,6 +61,49 @@ def test_governance_readme_points_to_work_truth_before_routing_history() -> None
     assert "specialist-dispatch-governance.md" not in text
 
 
+def test_docs_root_readme_points_current_runtime_to_work_truth_contracts() -> None:
+    text = (REPO_ROOT / "docs" / "README.md").read_text(encoding="utf-8")
+
+    current_runtime_index = text.index("## Current Runtime")
+    current_runtime_section = text[current_runtime_index:].split("## Governance", 1)[0]
+
+    runtime_protocol_index = current_runtime_section.index("[`../protocols/runtime.md`](../protocols/runtime.md)")
+    field_contract_index = current_runtime_section.index(
+        "[`governance/current-runtime-field-contract.md`](./governance/current-runtime-field-contract.md)"
+    )
+    routing_contract_index = current_runtime_section.index(
+        "[`governance/current-routing-contract.md`](./governance/current-routing-contract.md)"
+    )
+
+    assert runtime_protocol_index < field_contract_index < routing_contract_index
+    assert "[`governance/specialist-dispatch-governance.md`](./governance/specialist-dispatch-governance.md)" not in current_runtime_section
+
+
+def test_docs_root_readme_keeps_delivery_acceptance_out_of_current_runtime_entrypoints() -> None:
+    text = (REPO_ROOT / "docs" / "README.md").read_text(encoding="utf-8")
+
+    current_runtime_section = text[text.index("## Current Runtime"):].split("## Governance", 1)[0]
+    governance_section = text[text.index("## Governance"):].split("## Cross-Layer Handoff", 1)[0]
+
+    delivery_acceptance_link = (
+        "[`governance/vibe-governed-project-delivery-acceptance-governance.md`]"
+        "(./governance/vibe-governed-project-delivery-acceptance-governance.md)"
+    )
+
+    assert delivery_acceptance_link not in current_runtime_section
+    assert delivery_acceptance_link in governance_section
+
+
+def test_delivery_acceptance_governance_page_uses_work_first_truth_lead() -> None:
+    text = read_doc("vibe-governed-project-delivery-acceptance-governance.md")
+
+    assert "task_card -> work_plan -> work_binding -> work_results -> verification" in text
+    assert "`work_binding`" in text
+    assert (
+        "skill_candidates -> skill_routing.selected -> selected_skill_execution -> skill_usage"
+    ) not in text
+
+
 def test_runtime_protocol_sets_work_truth_reading_order_before_routing_compatibility() -> None:
     text = (REPO_ROOT / "protocols" / "runtime.md").read_text(encoding="utf-8")
 

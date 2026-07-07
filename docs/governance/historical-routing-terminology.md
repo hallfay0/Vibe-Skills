@@ -1,6 +1,6 @@
 # Historical Routing Terminology
 
-> Historical / Retired Note: This document is an index for retired routing language. The current routing model is `skill_candidates -> skill_routing.selected -> skill_execution_lock -> selected_skill_execution -> skill_usage`.
+> Historical / Retired Note: This document is an index for retired routing language. The current work-first truth model is `task_card -> work_plan -> work_binding -> work_results -> verification`. `skill_routing.selected` may still appear only as an optional compatibility mirror.
 
 This page exists so old routing vocabulary has one small place to live. It is not
 a runtime contract, and it does not add another routing layer.
@@ -12,7 +12,15 @@ Current readers should start here:
 - `docs/governance/current-routing-contract.md`
 - `docs/governance/current-runtime-field-contract.md`
 
-Current state names:
+Current work-first truth:
+
+- `task_card`
+- `work_plan`
+- `work_binding`
+- `work_results`
+- `verification`
+
+Compatibility and execution fields that may still appear:
 
 - `skill_candidates`
 - `skill_routing.selected`
@@ -22,9 +30,9 @@ Current state names:
 - `skill_usage.unused`
 - `skill_usage.evidence`
 
-The runtime distinction is simple: a skill can be a candidate, selected for a
-task slice, executed, and then counted as used only when usage evidence is
-written.
+Read `work_binding` first when asking what work was actually bound. Read
+`skill_routing.selected` only as an optional compatibility mirror for older
+readers and reports.
 
 ## Retired Terms
 
@@ -46,8 +54,9 @@ They should not be used to describe current runtime state:
 ## Preserved Rationale
 
 The older documents remain useful for audit history because they show why the
-project removed advisory/helper/primary-secondary routing states and kept a
-smaller selected-versus-used model.
+project removed advisory/helper/primary-secondary routing states and moved
+current truth to the work-first chain above while keeping a few compatibility
+fields readable.
 
 When editing current docs, prefer the current contract links instead of copying
 old terminology back into new prose.

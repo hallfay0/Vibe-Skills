@@ -1,6 +1,6 @@
 # Specialist Dispatch Governance
 
-> Historical / Retired Note: This document records a retired execution-wording design. The current routing model is `skill_candidates -> skill_routing.selected -> skill_execution_lock -> selected_skill_execution -> skill_usage`.
+> Historical / Retired Note: This document records a retired execution-wording design. The current work-first truth model is `task_card -> work_plan -> work_binding -> work_results -> verification`. `skill_routing.selected` may remain visible only as an optional compatibility mirror.
 
 Current readers should use:
 
@@ -14,8 +14,10 @@ The durable decision from this document is that execution must be tied to the
 skill selected for the task slice and must not be treated as hidden advisory
 activity.
 
-Current execution language is `skill_execution_lock`, `selected_skill_execution`,
-`skill_execution_units`, and `execution_skill_outcomes`.
+Current execution language may still use `skill_execution_lock`,
+`selected_skill_execution`, `skill_execution_units`, and
+`execution_skill_outcomes`, but current truth starts from `work_binding` and
+`specialist_decision`.
 
 ## Retired Context
 

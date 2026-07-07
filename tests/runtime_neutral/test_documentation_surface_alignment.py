@@ -65,6 +65,161 @@ def test_governance_navigation_separates_current_contracts_from_archived_history
         assert (REPO_ROOT / "docs" / "archive" / "governance-history" / archived_doc).exists()
 
 
+def test_status_navigation_keeps_historical_dry_run_out_of_start_here() -> None:
+    status_readme = _read("docs/status/README.md")
+
+    start_here = status_readme[status_readme.index("## Start Here"):].split("## Cross-Layer Handoff", 1)[0]
+    reading_boundary = status_readme[status_readme.index("## Reading Boundary"):].split("## Rules", 1)[0]
+    historical_dry_run = "[`operator-dry-run.md`](operator-dry-run.md)"
+
+    assert historical_dry_run not in start_here
+    assert historical_dry_run in reading_boundary
+
+
+def test_status_navigation_keeps_history_index_out_of_start_here() -> None:
+    status_readme = _read("docs/status/README.md")
+
+    start_here = status_readme[status_readme.index("## Start Here"):].split("## Cross-Layer Handoff", 1)[0]
+    reading_boundary = status_readme[status_readme.index("## Reading Boundary"):].split("## Rules", 1)[0]
+    history_index = "[`history-index.md`](./history-index.md)"
+
+    assert history_index not in start_here
+    assert history_index in reading_boundary
+
+
+def test_status_navigation_keeps_operator_script_index_out_of_cross_layer_handoff() -> None:
+    status_readme = _read("docs/status/README.md")
+
+    cross_layer = status_readme[status_readme.index("## Cross-Layer Handoff"):].split("## Reading Boundary", 1)[0]
+    rules_section = status_readme[status_readme.index("## Rules"):].splitlines()
+    operator_scripts = "[`../../scripts/README.md`](../../scripts/README.md)"
+
+    assert operator_scripts not in cross_layer
+    assert any(operator_scripts in line for line in rules_section)
+
+
+def test_status_navigation_keeps_verify_run_order_index_out_of_cross_layer_handoff() -> None:
+    status_readme = _read("docs/status/README.md")
+
+    cross_layer = status_readme[status_readme.index("## Cross-Layer Handoff"):].split("## Reading Boundary", 1)[0]
+    rules_section = status_readme[status_readme.index("## Rules"):].splitlines()
+    verify_run_order = "[`../../scripts/verify/gate-family-index.md`](../../scripts/verify/gate-family-index.md)"
+
+    assert verify_run_order not in cross_layer
+    assert any(verify_run_order in line for line in rules_section)
+
+
+def test_docs_root_keeps_plans_index_out_of_start_here() -> None:
+    docs_readme = _read("docs/README.md")
+
+    start_here = docs_readme[docs_readme.index("## Start Here"):].split("## 按需再看", 1)[0]
+    cross_layer = docs_readme[docs_readme.index("## Cross-Layer Handoff"):].split("## Rules", 1)[0]
+    plans_link = "[`plans/README.md`](./plans/README.md)"
+
+    assert plans_link not in start_here
+    assert plans_link in cross_layer
+
+
+def test_docs_root_keeps_scripts_index_out_of_cross_layer_handoff() -> None:
+    docs_readme = _read("docs/README.md")
+
+    cross_layer = docs_readme[docs_readme.index("## Cross-Layer Handoff"):].split("## Rules", 1)[0]
+    rules_section = docs_readme[docs_readme.index("## Rules"):].splitlines()
+    scripts_link = "[`../scripts/README.md`](../scripts/README.md)"
+
+    assert scripts_link not in cross_layer
+    assert any(scripts_link in line for line in rules_section)
+
+
+def test_design_readme_keeps_verify_entry_index_out_of_cross_layer_handoff() -> None:
+    design_readme = _read("docs/design/README.md")
+
+    cross_layer = design_readme[design_readme.index("## Cross-Layer Handoff"):].split("## Rules", 1)[0]
+    rules_section = design_readme[design_readme.index("## Rules"):].splitlines()
+    verify_link = "[`../../scripts/verify/README.md`](../../scripts/verify/README.md)"
+
+    assert verify_link not in cross_layer
+    assert any(verify_link in line for line in rules_section)
+
+
+def test_external_tooling_readme_keeps_operator_script_index_out_of_cross_layer_handoff() -> None:
+    tooling_readme = _read("docs/external-tooling/README.md")
+
+    cross_layer = tooling_readme[tooling_readme.index("### Cross-Layer Handoff"):].split("## Rules", 1)[0]
+    rules_section = tooling_readme[tooling_readme.index("## Rules"):].splitlines()
+    scripts_link = "[`../../scripts/README.md`](../../scripts/README.md)"
+
+    assert scripts_link not in cross_layer
+    assert any(scripts_link in line for line in rules_section)
+
+
+def test_public_readmes_do_not_link_directly_to_test_files() -> None:
+    english = _read("README.md")
+    chinese = _read("README.zh.md")
+
+    assert "./tests/" not in english
+    assert "./tests/" not in chinese
+    assert "test_codex_memory_user_simulation.py" not in english
+    assert "test_codex_memory_user_simulation.py" not in chinese
+    assert "docs/status/non-regression-proof-bundle.md" in english
+    assert "docs/status/non-regression-proof-bundle.md" in chinese
+
+
+def test_release_navigation_keeps_archive_links_out_of_runtime_proof_handoff() -> None:
+    release_readme = _read("docs/releases/README.md")
+
+    proof_handoff = release_readme[release_readme.index("### Release Runtime / Proof Handoff"):].split(
+        "## Recent Governed Releases",
+        1,
+    )[0]
+    historical_archive = release_readme[release_readme.index("## Historical Release Archive"):].split(
+        "## Historical Packetization",
+        1,
+    )[0]
+    historical_packetization = release_readme[release_readme.index("## Historical Packetization"):].split(
+        "## Release Operator Entry",
+        1,
+    )[0]
+
+    archive_link = "[`../archive/releases/README.md`](../archive/releases/README.md)"
+    packet_link = "[`../archive/releases/wave15-18-release-packet.md`](../archive/releases/wave15-18-release-packet.md)"
+
+    assert archive_link not in proof_handoff
+    assert archive_link in historical_archive
+    assert packet_link not in proof_handoff
+    assert packet_link in historical_packetization
+
+
+def test_release_navigation_keeps_exact_gate_script_names_out_of_runtime_proof_handoff() -> None:
+    release_readme = _read("docs/releases/README.md")
+
+    proof_handoff = release_readme[release_readme.index("### Release Runtime / Proof Handoff"):].split(
+        "## Recent Governed Releases",
+        1,
+    )[0]
+
+    assert "vibe-skill-promotion-execution-gate.ps1" not in proof_handoff
+    assert "vibe-release-truth-consistency-gate.ps1" not in proof_handoff
+    assert "[`../../scripts/verify/README.md`](../../scripts/verify/README.md)" in proof_handoff
+    assert "[`../status/non-regression-proof-bundle.md`](../status/non-regression-proof-bundle.md)" in proof_handoff
+
+
+def test_release_navigation_keeps_gate_family_index_out_of_runtime_proof_handoff() -> None:
+    release_readme = _read("docs/releases/README.md")
+
+    proof_handoff = release_readme[release_readme.index("### Release Runtime / Proof Handoff"):].split(
+        "## Recent Governed Releases",
+        1,
+    )[0]
+    rules_section = release_readme[release_readme.index("## Rules"):].splitlines()
+
+    gate_index_link = "[`../../scripts/verify/gate-family-index.md`](../../scripts/verify/gate-family-index.md)"
+
+    assert gate_index_link not in proof_handoff
+    assert any(gate_index_link in line for line in rules_section)
+    assert "[`../../scripts/verify/README.md`](../../scripts/verify/README.md)" in proof_handoff
+
+
 def test_readmes_describe_local_installed_skill_story_without_repromoting_a_central_catalog() -> None:
     english = _read("README.md")
     chinese = _read("README.zh.md")
@@ -276,6 +431,39 @@ def test_default_closure_docs_keep_small_proof_set_story() -> None:
     assert 'Additional final regression checks stay outside the default closure gate set' in proof_bundle
     assert "normal closeout path should stay small" in readme
     assert "default closure story should stay small" in architecture
+
+
+def test_public_readmes_keep_three_public_proof_layers_separate() -> None:
+    english = _read("README.md")
+    chinese = _read("README.zh.md")
+
+    for content in (english, chinese):
+        assert "`installed locally`" in content
+        assert "`runtime coherent`" in content
+        assert "`delivery accepted`" in content
+
+    assert "current verification surface" not in english.lower()
+    assert "当前验证入口" not in chinese
+
+
+def test_runtime_protocol_maps_public_proof_layers_without_reintroducing_install_host_ready_states() -> None:
+    protocol = _read("protocols/runtime.md")
+
+    assert "`installed locally` belongs to install receipt / `check` and stays outside this protocol." in protocol
+    assert "`runtime coherent` starts only after canonical entry returns a `session_root`" in protocol
+    assert "`delivery accepted` is decided by the delivery-acceptance report" in protocol
+    assert "vibe host-ready" not in protocol
+    assert "online-ready" not in protocol
+
+
+def test_non_regression_proof_bundle_is_positioned_as_operator_closeout_contract() -> None:
+    proof_bundle = _read("docs/status/non-regression-proof-bundle.md")
+
+    assert "operator and contributor closeout contract" in proof_bundle
+    assert "It is not the everyday public proof ladder" in proof_bundle
+    assert "`installed locally` -> `check`" in proof_bundle
+    assert "`runtime coherent` -> returned `session_root` truth artifacts" in proof_bundle
+    assert "`delivery accepted` -> delivery-acceptance report" in proof_bundle
 
 
 def test_manifest_driven_custom_governance_doc_is_legacy_archive_only() -> None:

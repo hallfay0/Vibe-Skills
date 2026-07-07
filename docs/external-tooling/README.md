@@ -29,11 +29,11 @@
 - [`../README.md`](../README.md): docs 三段式总入口
 - [`../design/README.md`](../design/README.md): design notes and reusable playbooks
 - [`../../references/index.md`](../../references/index.md): long-lived contracts, matrices, ledgers, and overlays
-- [`../../scripts/README.md`](../../scripts/README.md): executable operator surface
 
 ## Rules
 
 - 新增 external-tooling 说明时，优先写“边界与选型”，不要把具体 wave 执行记录堆到这里
 - overlay / upstream delta / provider-boundary 文档优先放在这里，而不是继续占据 `docs/` 根层
 - 这里属于 background / governance boundary，不承担 current runtime summary 或 release receipt 入口
+- 更低层的脚本 operator surface 仍在 [`../../scripts/README.md`](../../scripts/README.md)，但它不是 external-tooling 边界入口的第一跳。
 - 若某篇 external-tooling 文档影响路由或治理合同，必须补到 `docs/README.md` 与相关 `config/` / `scripts/` 锚点
