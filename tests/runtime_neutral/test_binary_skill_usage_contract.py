@@ -80,6 +80,29 @@ class BinarySkillUsageContractTests(unittest.TestCase):
             )
             self.assertEqual([str((home / ".claude" / "skills").resolve())], payload["claude"])
 
+    def test_local_skill_authority_honors_explicit_shared_root_for_claude_code(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            target_root = root / "home" / ".agents"
+            skill_dir = target_root / "skills" / "feature-planning"
+            skill_dir.mkdir(parents=True)
+            skill_path = skill_dir / "SKILL.md"
+            skill_path.write_text("# Feature Planning\n", encoding="utf-8", newline="\n")
+
+            payload = run_ps_json(
+                "& { "
+                f". {ps_quote(str(RUNTIME_COMMON))}; "
+                f". {ps_quote(str(SKILL_USAGE_COMMON))}; "
+                f"$authority = Resolve-VibeLocalSkillAuthority -RepoRoot {ps_quote(str(REPO_ROOT))} -SkillId 'feature-planning' -NativeSkillEntrypoint {ps_quote(str(skill_path))} -TargetRoot {ps_quote(str(target_root))} -HostId 'claude-code' -RequireProvidedEntrypoint; "
+                "$authority | ConvertTo-Json -Depth 20 "
+                "}"
+            )
+
+            self.assertTrue(payload["valid"])
+            self.assertEqual("ok", payload["reason"])
+            self.assertEqual(str(skill_path.resolve()), payload["canonical_entrypoint"])
+            self.assertEqual(str((target_root / "skills").resolve()), payload["source_root"])
+
     def test_full_skill_load_records_hash_path_line_and_byte_counts(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             root = Path(tempdir)

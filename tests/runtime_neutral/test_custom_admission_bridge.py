@@ -372,6 +372,8 @@ class CustomAdmissionBridgeTests(unittest.TestCase):
 
             self.assertEqual("disabled_default_local_index_only", packet["custom_admission"]["status"])
             self.assertEqual(normalize_path_text(str(target_root.resolve())), normalize_path_text(packet["custom_admission"]["target_root"]))
+            self.assertTrue((target_root / "vibe").exists())
+            self.assertFalse((target_root / "skills" / "vibe").exists())
 
             custom_recommendation = next(
                 item for item in selected_rows_from_packet(packet) if item["skill_id"] == "genomics-qc-flow"

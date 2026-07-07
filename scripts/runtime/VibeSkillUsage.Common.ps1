@@ -53,6 +53,10 @@ function Get-VibeConfiguredSkillRoots {
     }
     $roots = New-Object System.Collections.Generic.List[string]
     $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $explicitSkillsRoot = [System.IO.Path]::GetFullPath((Join-Path $resolvedTargetRoot 'skills'))
+    if ($seen.Add([string]$explicitSkillsRoot)) {
+        $roots.Add([string]$explicitSkillsRoot) | Out-Null
+    }
     foreach ($rawValue in $defaultSkillRoots) {
         $resolved = Resolve-VibeSkillRootPath -RawPath ([string]$rawValue) -TargetRoot $resolvedTargetRoot
         if ([string]::IsNullOrWhiteSpace([string]$resolved)) {
