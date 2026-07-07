@@ -23,6 +23,46 @@ def _write_json(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+def test_powershell_runtime_common_no_longer_owns_runtime_summary_builder() -> None:
+    text = (REPO_ROOT / "scripts" / "runtime" / "VibeRuntime.Common.ps1").read_text(encoding="utf-8")
+    assert "function New-VibePythonRuntimeSummaryProjection" not in text
+
+
+def test_canonical_entry_supports_python_owned_runtime_summary_finalizer(
+    tmp_path: Path,
+) -> None:
+    payload_path = tmp_path / "summary-input.json"
+    output_path = tmp_path / "runtime-summary.json"
+    payload_path.write_text(
+        json.dumps(
+            {
+                "run_id": "run-1",
+                "task": "demo",
+                "mode": "interactive_governed",
+                "artifact_root": str(tmp_path),
+                "session_root": str(tmp_path / "session"),
+                "hierarchy_state": {"governance_scope": "root"},
+                "artifacts": {"runtime_input_packet": str(tmp_path / "session" / "runtime-input-packet.json")},
+                "work_binding": {"units": [{"bound_skill": "systematic-debugging"}]},
+                "stage_lineage": {"stages": [{"stage_name": "skeleton_check"}], "last_stage_name": "skeleton_check"},
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    summary = canonical_entry.finalize_runtime_summary_payload(
+        input_json_path=payload_path,
+        output_json_path=output_path,
+    )
+
+    assert output_path.exists()
+    assert summary["truth_owner"] == "python"
+    assert summary["bound_skill_ids"] == ["systematic-debugging"]
+
+
 def _write_host_launch_receipt(session_root: Path, *, run_id: str, launch_status: str = "verified") -> None:
     _write_json(
         session_root / "host-launch-receipt.json",
@@ -48,15 +88,21 @@ def _write_valid_truth_artifacts(
     entry_intent_id: str = "vibe",
     canonical_router_requested_skill: str | None = None,
     router_selected_skill: str = "systematic-debugging",
+    route_task_type: str = "debug",
     requested_stage_stop: str = "phase_cleanup",
     requested_grade_floor: str | None = None,
     canonical_router_host_id: str | None = None,
     governance_runtime_selected_skill: str = "vibe",
-    divergence_router_selected_skill: str | None = None,
-    divergence_runtime_selected_skill: str = "vibe",
+    divergence_runtime_selected_skill: str | None = None,
     stage_lineage_last_stage_name: str | None = None,
     stage_lineage_stages: list[dict[str, str]] | None = None,
 ) -> None:
+    canonical_router = {
+        "host_id": host_id if canonical_router_host_id is None else canonical_router_host_id,
+    }
+    if canonical_router_requested_skill is not None:
+        canonical_router["requested_skill"] = canonical_router_requested_skill
+
     _write_json(
         session_root / "runtime-input-packet.json",
         {
@@ -64,12 +110,9 @@ def _write_valid_truth_artifacts(
             "entry_intent_id": entry_intent_id,
             "requested_stage_stop": requested_stage_stop,
             "requested_grade_floor": requested_grade_floor,
-            "canonical_router": {
-                "host_id": host_id if canonical_router_host_id is None else canonical_router_host_id,
-                "requested_skill": canonical_router_requested_skill,
-            },
+            "canonical_router": canonical_router,
             "route_snapshot": {
-                "selected_skill": router_selected_skill,
+                "task_type": route_task_type,
                 "route_mode": "governed",
                 "confirm_required": False,
             },
@@ -78,6 +121,26 @@ def _write_valid_truth_artifacts(
                 "candidates": [{"skill_id": router_selected_skill}],
                 "selected": [{"skill_id": router_selected_skill}],
                 "rejected": [],
+            },
+            "work_binding": {
+                "schema_version": "runtime_work_binding_v1",
+                "source": "approved_dispatch",
+                "run_id": session_root.name,
+                "task": "current bounded work",
+                "unit_count": 1,
+                "status": "projected_from_approved_dispatch",
+                "units": [
+                    {
+                        "work_unit_id": "runtime-bound-skill-1",
+                        "bound_skill": router_selected_skill,
+                        "task_slice": f"Use {router_selected_skill} for bounded specialist work.",
+                        "skill_md_path": None,
+                        "native_skill_entrypoint": None,
+                        "dispatch_phase": "in_execution",
+                        "bounded_role": "selected_skill",
+                        "binding_profile": "selected_skill",
+                    }
+                ],
             },
             "skill_usage": {
                 "state_model": "binary_used_unused",
@@ -94,10 +157,13 @@ def _write_valid_truth_artifacts(
                 "rejected_candidates": [],
             },
             "divergence_shadow": {
-                "router_selected_skill": (
-                    router_selected_skill if divergence_router_selected_skill is None else divergence_router_selected_skill
+                **(
+                    {
+                        "runtime_selected_skill": divergence_runtime_selected_skill,
+                    }
+                    if divergence_runtime_selected_skill is not None
+                    else {}
                 ),
-                "runtime_selected_skill": divergence_runtime_selected_skill,
                 "skill_mismatch": router_selected_skill != "vibe",
             },
         },
@@ -129,10 +195,9 @@ def _write_current_truth_artifacts(
             "requested_grade_floor": None,
             "canonical_router": {
                 "host_id": host_id,
-                "requested_skill": None,
             },
             "route_snapshot": {
-                "selected_skill": router_selected_skill,
+                "task_type": "planning",
                 "route_mode": "governed",
                 "confirm_required": False,
             },
@@ -141,6 +206,26 @@ def _write_current_truth_artifacts(
                 "candidates": [{"skill_id": router_selected_skill}],
                 "selected": [{"skill_id": router_selected_skill}],
                 "rejected": [],
+            },
+            "work_binding": {
+                "schema_version": "runtime_work_binding_v1",
+                "source": "approved_dispatch",
+                "run_id": session_root.name,
+                "task": "current bounded work",
+                "unit_count": 1,
+                "status": "projected_from_approved_dispatch",
+                "units": [
+                    {
+                        "work_unit_id": "runtime-bound-skill-1",
+                        "bound_skill": router_selected_skill,
+                        "task_slice": f"Use {router_selected_skill} for bounded specialist work.",
+                        "skill_md_path": None,
+                        "native_skill_entrypoint": None,
+                        "dispatch_phase": "in_execution",
+                        "bounded_role": "selected_skill",
+                        "binding_profile": "selected_skill",
+                    }
+                ],
             },
             "skill_usage": {
                 "state_model": "binary_used_unused",
@@ -154,7 +239,6 @@ def _write_current_truth_artifacts(
                 "selected_skill_ids": [router_selected_skill],
             },
             "divergence_shadow": {
-                "router_selected_skill": router_selected_skill,
                 "runtime_selected_skill": "vibe",
                 "skill_mismatch": router_selected_skill != "vibe",
             },
@@ -205,7 +289,10 @@ def _write_bounded_return_summary(
             {
                 "canonical_router": {
                     "task_type": prior_task_type,
-                }
+                },
+                "route_snapshot": {
+                    "task_type": prior_task_type,
+                },
             },
         )
     summary_path = session_root / "runtime-summary.json"
@@ -291,6 +378,11 @@ def test_canonical_entry_writes_host_launch_receipt(
     assert receipt["host_id"] == "codex"
     assert receipt["entry_id"] == "vibe"
     assert receipt["launch_status"] == "verified"
+    summary = json.loads(result.summary_path.read_text(encoding="utf-8"))
+    assert summary["requested_stage_stop"] == "phase_cleanup"
+    assert summary["effective_requested_stage_stop"] == "requirement_doc"
+    assert summary["stage_stop_source"] == "progressive_adjusted"
+    assert summary["terminal_stage"] == "requirement_doc"
 
 
 def test_canonical_entry_prewrites_launched_receipt_before_runtime_invocation(
@@ -334,6 +426,10 @@ def test_canonical_entry_prewrites_launched_receipt_before_runtime_invocation(
 
     receipt = json.loads(result.host_launch_receipt_path.read_text(encoding="utf-8"))
     assert receipt["launch_status"] == "verified"
+    summary = json.loads(result.summary_path.read_text(encoding="utf-8"))
+    assert summary["requested_stage_stop"] == "phase_cleanup"
+    assert summary["effective_requested_stage_stop"] == "requirement_doc"
+    assert summary["stage_stop_source"] == "progressive_adjusted"
 
 
 def test_canonical_entry_synthesizes_default_prompt_for_empty_vibe_upgrade_request(
@@ -416,6 +512,53 @@ def test_canonical_entry_progresses_public_vibe_to_requirement_boundary_on_first
     receipt = json.loads(result.host_launch_receipt_path.read_text(encoding="utf-8"))
     assert receipt["requested_stage_stop"] == "requirement_doc"
     assert receipt["launch_status"] == "verified"
+    summary = json.loads(result.summary_path.read_text(encoding="utf-8"))
+    assert summary["requested_stage_stop"] == "phase_cleanup"
+    assert summary["effective_requested_stage_stop"] == "requirement_doc"
+    assert summary["stage_stop_source"] == "progressive_adjusted"
+    assert summary["terminal_stage"] == "requirement_doc"
+
+
+def test_canonical_entry_runtime_summary_marks_progressive_default_when_no_stage_stop_requested(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    run_id = "pytest-canonical-entry-progressive-default-summary"
+    session_root = tmp_path / "outputs" / "runtime" / "vibe-sessions" / run_id
+
+    monkeypatch.setattr(
+        canonical_entry,
+        "resolve_canonical_vibe_contract",
+        lambda repo_root, host_id: {"fallback_policy": "blocked", "allow_skill_doc_fallback": False},
+    )
+
+    def fake_invoke_runtime(**kwargs: object) -> dict[str, object]:
+        assert kwargs["requested_stage_stop"] == "requirement_doc"
+        _write_valid_truth_artifacts(session_root, requested_stage_stop="requirement_doc")
+        return {
+            "run_id": run_id,
+            "session_root": str(session_root),
+            "summary_path": str(session_root / "runtime-summary.json"),
+            "summary": {"run_id": run_id},
+        }
+
+    monkeypatch.setattr(canonical_entry, "invoke_vibe_runtime_entrypoint", fake_invoke_runtime)
+
+    result = canonical_entry.launch_canonical_vibe(
+        repo_root=tmp_path,
+        host_id="codex",
+        entry_id="vibe",
+        prompt="implement governed runtime hardening",
+        requested_stage_stop=None,
+        run_id=run_id,
+        artifact_root=tmp_path,
+    )
+
+    summary = json.loads(result.summary_path.read_text(encoding="utf-8"))
+    assert summary["requested_stage_stop"] is None
+    assert summary["effective_requested_stage_stop"] == "requirement_doc"
+    assert summary["stage_stop_source"] == "progressive_default"
+    assert summary["terminal_stage"] == "requirement_doc"
 
 
 def test_resolve_effective_prompt_enriches_short_vibe_do_prompt_with_prior_intent_contract(
@@ -506,7 +649,7 @@ def test_bounded_return_control_resolves_relative_artifacts_from_summary_path(tm
     _write_json(session_root / "artifacts" / "intent-contract.json", {"goal": "relative bounded goal"})
     _write_json(
         session_root / "artifacts" / "runtime-input-packet.json",
-        {"canonical_router": {"task_type": "research"}},
+        {"route_snapshot": {"task_type": "research"}},
     )
     summary = {
         "run_id": "bounded-run",
@@ -1643,6 +1786,64 @@ def test_canonical_entry_rejects_incomplete_truth_packets_before_verifying(
         )
 
 
+def test_canonical_entry_rejects_bad_selected_skill_mirror_without_rewriting_packet(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    run_id = "pytest-canonical-entry-python-truth"
+    session_root = tmp_path / "outputs" / "runtime" / "vibe-sessions" / run_id
+
+    monkeypatch.setattr(
+        canonical_entry,
+        "resolve_canonical_vibe_contract",
+        lambda repo_root, host_id: {"fallback_policy": "blocked", "allow_skill_doc_fallback": False},
+    )
+
+    def fake_invoke_runtime(**kwargs: object) -> dict[str, object]:
+        _write_valid_truth_artifacts(session_root, requested_stage_stop="requirement_doc")
+        runtime_packet_path = session_root / "runtime-input-packet.json"
+        runtime_packet = json.loads(runtime_packet_path.read_text(encoding="utf-8"))
+        runtime_packet["stage"] = "powershell-owned"
+        runtime_packet["run_id"] = "wrong-run-id"
+        runtime_packet["task"] = "wrong task"
+        runtime_packet["host_id"] = "codex"
+        runtime_packet["future_truth_hint"] = {"owner": "next-version"}
+        runtime_packet["skill_routing"]["selected"] = [{"skill_id": "wrong-skill"}]
+        _write_json(runtime_packet_path, runtime_packet)
+        return {
+            "run_id": run_id,
+            "session_root": str(session_root),
+            "summary_path": str(session_root / "runtime-summary.json"),
+            "summary": {"run_id": run_id},
+        }
+
+    monkeypatch.setattr(canonical_entry, "invoke_vibe_runtime_entrypoint", fake_invoke_runtime)
+
+    with pytest.raises(
+        RuntimeError,
+        match="skill_routing.selected must stay a compatibility mirror of work_binding",
+    ):
+        canonical_entry.launch_canonical_vibe(
+            repo_root=tmp_path,
+            host_id="codex",
+            entry_id="vibe",
+            prompt="review code carefully",
+            requested_stage_stop="phase_cleanup",
+            run_id=run_id,
+            artifact_root=tmp_path,
+        )
+
+    runtime_packet = json.loads((session_root / "runtime-input-packet.json").read_text(encoding="utf-8"))
+    assert runtime_packet["stage"] == "powershell-owned"
+    assert runtime_packet["run_id"] == "wrong-run-id"
+    assert runtime_packet["task"] == "wrong task"
+    assert runtime_packet["host_id"] == "codex"
+    assert runtime_packet["future_truth_hint"] == {"owner": "next-version"}
+    assert runtime_packet["work_binding"]["units"][0]["bound_skill"] == "systematic-debugging"
+    assert runtime_packet["specialist_decision"]["decision_state"] == "no_specialist_recommendations"
+    assert runtime_packet["skill_routing"]["selected"][0]["skill_id"] == "wrong-skill"
+
+
 def test_canonical_entry_rejects_unsupported_presentational_entry_ids(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -1760,6 +1961,46 @@ def test_canonical_entry_accepts_current_skill_routing_truth_packet(
     assert receipt["launch_status"] == "verified"
 
 
+def test_canonical_entry_accepts_missing_skill_routing_when_work_binding_is_present(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    run_id = "pytest-canonical-entry-missing-skill-routing"
+    session_root = tmp_path / "outputs" / "runtime" / "vibe-sessions" / run_id
+
+    monkeypatch.setattr(
+        canonical_entry,
+        "resolve_canonical_vibe_contract",
+        lambda repo_root, host_id: {"fallback_policy": "blocked", "allow_skill_doc_fallback": False},
+    )
+
+    def fake_invoke_runtime(**kwargs: object) -> dict[str, object]:
+        _write_current_truth_artifacts(session_root)
+        runtime_packet_path = session_root / "runtime-input-packet.json"
+        payload = json.loads(runtime_packet_path.read_text(encoding="utf-8"))
+        payload.pop("skill_routing", None)
+        _write_json(runtime_packet_path, payload)
+        return {
+            "run_id": run_id,
+            "session_root": str(session_root),
+            "summary_path": str(session_root / "runtime-summary.json"),
+            "summary": {"run_id": run_id},
+        }
+
+    monkeypatch.setattr(canonical_entry, "invoke_vibe_runtime_entrypoint", fake_invoke_runtime)
+
+    result = canonical_entry.launch_canonical_vibe(
+        repo_root=tmp_path,
+        host_id="codex",
+        entry_id="vibe",
+        prompt="x",
+        requested_stage_stop="requirement_doc",
+        artifact_root=tmp_path,
+    )
+
+    assert result.host_launch_receipt_path == session_root / "host-launch-receipt.json"
+
+
 def test_canonical_entry_rejects_when_runtime_packet_drops_requested_grade_floor(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -1840,6 +2081,54 @@ def test_canonical_entry_rejects_empty_canonical_router_host_id(
         )
 
 
+def test_canonical_entry_accepts_missing_canonical_router_compatibility_mirror(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    run_id = "pytest-canonical-entry-no-router-mirror"
+    session_root = tmp_path / "outputs" / "runtime" / "vibe-sessions" / run_id
+
+    monkeypatch.setattr(
+        canonical_entry,
+        "resolve_canonical_vibe_contract",
+        lambda repo_root, host_id: {"fallback_policy": "blocked", "allow_skill_doc_fallback": False},
+    )
+    monkeypatch.setattr(
+        canonical_entry,
+        "load_allowed_vibe_entry_ids",
+        lambda: frozenset({"vibe"}),
+    )
+
+    def fake_invoke_runtime(**kwargs: object) -> dict[str, object]:
+        _write_valid_truth_artifacts(
+            session_root,
+            requested_stage_stop="requirement_doc",
+        )
+        runtime_packet_path = session_root / "runtime-input-packet.json"
+        payload = json.loads(runtime_packet_path.read_text(encoding="utf-8"))
+        payload.pop("canonical_router", None)
+        _write_json(runtime_packet_path, payload)
+        return {
+            "run_id": run_id,
+            "session_root": str(session_root),
+            "summary_path": str(session_root / "runtime-summary.json"),
+            "summary": {"run_id": run_id},
+        }
+
+    monkeypatch.setattr(canonical_entry, "invoke_vibe_runtime_entrypoint", fake_invoke_runtime)
+
+    result = canonical_entry.launch_canonical_vibe(
+        repo_root=tmp_path,
+        host_id="codex",
+        entry_id="vibe",
+        prompt="x",
+        requested_stage_stop="phase_cleanup",
+        artifact_root=tmp_path,
+    )
+
+    assert result.run_id == run_id
+
+
 def test_canonical_entry_rejects_empty_governance_capsule_runtime_authority(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -1879,7 +2168,7 @@ def test_canonical_entry_rejects_empty_governance_capsule_runtime_authority(
         )
 
 
-def test_canonical_entry_rejects_empty_divergence_runtime_authority(
+def test_canonical_entry_accepts_empty_divergence_runtime_authority_shadow(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -1907,18 +2196,67 @@ def test_canonical_entry_rejects_empty_divergence_runtime_authority(
 
     monkeypatch.setattr(canonical_entry, "invoke_vibe_runtime_entrypoint", fake_invoke_runtime)
 
-    with pytest.raises(RuntimeError, match="divergence_shadow must keep vibe"):
-        canonical_entry.launch_canonical_vibe(
-            repo_root=tmp_path,
-            host_id="codex",
-            entry_id="vibe",
-            prompt="x",
-            requested_stage_stop="phase_cleanup",
-            artifact_root=tmp_path,
+    result = canonical_entry.launch_canonical_vibe(
+        repo_root=tmp_path,
+        host_id="codex",
+        entry_id="vibe",
+        prompt="x",
+        requested_stage_stop="phase_cleanup",
+        artifact_root=tmp_path,
+    )
+
+    assert result.run_id == run_id
+
+
+def test_canonical_entry_accepts_missing_divergence_shadow_compatibility_mirror(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    run_id = "pytest-canonical-entry-no-divergence-shadow"
+    session_root = tmp_path / "outputs" / "runtime" / "vibe-sessions" / run_id
+
+    monkeypatch.setattr(
+        canonical_entry,
+        "resolve_canonical_vibe_contract",
+        lambda repo_root, host_id: {"fallback_policy": "blocked", "allow_skill_doc_fallback": False},
+    )
+    monkeypatch.setattr(
+        canonical_entry,
+        "load_allowed_vibe_entry_ids",
+        lambda: frozenset({"vibe"}),
+    )
+
+    def fake_invoke_runtime(**kwargs: object) -> dict[str, object]:
+        _write_valid_truth_artifacts(
+            session_root,
+            requested_stage_stop="requirement_doc",
         )
+        runtime_packet_path = session_root / "runtime-input-packet.json"
+        payload = json.loads(runtime_packet_path.read_text(encoding="utf-8"))
+        payload.pop("divergence_shadow", None)
+        _write_json(runtime_packet_path, payload)
+        return {
+            "run_id": run_id,
+            "session_root": str(session_root),
+            "summary_path": str(session_root / "runtime-summary.json"),
+            "summary": {"run_id": run_id},
+        }
+
+    monkeypatch.setattr(canonical_entry, "invoke_vibe_runtime_entrypoint", fake_invoke_runtime)
+
+    result = canonical_entry.launch_canonical_vibe(
+        repo_root=tmp_path,
+        host_id="codex",
+        entry_id="vibe",
+        prompt="x",
+        requested_stage_stop="phase_cleanup",
+        artifact_root=tmp_path,
+    )
+
+    assert result.run_id == run_id
 
 
-def test_canonical_entry_rejects_empty_divergence_router_skill(
+def test_canonical_entry_accepts_missing_divergence_router_skill_mirror(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -1934,7 +2272,6 @@ def test_canonical_entry_rejects_empty_divergence_router_skill(
     def fake_invoke_runtime(**kwargs: object) -> dict[str, object]:
         _write_valid_truth_artifacts(
             session_root,
-            divergence_router_selected_skill="",
             requested_stage_stop="requirement_doc",
         )
         return {
@@ -1946,7 +2283,144 @@ def test_canonical_entry_rejects_empty_divergence_router_skill(
 
     monkeypatch.setattr(canonical_entry, "invoke_vibe_runtime_entrypoint", fake_invoke_runtime)
 
-    with pytest.raises(RuntimeError, match="divergence_shadow router_selected_skill"):
+    result = canonical_entry.launch_canonical_vibe(
+        repo_root=tmp_path,
+        host_id="codex",
+        entry_id="vibe",
+        prompt="x",
+        requested_stage_stop="phase_cleanup",
+        artifact_root=tmp_path,
+    )
+
+    assert result.run_id == run_id
+    assert result.summary["run_id"] == run_id
+
+
+def test_canonical_entry_accepts_missing_route_snapshot_selected_skill_summary(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    run_id = "pytest-canonical-entry-missing-route-summary-skill"
+    session_root = tmp_path / "outputs" / "runtime" / "vibe-sessions" / run_id
+
+    monkeypatch.setattr(
+        canonical_entry,
+        "resolve_canonical_vibe_contract",
+        lambda repo_root, host_id: {"fallback_policy": "blocked", "allow_skill_doc_fallback": False},
+    )
+
+    def fake_invoke_runtime(**kwargs: object) -> dict[str, object]:
+        _write_valid_truth_artifacts(
+            session_root,
+            requested_stage_stop="requirement_doc",
+        )
+        runtime_packet_path = session_root / "runtime-input-packet.json"
+        payload = json.loads(runtime_packet_path.read_text(encoding="utf-8"))
+        payload["route_snapshot"]["selected_skill"] = ""
+        _write_json(runtime_packet_path, payload)
+        return {
+            "run_id": run_id,
+            "session_root": str(session_root),
+            "summary_path": str(session_root / "runtime-summary.json"),
+            "summary": {"run_id": run_id},
+        }
+
+    monkeypatch.setattr(canonical_entry, "invoke_vibe_runtime_entrypoint", fake_invoke_runtime)
+
+    result = canonical_entry.launch_canonical_vibe(
+        repo_root=tmp_path,
+        host_id="codex",
+        entry_id="vibe",
+        prompt="x",
+        requested_stage_stop="phase_cleanup",
+        artifact_root=tmp_path,
+    )
+
+    assert result.run_id == run_id
+    assert result.summary["run_id"] == run_id
+
+
+def test_canonical_entry_accepts_missing_route_snapshot_packet_summary(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    run_id = "pytest-canonical-entry-missing-route-snapshot"
+    session_root = tmp_path / "outputs" / "runtime" / "vibe-sessions" / run_id
+
+    monkeypatch.setattr(
+        canonical_entry,
+        "resolve_canonical_vibe_contract",
+        lambda repo_root, host_id: {"fallback_policy": "blocked", "allow_skill_doc_fallback": False},
+    )
+
+    def fake_invoke_runtime(**kwargs: object) -> dict[str, object]:
+        _write_valid_truth_artifacts(
+            session_root,
+            requested_stage_stop="requirement_doc",
+        )
+        runtime_packet_path = session_root / "runtime-input-packet.json"
+        payload = json.loads(runtime_packet_path.read_text(encoding="utf-8"))
+        payload.pop("route_snapshot", None)
+        _write_json(runtime_packet_path, payload)
+        return {
+            "run_id": run_id,
+            "session_root": str(session_root),
+            "summary_path": str(session_root / "runtime-summary.json"),
+            "summary": {"run_id": run_id},
+        }
+
+    monkeypatch.setattr(canonical_entry, "invoke_vibe_runtime_entrypoint", fake_invoke_runtime)
+
+    result = canonical_entry.launch_canonical_vibe(
+        repo_root=tmp_path,
+        host_id="codex",
+        entry_id="vibe",
+        prompt="x",
+        requested_stage_stop="phase_cleanup",
+        artifact_root=tmp_path,
+    )
+
+    assert result.run_id == run_id
+    assert result.summary["run_id"] == run_id
+
+
+def test_canonical_entry_rejects_missing_work_binding_rows_without_rewriting_packet(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    run_id = "pytest-canonical-entry-missing-work-binding-rows"
+    session_root = tmp_path / "outputs" / "runtime" / "vibe-sessions" / run_id
+
+    monkeypatch.setattr(
+        canonical_entry,
+        "resolve_canonical_vibe_contract",
+        lambda repo_root, host_id: {"fallback_policy": "blocked", "allow_skill_doc_fallback": False},
+    )
+
+    def fake_invoke_runtime(**kwargs: object) -> dict[str, object]:
+        _write_valid_truth_artifacts(
+            session_root,
+            requested_stage_stop="requirement_doc",
+        )
+        runtime_packet_path = session_root / "runtime-input-packet.json"
+        payload = json.loads(runtime_packet_path.read_text(encoding="utf-8"))
+        payload["work_binding"]["units"] = []
+        payload["work_binding"]["unit_count"] = 0
+        payload["work_binding"]["status"] = "no_bound_skills"
+        _write_json(runtime_packet_path, payload)
+        return {
+            "run_id": run_id,
+            "session_root": str(session_root),
+            "summary_path": str(session_root / "runtime-summary.json"),
+            "summary": {"run_id": run_id},
+        }
+
+    monkeypatch.setattr(canonical_entry, "invoke_vibe_runtime_entrypoint", fake_invoke_runtime)
+
+    with pytest.raises(
+        RuntimeError,
+        match="canonical truth packet must preserve work_binding rows for selected bounded work",
+    ):
         canonical_entry.launch_canonical_vibe(
             repo_root=tmp_path,
             host_id="codex",
@@ -1955,6 +2429,136 @@ def test_canonical_entry_rejects_empty_divergence_router_skill(
             requested_stage_stop="phase_cleanup",
             artifact_root=tmp_path,
         )
+
+    runtime_packet = json.loads((session_root / "runtime-input-packet.json").read_text(encoding="utf-8"))
+    assert runtime_packet["work_binding"]["units"] == []
+    assert runtime_packet["skill_routing"]["selected"] == [{"skill_id": "systematic-debugging"}]
+
+
+def test_canonical_entry_rejects_missing_specialist_decision_truth(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    run_id = "pytest-canonical-entry-missing-specialist-decision"
+    session_root = tmp_path / "outputs" / "runtime" / "vibe-sessions" / run_id
+
+    monkeypatch.setattr(
+        canonical_entry,
+        "resolve_canonical_vibe_contract",
+        lambda repo_root, host_id: {"fallback_policy": "blocked", "allow_skill_doc_fallback": False},
+    )
+
+    def fake_invoke_runtime(**kwargs: object) -> dict[str, object]:
+        _write_valid_truth_artifacts(
+            session_root,
+            requested_stage_stop="requirement_doc",
+        )
+        runtime_packet_path = session_root / "runtime-input-packet.json"
+        payload = json.loads(runtime_packet_path.read_text(encoding="utf-8"))
+        payload.pop("specialist_decision", None)
+        _write_json(runtime_packet_path, payload)
+        return {
+            "run_id": run_id,
+            "session_root": str(session_root),
+            "summary_path": str(session_root / "runtime-summary.json"),
+            "summary": {"run_id": run_id},
+        }
+
+    monkeypatch.setattr(canonical_entry, "invoke_vibe_runtime_entrypoint", fake_invoke_runtime)
+
+    with pytest.raises(RuntimeError, match="specialist_decision"):
+        canonical_entry.launch_canonical_vibe(
+            repo_root=tmp_path,
+            host_id="codex",
+            entry_id="vibe",
+            prompt="x",
+            requested_stage_stop="phase_cleanup",
+            artifact_root=tmp_path,
+        )
+
+
+def test_canonical_entry_rejects_malformed_skill_routing_truth(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    run_id = "pytest-canonical-entry-malformed-skill-routing"
+    session_root = tmp_path / "outputs" / "runtime" / "vibe-sessions" / run_id
+
+    monkeypatch.setattr(
+        canonical_entry,
+        "resolve_canonical_vibe_contract",
+        lambda repo_root, host_id: {"fallback_policy": "blocked", "allow_skill_doc_fallback": False},
+    )
+
+    def fake_invoke_runtime(**kwargs: object) -> dict[str, object]:
+        _write_valid_truth_artifacts(session_root, requested_stage_stop="requirement_doc")
+        runtime_packet_path = session_root / "runtime-input-packet.json"
+        runtime_packet = json.loads(runtime_packet_path.read_text(encoding="utf-8"))
+        runtime_packet["skill_routing"] = "bad-shape"
+        _write_json(runtime_packet_path, runtime_packet)
+        return {
+            "run_id": run_id,
+            "session_root": str(session_root),
+            "summary_path": str(session_root / "runtime-summary.json"),
+            "summary": {"run_id": run_id},
+        }
+
+    monkeypatch.setattr(canonical_entry, "invoke_vibe_runtime_entrypoint", fake_invoke_runtime)
+
+    with pytest.raises(RuntimeError, match="malformed skill_routing object"):
+        canonical_entry.launch_canonical_vibe(
+            repo_root=tmp_path,
+            host_id="codex",
+            entry_id="vibe",
+            prompt="x",
+            requested_stage_stop="phase_cleanup",
+            artifact_root=tmp_path,
+        )
+
+
+def test_canonical_entry_accepts_mismatched_canonical_router_task_type_mirror(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    run_id = "pytest-canonical-entry-mismatched-route-task-type"
+    session_root = tmp_path / "outputs" / "runtime" / "vibe-sessions" / run_id
+
+    monkeypatch.setattr(
+        canonical_entry,
+        "resolve_canonical_vibe_contract",
+        lambda repo_root, host_id: {"fallback_policy": "blocked", "allow_skill_doc_fallback": False},
+    )
+
+    def fake_invoke_runtime(**kwargs: object) -> dict[str, object]:
+        _write_valid_truth_artifacts(
+            session_root,
+            requested_stage_stop="requirement_doc",
+            route_task_type="planning",
+        )
+        runtime_packet_path = session_root / "runtime-input-packet.json"
+        payload = json.loads(runtime_packet_path.read_text(encoding="utf-8"))
+        payload["canonical_router"]["task_type"] = "debug"
+        _write_json(runtime_packet_path, payload)
+        return {
+            "run_id": run_id,
+            "session_root": str(session_root),
+            "summary_path": str(session_root / "runtime-summary.json"),
+            "summary": {"run_id": run_id},
+        }
+
+    monkeypatch.setattr(canonical_entry, "invoke_vibe_runtime_entrypoint", fake_invoke_runtime)
+
+    result = canonical_entry.launch_canonical_vibe(
+        repo_root=tmp_path,
+        host_id="codex",
+        entry_id="vibe",
+        prompt="x",
+        requested_stage_stop="phase_cleanup",
+        artifact_root=tmp_path,
+    )
+
+    assert result.run_id == run_id
+    assert result.summary["run_id"] == run_id
 
 
 def test_canonical_entry_rejects_stage_lineage_without_terminal_stage(
@@ -2021,6 +2625,22 @@ param(
   [string]$RunId = '',
   [string]$ArtifactRoot = ''
 )
+[System.IO.Directory]::CreateDirectory((Join-Path $PSScriptRoot 'session')) | Out-Null
+[System.IO.File]::WriteAllText(
+  (Join-Path $PSScriptRoot 'session\\runtime-input-packet.json'),
+  "{`"entry_intent_id`":`"vibe-how-do-we-do`",`"work_binding`":{`"units`":[{`"bound_skill`":`"systematic-debugging`"}]},`"specialist_decision`":{`"decision_state`":`"specialist_selected`",`"resolution_mode`":`"selected`"},`"canonical_router`":{`"host_id`":`"codex`"},`"route_snapshot`":{`"selected_skill`":`"systematic-debugging`"},`"skill_routing`":{`"selected`":[{`"skill_id`":`"systematic-debugging`"}]}}`n",
+  [System.Text.UTF8Encoding]::new($false)
+)
+[System.IO.File]::WriteAllText(
+  (Join-Path $PSScriptRoot 'session\\governance-capsule.json'),
+  "{`"runtime_selected_skill`":`"vibe`"}`n",
+  [System.Text.UTF8Encoding]::new($false)
+)
+[System.IO.File]::WriteAllText(
+  (Join-Path $PSScriptRoot 'session\\stage-lineage.json'),
+  "{`"stages`":[{`"name`":`"skeleton_check`"},{`"name`":`"deep_interview`"},{`"name`":`"requirement_doc`"},{`"name`":`"xl_plan`"}],`"last_stage_name`":`"xl_plan`"}`n",
+  [System.Text.UTF8Encoding]::new($false)
+)
 [pscustomobject]@{
   run_id = $RunId
   session_root = [string](Join-Path $PSScriptRoot 'session')
@@ -2073,6 +2693,12 @@ param(
         "RequestedStageStop": "xl_plan",
         "RequestedGradeFloor": "XL",
     }
+    assert payload["launch_mode"] == "canonical-entry"
+    assert payload["host_launch_receipt_path"].endswith("host-launch-receipt.json")
+    receipt = json.loads(Path(payload["host_launch_receipt_path"]).read_text(encoding="utf-8"))
+    assert receipt["launch_status"] == "verified"
+    assert receipt["requested_stage_stop"] == "xl_plan"
+    assert receipt["requested_grade_floor"] == "XL"
 
 
 def test_canonical_entry_main_emits_json(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
@@ -2101,6 +2727,320 @@ def test_canonical_entry_main_emits_json(monkeypatch: pytest.MonkeyPatch, capsys
     output = json.loads(capsys.readouterr().out)
     assert output["run_id"] == "run-1"
     assert output["host_launch_receipt_path"].endswith("host-launch-receipt.json")
+
+
+def test_canonical_entry_can_explicitly_delegate_to_local_kernel(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    agent_root = tmp_path / "agent-root"
+    skill_dir = agent_root / "vibe" / "skills" / "local" / "code-review"
+    skill_dir.mkdir(parents=True, exist_ok=True)
+    (skill_dir / "SKILL.md").write_text(
+        """---
+id: code-review
+name: Code Review
+description: Review implementation risk and test gaps.
+when_to_use:
+  - The user asks for a review.
+not_for:
+  - Building a feature from scratch.
+inputs:
+  - changed files
+outputs:
+  - findings
+enabled: true
+---
+# Skill
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        canonical_entry,
+        "invoke_vibe_runtime_entrypoint",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("PowerShell bridge should not run")),
+    )
+
+    result = canonical_entry.launch_canonical_vibe(
+        repo_root=tmp_path,
+        host_id="codex",
+        entry_id="vibe",
+        prompt="Review the runtime redesign and produce review notes.",
+        local_agent_root=agent_root,
+    )
+
+    assert result.launch_mode == "local-agent-kernel"
+    assert result.run_id.startswith("local-")
+    assert result.summary_path.exists()
+    assert result.host_launch_receipt_path.exists()
+    assert result.artifacts["work_dossier"].endswith("work-dossier.json")
+    assert result.artifacts["work_dossier_markdown"].endswith("work-dossier.md")
+    assert result.artifacts["task_card"].endswith("task-card.json")
+    assert result.artifacts["work_plan"].endswith("plan.json")
+    assert result.artifacts["plan"] == result.artifacts["work_plan"]
+    assert result.artifacts["work_binding"].endswith("work-binding.json")
+    assert result.artifacts["work_results"].endswith("work-results.json")
+    assert result.artifacts["verification"].endswith("verification.json")
+    assert result.artifacts["runtime_input_packet"].endswith("runtime-input-packet.json")
+    assert result.artifacts["governance_capsule"].endswith("governance-capsule.json")
+    assert result.artifacts["stage_lineage"].endswith("stage-lineage.json")
+    runtime_packet = json.loads(Path(result.artifacts["runtime_input_packet"]).read_text(encoding="utf-8"))
+    governance_capsule = json.loads(Path(result.artifacts["governance_capsule"]).read_text(encoding="utf-8"))
+    stage_lineage = json.loads(Path(result.artifacts["stage_lineage"]).read_text(encoding="utf-8"))
+    assert runtime_packet["status"] == "needs_execution"
+    assert runtime_packet["proof_ready"] is False
+    assert runtime_packet["artifact_kind"] == "scaffold"
+    assert runtime_packet["work_binding"]["units"][0]["bound_skill"] == "code-review"
+    assert governance_capsule["runtime_selected_skill"] == "vibe"
+    assert governance_capsule["status"] == "needs_execution"
+    assert stage_lineage["last_stage_name"] == "phase_cleanup"
+    assert stage_lineage["status"] == "needs_execution"
+    receipt = json.loads(result.host_launch_receipt_path.read_text(encoding="utf-8"))
+    assert receipt["launch_status"] == "verified"
+    summary = json.loads(result.summary_path.read_text(encoding="utf-8"))
+    assert summary["launch_mode"] == "local-agent-kernel"
+    assert summary["requested_stage_stop"] is None
+    assert summary["effective_requested_stage_stop"] == "phase_cleanup"
+    assert summary["stage_stop_source"] == "entry_surface_default"
+    assert summary["terminal_stage"] == "phase_cleanup"
+    assert summary["normal_reading_path"]["reading_order"] == [
+        "task_card",
+        "work_plan",
+        "work_binding",
+        "work_results",
+        "verification",
+        "proof",
+    ]
+    assert summary["normal_reading_path"]["artifact_paths"]["task_card"].endswith("task-card.json")
+    assert summary["normal_reading_path"]["artifact_paths"]["work_plan"].endswith("plan.json")
+    assert summary["normal_reading_path"]["artifact_paths"]["work_binding"].endswith("work-binding.json")
+    assert summary["normal_reading_path"]["artifact_paths"]["work_results"].endswith("work-results.json")
+    assert summary["normal_reading_path"]["artifact_paths"]["verification"].endswith("verification.json")
+    assert summary["normal_reading_path"]["artifact_paths"]["proof"].endswith("work-dossier.json")
+    assert summary["normal_reading_path"]["artifact_paths"]["proof_markdown"].endswith("work-dossier.md")
+    assert summary["normal_reading_path"]["primary_artifact"] == "work_dossier"
+    assert summary["normal_reading_path"]["primary_artifact_path"].endswith("work-dossier.json")
+    assert summary["normal_reading_path"]["human_readable_artifact"] == "work_dossier_markdown"
+    assert summary["normal_reading_path"]["human_readable_artifact_path"].endswith("work-dossier.md")
+    assert summary["artifacts"]["work_dossier"].endswith("work-dossier.json")
+    assert summary["artifacts"]["work_dossier_markdown"].endswith("work-dossier.md")
+    assert summary["artifacts"]["work_plan"].endswith("plan.json")
+    assert summary["artifacts"]["work_results"].endswith("work-results.json")
+    assert summary["artifacts"]["runtime_input_packet"].endswith("runtime-input-packet.json")
+    assert summary["artifacts"]["governance_capsule"].endswith("governance-capsule.json")
+    assert summary["artifacts"]["stage_lineage"].endswith("stage-lineage.json")
+    assert "work_dossier" not in summary
+    assert "work_summary" not in summary
+    assert "task_card" not in summary
+    assert "work_plan" not in summary
+    assert "work_binding" not in summary
+    assert "work_results" not in summary
+    assert "verification" not in summary
+    assert "kernel_result" not in summary
+
+
+def test_canonical_entry_auto_prefers_local_kernel_when_agent_root_is_obvious(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    agent_root = tmp_path / "agent-root"
+    skill_dir = agent_root / "vibe" / "skills" / "local" / "code-review"
+    skill_dir.mkdir(parents=True, exist_ok=True)
+    (skill_dir / "SKILL.md").write_text(
+        """---
+id: code-review
+name: Code Review
+description: Review implementation risk and test gaps.
+when_to_use:
+  - The user asks for a review.
+not_for:
+  - Building a feature from scratch.
+inputs:
+  - changed files
+outputs:
+  - findings
+enabled: true
+---
+# Skill
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        canonical_entry,
+        "invoke_vibe_runtime_entrypoint",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("PowerShell bridge should not run")),
+    )
+
+    result = canonical_entry.launch_canonical_vibe(
+        repo_root=tmp_path,
+        host_id="codex",
+        entry_id="vibe",
+        prompt="Review the runtime redesign and produce review notes.",
+        artifact_root=agent_root,
+    )
+
+    assert result.launch_mode == "local-agent-kernel"
+    summary = json.loads(result.summary_path.read_text(encoding="utf-8"))
+    assert summary["summary_source"] == "auto local agent root detection"
+
+
+def test_canonical_entry_infers_skills_dir_from_installed_vibe_root(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    skills_dir = tmp_path / "skills"
+    installed_vibe_root = skills_dir / "vibe"
+    skill_dir = installed_vibe_root / "skills" / "local" / "code-review"
+    skill_dir.mkdir(parents=True, exist_ok=True)
+    (installed_vibe_root / "SKILL.md").write_text("# Vibe\n", encoding="utf-8")
+    (skill_dir / "SKILL.md").write_text(
+        """---
+id: code-review
+name: Code Review
+description: Review implementation risk and test gaps.
+when_to_use:
+  - The user asks for a review.
+not_for:
+  - Building a feature from scratch.
+inputs:
+  - changed files
+outputs:
+  - findings
+enabled: true
+---
+# Skill
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        canonical_entry,
+        "invoke_vibe_runtime_entrypoint",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("PowerShell bridge should not run")),
+    )
+
+    result = canonical_entry.launch_canonical_vibe(
+        repo_root=installed_vibe_root,
+        host_id="codex",
+        entry_id="vibe",
+        prompt="Review the runtime redesign and produce review notes.",
+    )
+
+    assert result.launch_mode == "local-agent-kernel"
+    assert result.session_root.parent == installed_vibe_root / "runs"
+    summary = json.loads(result.summary_path.read_text(encoding="utf-8"))
+    assert summary["summary_source"] == "auto local agent root detection"
+
+
+def test_canonical_entry_local_kernel_summary_prefers_explicit_requested_stage_stop(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    agent_root = tmp_path / "agent-root"
+    skill_dir = agent_root / "vibe" / "skills" / "local" / "code-review"
+    skill_dir.mkdir(parents=True, exist_ok=True)
+    (skill_dir / "SKILL.md").write_text(
+        """---
+id: code-review
+name: Code Review
+description: Review implementation risk and test gaps.
+when_to_use:
+  - The user asks for a review.
+not_for:
+  - Building a feature from scratch.
+inputs:
+  - changed files
+outputs:
+  - findings
+enabled: true
+---
+# Skill
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        canonical_entry,
+        "invoke_vibe_runtime_entrypoint",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("PowerShell bridge should not run")),
+    )
+
+    result = canonical_entry.launch_canonical_vibe(
+        repo_root=tmp_path,
+        host_id="codex",
+        entry_id="vibe",
+        prompt="Review the runtime redesign and produce review notes.",
+        requested_stage_stop="xl_plan",
+        local_agent_root=agent_root,
+    )
+
+    summary = json.loads(result.summary_path.read_text(encoding="utf-8"))
+    assert summary["requested_stage_stop"] == "xl_plan"
+    assert summary["effective_requested_stage_stop"] == "xl_plan"
+    assert summary["stage_stop_source"] == "requested"
+    assert summary["terminal_stage"] == "xl_plan"
+
+
+def test_canonical_entry_keeps_old_runtime_when_governed_stage_stop_is_requested(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    agent_root = tmp_path / "agent-root"
+    skill_dir = agent_root / "vibe" / "skills" / "local" / "code-review"
+    skill_dir.mkdir(parents=True, exist_ok=True)
+    (skill_dir / "SKILL.md").write_text(
+        """---
+id: code-review
+name: Code Review
+description: Review implementation risk and test gaps.
+when_to_use:
+  - The user asks for a review.
+not_for:
+  - Building a feature from scratch.
+inputs:
+  - changed files
+outputs:
+  - findings
+enabled: true
+---
+# Skill
+""",
+        encoding="utf-8",
+    )
+    run_id = "pytest-canonical-entry-keeps-powershell"
+    session_root = agent_root / "outputs" / "runtime" / "vibe-sessions" / run_id
+
+    monkeypatch.setattr(
+        canonical_entry,
+        "resolve_canonical_vibe_contract",
+        lambda repo_root, host_id: {"fallback_policy": "blocked", "allow_skill_doc_fallback": False},
+    )
+
+    def fake_invoke_runtime(**kwargs: object) -> dict[str, object]:
+        assert kwargs["requested_stage_stop"] == "requirement_doc"
+        _write_valid_truth_artifacts(session_root, requested_stage_stop="requirement_doc")
+        return {
+            "run_id": run_id,
+            "session_root": str(session_root),
+            "summary_path": str(session_root / "runtime-summary.json"),
+            "summary": {"run_id": run_id},
+        }
+
+    monkeypatch.setattr(canonical_entry, "invoke_vibe_runtime_entrypoint", fake_invoke_runtime)
+
+    result = canonical_entry.launch_canonical_vibe(
+        repo_root=tmp_path,
+        host_id="codex",
+        entry_id="vibe",
+        prompt="Review the runtime redesign and produce review notes.",
+        requested_stage_stop="phase_cleanup",
+        artifact_root=agent_root,
+        run_id=run_id,
+    )
+
+    assert result.launch_mode == "canonical-entry"
 
 
 def test_launch_canonical_vibe_uses_corrected_repo_root(
@@ -2161,7 +3101,12 @@ def test_launch_canonical_vibe_uses_corrected_repo_root(
         },
     )
     monkeypatch.setattr(canonical_entry, "assert_minimum_truth_consistency", lambda **kwargs: None)
-    monkeypatch.setattr(canonical_entry, "_load_json_dict", lambda *args, **kwargs: {})
+    def fake_load_json_dict(path: Path, **kwargs: object) -> dict[str, object]:
+        if path.name == "runtime-input-packet.json":
+            return {"work_binding": {"units": []}, "specialist_decision": {"decision_state": "no_specialist_recommendations"}}
+        return {}
+
+    monkeypatch.setattr(canonical_entry, "_load_json_dict", fake_load_json_dict)
 
     result = canonical_entry.launch_canonical_vibe(
         repo_root=tmp_path / "bj-refinery",

@@ -83,6 +83,19 @@ $noSpecialistResolved = (
     [string]$specialistDecision.decision_state -eq 'no_specialist_recommendations' -and
     [string]$specialistDecision.resolution_mode -in @('no_matching_specialist', 'no_specialist_needed')
 )
+$degradedSpecialistResolved = (
+    $null -ne $specialistDecision -and
+    $specialistDecision.PSObject.Properties.Name -contains 'decision_state' -and
+    $specialistDecision.PSObject.Properties.Name -contains 'resolution_mode' -and
+    [string]$specialistDecision.decision_state -eq 'degraded' -and
+    [string]$specialistDecision.resolution_mode -eq 'degraded' -and
+    (
+        (($specialistDecision.PSObject.Properties.Name -contains 'degraded_skill_ids') -and @($specialistDecision.degraded_skill_ids).Count -gt 0) -or
+        (($specialistDecision.PSObject.Properties.Name -contains 'surfaced_skill_ids') -and @($specialistDecision.surfaced_skill_ids).Count -gt 0) -or
+        (($specialistDecision.PSObject.Properties.Name -contains 'recommendation_count') -and [int]$specialistDecision.recommendation_count -gt 0)
+    )
+)
+$noSpecialistResolved = ($noSpecialistResolved -or $degradedSpecialistResolved)
 $legacySkillRouting = if ($runtimeInputPacket.PSObject.Properties.Name -contains 'legacy_skill_routing') { $runtimeInputPacket.legacy_skill_routing } else { $null }
 $specialistRecommendations = if ($runtimeInputPacket.PSObject.Properties.Name -contains 'specialist_recommendations') {
     @($runtimeInputPacket.specialist_recommendations)
@@ -92,7 +105,11 @@ $specialistRecommendations = if ($runtimeInputPacket.PSObject.Properties.Name -c
     @()
 }
 $specialistRecommendationIds = @($specialistRecommendations | ForEach-Object { [string]$_.skill_id })
-$selectedSkillIds = if ($runtimeInputPacket.PSObject.Properties.Name -contains 'skill_routing' -and $runtimeInputPacket.skill_routing.PSObject.Properties.Name -contains 'selected') {
+$selectedSkillMirrorIds = if (
+    $runtimeInputPacket.PSObject.Properties.Name -contains 'skill_routing' -and
+    $null -ne $runtimeInputPacket.skill_routing -and
+    $runtimeInputPacket.skill_routing.PSObject.Properties.Name -contains 'selected'
+) {
     @($runtimeInputPacket.skill_routing.selected | ForEach-Object { [string]$_.skill_id })
 } else {
     @()
@@ -102,21 +119,24 @@ $manifestSelectedSkillIds = if ($executionManifest.PSObject.Properties.Name -con
 } else {
     @()
 }
-$routeSnapshotSkill = [string]$runtimeInputPacket.route_snapshot.selected_skill
+$boundSkillIds = @(Get-VibeWorkBindingBoundSkillIds -RuntimeInputPacket $runtimeInputPacket)
+$primaryBoundSkill = [string](Get-VibePrimaryBoundSkillId -RuntimeInputPacket $runtimeInputPacket)
 $runtimeAuthoritySkill = [string]$runtimeInputPacket.authority_flags.explicit_runtime_skill
 $intentionalSelectedSkillSplit = (
-    $routeSnapshotSkill -ne $runtimeAuthoritySkill -and
-    ((@($selectedSkillIds) -contains $routeSnapshotSkill) -or (@($specialistRecommendationIds) -contains $routeSnapshotSkill))
+    $primaryBoundSkill -ne $runtimeAuthoritySkill -and
+    ((@($boundSkillIds) -contains $primaryBoundSkill) -or (@($selectedSkillMirrorIds) -contains $primaryBoundSkill) -or (@($specialistRecommendationIds) -contains $primaryBoundSkill))
 )
 $intentionalManifestSelectedSkillSplit = (
-    $routeSnapshotSkill -ne $runtimeAuthoritySkill -and
-    ((@($manifestSelectedSkillIds) -contains $routeSnapshotSkill) -or $intentionalSelectedSkillSplit)
+    $primaryBoundSkill -ne $runtimeAuthoritySkill -and
+    ((@($manifestSelectedSkillIds) -contains $primaryBoundSkill) -or $intentionalSelectedSkillSplit)
 )
-Add-Assertion -Results ([ref]$results) -Condition (($routeSnapshotSkill -eq 'vibe') -or $intentionalSelectedSkillSplit -or $noSpecialistResolved) -Message 'runtime input packet route snapshot is vibe or a selected bounded skill'
+Add-Assertion -Results ([ref]$results) -Condition (($primaryBoundSkill -eq 'vibe') -or $intentionalSelectedSkillSplit -or $noSpecialistResolved) -Message 'runtime input packet primary bounded skill is vibe or preserved separately from runtime authority'
 Add-Assertion -Results ([ref]$results) -Condition ($runtimeAuthoritySkill -eq 'vibe') -Message 'runtime input packet keeps vibe as runtime authority'
 Add-Assertion -Results ([ref]$results) -Condition ((-not [bool]$runtimeInputPacket.divergence_shadow.skill_mismatch) -or $intentionalSelectedSkillSplit -or $noSpecialistResolved) -Message 'runtime input packet permits router/runtime split only for selected bounded skills'
-Add-Assertion -Results ([ref]$results) -Condition ((@($selectedSkillIds).Count -ge 1) -or (@($specialistRecommendationIds).Count -ge 1) -or $noSpecialistResolved) -Message 'runtime input packet carries selected skills, legacy specialist recommendations, or no-specialist resolution'
-Add-Assertion -Results ([ref]$results) -Condition ((@($selectedSkillIds) -contains 'systematic-debugging') -or (@($specialistRecommendationIds) -contains 'systematic-debugging') -or $noSpecialistResolved) -Message 'runtime input packet carries systematic-debugging as selected or legacy recommended skill, or no-specialist resolution'
+Add-Assertion -Results ([ref]$results) -Condition ((@($boundSkillIds).Count -ge 1) -or $noSpecialistResolved) -Message 'runtime input packet work_binding carries selected bounded skills or no-specialist resolution'
+Add-Assertion -Results ([ref]$results) -Condition ((@($selectedSkillMirrorIds).Count -eq 0) -or ((@($selectedSkillMirrorIds) | Where-Object { $_ -in @($boundSkillIds) }).Count -eq @($selectedSkillMirrorIds).Count)) -Message 'runtime input packet keeps compatibility skill mirror subordinate to work_binding'
+Add-Assertion -Results ([ref]$results) -Condition ((@($specialistRecommendationIds).Count -eq 0) -or ((@($specialistRecommendationIds) | Where-Object { $_ -in @($boundSkillIds) }).Count -eq @($specialistRecommendationIds).Count)) -Message 'runtime input packet legacy specialist recommendations stay subordinate to work_binding when they remain visible'
+Add-Assertion -Results ([ref]$results) -Condition ((@($boundSkillIds) -contains 'systematic-debugging') -or $noSpecialistResolved) -Message 'runtime input packet carries systematic-debugging in bounded work or records no-specialist resolution'
 Add-Assertion -Results ([ref]$results) -Condition ($executeReceipt.status -ne 'execution-contract-prepared') -Message 'execute receipt is no longer receipt-only'
 Add-Assertion -Results ([ref]$results) -Condition ($executionManifest.status -eq 'completed') -Message 'execution manifest status is completed' -Details $executionManifest.status
 Add-Assertion -Results ([ref]$results) -Condition ([int]$executionManifest.executed_unit_count -ge 2) -Message 'runtime execution runs at least two real units' -Details $executionManifest.executed_unit_count

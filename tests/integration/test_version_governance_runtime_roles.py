@@ -85,18 +85,18 @@ def test_required_runtime_marker_groups_keep_owners_separate_from_compatibility(
     assert "apps/vgo-cli/src/vgo_cli/errors.py" in semantic_owners
     assert "apps/vgo-cli/src/vgo_cli/hosts.py" in semantic_owners
     assert "apps/vgo-cli/src/vgo_cli/process.py" in semantic_owners
-    assert "apps/vgo-cli/src/vgo_cli/install_support.py" in semantic_owners
     assert "apps/vgo-cli/src/vgo_cli/workspace.py" in semantic_owners
     assert "apps/vgo-cli/src/vgo_cli/commands.py" in semantic_owners
     assert "apps/vgo-cli/src/vgo_cli/repo.py" in semantic_owners
     assert "apps/vgo-cli/src/vgo_cli/external.py" in semantic_owners
     assert "apps/vgo-cli/src/vgo_cli/output.py" in semantic_owners
-    assert "apps/vgo-cli/src/vgo_cli/install_gates.py" in semantic_owners
-    assert "apps/vgo-cli/src/vgo_cli/installer_bridge.py" in semantic_owners
     assert "apps/vgo-cli/src/vgo_cli/skill_surface.py" in semantic_owners
     assert "apps/vgo-cli/src/vgo_cli/core_bridge.py" in semantic_owners
+    assert "apps/vgo-cli/src/vgo_cli/install_support.py" not in semantic_owners
+    assert "apps/vgo-cli/src/vgo_cli/install_gates.py" not in semantic_owners
+    assert "apps/vgo-cli/src/vgo_cli/installer_bridge.py" not in semantic_owners
     assert "packages/installer-core/src/vgo_installer/install_runtime.py" in semantic_owners
-    assert "packages/runtime-core/src/vgo_runtime/router_bridge.py" in semantic_owners
+    assert "packages/runtime-core/src/vgo_runtime/runtime_bridge.py" in semantic_owners
 
     assert "scripts/runtime/Invoke-SkeletonCheck.ps1" in runtime_support
     assert "scripts/runtime/Invoke-DeepInterview.ps1" in runtime_support

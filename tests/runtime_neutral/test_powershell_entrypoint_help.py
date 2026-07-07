@@ -32,7 +32,7 @@ class PowerShellEntrypointHelpTests(unittest.TestCase):
             self.skipTest("PowerShell executable not available in PATH")
 
         with tempfile.TemporaryDirectory() as tempdir:
-            target_root = Path(tempdir) / "install-help-target"
+            skills_dir = Path(tempdir) / "install-help-skills"
             result = subprocess.run(
                 [
                     powershell,
@@ -42,17 +42,19 @@ class PowerShellEntrypointHelpTests(unittest.TestCase):
                     "-File",
                     str(REPO_ROOT / "install.ps1"),
                     "-?",
-                    "-TargetRoot",
-                    str(target_root),
+                    "-SkillsDir",
+                    str(skills_dir),
                 ],
                 capture_output=True,
                 text=True,
             )
 
             self.assertEqual(0, result.returncode)
-            self.assertIn("Usage: install.ps1", result.stdout)
+            self.assertIn("install.ps1", result.stdout)
+            self.assertIn("SkillsDir", result.stdout)
+            self.assertNotIn("TargetRoot", result.stdout)
             self.assertNotIn("Installation complete.", result.stdout)
-            self.assertFalse(target_root.exists())
+            self.assertFalse(skills_dir.exists())
 
     def test_check_help_exits_without_running_health_check(self) -> None:
         powershell = resolve_powershell()
@@ -60,7 +62,7 @@ class PowerShellEntrypointHelpTests(unittest.TestCase):
             self.skipTest("PowerShell executable not available in PATH")
 
         with tempfile.TemporaryDirectory() as tempdir:
-            target_root = Path(tempdir) / "check-help-target"
+            skills_dir = Path(tempdir) / "check-help-skills"
             result = subprocess.run(
                 [
                     powershell,
@@ -70,17 +72,19 @@ class PowerShellEntrypointHelpTests(unittest.TestCase):
                     "-File",
                     str(REPO_ROOT / "check.ps1"),
                     "-?",
-                    "-TargetRoot",
-                    str(target_root),
+                    "-SkillsDir",
+                    str(skills_dir),
                 ],
                 capture_output=True,
                 text=True,
             )
 
             self.assertEqual(0, result.returncode)
-            self.assertIn("Usage: check.ps1", result.stdout)
+            self.assertIn("check.ps1", result.stdout)
+            self.assertIn("SkillsDir", result.stdout)
+            self.assertNotIn("TargetRoot", result.stdout)
             self.assertNotIn("=== VCO Adapter Health Check ===", result.stdout)
-            self.assertFalse(target_root.exists())
+            self.assertFalse(skills_dir.exists())
 
 
 if __name__ == "__main__":

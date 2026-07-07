@@ -64,6 +64,7 @@ class RuntimeDeliveryAcceptanceTests(unittest.TestCase):
         omit_default_specialist_decision: bool = False,
         skill_usage: dict[str, object] | None = None,
         skill_routing: dict[str, object] | None = None,
+        work_binding: dict[str, object] | None = None,
         skill_execution_lock: dict[str, object] | None = None,
         specialist_lock_resolution: dict[str, object] | None = None,
     ) -> Path:
@@ -194,6 +195,8 @@ class RuntimeDeliveryAcceptanceTests(unittest.TestCase):
             runtime_input_packet_payload["skill_execution_lock"] = skill_execution_lock
         if skill_routing is not None:
             runtime_input_packet_payload["skill_routing"] = skill_routing
+        if work_binding is not None:
+            runtime_input_packet_payload["work_binding"] = work_binding
         if approved_dispatch is not None:
             approved_skill_ids = [
                 str(item["skill_id"]).strip()
@@ -369,7 +372,78 @@ class RuntimeDeliveryAcceptanceTests(unittest.TestCase):
         report = evaluate(REPO_ROOT, session_root)
 
         self.assertEqual("PASS", report["skill_usage_truth"]["state"])
+        self.assertEqual([], report["execution_context"]["runtime_packet_selected_skill_ids"])
+        self.assertEqual("runtime_packet.skill_routing", report["execution_context"]["runtime_packet_selected_skill_source"])
         self.assertEqual([], report["execution_context"]["selected_skill_ids"])
+        self.assertEqual("runtime_packet.skill_routing", report["execution_context"]["selected_skill_ids_source"])
+
+    def test_work_binding_without_skill_routing_still_counts_as_selected_for_usage_truth(self) -> None:
+        session_root = self._build_session(
+            work_binding={
+                "schema_version": "runtime_work_binding_v1",
+                "source": "approved_dispatch",
+                "task": "debug task",
+                "run_id": "pytest-runtime-delivery-run",
+                "unit_count": 1,
+                "status": "projected_from_approved_dispatch",
+                "units": [
+                    {
+                        "work_unit_id": "wu-1",
+                        "bound_skill": "scanpy",
+                        "binding_profile": "selected_skill",
+                    }
+                ],
+            },
+            skill_usage={
+                "schema_version": 2,
+                "state_model": "binary_used_unused",
+                "used": [],
+                "unused": [{"skill_id": "scanpy", "reason": "selected_but_not_loaded"}],
+                "loaded_skills": [],
+            },
+        )
+
+        report = evaluate(REPO_ROOT, session_root)
+
+        self.assertEqual("FAIL", report["skill_usage_truth"]["state"])
+        self.assertEqual(["scanpy"], report["execution_context"]["runtime_packet_selected_skill_ids"])
+        self.assertEqual("runtime_packet.work_binding", report["execution_context"]["runtime_packet_selected_skill_source"])
+        self.assertEqual(["scanpy"], report["execution_context"]["selected_skill_ids"])
+        self.assertEqual("runtime_packet.work_binding", report["execution_context"]["selected_skill_ids_source"])
+        self.assertIn("selected_skill_missing_load_evidence", report["skill_usage_truth"]["failure_reasons"])
+
+    def test_selected_lock_reconciliation_uses_work_binding_when_skill_routing_is_absent(self) -> None:
+        session_root = self._build_session(
+            work_binding={
+                "schema_version": "runtime_work_binding_v1",
+                "source": "approved_dispatch",
+                "task": "debug task",
+                "run_id": "pytest-runtime-delivery-run",
+                "unit_count": 1,
+                "status": "projected_from_approved_dispatch",
+                "units": [
+                    {
+                        "work_unit_id": "wu-1",
+                        "bound_skill": "scanpy",
+                        "binding_profile": "selected_skill",
+                    }
+                ],
+            },
+            skill_execution_lock={"state": "active", "locked_skill_ids": []},
+        )
+
+        report = evaluate(REPO_ROOT, session_root)
+
+        self.assertEqual(
+            "manual_review_required",
+            report["truth_results"]["selected_lock_reconciliation_truth"]["state"],
+        )
+        self.assertEqual(
+            ["scanpy"],
+            report["truth_results"]["selected_lock_reconciliation_truth"]["details"][
+                "selected_lock_reconciliation"
+            ]["missing"],
+        )
 
     def test_selected_skill_without_load_evidence_fails_usage_truth(self) -> None:
         session_root = self._build_session(
@@ -795,6 +869,13 @@ class RuntimeDeliveryAcceptanceTests(unittest.TestCase):
         self.assertEqual("executed", report["execution_context"]["specialist_host_resolution_state"])
         self.assertEqual(1, report["execution_context"]["specialist_host_executed_unit_count"])
         self.assertEqual("host_current_session_executed", report["execution_context"]["specialist_effective_execution_status"])
+        self.assertEqual([], report["execution_context"]["runtime_packet_selected_skill_ids"])
+        self.assertEqual("none", report["execution_context"]["runtime_packet_selected_skill_source"])
+        self.assertEqual(["systematic-debugging"], report["execution_context"]["selected_skill_ids"])
+        self.assertEqual(
+            "specialist_accounting.selected_skill_execution_fallback",
+            report["execution_context"]["selected_skill_ids_source"],
+        )
         self.assertIn(
             str(session_root / "specialist-execution.json"),
             report["truth_results"]["workflow_completion_truth"]["evidence"],
@@ -2361,6 +2442,9 @@ class RuntimeDeliveryAcceptanceTests(unittest.TestCase):
             self.assertIn("Frozen Research Augmentation Sources", md_text)
             self.assertIn("Code Task TDD Evidence Coverage", md_text)
             self.assertIn("Artifact Review Coverage", md_text)
+            self.assertIn("Selected Skill Truth", md_text)
+            self.assertIn("Runtime packet selected skill source", md_text)
+            self.assertIn("Reported selected skill source", md_text)
             self.assertIn("Covered baseline document quality dimension: Structure Integrity", md_text)
             self.assertIn("Covered code-task TDD evidence requirement: Record failing-first evidence for the changed behavior before implementation or defect correction.", md_text)
             self.assertIn("Covered baseline UI quality dimension: Structure and visual hierarchy", md_text)

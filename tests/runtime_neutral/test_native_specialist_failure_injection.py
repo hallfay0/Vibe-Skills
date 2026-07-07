@@ -46,6 +46,8 @@ def run_runtime(
         shell,
         "-NoLogo",
         "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
         "-Command",
         (
             "& { "
@@ -172,6 +174,15 @@ def create_fake_codex_command(directory: Path, *, mode: str) -> Path:
     return command_path
 
 
+def install_systematic_debugging_skill(target_root: Path) -> None:
+    skill_path = target_root / "skills" / "systematic-debugging" / "SKILL.md"
+    skill_path.parent.mkdir(parents=True, exist_ok=True)
+    skill_path.write_text(
+        "---\nname: systematic-debugging\ndescription: Installed systematic-debugging test skill.\n---\n",
+        encoding="utf-8",
+    )
+
+
 class NativeSpecialistFailureInjectionTests(unittest.TestCase):
     TASK = "I have a failing test and stack trace. Debug systematically and execute specialist workflow."
 
@@ -180,6 +191,8 @@ class NativeSpecialistFailureInjectionTests(unittest.TestCase):
     ) -> tuple[dict[str, object], dict[str, object], list[tuple[dict[str, object], dict[str, object]]]]:
         with tempfile.TemporaryDirectory() as tempdir:
             temp_path = Path(tempdir)
+            target_root = temp_path / ".agents"
+            install_systematic_debugging_skill(target_root)
             fake_codex = create_fake_codex_command(temp_path, mode=mode)
             payload = run_runtime(
                 task=self.TASK,
@@ -191,6 +204,7 @@ class NativeSpecialistFailureInjectionTests(unittest.TestCase):
                     "VGO_NATIVE_SPECIALIST_EXECUTION_MODE": "host_subprocess",
                     "VGO_SPECIALIST_CONSULTATION_MODE": "host_subprocess",
                     "VGO_CODEX_EXECUTABLE": str(fake_codex),
+                    "VIBE_AGENTS_HOME": str(target_root),
                 },
             )
             summary = payload["summary"]

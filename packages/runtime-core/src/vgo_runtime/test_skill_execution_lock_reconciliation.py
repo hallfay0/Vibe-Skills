@@ -51,11 +51,129 @@ def _run_projection(script_body: str) -> dict:
             [_powershell_executable(), "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script_path)],
             cwd=str(REPO_ROOT),
             text=True,
+            encoding="utf-8",
             capture_output=True,
             timeout=30,
         )
         assert completed.returncode == 0, completed.stderr + completed.stdout
         return json.loads(completed.stdout)
+
+
+def _run_confirm_ui(script_body: str) -> dict:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        script_path = Path(tmp_dir) / "run-confirm-ui.ps1"
+        confirm_ui = REPO_ROOT / "scripts" / "router" / "modules" / "46-confirm-ui.ps1"
+        confirm_ui_ps = _powershell_single_quoted_path(confirm_ui)
+        script_path.write_text(
+            textwrap.dedent(
+                f"""
+                $ErrorActionPreference = 'Stop'
+                Set-StrictMode -Version Latest
+                . '{confirm_ui_ps}'
+                {script_body}
+                """
+            ),
+            encoding="utf-8",
+        )
+        completed = subprocess.run(
+            [_powershell_executable(), "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script_path)],
+            cwd=str(REPO_ROOT),
+            text=True,
+            encoding="utf-8",
+            capture_output=True,
+            timeout=30,
+        )
+        assert completed.returncode == 0, completed.stderr + completed.stdout
+        return json.loads(completed.stdout)
+
+
+def test_bounded_stop_projection_forbids_same_turn_manual_continuation():
+    result = _run_projection(
+        r"""
+        $control = New-VibeBoundedReturnControlProjection `
+            -RepoRoot (Get-Location).Path `
+            -RunId 'run-123' `
+            -EntryIntentId 'vibe' `
+            -StageLineage ([pscustomobject]@{ last_stage_name = 'requirement_doc' })
+        $control | ConvertTo-Json -Depth 20
+        """
+    )
+
+    assert result["assistant_must_stop"] is True
+    assert result["same_turn_continuation_forbidden"] is True
+    assert result["manual_execution_forbidden"] is True
+    assert result["completion_allowed"] is False
+    assert result["original_prompt_is_not_approval"] is True
+    assert result["next_allowed_assistant_action"] == "wait_for_new_user_approval_or_revision"
+    assert "manual_workaround" in result["forbidden_actions"]
+    assert "consume_reentry_token_in_same_turn" in result["forbidden_actions"]
+    assert "Do not continue in the same assistant turn" in result["rendered_text"]
+    assert "manual execution outside governed re-entry is forbidden" in result["rendered_text"]
+
+
+def test_confirm_ui_asks_user_before_using_routed_skills():
+    result = _run_confirm_ui(
+        r"""
+        $confirmSkillOptions = [pscustomobject]@{
+            selected_pack = 'clinical-ml'
+            selected_skill = 'scikit-learn'
+            options = @(
+                [pscustomobject]@{
+                    option_id = 1
+                    skill = 'scikit-learn'
+                    description = 'Train and validate the prediction model.'
+                    score = 0.91
+                }
+            )
+        }
+        $routeResult = [pscustomobject]@{
+            route_mode = 'confirm_required'
+            hazard_alert_required = $false
+        }
+        $text = Build-ConfirmUiText `
+            -ConfirmSkillOptions $confirmSkillOptions `
+            -UnattendedDecision $null `
+            -Result $routeResult
+        [pscustomobject]@{ text = $text } | ConvertTo-Json -Depth 20
+        """
+    )
+
+    assert "我将会在接下来的工作中使用这些 skills，你觉得 OK 吗？" in result["text"]
+    assert "这只是准备使用，不是实际使用证据" in result["text"]
+
+
+def test_intent_contract_exposes_l_xl_workflow_confirmation_without_new_entrypoints():
+    result = _run_projection(
+        r"""
+        $contract = New-VibeIntentContractObject `
+            -Task 'deliver a small clinical machine learning study' `
+            -Mode 'interactive_governed'
+        $contract | ConvertTo-Json -Depth 20
+        """
+    )
+
+    assert result["workflow_level_confirmation"]["enabled"] is True
+    assert result["workflow_level_confirmation"]["user_visible"] is True
+    assert result["workflow_level_confirmation"]["recommended_level"] in ["L", "XL"]
+    assert result["workflow_level_confirmation"]["levels"]["L"]
+    assert result["workflow_level_confirmation"]["levels"]["XL"]
+    assert "Do not create separate M/L/XL entry commands." in result["non_goals"]
+    assert "Do not treat M/L/XL as user-facing entry branches." not in result["non_goals"]
+
+
+def test_host_skill_execution_contract_requires_user_confirmation_for_l_xl():
+    result = _run_projection(
+        r"""
+        $policy = Get-Content -LiteralPath (Join-Path (Get-Location).Path 'config\runtime-input-packet-policy.json') -Raw | ConvertFrom-Json
+        $contract = Get-VibeHostSkillExecutionContract -Policy $policy
+        $contract | ConvertTo-Json -Depth 20
+        """
+    )
+
+    assert result["requires_user_confirmation_for"] == ["L", "XL"]
+    assert result["approval_owner"] == "user"
+    assert result["default_selection_mode"] == "inherit_runtime_default"
+    assert "我将会在接下来的工作中使用这些 skills，你觉得 OK 吗？" in result["user_prompt"]
 
 
 def test_previous_active_lock_unions_current_selected_skill():
@@ -283,7 +401,7 @@ def test_previous_locked_skill_ids_without_dispatch_are_preserved():
     assert dispatch["reconciliation_state"] == "inherited_not_currently_surfaced"
 
 
-def test_lock_summary_derives_ids_from_locked_dispatch_when_id_list_missing():
+def test_locked_skill_ids_derive_from_locked_dispatch_when_id_list_missing():
     result = _run_projection(
         r"""
         $lock = [pscustomobject]@{
@@ -294,11 +412,12 @@ def test_lock_summary_derives_ids_from_locked_dispatch_when_id_list_missing():
             )
             resolution_required = $true
         }
-        $summary = New-VibeSkillExecutionLockSummaryProjection -SkillExecutionLock $lock
-        $summary | ConvertTo-Json -Depth 20
+        [pscustomobject]@{
+            active = Test-VibeSkillExecutionLockActive -SkillExecutionLock $lock
+            locked_skill_ids = @(Get-VibeSkillExecutionLockSkillIds -SkillExecutionLock $lock)
+        } | ConvertTo-Json -Depth 20
         """
     )
 
     assert result["active"] is True
-    assert result["locked_skill_count"] == 1
     assert result["locked_skill_ids"] == ["scientific-writing"]

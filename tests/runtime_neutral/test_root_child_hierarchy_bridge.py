@@ -28,6 +28,29 @@ def resolve_powershell() -> str | None:
     return None
 
 
+def selected_skill_ids_from_packet(runtime_input_packet: dict[str, object]) -> set[str]:
+    routing = runtime_input_packet.get("skill_routing")
+    if isinstance(routing, dict):
+        selected = routing.get("selected")
+        if isinstance(selected, list) and selected:
+            return {
+                str(skill.get("skill_id", "")).strip()
+                for skill in selected
+                if isinstance(skill, dict) and str(skill.get("skill_id", "")).strip()
+            }
+    work_binding = runtime_input_packet.get("work_binding")
+    if not isinstance(work_binding, dict):
+        return set()
+    units = work_binding.get("units")
+    if not isinstance(units, list):
+        return set()
+    return {
+        str(unit.get("bound_skill", "")).strip()
+        for unit in units
+        if isinstance(unit, dict) and str(unit.get("bound_skill", "")).strip()
+    }
+
+
 def run_governed_runtime(task: str, artifact_root: Path) -> dict[str, object]:
     shell = resolve_powershell()
     if shell is None:
@@ -39,6 +62,8 @@ def run_governed_runtime(task: str, artifact_root: Path) -> dict[str, object]:
         shell,
         "-NoLogo",
         "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
         "-Command",
         (
             "& { "
@@ -101,6 +126,8 @@ def run_child_runtime(
         shell,
         "-NoLogo",
         "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
         "-Command",
         (
             "& { "
@@ -195,8 +222,6 @@ class RootChildHierarchyBridgeTests(unittest.TestCase):
             "governance_scope",
             "hierarchy_contract",
             "child_specialist_suggestion_contract",
-            "required_specialist_recommendation_count",
-            "fallback_specialists_by_task_type",
             "allow_requirement_freeze",
             "allow_plan_freeze",
             "allow_global_dispatch",
@@ -227,12 +252,13 @@ class RootChildHierarchyBridgeTests(unittest.TestCase):
             runtime_input_packet = json.loads(runtime_input_packet_path.read_text(encoding="utf-8"))
             execution_manifest = json.loads(execution_manifest_path.read_text(encoding="utf-8"))
 
-            selected_skill_ids = {
-                str(skill.get("skill_id", "")).strip()
-                for skill in list(runtime_input_packet["skill_routing"]["selected"])
-                if str(skill.get("skill_id", "")).strip()
+            selected_skill_ids = selected_skill_ids_from_packet(runtime_input_packet)
+            bound_skill_ids = {
+                str(unit.get("bound_skill", "")).strip()
+                for unit in list(runtime_input_packet["work_binding"]["units"])
+                if str(unit.get("bound_skill", "")).strip()
             }
-            self.assertIn(runtime_input_packet["route_snapshot"]["selected_skill"], selected_skill_ids)
+            self.assertEqual(bound_skill_ids, selected_skill_ids)
             self.assertEqual("vibe", runtime_input_packet["authority_flags"]["explicit_runtime_skill"])
             self.assertEqual("root", runtime_input_packet["governance_scope"])
             self.assertTrue(runtime_input_packet["authority_flags"]["allow_requirement_freeze"])
@@ -277,10 +303,10 @@ class RootChildHierarchyBridgeTests(unittest.TestCase):
                 Path(root_artifacts["runtime_input_packet"]).read_text(encoding="utf-8")
             )
 
-            root_selected_skills = list(root_runtime_input_packet["skill_routing"]["selected"])
+            root_selected_skills = sorted(selected_skill_ids_from_packet(root_runtime_input_packet))
             approved_skill_ids: list[str] = []
             if root_selected_skills:
-                first_skill_id = str(root_selected_skills[0].get("skill_id", "")).strip()
+                first_skill_id = str(root_selected_skills[0]).strip()
                 if first_skill_id and first_skill_id != "vibe":
                     approved_skill_ids = [first_skill_id]
 

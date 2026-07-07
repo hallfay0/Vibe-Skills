@@ -101,7 +101,7 @@ class GlobalInstructionBootstrapRuntimeTests(unittest.TestCase):
             skill_text = (target_root / "skills" / "vibe" / "SKILL.md").read_text(encoding="utf-8")
             self.assertIn("Vibe Governed Runtime Entry", skill_text)
             self.assertIn("py -3 -m vgo_cli.main canonical-entry", skill_text)
-            self.assertTrue((target_root / "skills" / "vibe-upgrade" / "SKILL.md").exists())
+            self.assertFalse((target_root / "skills" / "vibe-upgrade" / "SKILL.md").exists())
             self.assertFalse((target_root / "skills" / "vibe-how-do-we-do" / "SKILL.md").exists())
 
     def test_opencode_install_preserves_existing_agents_md_and_real_config(self) -> None:

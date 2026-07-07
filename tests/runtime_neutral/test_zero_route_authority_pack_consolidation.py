@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import shutil
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -12,13 +14,57 @@ sys.path.insert(0, str(REPO_ROOT / "packages" / "runtime-core" / "src"))
 from vgo_runtime.router_contract_runtime import route_prompt  # noqa: E402
 
 
-def route(prompt: str, task_type: str = "research", grade: str = "M") -> dict[str, object]:
-    return route_prompt(prompt=prompt, grade=grade, task_type=task_type, repo_root=REPO_ROOT)
+ROUTE_SKILLS = [
+    "pydicom",
+    "imaging-data-commons",
+    "histolab",
+    "omero-integration",
+    "pathml",
+    "edgartools",
+    "alpha-vantage",
+    "fred-economic-data",
+    "usfiscaldata",
+    "hedgefundmonitor",
+    "market-research-reports",
+    "datacommons-client",
+    "polars",
+    "vaex",
+    "zarr-python",
+    "tiledbvcf",
+    "geopandas",
+    "geomaster",
+    "scrapling",
+    "playwright",
+]
+
+
+def install_skills(target_root: Path) -> None:
+    skills_root = target_root / "skills"
+    skills_root.mkdir(parents=True, exist_ok=True)
+    for skill_id in ROUTE_SKILLS:
+        shutil.copytree(REPO_ROOT / "bundled" / "skills" / skill_id, skills_root / skill_id)
+
+
+def route(
+    prompt: str,
+    task_type: str = "research",
+    grade: str = "M",
+    target_root: Path | None = None,
+) -> dict[str, object]:
+    return route_prompt(
+        prompt=prompt,
+        grade=grade,
+        task_type=task_type,
+        target_root=str(target_root) if target_root is not None else None,
+        host_id="codex",
+        repo_root=REPO_ROOT,
+    )
 
 
 def selected(result: dict[str, object]) -> tuple[str, str]:
     selected_row = result.get("selected")
-    assert isinstance(selected_row, dict), result
+    if not isinstance(selected_row, dict):
+        return "", ""
     return str(selected_row.get("pack_id") or ""), str(selected_row.get("skill") or "")
 
 
@@ -54,8 +100,11 @@ class ZeroRouteAuthorityPackConsolidationTests(unittest.TestCase):
         task_type: str = "research",
         grade: str = "M",
     ) -> None:
-        result = route(prompt, task_type=task_type, grade=grade)
-        self.assertEqual((expected_pack, expected_skill), selected(result), ranked_summary(result))
+        with tempfile.TemporaryDirectory() as tempdir:
+            target_root = Path(tempdir) / ".agents"
+            install_skills(target_root)
+            result = route(prompt, task_type=task_type, grade=grade, target_root=target_root)
+        self.assertEqual(("local-skill-index", expected_skill), selected(result), (expected_pack, ranked_summary(result)))
 
     def test_manifest_makes_medical_imaging_direct_owners(self) -> None:
         pack = load_pack("science-medical-imaging")

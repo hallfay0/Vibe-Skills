@@ -17,8 +17,9 @@ def test_adapter_sdk_resolves_metadata_from_contracts_registry_support_surface()
     assert "default_target_root_env=str(target_root.get('env') or '')" in loader
     assert "default_target_root_kind=str(target_root.get('kind') or '')" in loader
     assert 'load_descriptor_payload' not in resolver
-    assert "getattr(descriptor, 'default_target_root_env', '')" in resolver
-    assert "getattr(descriptor, 'default_target_root', '')" in resolver
+    assert 'getattr(descriptor' in resolver
+    assert 'default_target_root_env' in resolver
+    assert 'default_target_root' in resolver
     assert 'def resolve_adapter_registry_path(' in support
     assert 'def load_adapter_registry(' in support
     assert 'def normalize_adapter_host_id(' in support

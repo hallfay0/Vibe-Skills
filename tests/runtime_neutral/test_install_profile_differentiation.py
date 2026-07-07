@@ -8,38 +8,6 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-MINIMAL_MANIFEST = REPO_ROOT / "config" / "runtime-core-packaging.minimal.json"
-FULL_MANIFEST = REPO_ROOT / "config" / "runtime-core-packaging.full.json"
-
-REPRESENTATIVE_NON_CORE_SKILL = "scikit-learn"
-DIRECT_RUNTIME_PUBLIC_SKILLS = {
-    "vibe",
-    "vibe-upgrade",
-}
-HOST_VISIBLE_DISCOVERABLE_ENTRIES = {
-    "vibe",
-    "vibe-upgrade",
-}
-
-
-def load_json(path: Path) -> dict:
-    return json.loads(path.read_text(encoding="utf-8-sig"))
-
-
-def load_skill_inventory(path: Path) -> tuple[set[str], set[str], set[str]]:
-    payload = load_json(path)["managed_skill_inventory"]
-    return (
-        set(payload["required_runtime_skills"]),
-        set(payload["required_workflow_skills"]),
-        set(payload["optional_workflow_skills"]),
-    )
-
-
-MINIMAL_RUNTIME_SKILLS, MINIMAL_WORKFLOW_SKILLS, _ = load_skill_inventory(MINIMAL_MANIFEST)
-FULL_RUNTIME_SKILLS, FULL_WORKFLOW_SKILLS, FULL_OPTIONAL_WORKFLOW_SKILLS = load_skill_inventory(FULL_MANIFEST)
-MINIMAL_REQUIRED_SKILLS = MINIMAL_RUNTIME_SKILLS | MINIMAL_WORKFLOW_SKILLS
-MINIMAL_INSTALLED_SKILLS = MINIMAL_REQUIRED_SKILLS | {"vibe-upgrade"}
-MINIMAL_ALLOWLIST_SKILLS = (MINIMAL_RUNTIME_SKILLS - {"vibe"}) | MINIMAL_WORKFLOW_SKILLS
 
 
 def count_files(root: Path) -> int:
@@ -47,167 +15,76 @@ def count_files(root: Path) -> int:
 
 
 class InstallProfileDifferentiationTests(unittest.TestCase):
-    def install_profile(self, target_root: Path, *, profile: str, host: str = "codex") -> dict:
-        command = [
-            "bash",
-            str(REPO_ROOT / "install.sh"),
-            "--host",
-            host,
-            "--profile",
-            profile,
-            "--target-root",
-            str(target_root),
-        ]
-        subprocess.run(command, cwd=REPO_ROOT, capture_output=True, text=True, check=True)
-        ledger_path = target_root / ".vibeskills" / "install-ledger.json"
-        self.assertTrue(ledger_path.exists())
-        return load_json(ledger_path)
+    def install_to(self, skills_dir: Path) -> dict[str, object]:
+        result = subprocess.run(
+            [
+                "bash",
+                str(REPO_ROOT / "install.sh"),
+                "--skills-dir",
+                str(skills_dir),
+            ],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        payload = json.loads(result.stdout)
+        self.assertIsInstance(payload, dict)
+        return payload
 
-    def test_profile_packaging_manifests_exist_and_declare_distinct_payload_models(self) -> None:
-        self.assertTrue(MINIMAL_MANIFEST.exists(), "minimal packaging manifest must exist")
-        self.assertTrue(FULL_MANIFEST.exists(), "full packaging manifest must exist")
-
-        minimal = load_json(MINIMAL_MANIFEST)
-        full = load_json(FULL_MANIFEST)
-
-        self.assertEqual("minimal", minimal["profile"])
-        self.assertEqual("full", full["profile"])
-        self.assertEqual(sorted(MINIMAL_ALLOWLIST_SKILLS), sorted(minimal["skills_allowlist"]))
-        self.assertTrue(minimal["canonical_vibe_payload"]["enabled"])
-        self.assertEqual("skills/vibe", minimal["canonical_vibe_payload"]["target_relpath"])
-        self.assertTrue(full["copy_bundled_skills"])
-        self.assertFalse(minimal["copy_bundled_skills"])
-        self.assertEqual("skills/vibe/bundled/skills", full["internal_skill_corpus"]["target_relpath"])
-        self.assertEqual([], full["compatibility_skill_projections"]["projected_skill_names"])
-
-    def test_minimal_install_contains_only_required_foundation_skills(self) -> None:
+    def test_shell_install_writes_single_vibe_package_under_skills_dir(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
-            target_root = Path(tempdir) / "minimal-root"
-            target_root.mkdir(parents=True, exist_ok=True)
+            skills_dir = Path(tempdir) / "skills"
 
-            ledger = self.install_profile(target_root, profile="minimal")
-            installed_skills = {
-                candidate.name
-                for candidate in (target_root / "skills").iterdir()
-                if candidate.is_dir()
-            }
-            hidden_required_skill = target_root / "skills" / "vibe" / "bundled" / "skills" / "brainstorming" / "SKILL.runtime-mirror.md"
+            receipt = self.install_to(skills_dir)
 
-            self.assertEqual(DIRECT_RUNTIME_PUBLIC_SKILLS, installed_skills)
-            self.assertTrue(hidden_required_skill.exists())
-            self.assertNotIn(REPRESENTATIVE_NON_CORE_SKILL, installed_skills)
-            self.assertEqual("minimal", ledger["profile"])
-            self.assertEqual(sorted(MINIMAL_INSTALLED_SKILLS), ledger["payload_summary"]["installed_skill_names"])
-            self.assertEqual(sorted(DIRECT_RUNTIME_PUBLIC_SKILLS), ledger["payload_summary"]["public_skill_names"])
-            self.assertEqual(sorted(HOST_VISIBLE_DISCOVERABLE_ENTRIES), ledger["payload_summary"]["host_visible_entry_names"])
-            self.assertEqual(len(HOST_VISIBLE_DISCOVERABLE_ENTRIES), ledger["payload_summary"]["host_visible_entry_count"])
-            # In a fresh temp target, every file should be installer-owned.
-            self.assertEqual(count_files(target_root), ledger["payload_summary"]["installed_file_count"])
-            self.assertTrue((target_root / "commands" / "vibe.md").exists())
-            self.assertTrue((target_root / "skills" / "vibe-upgrade" / "SKILL.md").exists())
-            self.assertFalse((target_root / "commands" / "vibe-upgrade.md").exists())
+            install_root = skills_dir / "vibe"
+            self.assertEqual("vibe-skill-install", receipt["receipt_kind"])
+            self.assertEqual("vibe", receipt["skill_id"])
+            self.assertEqual(str(skills_dir.resolve()), receipt["skills_dir"])
+            self.assertEqual(str(install_root.resolve()), receipt["install_root"])
+            self.assertTrue((install_root / "SKILL.md").is_file())
+            self.assertTrue((install_root / "config" / "version-governance.json").is_file())
+            self.assertTrue((install_root / ".vibeskills" / "install-receipt.json").is_file())
+            self.assertFalse((skills_dir / "vibe-upgrade").exists())
+            self.assertFalse((install_root / "bundled" / "skills").exists())
+            self.assertFalse((skills_dir.parent / ".vibeskills" / "install-ledger.json").exists())
+            self.assertEqual(count_files(install_root) - 1, len(receipt["files"]))
 
-    def test_full_install_extends_minimal_payload_and_records_larger_summary(self) -> None:
+    def test_shell_install_rejects_legacy_profile_options(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
-            root = Path(tempdir)
-            minimal_root = root / "minimal-root"
-            full_root = root / "full-root"
-            minimal_root.mkdir(parents=True, exist_ok=True)
-            full_root.mkdir(parents=True, exist_ok=True)
-
-            minimal_ledger = self.install_profile(minimal_root, profile="minimal")
-            full_ledger = self.install_profile(full_root, profile="full")
-
-            minimal_skills = {
-                candidate.name
-                for candidate in (minimal_root / "skills").iterdir()
-                if candidate.is_dir()
-            }
-            full_skills = {
-                candidate.name
-                for candidate in (full_root / "skills").iterdir()
-                if candidate.is_dir()
-            }
-            hidden_full_skill = full_root / "skills" / "vibe" / "bundled" / "skills" / REPRESENTATIVE_NON_CORE_SKILL / "SKILL.runtime-mirror.md"
-
-            self.assertEqual(DIRECT_RUNTIME_PUBLIC_SKILLS, full_skills)
-            self.assertTrue(hidden_full_skill.exists())
-            self.assertGreater(
-                full_ledger["payload_summary"]["installed_skill_count"],
-                minimal_ledger["payload_summary"]["installed_skill_count"],
+            result = subprocess.run(
+                [
+                    "bash",
+                    str(REPO_ROOT / "install.sh"),
+                    "--profile",
+                    "minimal",
+                    "--target-root",
+                    str(Path(tempdir) / "target"),
+                ],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
             )
-            self.assertEqual(len(DIRECT_RUNTIME_PUBLIC_SKILLS), full_ledger["payload_summary"]["public_skill_count"])
-            self.assertEqual(sorted(DIRECT_RUNTIME_PUBLIC_SKILLS), full_ledger["payload_summary"]["public_skill_names"])
-            self.assertEqual(sorted(HOST_VISIBLE_DISCOVERABLE_ENTRIES), full_ledger["payload_summary"]["host_visible_entry_names"])
-            self.assertEqual(len(HOST_VISIBLE_DISCOVERABLE_ENTRIES), full_ledger["payload_summary"]["host_visible_entry_count"])
-            self.assertIn(REPRESENTATIVE_NON_CORE_SKILL, full_ledger["payload_summary"]["installed_skill_names"])
-            self.assertGreater(
-                full_ledger["payload_summary"]["installed_file_count"],
-                minimal_ledger["payload_summary"]["installed_file_count"],
-            )
-            self.assertEqual([], full_ledger["compatibility_roots"])
 
-    def test_full_skill_only_hosts_do_not_leak_codex_wrapper_skill_projections(self) -> None:
-        for host in ("cursor", "claude-code"):
-            with self.subTest(host=host):
-                with tempfile.TemporaryDirectory() as tempdir:
-                    target_root = Path(tempdir) / f"{host}-root"
-                    target_root.mkdir(parents=True, exist_ok=True)
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn("unrecognized arguments", result.stderr)
 
-                    ledger = self.install_profile(target_root, profile="full", host=host)
-                    installed_skills = {
-                        candidate.name
-                        for candidate in (target_root / "skills").iterdir()
-                        if candidate.is_dir()
-                    }
-
-                    self.assertEqual(HOST_VISIBLE_DISCOVERABLE_ENTRIES, installed_skills)
-                    self.assertEqual([], ledger["compatibility_roots"])
-                    self.assertEqual(sorted(HOST_VISIBLE_DISCOVERABLE_ENTRIES), ledger["payload_summary"]["public_skill_names"])
-                    self.assertEqual(sorted(HOST_VISIBLE_DISCOVERABLE_ENTRIES), ledger["payload_summary"]["host_visible_entry_names"])
-
-    def test_minimal_reinstall_prunes_previously_managed_full_profile_skills(self) -> None:
+    def test_shell_install_preserves_foreign_host_content(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
-            target_root = Path(tempdir) / "shared-root"
-            target_root.mkdir(parents=True, exist_ok=True)
+            skills_dir = Path(tempdir) / "skills"
+            foreign_skill = skills_dir / "foreign-user-skill" / "SKILL.md"
+            foreign_note = skills_dir.parent / "host-notes.txt"
+            foreign_skill.parent.mkdir(parents=True, exist_ok=True)
+            foreign_skill.write_text("---\nname: foreign-user-skill\ndescription: user skill\n---\n", encoding="utf-8")
+            foreign_note.write_text("user content\n", encoding="utf-8")
 
-            self.install_profile(target_root, profile="full")
-            ledger = self.install_profile(target_root, profile="minimal")
+            receipt = self.install_to(skills_dir)
 
-            installed_skills = {
-                candidate.name
-                for candidate in (target_root / "skills").iterdir()
-                if candidate.is_dir()
-            }
-
-            self.assertEqual({"vibe", "vibe-upgrade"}, installed_skills)
-            self.assertNotIn(REPRESENTATIVE_NON_CORE_SKILL, installed_skills)
-            self.assertEqual(sorted(MINIMAL_REQUIRED_SKILLS), ledger["managed_skill_names"])
-            self.assertEqual(sorted(MINIMAL_INSTALLED_SKILLS), ledger["payload_summary"]["installed_skill_names"])
-
-    def test_payload_summary_ignores_preexisting_foreign_host_content(self) -> None:
-        with tempfile.TemporaryDirectory() as tempdir:
-            target_root = Path(tempdir) / "shared-root"
-            foreign_skill_root = target_root / "skills" / "foreign-user-skill"
-            foreign_file = target_root / "host-notes.txt"
-            target_root.mkdir(parents=True, exist_ok=True)
-            foreign_skill_root.mkdir(parents=True, exist_ok=True)
-            (foreign_skill_root / "SKILL.md").write_text("---\nname: foreign-user-skill\n---\n", encoding="utf-8")
-            foreign_file.write_text("user content\n", encoding="utf-8")
-
-            ledger = self.install_profile(target_root, profile="minimal")
-
-            installed_skills = {
-                candidate.name
-                for candidate in (target_root / "skills").iterdir()
-                if candidate.is_dir()
-            }
-            mirrored_foreign_skill = target_root / "skills" / "vibe" / "bundled" / "skills" / "foreign-user-skill"
-            self.assertIn("foreign-user-skill", installed_skills)
-            self.assertFalse(mirrored_foreign_skill.exists())
-            self.assertNotIn("foreign-user-skill", ledger["payload_summary"]["installed_skill_names"])
-            self.assertEqual(sorted(MINIMAL_INSTALLED_SKILLS), ledger["payload_summary"]["installed_skill_names"])
-            self.assertLess(ledger["payload_summary"]["installed_file_count"], count_files(target_root))
+            self.assertTrue(foreign_skill.is_file())
+            self.assertTrue(foreign_note.is_file())
+            self.assertFalse((skills_dir / "vibe" / "bundled" / "skills" / "foreign-user-skill").exists())
+            self.assertNotIn("foreign-user-skill", {entry["path"] for entry in receipt["files"]})
 
 
 if __name__ == "__main__":

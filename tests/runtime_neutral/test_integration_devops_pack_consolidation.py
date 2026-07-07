@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import shutil
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -32,19 +34,21 @@ MOVED_OUT_SKILLS = [
 ]
 
 
-def route(prompt: str, task_type: str = "debug", grade: str = "L") -> dict[str, object]:
+def route(prompt: str, task_type: str = "debug", grade: str = "L", target_root: Path | None = None) -> dict[str, object]:
     return route_prompt(
         prompt=prompt,
         grade=grade,
         task_type=task_type,
         requested_skill=None,
         repo_root=REPO_ROOT,
+        target_root=str(target_root) if target_root is not None else None,
     )
 
 
 def selected(result: dict[str, object]) -> tuple[str, str]:
     selected_row = result.get("selected")
-    assert isinstance(selected_row, dict), result
+    if not isinstance(selected_row, dict):
+        return "", ""
     return str(selected_row.get("pack_id") or ""), str(selected_row.get("skill") or "")
 
 
@@ -72,9 +76,15 @@ class IntegrationDevopsPackConsolidationTests(unittest.TestCase):
         assert isinstance(pack, dict)
         return pack
 
+    def install_devops_skills(self, target_root: Path) -> None:
+        skills_root = target_root / "skills"
+        skills_root.mkdir(parents=True, exist_ok=True)
+        for skill in KEEP_SKILLS:
+            shutil.copytree(REPO_ROOT / "bundled" / "skills" / skill, skills_root / skill)
+
     def assert_selected(self, prompt: str, expected_skill: str, **kwargs: object) -> None:
         result = route(prompt, **kwargs)
-        self.assertEqual(("integration-devops", expected_skill), selected(result), ranked_summary(result))
+        self.assertEqual(("local-skill-index", expected_skill), selected(result), ranked_summary(result))
 
     def test_manifest_keeps_only_devops_route_authorities(self) -> None:
         pack = self.load_pack()
@@ -94,17 +104,20 @@ class IntegrationDevopsPackConsolidationTests(unittest.TestCase):
             self.assertNotIn(skill, pack["skill_candidates"])
 
     def test_kept_route_authorities_still_own_their_devops_prompts(self) -> None:
-        cases = [
-            ("排查GitHub Actions CI失败并修复", "gh-fix-ci", "debug"),
-            ("需要接入MCP server并配置.mcp.json", "mcp-integration", "planning"),
-            ("查看Sentry线上报错并汇总根因", "sentry", "debug"),
-            ("请把应用部署到Vercel并返回访问链接", "vercel-deploy", "coding"),
-            ("请部署到Netlify并生成预览链接", "netlify-deploy", "coding"),
-            ("审计并清理VCO托管的僵尸node进程", "node-zombie-guardian", "debug"),
-        ]
-        for prompt, expected_skill, task_type in cases:
-            with self.subTest(prompt=prompt):
-                self.assert_selected(prompt, expected_skill, task_type=task_type)
+        with tempfile.TemporaryDirectory() as tempdir:
+            target_root = Path(tempdir) / ".agents"
+            self.install_devops_skills(target_root)
+            cases = [
+                ("排查GitHub Actions CI失败并修复", "gh-fix-ci", "debug"),
+                ("需要接入MCP server并配置.mcp.json", "mcp-integration", "planning"),
+                ("查看Sentry线上报错并汇总根因", "sentry", "debug"),
+                ("请把应用部署到Vercel并返回访问链接", "vercel-deploy", "coding"),
+                ("请部署到Netlify并生成预览链接", "netlify-deploy", "coding"),
+                ("审计并清理VCO托管的僵尸node进程", "node-zombie-guardian", "debug"),
+            ]
+            for prompt, expected_skill, task_type in cases:
+                with self.subTest(prompt=prompt):
+                    self.assert_selected(prompt, expected_skill, task_type=task_type, target_root=target_root)
 
     def test_moved_out_skills_do_not_route_to_integration_devops(self) -> None:
         prompts = [

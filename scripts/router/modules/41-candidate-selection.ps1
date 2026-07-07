@@ -92,6 +92,7 @@ function New-RequestedSkillSelection {
         selected = $RequestedCandidate
         score = 1.0
         reason = "requested_skill"
+        candidate_only = $true
         ranking = @(ConvertTo-PublicCandidateRanking -Rows @(
             [pscustomobject]@{
                 skill = $RequestedCandidate
@@ -132,6 +133,7 @@ function Select-PackCandidate {
             selected = $null
             score = 0.0
             reason = "no_candidates"
+            candidate_only = $true
             ranking = @()
             top1_top2_gap = 0.0
             filtered_out_by_task = @()
@@ -203,6 +205,7 @@ function Select-PackCandidate {
                 selected = $defaultCandidate
                 score = 0.0
                 reason = "fallback_task_default_after_task_filter"
+                candidate_only = $true
                 ranking = @()
                 top1_top2_gap = 0.0
                 filtered_out_by_task = @($blockedByTask)
@@ -215,6 +218,7 @@ function Select-PackCandidate {
             selected = $Candidates[0]
             score = 0.0
             reason = "fallback_first_candidate_after_task_filter"
+            candidate_only = $true
             ranking = @()
             top1_top2_gap = 0.0
             filtered_out_by_task = @($blockedByTask)
@@ -320,6 +324,7 @@ function Select-PackCandidate {
             selected = $null
             score = 0.0
             reason = "no_usable_candidate"
+            candidate_only = $true
             ranking = @()
             top1_top2_gap = 0.0
             filtered_out_by_task = @($blockedByTask)
@@ -340,6 +345,7 @@ function Select-PackCandidate {
             selected = $fallback
             score = $defaultScore
             reason = if ($defaultInRank) { "fallback_task_default" } else { "fallback_first_candidate" }
+            candidate_only = $true
             ranking = @(ConvertTo-PublicCandidateRanking -Rows @($usableRanked | Select-Object -First 6))
             top1_top2_gap = $gap
             filtered_out_by_task = @($blockedByTask)
@@ -352,6 +358,7 @@ function Select-PackCandidate {
         selected = [string]$top.skill
         score = [double]$top.score
         reason = "keyword_ranked"
+        candidate_only = $true
         ranking = @(ConvertTo-PublicCandidateRanking -Rows @($usableRanked | Select-Object -First 6))
         top1_top2_gap = $gap
         filtered_out_by_task = @($blockedByTask)

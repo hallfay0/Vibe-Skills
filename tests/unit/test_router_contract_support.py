@@ -8,7 +8,7 @@ import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-MODULE_PATH = REPO_ROOT / "packages" / "runtime-core" / "src" / "vgo_runtime" / "router_contract_support.py"
+MODULE_PATH = REPO_ROOT / "packages" / "runtime-core" / "src" / "vgo_runtime" / "runtime_support.py"
 
 
 def _load_module():
@@ -21,25 +21,22 @@ def _load_module():
     return module
 
 
-def test_resolve_skill_md_path_prefers_hidden_internal_corpus_for_specialist(tmp_path: Path) -> None:
+def test_resolve_skill_md_path_uses_host_declared_local_root_for_specialist(tmp_path: Path) -> None:
     module = _load_module()
     repo = module.RepoContext(
         repo_root=REPO_ROOT,
         config_root=REPO_ROOT / "config",
         bundled_skills_root=REPO_ROOT / "bundled" / "skills",
     )
-    hidden_root = tmp_path / "skills" / "vibe" / "bundled" / "skills" / "scikit-learn"
-    public_root = tmp_path / "skills" / "scikit-learn"
-    hidden_root.mkdir(parents=True, exist_ok=True)
-    public_root.mkdir(parents=True, exist_ok=True)
-    hidden_descriptor = hidden_root / "SKILL.runtime-mirror.md"
-    public_descriptor = public_root / "SKILL.md"
-    hidden_descriptor.write_text("---\nname: scikit-learn\n---\n", encoding="utf-8")
-    public_descriptor.write_text("---\nname: scikit-learn\ndescription: public shadow\n---\n", encoding="utf-8")
+    agent_root = tmp_path / "home" / ".agents"
+    skill_root = agent_root / "skills" / "scikit-learn"
+    skill_root.mkdir(parents=True, exist_ok=True)
+    descriptor = skill_root / "SKILL.md"
+    descriptor.write_text("---\nname: scikit-learn\ndescription: local install\n---\n", encoding="utf-8")
 
-    resolved = module.resolve_skill_md_path(repo, "scikit-learn", str(tmp_path), "codex")
+    resolved = module.resolve_skill_md_path(repo, "scikit-learn", str(agent_root / "skills"), "codex")
 
-    assert resolved == hidden_descriptor
+    assert resolved == descriptor
 
 
 def test_resolve_skill_md_path_uses_canonical_vibe_entrypoint(tmp_path: Path) -> None:
@@ -84,7 +81,7 @@ def test_resolve_repo_root_prefers_nearest_governed_git_root_for_worktrees(tmp_p
     module = _load_module()
     outer_root = tmp_path / "repo"
     worktree_root = outer_root / ".worktrees" / "feature"
-    script_path = worktree_root / "packages" / "runtime-core" / "src" / "vgo_runtime" / "router_bridge.py"
+    script_path = worktree_root / "packages" / "runtime-core" / "src" / "vgo_runtime" / "runtime_bridge.py"
 
     outer_root.mkdir(parents=True, exist_ok=True)
     (outer_root / ".git").mkdir(parents=True, exist_ok=True)

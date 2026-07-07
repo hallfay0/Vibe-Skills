@@ -25,17 +25,21 @@ def test_policy_defines_current_field_chain_and_retired_terms() -> None:
 
     assert policy["schema_version"] == 1
     assert policy["current_model"] == [
-        "skill_candidates",
-        "skill_routing.selected",
-        "skill_execution_lock",
-        "selected_skill_execution",
-        "skill_usage.used",
-        "skill_usage.unused",
-        "skill_usage.evidence",
+        "task_card",
+        "work_plan",
+        "work_binding",
+        "work_results",
+        "verification",
     ]
 
     active_fields = set(policy["active_fields"])
     for field in [
+        "task_card",
+        "work_plan",
+        "work_binding",
+        "specialist_decision",
+        "work_results",
+        "verification",
         "skill_candidates",
         "skill_routing",
         "skill_routing.candidates",
@@ -88,9 +92,16 @@ def test_policy_separates_current_and_legacy_scopes() -> None:
     assert "scripts/runtime/VibeRuntime.Common.ps1" in current_paths
     assert "scripts/router/resolve-pack-route.ps1" in current_paths
     assert "packages/runtime-core/src/vgo_runtime" in current_paths
+    assert "README.md" in current_paths
+    assert "README.zh.md" in current_paths
+    assert "docs/README.md" in current_paths
+    assert "docs/governance/README.md" in current_paths
+    assert "docs/status/README.md" in current_paths
+    assert "docs/releases/README.md" in current_paths
     assert "tests/runtime_neutral" in current_paths
     assert "tests/unit" in current_paths
     assert "tests/integration" in current_paths
+    assert "docs/governance/vibe-governed-project-delivery-acceptance-governance.md" in current_paths
 
     assert "tests/runtime_neutral/test_retired_old_routing_compat.py" in allowed_paths
     assert "docs/governance/historical-routing-terminology.md" in allowed_paths

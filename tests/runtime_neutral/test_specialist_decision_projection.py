@@ -43,7 +43,7 @@ class SpecialistDecisionProjectionTests(unittest.TestCase):
             " }"
         )
         completed = subprocess.run(
-            [shell, "-NoLogo", "-NoProfile", "-Command", ps_command],
+            [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_command],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,

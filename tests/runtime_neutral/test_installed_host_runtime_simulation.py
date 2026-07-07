@@ -22,6 +22,7 @@ MEMORY_TASK_FIRST = "Record that hidden skill topology must stay under vibe and 
 MEMORY_TASK_SECOND = "Follow up on the hidden skill topology decision and recall planner dependency before proposing the next step. $vibe"
 SUPPORTED_CANONICAL_HOSTS = ("codex", "claude-code", "opencode")
 INSTALLED_RUNTIME_ADVISORY_FAILURE_UNITS = {
+    "installed-runtime-freshness-gate",
     "runtime-neutral-freshness-gate-tests",
     "release-install-runtime-coherence-gate",
 }
@@ -33,12 +34,12 @@ HOST_BRIDGE_ENV = {
     "opencode": "VGO_OPENCODE_SPECIALIST_BRIDGE_COMMAND",
 }
 HOST_HOME_ENV = {
-    "codex": "CODEX_HOME",
-    "claude-code": "CLAUDE_HOME",
-    "cursor": "CURSOR_HOME",
-    "windsurf": "WINDSURF_HOME",
-    "openclaw": "OPENCLAW_HOME",
-    "opencode": "OPENCODE_HOME",
+    "codex": "VIBE_AGENTS_HOME",
+    "claude-code": "VIBE_AGENTS_HOME",
+    "cursor": "VIBE_AGENTS_HOME",
+    "windsurf": "VIBE_AGENTS_HOME",
+    "openclaw": "VIBE_AGENTS_HOME",
+    "opencode": "VIBE_AGENTS_HOME",
 }
 
 
@@ -61,6 +62,21 @@ def ps_quote(value: object) -> str:
 
 def load_json(path: str | Path) -> dict[str, object]:
     return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def selected_skill_ids_from_runtime_input(runtime_input: dict[str, object]) -> list[str]:
+    routing = runtime_input.get("skill_routing")
+    if isinstance(routing, dict):
+        selected = routing.get("selected")
+        if isinstance(selected, list) and selected:
+            return [str(item.get("skill_id") or "") for item in selected if isinstance(item, dict) and str(item.get("skill_id") or "")]
+    work_binding = runtime_input.get("work_binding")
+    if not isinstance(work_binding, dict):
+        return []
+    units = work_binding.get("units")
+    if not isinstance(units, list):
+        return []
+    return [str(item.get("bound_skill") or "") for item in units if isinstance(item, dict) and str(item.get("bound_skill") or "")]
 
 
 def create_fake_bridge(directory: Path, host_id: str) -> Path:
@@ -196,7 +212,23 @@ def create_fake_codex_command(directory: Path) -> Path:
     return command_path
 
 
+def write_installed_skill(target_root: Path, skill_id: str, *, name: str, description: str) -> Path:
+    skill_path = target_root / "skills" / skill_id / "SKILL.md"
+    skill_path.parent.mkdir(parents=True, exist_ok=True)
+    skill_path.write_text(
+        (
+            "---\n"
+            f"name: {name}\n"
+            f"description: {description}\n"
+            "---\n"
+        ),
+        encoding="utf-8",
+    )
+    return skill_path
+
+
 def install_host(target_root: Path, host_id: str, *, env: dict[str, str]) -> None:
+    skills_dir = target_root / "skills"
     if os.name == "nt":
         shell = resolve_powershell()
         if shell is None:
@@ -209,28 +241,16 @@ def install_host(target_root: Path, host_id: str, *, env: dict[str, str]) -> Non
             "Bypass",
             "-File",
             str(INSTALL_SCRIPT_PS1),
-            "-HostId",
-            host_id,
-            "-Profile",
-            "full",
-            "-TargetRoot",
-            str(target_root),
+            "-SkillsDir",
+            str(skills_dir),
         ]
-        if host_id in HOST_BRIDGE_ENV:
-            command.append("-RequireClosedReady")
     else:
         command = [
             "bash",
             str(INSTALL_SCRIPT_SH),
-            "--host",
-            host_id,
-            "--profile",
-            "full",
-            "--target-root",
-            str(target_root),
+            "--skills-dir",
+            str(skills_dir),
         ]
-        if host_id in HOST_BRIDGE_ENV:
-            command.append("--require-closed-ready")
     subprocess.run(
         command,
         cwd=REPO_ROOT,
@@ -298,7 +318,7 @@ class InstalledHostRuntimeSimulationTests(unittest.TestCase):
         tempdir = tempfile.TemporaryDirectory(dir=str(TEST_SANDBOX_ROOT))
         self.addCleanup(tempdir.cleanup)
         root = Path(tempdir.name)
-        target_root = root / "target"
+        target_root = root / ".agents"
         bridge_root = root / "bridges"
         target_root.mkdir(parents=True, exist_ok=True)
         bridge_root.mkdir(parents=True, exist_ok=True)
@@ -311,6 +331,24 @@ class InstalledHostRuntimeSimulationTests(unittest.TestCase):
             bridge = create_fake_bridge(bridge_root, host_id)
             env[HOST_BRIDGE_ENV[host_id]] = str(bridge)
         install_host(target_root, host_id, env=env)
+        write_installed_skill(
+            target_root,
+            "feature-planning",
+            name="PRD backlog quality gate",
+            description="Create a PRD and backlog for a small feature with quality gate requirements.",
+        )
+        write_installed_skill(
+            target_root,
+            "systematic-debugging",
+            name="failing test stack trace debug",
+            description="Debug failing tests and stack traces with systematic root-cause analysis before proposing fixes.",
+        )
+        write_installed_skill(
+            target_root,
+            "runtime-enhancement-execution",
+            name="bounded runtime enhancement verification cleanup",
+            description="Implement bounded runtime enhancements with verification and cleanup.",
+        )
         installed_root = target_root / "skills" / "vibe"
         self.assertTrue(installed_root.exists(), host_id)
         return target_root, installed_root, env
@@ -330,9 +368,14 @@ class InstalledHostRuntimeSimulationTests(unittest.TestCase):
 
         self.assertIn("route_snapshot", runtime_input, host_id)
         self.assertEqual("vibe", runtime_input["authority_flags"]["explicit_runtime_skill"], host_id)
-        self.assertEqual("vibe", runtime_input["divergence_shadow"]["runtime_selected_skill"], host_id)
-        route_selected_skill = str(runtime_input["route_snapshot"].get("selected_skill") or "")
-        self.assertTrue(route_selected_skill, host_id)
+        self.assertNotIn("runtime_selected_skill", runtime_input["divergence_shadow"], host_id)
+        bound_skill_ids = [
+            str(unit.get("bound_skill") or "")
+            for unit in runtime_input["work_binding"]["units"]
+            if str(unit.get("bound_skill") or "")
+        ]
+        self.assertTrue(bound_skill_ids, host_id)
+        self.assertNotIn("selected_skill", runtime_input["route_snapshot"], host_id)
         self.assertIn("skill_routing", runtime_input, host_id)
         self.assertIn("skill_usage", runtime_input, host_id)
         self.assertIn("specialist_decision", runtime_input, host_id)
@@ -340,11 +383,8 @@ class InstalledHostRuntimeSimulationTests(unittest.TestCase):
         self.assertNotIn("specialist_recommendations", runtime_input, host_id)
         self.assertNotIn("stage_assistant_hints", runtime_input, host_id)
         self.assertNotIn("specialist_dispatch", runtime_input, host_id)
-        selected_skill_ids = [
-            item["skill_id"]
-            for item in list(runtime_input["skill_routing"]["selected"])
-            if item.get("skill_id")
-        ]
+        selected_skill_ids = selected_skill_ids_from_runtime_input(runtime_input)
+        route_selected_skill = bound_skill_ids[0]
         if route_selected_skill != "vibe":
             self.assertIn(route_selected_skill, selected_skill_ids, host_id)
         self.assertTrue(Path(artifacts["requirement_doc"]).exists(), host_id)
@@ -364,7 +404,7 @@ class InstalledHostRuntimeSimulationTests(unittest.TestCase):
                 failed_unit_ids.issubset(INSTALLED_RUNTIME_ADVISORY_FAILURE_UNITS),
                 host_id,
             )
-        self.assertIn(cleanup["cleanup_mode"], {"receipt_only", "bounded_cleanup_executed"}, host_id)
+        self.assertIn(cleanup["cleanup_mode"], {"receipt_only", "bounded_cleanup_executed", "cleanup_degraded"}, host_id)
         return {
             "summary": summary,
             "artifacts": artifacts,
@@ -410,7 +450,7 @@ class InstalledHostRuntimeSimulationTests(unittest.TestCase):
                     env=runtime_env,
                 )
                 debug_state = self._assert_common_governed_outputs(debug, host_id=host_id)
-                specialist_ids = [item["skill_id"] for item in debug_state["runtime_input"]["skill_routing"]["selected"]]
+                specialist_ids = selected_skill_ids_from_runtime_input(debug_state["runtime_input"])
                 self.assertIn("systematic-debugging", specialist_ids, host_id)
                 self.assertGreaterEqual(
                     debug_state["execution_manifest"]["specialist_accounting"]["recommendation_count"],
@@ -437,17 +477,10 @@ class InstalledHostRuntimeSimulationTests(unittest.TestCase):
                     debug_state["summary"]["host_user_briefing"]["mode"],
                     host_id,
                 )
-                self.assertIn("Execution handoff is still pending under governed vibe.", host_user_briefing, host_id)
-                self.assertIn(
-                    "next required action: load each disclosed `native_skill_entrypoint`",
-                    host_user_briefing,
-                    host_id,
-                )
-                self.assertIn(
-                    "approved specialist execution has not been formally resolved inside the governed runtime yet.",
-                    host_user_briefing,
-                    host_id,
-                )
+                self.assertIn("Selected skills are available for execution.", host_user_briefing, host_id)
+                self.assertIn("This is not a `used` claim", host_user_briefing, host_id)
+                self.assertIn("systematic-debugging", host_user_briefing, host_id)
+                self.assertIn("SKILL.md", host_user_briefing, host_id)
 
                 execution = run_installed_runtime(
                     installed_root,

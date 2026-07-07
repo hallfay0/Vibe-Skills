@@ -48,6 +48,8 @@ class FrontmatterGateScopeActivationTests(unittest.TestCase):
                 [
                     powershell,
                     "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
                     "-File",
                     str(GATE_PATH),
                     "-TargetRoot",
@@ -174,6 +176,8 @@ class FrontmatterGateScopeActivationTests(unittest.TestCase):
                 [
                     powershell,
                     "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
                     "-File",
                     str(root / "scripts" / "verify" / "vibe-bom-frontmatter-gate.ps1"),
                     "-TargetRoot",

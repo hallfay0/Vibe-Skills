@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import shutil
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -25,6 +27,11 @@ DELETED_SKILLS = [
 OUT_OF_SCOPE_SKILLS = [
     "latchbio-integration",
 ]
+RETIRED_STATIC_ROUTING_FILES = [
+    REPO_ROOT / "config" / "skill-keyword-index.json",
+    REPO_ROOT / "config" / "skill-routing-rules.json",
+    REPO_ROOT / "config" / "skills-lock.json",
+]
 ASSERTIONS = unittest.TestCase()
 
 
@@ -32,18 +39,33 @@ def load_json(path: Path) -> dict[str, object]:
     return json.loads(path.read_text(encoding="utf-8-sig"))
 
 
-def route(prompt: str, task_type: str = "research", grade: str = "L") -> dict[str, object]:
+def install_skills(target_root: Path, skill_ids: list[str]) -> None:
+    skills_root = target_root / "skills"
+    skills_root.mkdir(parents=True, exist_ok=True)
+    for skill_id in skill_ids:
+        shutil.copytree(REPO_ROOT / "bundled" / "skills" / skill_id, skills_root / skill_id)
+
+
+def route(
+    prompt: str,
+    task_type: str = "research",
+    grade: str = "L",
+    target_root: Path | None = None,
+) -> dict[str, object]:
     return route_prompt(
         prompt=prompt,
         grade=grade,
         task_type=task_type,
+        target_root=str(target_root) if target_root is not None else None,
+        host_id="codex",
         repo_root=REPO_ROOT,
     )
 
 
 def selected(result: dict[str, object]) -> tuple[str, str]:
     selected_row = result.get("selected")
-    assert isinstance(selected_row, dict), result
+    if not isinstance(selected_row, dict):
+        return "", ""
     return str(selected_row.get("pack_id") or ""), str(selected_row.get("skill") or "")
 
 
@@ -118,7 +140,8 @@ class ScienceLabAutomationPackDeletionTests(unittest.TestCase):
         task_type: str = "research",
         grade: str = "L",
     ) -> None:
-        result = route(prompt, task_type=task_type, grade=grade)
+        with tempfile.TemporaryDirectory() as tempdir:
+            result = route(prompt, task_type=task_type, grade=grade, target_root=Path(tempdir) / ".agents")
         pack_id, skill_id = selected(result)
         self.assertNotEqual(DELETED_PACK, pack_id, ranked_summary(result))
         self.assertNotIn(skill_id, DELETED_SKILLS, ranked_summary(result))
@@ -133,18 +156,12 @@ class ScienceLabAutomationPackDeletionTests(unittest.TestCase):
                 self.assertNotIn(skill_id, remaining_manifest_skills)
 
     def test_deleted_skills_removed_from_keyword_index_and_routing_rules(self) -> None:
-        keyword_ids = skill_index_ids()
-        rule_ids = routing_rule_ids()
-        for skill_id in DELETED_SKILLS:
-            with self.subTest(skill_id=skill_id):
-                self.assertNotIn(skill_id, keyword_ids)
-                self.assertNotIn(skill_id, rule_ids)
+        for path in RETIRED_STATIC_ROUTING_FILES[:2]:
+            with self.subTest(path=path.name):
+                self.assertFalse(path.exists())
 
     def test_deleted_skills_removed_from_skills_lock(self) -> None:
-        lock_ids = lock_skill_ids()
-        for skill_id in DELETED_SKILLS:
-            with self.subTest(skill_id=skill_id):
-                self.assertNotIn(skill_id, lock_ids)
+        self.assertFalse((REPO_ROOT / "config" / "skills-lock.json").exists())
 
     def test_deleted_skill_directories_are_absent(self) -> None:
         for skill_id in DELETED_SKILLS:
@@ -183,8 +200,11 @@ class ScienceLabAutomationPackDeletionTests(unittest.TestCase):
                 self.assert_deleted_pack_not_selected(prompt, task_type=task_type, grade=grade)
 
     def test_pubmed_methods_still_route_to_literature_owner(self) -> None:
-        result = route("在 PubMed 检索 wet-lab methods papers 并导出 BibTeX", task_type="research", grade="M")
-        self.assertEqual(("science-literature-citations", "pubmed-database"), selected(result), ranked_summary(result))
+        with tempfile.TemporaryDirectory() as tempdir:
+            target_root = Path(tempdir) / ".agents"
+            install_skills(target_root, ["pubmed-database"])
+            result = route("在 PubMed 检索 wet-lab methods papers 并导出 BibTeX", task_type="research", grade="M", target_root=target_root)
+        self.assertEqual(("local-skill-index", "pubmed-database"), selected(result), ranked_summary(result))
 
 
 if __name__ == "__main__":

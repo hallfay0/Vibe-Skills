@@ -14,7 +14,9 @@ def test_vgo_cli_hosts_delegate_adapter_registry_resolution_to_installer_core() 
     assert 'from vgo_installer import adapter_registry as module' in hosts
     assert 'module.resolve_adapter(repo_root, requested_host)' in hosts
     assert 'module.resolve_target_root_spec(repo_root, requested_host)' in hosts
-    assert 'module.resolve_default_target_root(repo_root, requested_host, env=dict(os.environ), home=Path.home())' in hosts
+    assert 'module.resolve_default_target_root_text(' in hosts
+    assert 'env=dict(os.environ)' in hosts
+    assert 'home=str(Path.home())' in hosts
     assert 'module.resolve_matching_target_root_hosts(repo_root, str(target_root))' in hosts
     assert 'def _adapter_registry(' not in hosts
     assert 'def _path_matches_relative_signature(' not in hosts

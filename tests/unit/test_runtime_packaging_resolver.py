@@ -28,18 +28,22 @@ def test_runtime_packaging_resolver_loads_profile_projection_from_authoritative_
 
     assert minimal['profile'] == 'minimal'
     assert full['profile'] == 'full'
-    assert minimal['copy_bundled_skills'] is False
-    assert full['copy_bundled_skills'] is True
-    assert minimal['payload_roles']['delivery_model']['bundled_skill_mode'] == 'hidden_allowlist_internal_corpus_plus_canonical_vibe'
-    assert full['payload_roles']['delivery_model']['bundled_skill_mode'] == 'hidden_full_internal_corpus_minus_canonical_vibe'
+    assert 'copy_bundled_skills' not in minimal
+    assert 'copy_bundled_skills' not in full
+    assert minimal['canonical_vibe_payload']['target_relpath'] == 'skills/vibe'
+    assert full['canonical_vibe_payload']['target_relpath'] == 'skills/vibe'
+    assert 'surface_contracts' not in minimal['payload_roles']
+    assert 'surface_contracts' not in full['payload_roles']
     assert minimal['compatibility_skill_projections']['projected_skill_names'] == []
     assert full['compatibility_skill_projections']['projected_skill_names'] == []
     assert minimal['public_skill_surface']['mode'] == 'discoverable_wrapper_projection'
     assert full['public_skill_surface']['mode'] == 'discoverable_wrapper_projection'
     assert minimal['public_skill_surface']['discoverable_entry_surface'] == 'config/vibe-entry-surfaces.json'
     assert full['public_skill_surface']['discoverable_entry_surface'] == 'config/vibe-entry-surfaces.json'
-    assert minimal['public_skill_surface']['projected_skill_names'] == ['vibe', 'vibe-upgrade']
-    assert full['public_skill_surface']['projected_skill_names'] == ['vibe', 'vibe-upgrade']
+    assert minimal['public_skill_surface']['projected_skill_names'] == ['vibe']
+    assert full['public_skill_surface']['projected_skill_names'] == ['vibe']
+    assert 'skills_allowlist' not in minimal
+    assert 'skills_allowlist' not in full
 
 
 def test_resolve_bundled_skills_root_normalizes_relative_packaging_sources_against_repo_root(monkeypatch) -> None:

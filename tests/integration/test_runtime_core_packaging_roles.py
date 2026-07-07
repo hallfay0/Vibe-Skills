@@ -54,11 +54,17 @@ def _resolve_canonical_vibe_target(surface: dict) -> str | None:
     return None
 
 
+def _normalize_resolved_projection(payload: dict) -> dict:
+    normalized = dict(payload)
+    normalized.pop('_repo_root', None)
+    return normalized
+
+
 def test_base_runtime_core_packaging_owns_shared_fields_and_profile_overlays() -> None:
     payload = _load(BASE_MANIFEST)
     roles = payload['payload_roles']
 
-    assert payload['default_profile'] == 'full'
+    assert payload['default_profile'] == 'minimal'
     assert set(payload['profiles']) == {'minimal', 'full'}
     assert 'copy_directories' not in payload
     assert set(payload['directories']) == {'skills', 'commands', 'config'}
@@ -72,8 +78,9 @@ def test_base_runtime_core_packaging_owns_shared_fields_and_profile_overlays() -
     grouped_copy_files = _flatten_entry_groups(roles['copy_files'])
     assert set(grouped_copy_files) == {tuple(sorted(item.items())) for item in payload['copy_files']}
     assert roles['notes']['flat_projection_contract']
-    assert payload['profiles']['minimal']['payload_roles']['delivery_model']['compatibility_skill_projections'] == []
-    assert payload['profiles']['full']['payload_roles']['delivery_model']['compatibility_skill_projections'] == []
+    assert 'surface_contracts' not in roles
+    assert 'surface_contracts' not in payload['profiles']['minimal']['payload_roles']
+    assert 'surface_contracts' not in payload['profiles']['full']['payload_roles']
 
 
 def test_profile_runtime_core_packaging_projections_match_base_overlay_resolution() -> None:
@@ -81,27 +88,18 @@ def test_profile_runtime_core_packaging_projections_match_base_overlay_resolutio
     minimal_projection = _load(MINIMAL_MANIFEST)
     full_projection = _load(FULL_MANIFEST)
 
-    resolved_minimal = runtime_packaging.resolve_runtime_core_packaging(REPO_ROOT, 'minimal')
-    resolved_full = runtime_packaging.resolve_runtime_core_packaging(REPO_ROOT, 'full')
+    resolved_minimal = _normalize_resolved_projection(runtime_packaging.resolve_runtime_core_packaging(REPO_ROOT, 'minimal'))
+    resolved_full = _normalize_resolved_projection(runtime_packaging.resolve_runtime_core_packaging(REPO_ROOT, 'full'))
 
     if _supports_surface_split(resolved_full):
         assert resolved_minimal['profile'] == 'minimal'
         assert resolved_full['profile'] == 'full'
         assert _resolve_canonical_vibe_target(resolved_minimal['public_skill_surface']) == 'skills/vibe'
         assert _resolve_canonical_vibe_target(resolved_full['public_skill_surface']) == 'skills/vibe'
-        assert resolved_minimal['internal_skill_corpus']['target_relpath'].startswith('skills/vibe/')
-        assert resolved_full['internal_skill_corpus']['target_relpath'].startswith('skills/vibe/')
-        assert resolved_minimal['copy_directories'] == minimal_projection['copy_directories']
-        assert any(
-            entry.get('source') == 'commands' and entry.get('target') == 'commands'
-            for entry in resolved_full['copy_directories']
-            if isinstance(entry, dict)
-        )
-        assert not any(
-            entry.get('source') == 'bundled/skills' and entry.get('target') == 'skills'
-            for entry in resolved_full['copy_directories']
-            if isinstance(entry, dict)
-        )
+        assert resolved_minimal['internal_skill_corpus']['enabled'] is False
+        assert resolved_full['internal_skill_corpus']['enabled'] is False
+        assert resolved_minimal == minimal_projection
+        assert resolved_full == full_projection
     else:
         assert minimal_projection == resolved_minimal
         assert full_projection == resolved_full
@@ -112,34 +110,28 @@ def test_committed_profile_runtime_core_packaging_does_not_embed_repo_root() -> 
     assert "_repo_root" not in _load(FULL_MANIFEST)
 
 
-def test_profile_runtime_core_packaging_roles_describe_delivery_model() -> None:
+def test_profile_runtime_core_packaging_roles_keep_surface_truth_top_level() -> None:
     minimal = _load(MINIMAL_MANIFEST)
     full = _load(FULL_MANIFEST)
 
-    if _supports_surface_split(minimal):
-        assert minimal['payload_roles']['delivery_model']['bundled_skill_mode'] == 'hidden_allowlist_internal_corpus_plus_canonical_vibe'
-    else:
-        assert minimal['payload_roles']['delivery_model']['bundled_skill_mode'] == 'allowlist_only_plus_canonical_vibe'
-    if _supports_surface_split(full):
-        assert full['payload_roles']['delivery_model']['bundled_skill_mode'] == 'hidden_full_internal_corpus_minus_canonical_vibe'
-    else:
-        assert full['payload_roles']['delivery_model']['bundled_skill_mode'] == 'full_bundled_surface_minus_canonical_vibe'
-    assert minimal['payload_roles']['delivery_model']['canonical_vibe_target_relpath'] == 'skills/vibe'
-    assert full['payload_roles']['delivery_model']['canonical_vibe_target_relpath'] == 'skills/vibe'
-    assert sorted(minimal['payload_roles']['delivery_model']['skills_allowlist']) == sorted(minimal['skills_allowlist'])
-    assert full['payload_roles']['delivery_model']['skills_allowlist'] == []
+    assert minimal['canonical_vibe_payload']['target_relpath'] == 'skills/vibe'
+    assert full['canonical_vibe_payload']['target_relpath'] == 'skills/vibe'
+    assert 'surface_contracts' not in minimal['payload_roles']
+    assert 'surface_contracts' not in full['payload_roles']
     if _supports_surface_split(minimal):
         assert minimal['compatibility_skill_projections']['projected_skill_names'] == []
-        assert minimal['internal_skill_corpus']['target_relpath'] == 'skills/vibe/bundled/skills'
+        assert minimal['internal_skill_corpus']['enabled'] is False
+        assert minimal['internal_skill_corpus']['resident_skill_names'] == []
         assert minimal['public_skill_surface']['mode'] == 'discoverable_wrapper_projection'
         assert minimal['public_skill_surface']['discoverable_entry_surface'] == 'config/vibe-entry-surfaces.json'
-        assert minimal['public_skill_surface']['projected_skill_names'] == ['vibe', 'vibe-upgrade']
+        assert minimal['public_skill_surface']['projected_skill_names'] == ['vibe']
     if _supports_surface_split(full):
         assert full['compatibility_skill_projections']['projected_skill_names'] == []
-        assert full['internal_skill_corpus']['entrypoint_filename'] == 'SKILL.runtime-mirror.md'
+        assert full['internal_skill_corpus']['enabled'] is False
+        assert full['internal_skill_corpus']['resident_skill_names'] == []
         assert full['public_skill_surface']['mode'] == 'discoverable_wrapper_projection'
         assert full['public_skill_surface']['discoverable_entry_surface'] == 'config/vibe-entry-surfaces.json'
-        assert full['public_skill_surface']['projected_skill_names'] == ['vibe', 'vibe-upgrade']
+        assert full['public_skill_surface']['projected_skill_names'] == ['vibe']
 
 
 def test_profile_runtime_core_packaging_role_sources_match_copy_projection() -> None:
@@ -162,26 +154,34 @@ def test_profile_runtime_core_packaging_role_sources_match_copy_projection() -> 
 
 
 def test_profile_managed_skill_inventory_is_manifest_owned() -> None:
+    runtime_packaging = _load_runtime_packaging_module()
     minimal = _load(MINIMAL_MANIFEST)
     full = _load(FULL_MANIFEST)
+    resolved_minimal = runtime_packaging.resolve_runtime_core_packaging(REPO_ROOT, 'minimal')
+    resolved_full = runtime_packaging.resolve_runtime_core_packaging(REPO_ROOT, 'full')
 
     minimal_inventory = minimal['managed_skill_inventory']
     full_inventory = full['managed_skill_inventory']
 
-    minimal_required_runtime = set(minimal_inventory['required_runtime_skills'])
-    minimal_required_workflow = set(minimal_inventory['required_workflow_skills'])
-    full_required_runtime = set(full_inventory['required_runtime_skills'])
-    full_required_workflow = set(full_inventory['required_workflow_skills'])
-    full_optional_workflow = set(full_inventory['optional_workflow_skills'])
+    minimal_public_entries = set(minimal_inventory['public_entry_skills'])
+    minimal_starter_skills = set(minimal_inventory['starter_skill_names'])
+    full_public_entries = set(full_inventory['public_entry_skills'])
+    full_starter_skills = set(full_inventory['starter_skill_names'])
+    full_optional_skills = set(full_inventory['optional_skill_names'])
 
-    assert 'vibe' in minimal_required_runtime
-    assert minimal_required_runtime == full_required_runtime
-    assert minimal_required_workflow == full_required_workflow
-    assert full_optional_workflow == {'requesting-code-review', 'receiving-code-review', 'verification-before-completion'}
-    assert not (minimal_required_runtime & minimal_required_workflow)
-    assert not (full_required_runtime & full_optional_workflow)
-    assert not (full_required_workflow & full_optional_workflow)
-    assert sorted((minimal_required_runtime - {'vibe'}) | minimal_required_workflow) == sorted(minimal['skills_allowlist'])
+    assert minimal_public_entries == {'vibe'}
+    assert minimal_public_entries == full_public_entries
+    assert minimal_starter_skills == full_starter_skills
+    assert full_optional_skills == set()
+    assert not (minimal_public_entries & minimal_starter_skills)
+    assert not (full_public_entries & full_optional_skills)
+    assert not (full_starter_skills & full_optional_skills)
+    assert 'skills_allowlist' not in minimal
+    assert 'skills_allowlist' not in full
+    assert 'skills_allowlist' not in resolved_minimal
+    assert 'skills_allowlist' not in resolved_full
+    assert minimal['internal_skill_corpus']['resident_skill_names'] == []
+    assert full['internal_skill_corpus']['resident_skill_names'] == []
 
 
 def test_surface_split_semantics_are_declared_when_available() -> None:

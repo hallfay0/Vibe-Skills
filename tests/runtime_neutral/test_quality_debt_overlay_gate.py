@@ -35,7 +35,7 @@ class QualityDebtOverlayGateTests(unittest.TestCase):
 
         try:
             completed = subprocess.run(
-                [powershell, "-NoLogo", "-NoProfile", "-File", str(script_path)],
+                [powershell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script_path)],
                 cwd=REPO_ROOT,
                 capture_output=True,
                 text=True,

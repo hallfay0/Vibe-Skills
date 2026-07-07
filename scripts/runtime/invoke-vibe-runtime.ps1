@@ -62,6 +62,54 @@ function Wait-VibeArtifactSet {
     }
 }
 
+function Invoke-VibePythonRuntimeSummaryFinalizer {
+    param(
+        [Parameter(Mandatory)] [string]$RepoRoot,
+        [Parameter(Mandatory)] [object]$Payload,
+        [Parameter(Mandatory)] [string]$SummaryPath
+    )
+
+    $pythonInvocation = Get-VgoPythonCommand
+    $scriptPath = Join-Path $RepoRoot 'packages\runtime-core\src\vgo_runtime\canonical_entry.py'
+    $runtimeCoreSrc = Join-Path $RepoRoot 'packages\runtime-core\src'
+    $contractsSrc = Join-Path $RepoRoot 'packages\contracts\src'
+    $inputPath = Join-Path ([System.IO.Path]::GetTempPath()) ("vgo-runtime-summary-finalize-" + [System.Guid]::NewGuid().ToString("N") + ".json")
+    $previousPythonPath = $env:PYTHONPATH
+
+    try {
+        Write-VibeJsonArtifact -Path $inputPath -Value $Payload
+        $pythonPathEntries = @($runtimeCoreSrc, $contractsSrc)
+        if (-not [string]::IsNullOrWhiteSpace($previousPythonPath)) {
+            $pythonPathEntries += $previousPythonPath
+        }
+        $env:PYTHONPATH = ($pythonPathEntries -join [System.IO.Path]::PathSeparator)
+        $pythonArgs = @($pythonInvocation.prefix_arguments)
+        $pythonArgs += @(
+            $scriptPath,
+            '--finalize-runtime-summary-input-json', $inputPath,
+            '--output-json-path', $SummaryPath
+        )
+        $commandOutput = & $pythonInvocation.host_path @pythonArgs 2>&1
+        $commandExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { [int]$LASTEXITCODE }
+        if ($commandExitCode -ne 0) {
+            throw ("Python runtime summary finalizer exited with code {0}: {1}" -f $commandExitCode, ((@($commandOutput) | ForEach-Object { [string]$_ }) -join [Environment]::NewLine))
+        }
+        if (-not (Test-Path -LiteralPath $SummaryPath -PathType Leaf)) {
+            throw ("Python runtime summary finalizer did not write runtime-summary.json: {0}" -f $SummaryPath)
+        }
+        return (Get-Content -LiteralPath $SummaryPath -Raw -Encoding UTF8 | ConvertFrom-Json)
+    } finally {
+        if ([string]::IsNullOrWhiteSpace($previousPythonPath)) {
+            Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
+        } else {
+            $env:PYTHONPATH = $previousPythonPath
+        }
+        if (Test-Path -LiteralPath $inputPath) {
+            Remove-Item -LiteralPath $inputPath -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
 function Complete-VibeGovernedRuntimeStop {
     param(
         [Parameter(Mandatory)] [string]$RunId,
@@ -161,6 +209,10 @@ function Complete-VibeGovernedRuntimeStop {
         throw ("Governed runtime returned before critical artifacts were durable. Missing: {0}" -f (@($artifactReadiness.missing) -join ', '))
     }
 
+    if (-not (Test-Path -LiteralPath ([string]$RuntimeInput.packet_path) -PathType Leaf)) {
+        throw 'Missing Python-built runtime-input-packet.json.'
+    }
+
     $delegationValidationReceiptPath = if ($DelegationValidation) { [string]$DelegationValidation.receipt_path } else { '' }
     $summaryArtifacts = New-VibeRuntimeSummaryArtifactProjection `
         -SkeletonReceiptPath ([string]$Skeleton.receipt_path) `
@@ -186,30 +238,30 @@ function Complete-VibeGovernedRuntimeStop {
         -MemoryActivationMarkdownPath ([string]$MemoryActivationMarkdownPath) `
         -DelegationEnvelopePath ([string]$HierarchyState.delegation_envelope_path) `
         -DelegationValidationReceiptPath $delegationValidationReceiptPath
-    $relativeArtifacts = New-VibeRuntimeSummaryRelativeArtifactProjection -BasePath $ArtifactBaseRoot -Artifacts $summaryArtifacts
-
-    $summary = New-VibeRuntimeSummaryProjection `
-        -RunId $RunId `
-        -Mode $Mode `
-        -Task $Task `
-        -ArtifactRoot $ArtifactBaseRoot `
-        -SessionRoot $SessionRoot `
-        -HierarchyState $HierarchyState `
-        -Artifacts $summaryArtifacts `
-        -RelativeArtifacts $relativeArtifacts `
-        -StageLineage $StageLineage `
-        -StorageProjection $StorageProjection `
-        -MemoryActivationReport $MemoryActivationReport `
-        -DeliveryAcceptanceReport $DeliveryAcceptanceReport `
-        -SpecialistDecision $(if ($ExecutionManifestDocument -and $ExecutionManifestDocument.PSObject.Properties.Name -contains 'specialist_decision' -and $null -ne $ExecutionManifestDocument.specialist_decision) { $ExecutionManifestDocument.specialist_decision } elseif ($Execute -and $Execute.receipt -and $Execute.receipt.PSObject.Properties.Name -contains 'specialist_decision' -and $null -ne $Execute.receipt.specialist_decision) { $Execute.receipt.specialist_decision } else { $null }) `
-        -SpecialistUserDisclosure $(if ($Execute -and $Execute.receipt -and $Execute.receipt.PSObject.Properties.Name -contains 'specialist_user_disclosure') { $Execute.receipt.specialist_user_disclosure } else { $null }) `
-        -SpecialistLifecycleDisclosure $SpecialistLifecycleDisclosure `
-        -HostStageDisclosure $HostStageDisclosure `
-        -HostUserBriefing $HostUserBriefing `
-        -BoundedReturnControl $BoundedReturnControl
-
     $summaryPath = Join-Path $SessionRoot 'runtime-summary.json'
-    Write-VibeJsonArtifact -Path $summaryPath -Value $summary
+    $summary = Invoke-VibePythonRuntimeSummaryFinalizer `
+        -RepoRoot $runtime.repo_root `
+        -Payload ([pscustomobject]@{
+            run_id = $RunId
+            mode = $Mode
+            task = $Task
+            artifact_root = $ArtifactBaseRoot
+            session_root = $SessionRoot
+            hierarchy_state = $HierarchyState
+            artifacts = $summaryArtifacts
+            work_binding = $RuntimeInput.packet.work_binding
+            stage_lineage = $StageLineage
+            storage_projection = $StorageProjection
+            memory_activation_report = $MemoryActivationReport
+            delivery_acceptance_report = $DeliveryAcceptanceReport
+            specialist_decision = $(if ($ExecutionManifestDocument -and $ExecutionManifestDocument.PSObject.Properties.Name -contains 'specialist_decision' -and $null -ne $ExecutionManifestDocument.specialist_decision) { $ExecutionManifestDocument.specialist_decision } elseif ($Execute -and $Execute.receipt -and $Execute.receipt.PSObject.Properties.Name -contains 'specialist_decision' -and $null -ne $Execute.receipt.specialist_decision) { $Execute.receipt.specialist_decision } else { $null })
+            specialist_user_disclosure = $(if ($Execute -and $Execute.receipt -and $Execute.receipt.PSObject.Properties.Name -contains 'specialist_user_disclosure') { $Execute.receipt.specialist_user_disclosure } else { $null })
+            specialist_lifecycle_disclosure = $SpecialistLifecycleDisclosure
+            host_stage_disclosure = $HostStageDisclosure
+            host_user_briefing = $HostUserBriefing
+            bounded_return_control = $BoundedReturnControl
+        }) `
+        -SummaryPath $summaryPath
 
     return [pscustomobject]@{
         run_id = $RunId
@@ -809,6 +861,10 @@ if (-not $artifactReadiness.ready) {
     throw ("Governed runtime returned before critical artifacts were durable. Missing: {0}" -f (@($artifactReadiness.missing) -join ', '))
 }
 
+if (-not (Test-Path -LiteralPath ([string]$runtimeInput.packet_path) -PathType Leaf)) {
+    throw 'Missing Python-built runtime-input-packet.json.'
+}
+
 $delegationValidationReceiptPath = if ($delegationValidation) { [string]$delegationValidation.receipt_path } else { '' }
 $summaryArtifacts = New-VibeRuntimeSummaryArtifactProjection `
     -SkeletonReceiptPath ([string]$skeleton.receipt_path) `
@@ -834,30 +890,30 @@ $summaryArtifacts = New-VibeRuntimeSummaryArtifactProjection `
     -MemoryActivationMarkdownPath ([string]$memoryActivation.markdown_path) `
     -DelegationEnvelopePath ([string]$hierarchyState.delegation_envelope_path) `
     -DelegationValidationReceiptPath $delegationValidationReceiptPath
-$relativeArtifacts = New-VibeRuntimeSummaryRelativeArtifactProjection -BasePath $artifactBaseRoot -Artifacts $summaryArtifacts
-
-$summary = New-VibeRuntimeSummaryProjection `
-    -RunId $RunId `
-    -Mode $Mode `
-    -Task $Task `
-    -ArtifactRoot $artifactBaseRoot `
-    -SessionRoot ([string]$skeleton.session_root) `
-    -HierarchyState $hierarchyState `
-    -Artifacts $summaryArtifacts `
-    -RelativeArtifacts $relativeArtifacts `
-    -StageLineage $stageLineage `
-    -StorageProjection $storageProjection `
-    -MemoryActivationReport $memoryActivation.report `
-    -DeliveryAcceptanceReport $deliveryAcceptanceReport `
-    -SpecialistDecision $(if ($executionManifestDocument -and $executionManifestDocument.PSObject.Properties.Name -contains 'specialist_decision' -and $null -ne $executionManifestDocument.specialist_decision) { $executionManifestDocument.specialist_decision } elseif ($execute -and $execute.receipt -and $execute.receipt.PSObject.Properties.Name -contains 'specialist_decision' -and $null -ne $execute.receipt.specialist_decision) { $execute.receipt.specialist_decision } else { $null }) `
-    -SpecialistUserDisclosure $(if ($execute -and $execute.receipt -and $execute.receipt.PSObject.Properties.Name -contains 'specialist_user_disclosure') { $execute.receipt.specialist_user_disclosure } else { $null }) `
-    -SpecialistLifecycleDisclosure $specialistLifecycleDisclosure `
-    -HostStageDisclosure $hostStageDisclosure `
-    -HostUserBriefing $hostUserBriefing `
-    -BoundedReturnControl $null
-
 $summaryPath = Join-Path $skeleton.session_root 'runtime-summary.json'
-Write-VibeJsonArtifact -Path $summaryPath -Value $summary
+$summary = Invoke-VibePythonRuntimeSummaryFinalizer `
+    -RepoRoot $runtime.repo_root `
+    -Payload ([pscustomobject]@{
+        run_id = $RunId
+        mode = $Mode
+        task = $Task
+        artifact_root = $artifactBaseRoot
+        session_root = [string]$skeleton.session_root
+        hierarchy_state = $hierarchyState
+        artifacts = $summaryArtifacts
+        work_binding = $runtimeInputPacket.work_binding
+        stage_lineage = $stageLineage
+        storage_projection = $storageProjection
+        memory_activation_report = $memoryActivation.report
+        delivery_acceptance_report = $deliveryAcceptanceReport
+        specialist_decision = $(if ($executionManifestDocument -and $executionManifestDocument.PSObject.Properties.Name -contains 'specialist_decision' -and $null -ne $executionManifestDocument.specialist_decision) { $executionManifestDocument.specialist_decision } elseif ($execute -and $execute.receipt -and $execute.receipt.PSObject.Properties.Name -contains 'specialist_decision' -and $null -ne $execute.receipt.specialist_decision) { $execute.receipt.specialist_decision } else { $null })
+        specialist_user_disclosure = $(if ($execute -and $execute.receipt -and $execute.receipt.PSObject.Properties.Name -contains 'specialist_user_disclosure') { $execute.receipt.specialist_user_disclosure } else { $null })
+        specialist_lifecycle_disclosure = $specialistLifecycleDisclosure
+        host_stage_disclosure = $hostStageDisclosure
+        host_user_briefing = $hostUserBriefing
+        bounded_return_control = $null
+    }) `
+    -SummaryPath $summaryPath
 
 [pscustomobject]@{
     run_id = $RunId

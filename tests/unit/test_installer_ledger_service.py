@@ -27,15 +27,12 @@ def test_sanitize_managed_skill_names_rejects_traversal() -> None:
 def test_build_install_ledger_tracks_payload_summary(tmp_path) -> None:
     vibe_root = tmp_path / 'skills' / 'vibe'
     brainstorm_root = tmp_path / 'skills' / 'brainstorming'
-    internal_non_core_root = tmp_path / 'skills' / 'vibe' / 'bundled' / 'skills' / 'scikit-learn'
     wrapper_root = tmp_path / 'commands'
     vibe_root.mkdir(parents=True)
     brainstorm_root.mkdir(parents=True)
-    internal_non_core_root.mkdir(parents=True, exist_ok=True)
     wrapper_root.mkdir(parents=True, exist_ok=True)
     (vibe_root / 'SKILL.md').write_text('# vibe\n', encoding='utf-8')
     (brainstorm_root / 'SKILL.md').write_text('# brainstorming\n', encoding='utf-8')
-    (internal_non_core_root / 'SKILL.runtime-mirror.md').write_text('# scikit-learn\n', encoding='utf-8')
     for name in ('vibe',):
         (wrapper_root / f'{name}.md').write_text(f'# {name}\n', encoding='utf-8')
     settings_path = tmp_path / 'settings.json'
@@ -45,12 +42,12 @@ def test_build_install_ledger_tracks_payload_summary(tmp_path) -> None:
         profile='full',
         host_id='codex',
         target_root=tmp_path,
-        managed_skill_names=['vibe', 'brainstorming', 'scikit-learn'],
+        managed_skill_names=['vibe', 'brainstorming'],
     )
     state = MaterializationLedgerState(
         created_paths={tmp_path, settings_path},
         managed_json_paths={settings_path},
-        runtime_roots={vibe_root, tmp_path / 'skills' / 'vibe' / 'bundled' / 'skills'},
+        runtime_roots={vibe_root},
         compatibility_roots={brainstorm_root},
         sidecar_roots={tmp_path / '.vibeskills'},
         specialist_wrapper_paths=[
@@ -67,20 +64,28 @@ def test_build_install_ledger_tracks_payload_summary(tmp_path) -> None:
         timestamp='2026-04-02T00:00:00Z',
     )
 
-    assert ledger['managed_skill_names'] == ['brainstorming', 'scikit-learn', 'vibe']
+    assert ledger['managed_skill_names'] == ['brainstorming', 'vibe']
     assert ledger['canonical_vibe_root'] == str((tmp_path / 'skills' / 'vibe').resolve())
     assert ledger['schema_version'] == 2
-    assert ledger['payload_summary']['installed_skill_names'] == ['brainstorming', 'scikit-learn', 'vibe']
+    assert ledger['runtime_root'] == str(tmp_path.resolve())
+    assert ledger['host_bridge_root'] == str(tmp_path.resolve())
+    assert ledger['desired_shared_runtime_root'] == str(tmp_path.resolve())
+    assert ledger['runtime_layout_mode'] == 'co-located'
+    assert ledger['payload_summary']['installed_skill_names'] == ['brainstorming', 'vibe']
     assert ledger['payload_summary']['public_skill_names'] == ['brainstorming', 'vibe']
     assert ledger['payload_summary']['host_visible_entry_names'] == ['vibe']
-    assert ledger['payload_summary']['host_visible_entry_count'] == 1
-    assert ledger['runtime_roots'] == ['skills/vibe', 'skills/vibe/bundled/skills']
+    assert 'installed_skill_count' not in ledger['payload_summary']
+    assert 'public_skill_count' not in ledger['payload_summary']
+    assert 'host_visible_entry_count' not in ledger['payload_summary']
+    assert ledger['runtime_roots'] == ['skills/vibe']
     assert ledger['compatibility_roots'] == ['skills/brainstorming']
     assert ledger['sidecar_roots'] == ['.vibeskills']
     assert ledger['config_rollbacks'][0]['path'] == 'settings.json'
     assert ledger['legacy_cleanup_candidates'] == ['skills/legacy-skill']
-    assert isinstance(ledger['payload_summary']['internal_skill_count'], int)
+    assert 'internal_skill_count' not in ledger['payload_summary']
     assert ledger['payload_summary']['installed_file_count'] >= 3
+    assert ledger['internal_skill_target_relpath'] == ''
+    assert 'packaging_manifest' not in ledger
 
 
 def test_build_install_ledger_v2_ownership_keys_when_available(tmp_path) -> None:
@@ -119,6 +124,78 @@ def test_build_install_ledger_v2_ownership_keys_when_available(tmp_path) -> None
     assert isinstance(ledger['config_rollbacks'], list)
 
 
+def test_build_install_ledger_keeps_runtime_layout_metadata_when_runtime_and_bridge_split(tmp_path) -> None:
+    runtime_root = tmp_path / '.agents'
+    bridge_root = tmp_path / '.codex'
+    shared_root = tmp_path / '.agents'
+    vibe_root = bridge_root / 'skills' / 'vibe'
+    vibe_root.mkdir(parents=True)
+    (vibe_root / 'SKILL.md').write_text('# vibe\n', encoding='utf-8')
+
+    plan = build_install_plan(
+        profile='full',
+        host_id='codex',
+        target_root=bridge_root,
+        runtime_root=runtime_root,
+        host_bridge_root=bridge_root,
+        desired_shared_runtime_root=shared_root,
+        runtime_layout_mode='split-shared-runtime',
+        managed_skill_names=['vibe'],
+    )
+    state = MaterializationLedgerState(
+        created_paths={bridge_root},
+    )
+
+    ledger = build_install_ledger(
+        plan=plan,
+        state=state,
+        timestamp='2026-06-26T00:00:00Z',
+    )
+
+    assert ledger['target_root'] == str(bridge_root.resolve())
+    assert ledger['runtime_root'] == str(runtime_root.resolve())
+    assert ledger['host_bridge_root'] == str(bridge_root.resolve())
+    assert ledger['desired_shared_runtime_root'] == str(shared_root.resolve())
+    assert ledger['runtime_layout_mode'] == 'split-shared-runtime'
+
+
+def test_build_payload_summary_reads_installed_skills_from_external_runtime_root(tmp_path) -> None:
+    runtime_root = tmp_path / '.agents'
+    bridge_root = tmp_path / '.openclaw'
+    (runtime_root / 'skills' / 'vibe').mkdir(parents=True)
+    (runtime_root / 'skills' / 'vibe' / 'SKILL.md').write_text('# vibe\n', encoding='utf-8')
+    (runtime_root / 'skills' / 'verification-before-completion').mkdir(parents=True)
+    (runtime_root / 'skills' / 'verification-before-completion' / 'SKILL.md').write_text(
+        '# verification-before-completion\n',
+        encoding='utf-8',
+    )
+    (bridge_root / 'skills' / 'vibe').mkdir(parents=True)
+    (bridge_root / 'skills' / 'vibe' / 'SKILL.md').write_text('# wrapper vibe\n', encoding='utf-8')
+
+    summary = build_payload_summary(
+        bridge_root,
+        {
+            'managed_skill_names': ['vibe', 'verification-before-completion'],
+            'runtime_root': str(runtime_root.resolve()),
+            'internal_skill_target_relpath': '',
+            'specialist_wrapper_paths': [str((bridge_root / 'skills' / 'vibe' / 'SKILL.md').resolve())],
+            'runtime_roots': ['skills/vibe'],
+            'compatibility_roots': [],
+            'sidecar_roots': [],
+            'owned_tree_roots': [],
+            'created_paths': [],
+            'managed_json_paths': [],
+            'generated_from_template_if_absent': [],
+            'merged_files': [],
+            'config_rollbacks': [],
+        },
+    )
+
+    assert summary['installed_skill_names'] == ['verification-before-completion', 'vibe']
+    assert summary['public_skill_names'] == ['verification-before-completion', 'vibe']
+    assert summary['host_visible_entry_names'] == ['vibe']
+
+
 def test_payload_summary_counts_install_ledger_file_when_present(tmp_path) -> None:
     vibe_root = tmp_path / 'skills' / 'vibe'
     vibe_root.mkdir(parents=True)
@@ -148,7 +225,7 @@ def test_payload_summary_counts_install_ledger_file_when_present(tmp_path) -> No
     assert refreshed['installed_file_count'] == 2
 
 
-def test_payload_summary_counts_mcp_receipt_when_present(tmp_path) -> None:
+def test_payload_summary_counts_upgrade_status_when_present(tmp_path) -> None:
     vibe_root = tmp_path / 'skills' / 'vibe'
     vibe_root.mkdir(parents=True)
     (vibe_root / 'SKILL.md').write_text('# vibe\n', encoding='utf-8')
@@ -170,7 +247,7 @@ def test_payload_summary_counts_mcp_receipt_when_present(tmp_path) -> None:
     )
     sidecar_root = tmp_path / '.vibeskills'
     sidecar_root.mkdir(parents=True, exist_ok=True)
-    (sidecar_root / 'mcp-auto-provision.json').write_text('{}\n', encoding='utf-8')
+    (sidecar_root / 'upgrade-status.json').write_text('{}\n', encoding='utf-8')
 
     refreshed = build_payload_summary(tmp_path, ledger)
 
@@ -201,7 +278,7 @@ def test_build_payload_summary_ignores_wrapper_paths_outside_target_root(tmp_pat
         )
 
     assert summary['host_visible_entry_names'] == []
-    assert summary['host_visible_entry_count'] == 0
+    assert 'host_visible_entry_count' not in summary
 
 
 def test_sanitize_managed_skill_names_stays_safe_with_v2_owned_root_like_values() -> None:

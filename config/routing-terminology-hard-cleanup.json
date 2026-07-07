@@ -141,7 +141,6 @@
     "scripts/runtime/VibeConsultation.Common.ps1",
     "scripts/runtime/legacy/VibeRetiredConsultation.Common.ps1",
     "packages/runtime-core/src/vgo_runtime/router_contract_runtime.py",
-    "packages/runtime-core/src/vgo_runtime/router_contract_presentation.py",
     "scripts/router/resolve-pack-route.ps1"
   ],
   "retired_positive_terms": [

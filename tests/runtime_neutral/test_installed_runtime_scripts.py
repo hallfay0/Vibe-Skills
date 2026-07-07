@@ -22,9 +22,9 @@ STRICT_READY_HOSTS = [
 ]
 MINIMAL_MANIFEST = REPO_ROOT / "config" / "runtime-core-packaging.minimal.json"
 MINIMAL_REQUIRED_SKILLS = set(
-    json.loads(MINIMAL_MANIFEST.read_text(encoding="utf-8"))["managed_skill_inventory"]["required_runtime_skills"]
+    json.loads(MINIMAL_MANIFEST.read_text(encoding="utf-8"))["managed_skill_inventory"]["public_entry_skills"]
 ) | set(
-    json.loads(MINIMAL_MANIFEST.read_text(encoding="utf-8"))["managed_skill_inventory"]["required_workflow_skills"]
+    json.loads(MINIMAL_MANIFEST.read_text(encoding="utf-8"))["managed_skill_inventory"]["starter_skill_names"]
 )
 CODEX_COMPATIBILITY_COMMAND_FILES = {
     "vibe.md",
@@ -99,14 +99,23 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
         cmd = [
             "bash",
             str(REPO_ROOT / "install.sh"),
-            "--host",
-            host,
-            "--profile",
-            profile,
-            "--target-root",
-            str(self.target_root),
+            "--skills-dir",
+            str(self.target_root / "skills"),
         ]
         subprocess.run(cmd, capture_output=True, text=True, check=True)
+
+    def disable_installed_deep_discovery_and_remove_catalog(self) -> Path:
+        installed_root = self.target_root / "skills" / "vibe"
+        policy_path = installed_root / "config" / "deep-discovery-policy.json"
+        policy = json.loads(policy_path.read_text(encoding="utf-8"))
+        policy["enabled"] = True
+        policy["mode"] = "off"
+        policy_path.write_text(json.dumps(policy, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        catalog_path = installed_root / "config" / "capability-catalog.json"
+        if catalog_path.exists():
+            catalog_path.unlink()
+        self.assertFalse(catalog_path.exists())
+        return installed_root
 
     def create_fake_bridge(self, name: str, host_id: str) -> Path:
         suffix = ".cmd" if os.name == "nt" else ""
@@ -201,7 +210,7 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
         target_root: Path,
         *,
         require_nested: bool = True,
-        expected_hidden_skills: tuple[str, ...] = ("ralph-loop", "cancel-ralph", "xan"),
+        expected_hidden_skills: tuple[str, ...] = ("ralph-loop", "cancel-ralph"),
     ) -> None:
         nested_skills_root = target_root / "skills" / "vibe" / "bundled" / "skills"
         if require_nested:
@@ -214,7 +223,7 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
         for name in expected_hidden_skills:
             self.assertTrue((nested_skills_root / name / "SKILL.runtime-mirror.md").exists())
 
-    def test_shell_install_quarantines_legacy_agents_duplicate_for_default_codex_root(self) -> None:
+    def test_shell_install_preserves_agents_root_for_default_codex_root(self) -> None:
         home_root = self.root / "home"
         target_root = home_root / ".codex"
         duplicate_root = home_root / ".agents" / "skills" / "vibe"
@@ -240,12 +249,10 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
         ]
         result = subprocess.run(cmd, capture_output=True, text=True, check=True, env=env)
 
-        self.assertIn("Quarantined duplicate Codex-discovered vibe skill", result.stdout)
+        self.assertNotIn("Quarantined duplicate Codex-discovered vibe skill", result.stdout)
         self.assertTrue((target_root / "skills" / "vibe" / "SKILL.md").exists())
-        self.assertFalse(duplicate_root.exists())
-        quarantined = list((home_root / ".agents" / "skills-disabled").glob("vibe.codex-duplicate-*"))
-        self.assertEqual(1, len(quarantined))
-        self.assertTrue((quarantined[0] / "SKILL.md").exists())
+        self.assertTrue(duplicate_root.exists())
+        self.assertFalse((home_root / ".agents" / "skills-disabled").exists())
 
     def test_shell_install_does_not_mutate_agents_duplicate_for_custom_codex_target_root(self) -> None:
         home_root = self.root / "home"
@@ -278,7 +285,7 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
         self.assertTrue(duplicate_root.exists())
         self.assertFalse((home_root / ".agents" / "skills-disabled").exists())
 
-    def test_shell_check_fails_when_legacy_agents_duplicate_is_reintroduced(self) -> None:
+    def test_shell_check_accepts_agents_root_when_reintroduced(self) -> None:
         home_root = self.root / "home"
         target_root = home_root / ".codex"
         target_root.mkdir(parents=True, exist_ok=True)
@@ -316,9 +323,9 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
             "--target-root",
             str(target_root),
         ]
-        check_result = subprocess.run(check_cmd, capture_output=True, text=True, env=env)
-        self.assertNotEqual(0, check_result.returncode)
-        self.assertIn("duplicate Codex-discovered vibe skill surface", check_result.stdout)
+        check_result = subprocess.run(check_cmd, capture_output=True, text=True, env=env, check=True)
+        self.assertEqual(0, check_result.returncode)
+        self.assertNotIn("duplicate Codex-discovered vibe skill surface", check_result.stdout)
         self.assertNotIn("safe_parent_dir: command not found", check_result.stderr)
 
     def test_shell_install_writes_install_ledger(self) -> None:
@@ -331,6 +338,9 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
         self.assertEqual("full", ledger["profile"])
         self.assertEqual(str(self.target_root.resolve()), ledger["target_root"])
         self.assertEqual(str(self.target_root.resolve()), ledger["runtime_root"])
+        self.assertEqual(str(self.target_root.resolve()), ledger["host_bridge_root"])
+        self.assertNotEqual(str(self.target_root.resolve()), ledger["desired_shared_runtime_root"])
+        self.assertEqual("legacy-host-root-override", ledger["runtime_layout_mode"])
         self.assertEqual(str((self.target_root / "skills" / "vibe").resolve()), ledger["canonical_vibe_root"])
         self.assertIn(str(self.target_root.resolve()), ledger["created_paths"])
         self.assertIn(str((self.target_root / "settings.json").resolve()), ledger["managed_json_paths"])
@@ -357,6 +367,9 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
         )
 
         self.assertIn("- installed_locally: True", result.stdout)
+        self.assertIn(f"- runtime_root: {self.target_root.resolve()}", result.stdout)
+        self.assertIn(f"- host_bridge_root: {self.target_root.resolve()}", result.stdout)
+        self.assertIn("- runtime_layout_mode: legacy-host-root-override", result.stdout)
         self.assertIn("- vibe_host_ready: True", result.stdout)
 
     def test_shell_install_materializes_codex_compatibility_command_shims(self) -> None:
@@ -469,13 +482,9 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
         installed_root = self.target_root / "skills" / "vibe"
         check_cmd = [
             "bash",
-            str(installed_root / "check.sh"),
-            "--host",
-            "codex",
-            "--profile",
-            "full",
-            "--target-root",
-            str(self.target_root),
+            str(REPO_ROOT / "check.sh"),
+            "--skills-dir",
+            str(self.target_root / "skills"),
         ]
         check_result = subprocess.run(check_cmd, capture_output=True, text=True)
         self.assertEqual(0, check_result.returncode, check_result.stdout + check_result.stderr)
@@ -572,7 +581,7 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
                 self.assert_nested_runtime_skill_entrypoints_sanitized(
                     self.target_root,
                     require_nested=True,
-                    expected_hidden_skills=("ralph-loop", "cancel-ralph") if profile == "minimal" else ("ralph-loop", "cancel-ralph", "xan"),
+                    expected_hidden_skills=("ralph-loop", "cancel-ralph"),
                 )
 
                 installed_root = self.target_root / "skills" / "vibe"
@@ -611,29 +620,30 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
         self.assertEqual(0, check_result.returncode, check_result.stderr)
         self.assertNotIn("runtime_target_rel", check_result.stderr)
 
-    def test_installed_runtime_bootstrap_supports_openclaw_without_self_deleting_source(self) -> None:
+    def test_installed_check_reports_payload_drift_when_installed_files_are_modified(self) -> None:
+        self.install_shell_runtime(profile="full")
+        installed_root = self.disable_installed_deep_discovery_and_remove_catalog()
+
+        check_cmd = [
+            "bash",
+            str(REPO_ROOT / "check.sh"),
+            "--skills-dir",
+            str(self.target_root / "skills"),
+        ]
+        check_result = subprocess.run(check_cmd, capture_output=True, text=True)
+
+        self.assertNotEqual(0, check_result.returncode)
+        payload = json.loads(check_result.stdout)
+        self.assertIn("config/capability-catalog.json", payload["missing_files"])
+        self.assertIn("config/deep-discovery-policy.json", payload["drifted_files"])
+
+    def test_installed_runtime_does_not_ship_legacy_one_shot_bootstrap(self) -> None:
         self.install_shell_runtime(host="openclaw")
 
         installed_root = self.target_root / "skills" / "vibe"
-        env = os.environ.copy()
-        env["HOME"] = str(self.root / "home")
-        env["OPENCLAW_HOME"] = str(self.target_root)
-        bootstrap_cmd = [
-            "bash",
-            str(installed_root / "scripts" / "bootstrap" / "one-shot-setup.sh"),
-            "--host",
-            "openclaw",
-            "--profile",
-            "full",
-            "--target-root",
-            str(self.target_root),
-        ]
-        bootstrap_result = subprocess.run(bootstrap_cmd, capture_output=True, text=True, check=True, env=env)
 
-        self.assertIn("Host                  : openclaw", bootstrap_result.stdout)
-        self.assertIn("One-shot setup completed.", bootstrap_result.stdout)
+        self.assertFalse((installed_root / "scripts" / "bootstrap" / "one-shot-setup.sh").exists())
         self.assertTrue((installed_root / "SKILL.md").exists())
-        self.assertTrue((self.target_root / ".vibeskills" / "host-settings.json").exists())
         self.assertFalse((self.target_root / "mcp_config.json").exists())
 
     def test_shell_install_prunes_stale_managed_entries_without_recursive_dir_wipe(self) -> None:
@@ -707,14 +717,14 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
         self.assertIn("mcp", preserved)
         self.assertTrue((self.target_root / "opencode.json.example").exists())
 
-    def test_powershell_fallback_install_writes_sidecars_and_ledger_for_openclaw(self) -> None:
+    def test_powershell_install_does_not_write_openclaw_sidecars_or_ledger(self) -> None:
         powershell = resolve_powershell()
         if powershell is None:
             self.skipTest("PowerShell executable not available in PATH")
 
         target_root = self.root / "pwsh-fallback-openclaw"
         target_root.mkdir(parents=True, exist_ok=True)
-        env = self.strict_install_env(powershell=powershell)
+        env = os.environ.copy()
 
         result = subprocess.run(
             [
@@ -724,12 +734,8 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
                 "Bypass",
                 "-File",
                 str(REPO_ROOT / "install.ps1"),
-                "-HostId",
-                "openclaw",
-                "-Profile",
-                "full",
-                "-TargetRoot",
-                str(target_root),
+                "-SkillsDir",
+                str(target_root / "skills"),
             ],
             capture_output=True,
             text=True,
@@ -740,21 +746,17 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
         host_settings_path = target_root / ".vibeskills" / "host-settings.json"
         closure_path = target_root / ".vibeskills" / "host-closure.json"
         ledger_path = target_root / ".vibeskills" / "install-ledger.json"
-        self.assertIn("Installation complete.", result.stdout)
-        self.assertTrue(host_settings_path.exists())
-        self.assertTrue(closure_path.exists())
-        self.assertTrue(ledger_path.exists())
+        receipt_path = target_root / "skills" / "vibe" / ".vibeskills" / "install-receipt.json"
+        payload = json.loads(result.stdout)
+        self.assertEqual("vibe-skill-install", payload["receipt_kind"])
+        self.assertTrue(receipt_path.exists())
+        self.assertFalse(host_settings_path.exists())
+        self.assertFalse(closure_path.exists())
+        self.assertFalse(ledger_path.exists())
         self.assertFalse((target_root / "mcp_config.json").exists())
         self.assertFalse((target_root / "global_workflows").exists())
 
-        ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
-        self.assertEqual("openclaw", ledger["host_id"])
-        self.assertEqual("runtime-core", ledger["install_mode"])
-        self.assertIn(str(host_settings_path.resolve()), ledger["managed_json_paths"])
-        self.assertNotIn(str((target_root / "mcp_config.json").resolve()), ledger["managed_json_paths"])
-        self.assertTrue(ledger["specialist_wrapper_paths"])
-
-    def test_powershell_install_succeeds_without_python_on_path(self) -> None:
+    def test_powershell_install_requires_python_on_path(self) -> None:
         powershell = resolve_powershell()
         if powershell is None:
             self.skipTest("PowerShell executable not available in PATH")
@@ -774,25 +776,16 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
                 "Bypass",
                 "-File",
                 str(REPO_ROOT / "install.ps1"),
-                "-HostId",
-                "codex",
-                "-Profile",
-                "full",
-                "-TargetRoot",
-                str(target_root),
+                "-SkillsDir",
+                str(target_root / "skills"),
             ],
             capture_output=True,
             text=True,
-            check=True,
             env=env,
         )
 
-        ledger_path = target_root / ".vibeskills" / "install-ledger.json"
-        self.assertIn("Installation complete.", result.stdout)
-        self.assertTrue(ledger_path.exists())
-        ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
-        self.assertIn("payload_summary", ledger)
-        self.assertGreater(ledger["payload_summary"]["installed_file_count"], 0)
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("Python 3.10+ is required", result.stderr + result.stdout)
 
     def test_powershell_install_payload_summary_ignores_preexisting_foreign_host_content(self) -> None:
         powershell = resolve_powershell()
@@ -812,36 +805,29 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
                 powershell,
                 "-NoProfile",
                 "-ExecutionPolicy",
-                "Bypass",
-                "-File",
-                str(REPO_ROOT / "install.ps1"),
-                "-HostId",
-                "codex",
-                "-Profile",
-                "minimal",
-                "-TargetRoot",
-                str(target_root),
-            ],
+            "Bypass",
+            "-File",
+            str(REPO_ROOT / "install.ps1"),
+            "-SkillsDir",
+            str(target_root / "skills"),
+        ],
             capture_output=True,
             text=True,
             check=True,
         )
 
-        ledger_path = target_root / ".vibeskills" / "install-ledger.json"
-        ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+        receipt = json.loads(result.stdout)
         installed_skills = {
             candidate.name
             for candidate in (target_root / "skills").iterdir()
             if candidate.is_dir()
         }
+        receipt_paths = {str(item["path"]) for item in receipt["files"]}
 
-        self.assertIn("Installation complete.", result.stdout)
         self.assertIn("foreign-user-skill", installed_skills)
-        self.assertNotIn("foreign-user-skill", ledger["payload_summary"]["installed_skill_names"])
-        self.assertLess(
-            ledger["payload_summary"]["installed_file_count"],
-            sum(1 for candidate in target_root.rglob("*") if candidate.is_file()),
-        )
+        self.assertIn("vibe", installed_skills)
+        self.assertNotIn("foreign-user-skill/SKILL.md", receipt_paths)
+        self.assertEqual("user content\n", foreign_file.read_text(encoding="utf-8"))
 
     def test_install_powershell_entrypoints_do_not_require_as_hashtable_json_parsing(self) -> None:
         candidate_paths = [
@@ -856,7 +842,7 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertNotIn("ConvertFrom-Json -AsHashtable", path.read_text(encoding="utf-8"))
 
-    def test_powershell_fallback_install_preserves_existing_opencode_config_without_mutation(self) -> None:
+    def test_powershell_install_preserves_existing_opencode_config_without_mutation(self) -> None:
         powershell = resolve_powershell()
         if powershell is None:
             self.skipTest("PowerShell executable not available in PATH")
@@ -882,7 +868,7 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
         }
         settings_path.write_text(json.dumps(original, indent=2) + "\n", encoding="utf-8")
 
-        env = self.strict_install_env(powershell=powershell)
+        env = os.environ.copy()
         result = subprocess.run(
             [
                 powershell,
@@ -891,12 +877,8 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
                 "Bypass",
                 "-File",
                 str(REPO_ROOT / "install.ps1"),
-                "-HostId",
-                "opencode",
-                "-Profile",
-                "full",
-                "-TargetRoot",
-                str(target_root),
+                "-SkillsDir",
+                str(target_root / "skills"),
             ],
             capture_output=True,
             text=True,
@@ -904,16 +886,14 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
             env=env,
         )
 
-        ledger_path = target_root / ".vibeskills" / "install-ledger.json"
-        self.assertIn("Installation complete.", result.stdout)
+        receipt_path = target_root / "skills" / "vibe" / ".vibeskills" / "install-receipt.json"
+        payload = json.loads(result.stdout)
+        self.assertEqual("vibe-skill-install", payload["receipt_kind"])
+        self.assertEqual("vibe", payload["skill_id"])
         self.assertEqual(original, json.loads(settings_path.read_text(encoding="utf-8")))
-        self.assertTrue((target_root / "opencode.json.example").exists())
-        self.assertTrue(ledger_path.exists())
-
-        ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
-        self.assertEqual("opencode", ledger["host_id"])
-        self.assertNotIn(str(settings_path.resolve()), ledger["managed_json_paths"])
-        self.assertIn(str((target_root / ".vibeskills" / "host-settings.json").resolve()), ledger["managed_json_paths"])
+        self.assertTrue(receipt_path.exists())
+        self.assertFalse((target_root / "opencode.json.example").exists())
+        self.assertFalse((target_root / ".vibeskills" / "host-settings.json").exists())
 
     def test_shell_install_require_closed_ready_fails_without_bridge_command(self) -> None:
         for host_id, _env_name in STRICT_READY_HOSTS:
@@ -979,7 +959,7 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
                 self.assertTrue(launcher_path.exists())
                 self.invoke_installed_specialist_wrapper(launcher_path, host_id)
 
-    def test_installed_powershell_scripts_work_without_repo_level_adapter_registry(self) -> None:
+    def test_powershell_check_wrapper_checks_installed_skills_dir(self) -> None:
         powershell = resolve_powershell()
         if powershell is None:
             self.skipTest("PowerShell executable not available in PATH")
@@ -991,66 +971,82 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
             "Bypass",
             "-File",
             str(REPO_ROOT / "install.ps1"),
-            "-HostId",
-            "codex",
-            "-Profile",
-            "full",
-            "-TargetRoot",
-            str(self.target_root),
+            "-SkillsDir",
+            str(self.target_root / "skills"),
         ]
         subprocess.run(install_cmd, capture_output=True, text=True, check=True)
-        self.assert_nested_runtime_skill_entrypoints_sanitized(self.target_root)
+        self.assert_nested_runtime_skill_entrypoints_sanitized(self.target_root, require_nested=False)
 
-        installed_root = self.target_root / "skills" / "vibe"
         check_cmd = [
             powershell,
             "-NoProfile",
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            str(installed_root / "check.ps1"),
-            "-HostId",
-            "codex",
-            "-Profile",
-            "full",
-            "-TargetRoot",
-            str(self.target_root),
+            str(REPO_ROOT / "check.ps1"),
+            "-SkillsDir",
+            str(self.target_root / "skills"),
         ]
         check_result = subprocess.run(check_cmd, capture_output=True, text=True, check=True)
-        self.assertIn("=== VCO Adapter Health Check ===", check_result.stdout)
-        self.assertNotIn("VGO adapter registry not found", check_result.stdout)
-        self.assertNotIn("VGO adapter registry not found", check_result.stderr)
+        payload = json.loads(check_result.stdout)
+        self.assertTrue(payload["ok"])
 
-    def test_installed_check_sh_powershell_handoff_on_windows(self) -> None:
-        if os.name != "nt":
-            self.skipTest("Windows-only shell handoff behavior")
+    def test_powershell_check_reports_payload_drift_when_installed_files_are_modified(self) -> None:
         powershell = resolve_powershell()
         if powershell is None:
-            self.skipTest("requires PowerShell host")
+            self.skipTest("PowerShell executable not available in PATH")
+
+        install_cmd = [
+            powershell,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(REPO_ROOT / "install.ps1"),
+            "-SkillsDir",
+            str(self.target_root / "skills"),
+        ]
+        subprocess.run(install_cmd, capture_output=True, text=True, check=True)
+        installed_root = self.disable_installed_deep_discovery_and_remove_catalog()
+
+        check_cmd = [
+            powershell,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(REPO_ROOT / "check.ps1"),
+            "-SkillsDir",
+            str(self.target_root / "skills"),
+        ]
+        check_result = subprocess.run(check_cmd, capture_output=True, text=True)
+
+        self.assertNotEqual(0, check_result.returncode)
+        payload = json.loads(check_result.stdout)
+        self.assertIn("config/capability-catalog.json", payload["missing_files"])
+        self.assertIn("config/deep-discovery-policy.json", payload["drifted_files"])
+
+    def test_check_sh_accepts_skills_dir_on_windows(self) -> None:
+        if os.name != "nt":
+            self.skipTest("Windows-only shell behavior")
 
         self.install_shell_runtime(profile="full")
-        installed_root = self.target_root / "skills" / "vibe"
         result = subprocess.run(
             [
                 "bash",
-                str(installed_root / "check.sh"),
-                "--host",
-                "codex",
-                "--profile",
-                "full",
-                "--target-root",
-                str(self.target_root),
+                str(REPO_ROOT / "check.sh"),
+                "--skills-dir",
+                str(self.target_root / "skills"),
             ],
             capture_output=True,
             text=True,
             check=True,
         )
 
-        combined = (result.stdout or "") + (result.stderr or "")
-        self.assertIn("switching to PowerShell-first supported path", combined)
-        self.assertNotIn("command not found", combined)
+        payload = json.loads(result.stdout)
+        self.assertTrue(payload["ok"])
 
-    def test_powershell_install_quarantines_legacy_agents_duplicate_for_default_codex_root(self) -> None:
+    def test_powershell_install_preserves_agents_root_for_default_codex_root(self) -> None:
         powershell = resolve_powershell()
         if powershell is None:
             self.skipTest("PowerShell executable not available in PATH")
@@ -1075,23 +1071,18 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
             "Bypass",
             "-File",
             str(REPO_ROOT / "install.ps1"),
-            "-HostId",
-            "codex",
-            "-Profile",
-            "full",
-            "-TargetRoot",
-            str(target_root),
+            "-SkillsDir",
+            str(target_root / "skills"),
         ]
         result = subprocess.run(install_cmd, capture_output=True, text=True, check=True, env=env)
 
-        self.assertIn("Quarantined duplicate Codex-discovered vibe skill", result.stderr + result.stdout)
+        payload = json.loads(result.stdout)
+        self.assertEqual("vibe-skill-install", payload["receipt_kind"])
         self.assertTrue((target_root / "skills" / "vibe" / "SKILL.md").exists())
-        self.assertFalse(duplicate_root.exists())
-        quarantined = list((home_root / ".agents" / "skills-disabled").glob("vibe.codex-duplicate-*"))
-        self.assertEqual(1, len(quarantined))
-        self.assertTrue((quarantined[0] / "SKILL.md").exists())
+        self.assertTrue(duplicate_root.exists())
+        self.assertFalse((home_root / ".agents" / "skills-disabled").exists())
 
-    def test_powershell_check_fails_when_legacy_agents_duplicate_is_reintroduced(self) -> None:
+    def test_powershell_check_uses_explicit_skills_dir_when_agents_duplicate_exists(self) -> None:
         powershell = resolve_powershell()
         if powershell is None:
             self.skipTest("PowerShell executable not available in PATH")
@@ -1110,12 +1101,8 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
             "Bypass",
             "-File",
             str(REPO_ROOT / "install.ps1"),
-            "-HostId",
-            "codex",
-            "-Profile",
-            "full",
-            "-TargetRoot",
-            str(target_root),
+            "-SkillsDir",
+            str(target_root / "skills"),
         ]
         subprocess.run(install_cmd, capture_output=True, text=True, check=True, env=env)
 
@@ -1126,26 +1113,21 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
             encoding="utf-8",
         )
 
-        installed_root = target_root / "skills" / "vibe"
         check_cmd = [
             powershell,
             "-NoProfile",
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            str(installed_root / "check.ps1"),
-            "-HostId",
-            "codex",
-            "-Profile",
-            "full",
-            "-TargetRoot",
-            str(target_root),
+            str(REPO_ROOT / "check.ps1"),
+            "-SkillsDir",
+            str(target_root / "skills"),
         ]
-        check_result = subprocess.run(check_cmd, capture_output=True, text=True, env=env)
-        self.assertNotEqual(0, check_result.returncode)
-        self.assertIn("duplicate Codex-discovered vibe skill surface", check_result.stdout)
+        check_result = subprocess.run(check_cmd, capture_output=True, text=True, env=env, check=True)
+        payload = json.loads(check_result.stdout)
+        self.assertTrue(payload["ok"])
 
-    def test_powershell_check_fails_when_legacy_agents_duplicate_is_reintroduced_with_trailing_separator(self) -> None:
+    def test_powershell_check_accepts_skills_dir_with_trailing_separator(self) -> None:
         powershell = resolve_powershell()
         if powershell is None:
             self.skipTest("PowerShell executable not available in PATH")
@@ -1164,12 +1146,8 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
             "Bypass",
             "-File",
             str(REPO_ROOT / "install.ps1"),
-            "-HostId",
-            "codex",
-            "-Profile",
-            "full",
-            "-TargetRoot",
-            str(target_root),
+            "-SkillsDir",
+            str(target_root / "skills"),
         ]
         subprocess.run(install_cmd, capture_output=True, text=True, check=True, env=env)
 
@@ -1180,31 +1158,25 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
             encoding="utf-8",
         )
 
-        installed_root = target_root / "skills" / "vibe"
         check_cmd = [
             powershell,
             "-NoProfile",
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            str(installed_root / "check.ps1"),
-            "-HostId",
-            "codex",
-            "-Profile",
-            "full",
-            "-TargetRoot",
-            str(target_root) + os.sep,
+            str(REPO_ROOT / "check.ps1"),
+            "-SkillsDir",
+            str(target_root / "skills") + os.sep,
         ]
-        check_result = subprocess.run(check_cmd, capture_output=True, text=True, env=env)
-        self.assertNotEqual(0, check_result.returncode)
-        self.assertIn("duplicate Codex-discovered vibe skill surface", check_result.stdout)
+        check_result = subprocess.run(check_cmd, capture_output=True, text=True, env=env, check=True)
+        payload = json.loads(check_result.stdout)
+        self.assertTrue(payload["ok"])
 
-    def test_powershell_install_require_closed_ready_accepts_same_session_openclaw_closure(self) -> None:
+    def test_powershell_install_rejects_require_closed_ready_host_closure_option(self) -> None:
         powershell = resolve_powershell()
         if powershell is None:
             self.skipTest("PowerShell executable not available in PATH")
 
-        host_id = "openclaw"
         target_root = self.root / "pwsh-openclaw-strict-same-session"
         target_root.mkdir(parents=True, exist_ok=True)
         result = subprocess.run(
@@ -1215,28 +1187,17 @@ class InstalledRuntimeScriptsTests(unittest.TestCase):
                 "Bypass",
                 "-File",
                 str(REPO_ROOT / "install.ps1"),
-                "-HostId",
-                host_id,
-                "-Profile",
-                "full",
-                "-TargetRoot",
-                str(target_root),
+                "-SkillsDir",
+                str(target_root / "skills"),
                 "-RequireClosedReady",
             ],
             capture_output=True,
             text=True,
-            check=True,
-            env=self.strict_install_env(powershell=powershell),
+            env=os.environ.copy(),
         )
 
-        self.assertIn("Installation complete.", result.stdout)
-        closure_path = target_root / ".vibeskills" / "host-closure.json"
-        self.assertTrue(closure_path.exists())
-        closure = json.loads(closure_path.read_text(encoding="utf-8"))
-        self.assertEqual("closed_ready", closure["host_closure_state"])
-        self.assertEqual("same_session_path_only", closure["specialist_execution"]["mode"])
-        self.assertTrue(closure["specialist_wrapper"]["removed"])
-        self.assertEqual("same_session_path_only", closure["specialist_wrapper"]["removal_reason"])
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("RequireClosedReady", result.stderr + result.stdout)
 
 
 if __name__ == "__main__":

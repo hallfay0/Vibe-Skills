@@ -41,7 +41,7 @@ def test_required_runtime_marker_groups_classify_owners_and_compatibility_surfac
             'SKILL.md',
             'config/version-governance.json',
             'apps/vgo-cli/src/vgo_cli/main.py',
-            'packages/runtime-core/src/vgo_runtime/router_bridge.py',
+            'packages/runtime-core/src/vgo_runtime/runtime_bridge.py',
             'install.ps1',
             'scripts/runtime/invoke-vibe-runtime.ps1',
             'scripts/verify/vibe-installed-runtime-freshness-gate.ps1',
@@ -53,7 +53,7 @@ def test_required_runtime_marker_groups_classify_owners_and_compatibility_surfac
     assert groups['governance_and_manifests'] == ['SKILL.md', 'config/version-governance.json']
     assert groups['semantic_owners'] == [
         'apps/vgo-cli/src/vgo_cli/main.py',
-        'packages/runtime-core/src/vgo_runtime/router_bridge.py',
+        'packages/runtime-core/src/vgo_runtime/runtime_bridge.py',
     ]
     assert groups['runtime_entrypoints_and_support'] == ['install.ps1', 'scripts/runtime/invoke-vibe-runtime.ps1']
     assert groups['verification_surfaces'] == ['scripts/verify/vibe-installed-runtime-freshness-gate.ps1']

@@ -2,19 +2,14 @@
 
 ## Missing skill after install
 - Run `check.ps1`
-- Confirm target path is `~/.codex/skills`
+- Confirm target path is `~/.agents/skills`
 - Re-run `install.ps1 -Profile full -StrictOffline`
 - Run `scripts/verify/vibe-offline-skills-gate.ps1` and fix lock mismatch if any
 
-## MCP unavailable
-- Verify server entries in `mcp/servers.template.json`
+## Host plugin or online enhancement unavailable
 - Check environment variables and local binaries
-
-## Claude Code Windows MCP warnings
-- Run `check.ps1 -HostId claude-code -TargetRoot ~/.claude -Deep`
-- If doctor reports bare `npx` MCP commands under `~/.claude.json`, wrap them as `cmd /c npx`
-- If doctor reports `claude-flow` / `ruflo` schema breakage, remove those MCP registrations or upgrade `claude-flow`
-- Use `scripts/setup/repair-claude-code-global-mcp.ps1` for the supported in-repo repair path
+- Re-run `check.ps1 -HostId <host> -Deep`
+- Treat host plugins and online enhancement as host-managed surfaces
 
 ## Upstream update broke behavior
 - Do not hot-replace bundled content from upstream

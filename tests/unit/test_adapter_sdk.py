@@ -29,21 +29,21 @@ def test_adapter_sdk_descriptors_match_registry_default_target_roots() -> None:
 def test_descriptor_loader_supports_registry_aliases() -> None:
     descriptor = load_descriptor('claude')
     assert descriptor.id == 'claude-code'
-    assert descriptor.default_target_root == '.claude'
-    assert descriptor.default_target_root_env == 'CLAUDE_HOME'
-    assert descriptor.default_target_root_kind == 'host-home'
+    assert descriptor.default_target_root == '.agents'
+    assert descriptor.default_target_root_env == 'VIBE_AGENTS_HOME'
+    assert descriptor.default_target_root_kind == 'shared-home'
 
 
 def test_target_root_resolver_uses_env_when_available() -> None:
     descriptor = load_descriptor('codex')
-    resolved = resolve_default_target_root(descriptor, env={'CODEX_HOME': '/tmp/codex-home'}, home='/home/tester')
-    assert resolved == '/tmp/codex-home'
+    resolved = resolve_default_target_root(descriptor, env={'VIBE_AGENTS_HOME': '/tmp/agents-home'}, home='/home/tester')
+    assert resolved == '/tmp/agents-home'
 
 
 def test_target_root_resolver_preserves_windows_home_separators() -> None:
     descriptor = load_descriptor('codex')
     resolved = resolve_default_target_root(descriptor, env={}, home=r'C:\Users\tester')
-    assert resolved == r'C:\Users\tester\.codex'
+    assert resolved == r'C:\Users\tester\.agents'
 
 
 def test_target_root_resolver_returns_absolute_default_exactly() -> None:
@@ -62,34 +62,34 @@ def test_target_root_resolver_returns_absolute_default_exactly() -> None:
 def test_target_root_resolver_defaults_codex_to_real_home_root() -> None:
     descriptor = load_descriptor('codex')
     resolved = resolve_default_target_root(descriptor, env={}, home='/home/tester')
-    assert resolved == '/home/tester/.codex'
+    assert resolved == '/home/tester/.agents'
 
 
 def test_target_root_resolver_defaults_claude_code_to_real_home_root() -> None:
     descriptor = load_descriptor('claude-code')
     resolved = resolve_default_target_root(descriptor, env={}, home='/home/tester')
-    assert resolved == '/home/tester/.claude'
+    assert resolved == '/home/tester/.agents'
 
 
 def test_target_root_resolver_defaults_cursor_to_real_home_root() -> None:
     descriptor = load_descriptor('cursor')
     resolved = resolve_default_target_root(descriptor, env={}, home='/home/tester')
-    assert resolved == '/home/tester/.cursor'
+    assert resolved == '/home/tester/.agents'
 
 
 def test_target_root_resolver_defaults_windsurf_to_real_home_root() -> None:
     descriptor = load_descriptor('windsurf')
     resolved = resolve_default_target_root(descriptor, env={}, home='/home/tester')
-    assert resolved == '/home/tester/.codeium/windsurf'
+    assert resolved == '/home/tester/.agents'
 
 
 def test_target_root_resolver_defaults_openclaw_to_real_home_root() -> None:
     descriptor = load_descriptor('openclaw')
     resolved = resolve_default_target_root(descriptor, env={}, home='/home/tester')
-    assert resolved == '/home/tester/.openclaw'
+    assert resolved == '/home/tester/.agents'
 
 
 def test_target_root_resolver_defaults_opencode_to_real_home_root() -> None:
     descriptor = load_descriptor('opencode')
     resolved = resolve_default_target_root(descriptor, env={}, home='/home/tester')
-    assert resolved == '/home/tester/.config/opencode'
+    assert resolved == '/home/tester/.agents'

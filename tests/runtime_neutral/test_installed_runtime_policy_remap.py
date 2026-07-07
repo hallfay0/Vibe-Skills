@@ -14,7 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 INSTALL_SCRIPT_PS1 = REPO_ROOT / "install.ps1"
 RUNTIME_TASK = "Debug installed runtime remap behavior before proposing fixes. $vibe"
 HOST_HOME_ENV = {
-    "claude-code": "CLAUDE_HOME",
+    "claude-code": "VIBE_AGENTS_HOME",
 }
 HOST_BRIDGE_ENV = {
     "claude-code": "VGO_CLAUDE_CODE_SPECIALIST_BRIDGE_COMMAND",
@@ -104,13 +104,8 @@ def install_claude_runtime(target_root: Path, env: dict[str, str]) -> Path:
             "Bypass",
             "-File",
             str(INSTALL_SCRIPT_PS1),
-            "-HostId",
-            "claude-code",
-            "-Profile",
-            "full",
-            "-TargetRoot",
-            str(target_root),
-            "-RequireClosedReady",
+            "-SkillsDir",
+            str(target_root / "skills"),
         ],
         cwd=REPO_ROOT,
         capture_output=True,

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import shutil
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -21,19 +23,21 @@ def load_json(relative_path: str) -> dict[str, object]:
     return json.loads(path.read_text(encoding="utf-8-sig"))
 
 
-def route(prompt: str, task_type: str = "research", grade: str = "L") -> dict[str, object]:
+def route(prompt: str, task_type: str = "research", grade: str = "L", target_root: Path | None = None) -> dict[str, object]:
     return route_prompt(
         prompt=prompt,
         grade=grade,
         task_type=task_type,
         requested_skill=None,
         repo_root=REPO_ROOT,
+        target_root=str(target_root) if target_root is not None else None,
     )
 
 
 def selected(result: dict[str, object]) -> tuple[str, str]:
     selected_row = result.get("selected")
-    assert isinstance(selected_row, dict), result
+    if not isinstance(selected_row, dict):
+        return "", ""
     return str(selected_row.get("pack_id") or ""), str(selected_row.get("skill") or "")
 
 
@@ -65,6 +69,13 @@ def ruc_pack() -> dict[str, object]:
     raise AssertionError("ruc-nlpir-augmentation pack missing")
 
 
+def install_kept_skills(target_root: Path) -> None:
+    skills_root = target_root / "skills"
+    skills_root.mkdir(parents=True, exist_ok=True)
+    for skill_id in KEEP_SKILLS:
+        shutil.copytree(REPO_ROOT / "bundled" / "skills" / skill_id, skills_root / skill_id)
+
+
 class RucNlpirAugmentationCleanupTests(unittest.TestCase):
     def test_manifest_keeps_only_explicit_tool_route_owners(self) -> None:
         pack = ruc_pack()
@@ -78,8 +89,13 @@ class RucNlpirAugmentationCleanupTests(unittest.TestCase):
             self.assertNotIn(forbidden, trigger_keywords)
 
     def test_deepagent_skill_ids_are_absent_from_live_config_surfaces(self) -> None:
-        keyword_index = load_json("config/skill-keyword-index.json")
-        routing_rules = load_json("config/skill-routing-rules.json")
+        for relative_path in (
+            "config/skill-keyword-index.json",
+            "config/skill-routing-rules.json",
+            "config/skills-lock.json",
+        ):
+            self.assertFalse((REPO_ROOT / relative_path).exists(), relative_path)
+
         capability_catalog = load_json("config/capability-catalog.json")
         upstream_aliases = load_json("config/upstream-source-aliases.json")
         upstream_lock = load_json("config/upstream-lock.json")
@@ -87,12 +103,7 @@ class RucNlpirAugmentationCleanupTests(unittest.TestCase):
         overlays = load_json("config/ruc-nlpir-overlays.json")
         vco_overlays = load_json("config/vco-overlays.json")
 
-        routing_skills = routing_rules.get("skills")
-        self.assertIsInstance(routing_skills, dict)
-
         for skill in DEEPAGENT_SKILLS:
-            self.assertNotIn(skill, keyword_index)
-            self.assertNotIn(skill, routing_skills)
             pack = ruc_pack()
             self.assertNotIn(skill, pack.get("skill_candidates") or [])
             self.assertNotIn("route_authority_candidates", pack)
@@ -164,17 +175,22 @@ class RucNlpirAugmentationCleanupTests(unittest.TestCase):
                 self.assertNotIn(skill, DEEPAGENT_SKILLS, ranked_summary(result))
 
     def test_kept_tools_still_route_on_explicit_tool_prompts(self) -> None:
-        local_result = route(
-            "请用 FlashRAG 做本地 repo/config 证据检索，给出 SKILL.md 文件和行号，说明路由规则在哪里定义",
-            task_type="review",
-        )
-        self.assertEqual(("ruc-nlpir-augmentation", "flashrag-evidence"), selected(local_result), ranked_summary(local_result))
+        with tempfile.TemporaryDirectory() as tempdir:
+            target_root = Path(tempdir) / ".agents"
+            install_kept_skills(target_root)
+            local_result = route(
+                "请用 FlashRAG 做本地 repo/config 证据检索，给出 SKILL.md 文件和行号，说明路由规则在哪里定义",
+                task_type="review",
+                target_root=target_root,
+            )
+            self.assertEqual(("local-skill-index", "flashrag-evidence"), selected(local_result), ranked_summary(local_result))
 
-        web_result = route(
-            "我要做 deep research，多跳浏览网页并保留 trace.jsonl 和 sources.json 证据链",
-            task_type="research",
-        )
-        self.assertEqual(("ruc-nlpir-augmentation", "webthinker-deep-research"), selected(web_result), ranked_summary(web_result))
+            web_result = route(
+                "我要做 deep research，多跳浏览网页并保留 trace.jsonl 和 sources.json 证据链",
+                task_type="research",
+                target_root=target_root,
+            )
+            self.assertEqual(("local-skill-index", "webthinker-deep-research"), selected(web_result), ranked_summary(web_result))
 
 
 if __name__ == "__main__":

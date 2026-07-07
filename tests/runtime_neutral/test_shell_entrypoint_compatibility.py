@@ -34,16 +34,16 @@ class ShellEntrypointCompatibilityTests(unittest.TestCase):
         self.assertIn("PYTHON_MIN_MINOR=10", helper_content)
         self.assertIn("requires Python ${PYTHON_MIN_MAJOR}.${PYTHON_MIN_MINOR}+", helper_content)
         self.assertIn("python3 --version", helper_content)
-        for relpath in ("install.sh", "check.sh", "scripts/bootstrap/one-shot-setup.sh"):
+        for relpath in ("install.sh", "check.sh"):
             content = (REPO_ROOT / relpath).read_text(encoding="utf-8")
             self.assertIn("PYTHON_MIN_MAJOR=3", content, relpath)
             self.assertIn("PYTHON_MIN_MINOR=10", content, relpath)
             self.assertIn("scripts/common/python_helpers.sh", content, relpath)
 
-    def test_one_shot_wrappers_reference_final_mcp_report(self) -> None:
+    def test_one_shot_wrappers_do_not_reference_mcp_report(self) -> None:
         for relpath in ("scripts/bootstrap/one-shot-setup.sh", "scripts/bootstrap/one-shot-setup.ps1"):
             content = (REPO_ROOT / relpath).read_text(encoding="utf-8")
-            self.assertIn("MCP auto-provision summary", content)
+            self.assertNotIn("MCP auto-provision summary", content)
 
     def test_check_sh_rejects_python_below_floor_before_helper_dispatch(self) -> None:
         if os.name == "nt":
@@ -72,7 +72,7 @@ class ShellEntrypointCompatibilityTests(unittest.TestCase):
             env = dict(os.environ)
             env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
             result = subprocess.run(
-                ["bash", str(REPO_ROOT / "check.sh"), "--host", "codex", "--profile", "minimal"],
+                ["bash", str(REPO_ROOT / "check.sh"), "--skills-dir", str(Path(tempdir) / "skills")],
                 cwd=REPO_ROOT,
                 env=env,
                 capture_output=True,

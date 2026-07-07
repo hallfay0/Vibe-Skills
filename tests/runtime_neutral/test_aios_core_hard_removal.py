@@ -39,7 +39,8 @@ def route(prompt: str, task_type: str = "planning", grade: str = "L") -> dict[st
 
 def selected(result: dict[str, object]) -> tuple[str, str]:
     selected_row = result.get("selected")
-    assert isinstance(selected_row, dict), result
+    if not isinstance(selected_row, dict):
+        return "", ""
     return str(selected_row.get("pack_id") or ""), str(selected_row.get("skill") or "")
 
 
@@ -107,18 +108,14 @@ class AiosCoreHardRemovalTests(unittest.TestCase):
         self.assertEqual(set(), remaining)
 
     def test_live_routing_configs_have_no_aios_skill_keys(self) -> None:
-        keyword_index = load_json("config/skill-keyword-index.json")
-        routing_rules = load_json("config/skill-routing-rules.json")
         capability_catalog = load_json("config/capability-catalog.json")
-        self.assertFalse(set(keyword_index["skills"]) & AIOS_SKILLS)
-        self.assertFalse(set(routing_rules["skills"]) & AIOS_SKILLS)
+        self.assertFalse((REPO_ROOT / "config" / "skill-keyword-index.json").exists())
+        self.assertFalse((REPO_ROOT / "config" / "skill-routing-rules.json").exists())
         capability_strings = set(walk_strings(capability_catalog))
         self.assertFalse(capability_strings & AIOS_SKILLS)
 
     def test_skills_lock_has_no_aios_skills(self) -> None:
-        lock = load_json("config/skills-lock.json")
-        locked = {str(row.get("name") or "") for row in lock["skills"]}
-        self.assertFalse(locked & AIOS_SKILLS, sorted(locked & AIOS_SKILLS))
+        self.assertFalse((REPO_ROOT / "config" / "skills-lock.json").exists())
 
     def test_upstream_source_configs_have_no_aios_reimport_handles(self) -> None:
         source_aliases = load_json("config/upstream-source-aliases.json")

@@ -10,17 +10,12 @@ SELF_REPO_RAW = "https://raw.githubusercontent.com/foryourhealth111-pixel/Vibe-S
 
 DOC_SCRIPT_SUFFIXES = {".md", ".ps1", ".py", ".sh", ".yml", ".yaml", ".json"}
 DOC_SCRIPT_ROOTS = ("docs", "scripts", ".github")
-INSTALL_PROMPTS = (
-    "docs/install/prompts/framework-only-install.md",
-    "docs/install/prompts/framework-only-install.en.md",
-    "docs/install/prompts/framework-only-update.md",
-    "docs/install/prompts/framework-only-update.en.md",
-    "docs/install/prompts/full-version-install.md",
-    "docs/install/prompts/full-version-install.en.md",
-    "docs/install/prompts/full-version-update.md",
-    "docs/install/prompts/full-version-update.en.md",
+PUBLIC_DOC_SURFACES = (
+    "README.md",
+    "README.zh.md",
+    "docs/quick-start.en.md",
+    "docs/quick-start.md",
 )
-
 
 def _repo_relative(path: Path) -> str:
     return path.relative_to(REPO_ROOT).as_posix()
@@ -54,15 +49,33 @@ def test_documentation_surfaces_do_not_bind_internal_links_to_github_blob_or_raw
     assert violations == []
 
 
-def test_install_prompts_use_source_placeholder_instead_of_github_fixed_source() -> None:
+def test_active_install_docs_do_not_keep_legacy_prompt_install_recipes() -> None:
+    assert not (REPO_ROOT / "docs" / "install" / "prompts").exists()
+
+
+def _public_doc_links(path: Path) -> list[str]:
+    text = path.read_text(encoding="utf-8")
+    patterns = (
+        re.compile(r"\[[^\]]+\]\(([^)]+)\)"),
+        re.compile(r"""href=["']([^"']+)["']"""),
+    )
+    links: list[str] = []
+    for pattern in patterns:
+        links.extend(pattern.findall(text))
+    return links
+
+
+def test_public_docs_link_only_to_existing_local_files() -> None:
     violations: list[str] = []
-    for relative in INSTALL_PROMPTS:
-        path = REPO_ROOT / relative
-        text = path.read_text(encoding="utf-8")
-        if "<source>" not in text:
-            violations.append(f"{relative}: missing <source> placeholder")
-        for line_number, line in enumerate(text.splitlines(), start=1):
-            if SELF_REPO_GITHUB in line and ("Repository:" in line or "仓库地址：" in line):
-                violations.append(f"{relative}:{line_number}: {line.strip()}")
+
+    for relpath in PUBLIC_DOC_SURFACES:
+        path = REPO_ROOT / relpath
+        for raw_target in _public_doc_links(path):
+            target = raw_target.strip().strip("<>").split("#", 1)[0].strip()
+            if not target or re.match(r"^[a-z]+://", target) or target.startswith("mailto:"):
+                continue
+            resolved = (path.parent / target).resolve() if target.startswith(".") else (REPO_ROOT / target).resolve()
+            if not resolved.exists():
+                violations.append(f"{relpath}: {target}")
 
     assert violations == []

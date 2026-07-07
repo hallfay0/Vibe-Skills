@@ -6,5 +6,5 @@
   "mode": "direct_current_session_route",
   "allowed_windows": [],
   "legacy_compatibility_only": true,
-  "compatibility_note": "Old consultation receipts remain readable for historical artifacts. New runtime sessions use skill_routing.selected plus skill_usage.used and skill_usage.unused."
+  "compatibility_note": "Old consultation receipts remain readable for historical artifacts. New runtime sessions use work_binding as bounded-work truth, keep skill_routing.selected only as an optional compatibility mirror when present, and record execution evidence in skill_usage."
 }

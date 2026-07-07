@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .router_contract_support import RepoContext, resolve_skill_md_path
+from .runtime_support import RepoContext, resolve_skill_md_path
 
 
 STANDARD_TASK_TYPES = ("planning", "coding", "review", "debug", "research")

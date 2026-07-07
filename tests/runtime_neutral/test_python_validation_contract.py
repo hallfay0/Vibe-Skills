@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import configparser
 import json
-import re
 import unittest
 from pathlib import Path
 
@@ -123,30 +122,32 @@ class PythonValidationContractTests(unittest.TestCase):
 
         self.assertEqual({}, mismatches)
 
-    def test_pack_route_overrides_stay_inside_authority_ranked_results(self) -> None:
+    def test_router_entrypoint_delegates_to_python_local_skill_router(self) -> None:
         text = RESOLVE_PACK_ROUTE.read_text(encoding="utf-8-sig")
-        normalized_text = re.sub(r"\s+", " ", text)
-        selectable_ranked = '$selectableRanked = @($ranked | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_.selected_candidate) })'
-        selection_pool = (
-            "$selectionPool = if ($authorityRanked.Count -gt 0) { @($authorityRanked) } "
-            "elseif ($selectableRanked.Count -gt 0) { @($selectableRanked) } else { @($ranked) }"
-        )
-        selection_lookup = (
-            "$overrideTop = $selectionPool | Where-Object { [string]$_.pack_id -eq $overridePackId } | "
-            "Select-Object -First 1"
-        )
-        ranked_lookup = (
-            "$overrideTop = $ranked | Where-Object { [string]$_.pack_id -eq $overridePackId } | "
-            "Select-Object -First 1"
-        )
 
-        self.assertIn(selectable_ranked, normalized_text)
-        self.assertIn(selection_pool, normalized_text)
-        self.assertEqual(2, normalized_text.count(selection_lookup))
-        self.assertNotIn(ranked_lookup, normalized_text)
-        self.assertIn("ai_rerank_override_block_reason", text)
-        self.assertIn("llm_acceleration_override_block_reason", text)
-        self.assertIn("route_override_requested", text)
+        expected_tokens = [
+            "'-m', 'vgo_cli.main'",
+            "'route'",
+            "'--output-json-path'",
+            "'--force-runtime-neutral'",
+            "'--host-id'",
+            "'--target-root'",
+            "$env:PYTHONUTF8 = '1'",
+            "$env:PYTHONIOENCODING = 'utf-8'",
+        ]
+        for token in expected_tokens:
+            self.assertIn(token, text)
+
+        retired_pack_override_tokens = [
+            "$selectableRanked",
+            "$selectionPool",
+            "$overrideTop",
+            "ai_rerank_override_block_reason",
+            "llm_acceleration_override_block_reason",
+            "route_override_requested",
+        ]
+        for token in retired_pack_override_tokens:
+            self.assertNotIn(token, text)
 
 
 if __name__ == "__main__":

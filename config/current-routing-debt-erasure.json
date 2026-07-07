@@ -1,15 +1,19 @@
 {
   "schema_version": 1,
   "current_model": [
-    "skill_candidates",
-    "skill_routing.selected",
-    "skill_execution_lock",
-    "selected_skill_execution",
-    "skill_usage.used",
-    "skill_usage.unused",
-    "skill_usage.evidence"
+    "task_card",
+    "work_plan",
+    "work_binding",
+    "work_results",
+    "verification"
   ],
   "active_fields": [
+    "task_card",
+    "work_plan",
+    "work_binding",
+    "specialist_decision",
+    "work_results",
+    "verification",
     "skill_candidates",
     "skill_routing",
     "skill_routing.candidates",
@@ -76,8 +80,15 @@
   ],
   "scan_scopes": {
     "current_paths": [
+      "README.md",
+      "README.zh.md",
       "SKILL.md",
       "config",
+      "docs/README.md",
+      "docs/governance/README.md",
+      "docs/status/README.md",
+      "docs/releases/README.md",
+      "docs/governance/vibe-governed-project-delivery-acceptance-governance.md",
       "scripts/router/resolve-pack-route.ps1",
       "scripts/router",
       "scripts/runtime/VibeRuntime.Common.ps1",

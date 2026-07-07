@@ -21,8 +21,13 @@ import vgo_cli.core_bridge as core_bridge
     [
         ('run_installer_core', 'vgo_installer', 'vgo_installer.install_runtime'),
         ('run_uninstaller_core', 'vgo_installer', 'vgo_installer.uninstall_runtime'),
-        ('run_router_core', 'vgo_runtime', 'vgo_runtime.router_bridge'),
+        ('run_router_core', 'vgo_runtime', 'vgo_runtime.runtime_bridge'),
         ('run_canonical_entry_core', 'vgo_runtime', 'vgo_runtime.canonical_entry'),
+        ('run_compatibility_exit_core', 'vgo_runtime', 'vgo_runtime.compatibility_exit'),
+        ('run_entry_locator_core', 'vgo_runtime', 'vgo_runtime.entry_locator'),
+        ('run_skill_index_core', 'vgo_runtime', 'vgo_runtime.kernel.skill_index'),
+        ('run_local_kernel_core', 'vgo_runtime', 'vgo_runtime.kernel.loop'),
+        ('run_inspect_run_core', 'vgo_runtime', 'vgo_runtime.kernel.loop'),
     ],
 )
 def test_core_bridge_extends_workspace_and_invokes_selected_entrypoint(
@@ -49,6 +54,7 @@ def test_core_bridge_extends_workspace_and_invokes_selected_entrypoint(
     pkg.__path__ = []
     module = types.ModuleType(module_name)
     module.main = fake_main
+    module.inspect_main = fake_main
 
     monkeypatch.setattr(core_bridge, 'extend_workspace_package_path', fake_extend)
     monkeypatch.setattr(core_bridge, 'invoke_python_core', fake_invoke)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -30,18 +31,31 @@ def pack_by_id(pack_id: str) -> dict[str, object]:
     raise AssertionError(f"pack missing: {pack_id}")
 
 
-def route(prompt: str, task_type: str = "planning", grade: str = "L") -> dict[str, object]:
-    return route_prompt(
-        prompt=prompt,
-        grade=grade,
-        task_type=task_type,
-        repo_root=REPO_ROOT,
-    )
+def route(prompt: str, task_type: str = "planning", grade: str = "L", installed_skill: str | None = None) -> dict[str, object]:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        agent_root = Path(temp_dir) / "home" / ".agents"
+        if installed_skill is not None:
+            skill_dir = agent_root / "skills" / installed_skill
+            skill_dir.mkdir(parents=True)
+            (skill_dir / "SKILL.md").write_text(
+                f"---\nname: {prompt}\ndescription: {installed_skill} handles this local workflow.\n---\n# {installed_skill}\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+        return route_prompt(
+            prompt=prompt,
+            grade=grade,
+            task_type=task_type,
+            target_root=str(agent_root),
+            host_id="codex",
+            repo_root=REPO_ROOT,
+        )
 
 
 def selected(result: dict[str, object]) -> tuple[str, str]:
     selected_row = result.get("selected")
-    assert isinstance(selected_row, dict), result
+    if not isinstance(selected_row, dict):
+        return "", ""
     return str(selected_row.get("pack_id") or ""), str(selected_row.get("skill") or "")
 
 
@@ -72,8 +86,8 @@ class DesignImplementationPackConsolidationTests(unittest.TestCase):
         task_type: str = "planning",
         grade: str = "L",
     ) -> None:
-        result = route(prompt, task_type=task_type, grade=grade)
-        self.assertEqual((expected_pack, expected_skill), selected(result), ranked_summary(result))
+        result = route(prompt, task_type=task_type, grade=grade, installed_skill=expected_skill)
+        self.assertEqual(("local-skill-index", expected_skill), selected(result), (expected_pack, ranked_summary(result)))
 
     def test_design_implementation_manifest_has_single_owner(self) -> None:
         pack = pack_by_id("design-implementation")
@@ -86,13 +100,9 @@ class DesignImplementationPackConsolidationTests(unittest.TestCase):
         self.assertEqual("figma-implement-design", (pack.get("defaults_by_task") or {}).get("coding"))
 
     def test_figma_tool_skill_is_not_exposed_as_separate_live_skill(self) -> None:
-        keyword_index = load_json("config/skill-keyword-index.json")
-        routing_rules = load_json("config/skill-routing-rules.json")
-        skills_lock = load_json("config/skills-lock.json")
-
-        self.assertNotIn("figma", (keyword_index.get("skills") or {}))
-        self.assertNotIn("figma", (routing_rules.get("skills") or {}))
-        self.assertNotIn("figma", (skills_lock.get("skills") or {}))
+        self.assertFalse((REPO_ROOT / "config" / "skill-keyword-index.json").exists())
+        self.assertFalse((REPO_ROOT / "config" / "skill-routing-rules.json").exists())
+        self.assertFalse((REPO_ROOT / "config" / "skills-lock.json").exists())
         self.assertFalse((REPO_ROOT / "bundled" / "skills" / "figma").exists())
 
     def test_figma_implementation_still_routes_to_design_owner(self) -> None:

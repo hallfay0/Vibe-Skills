@@ -26,6 +26,8 @@ def _run_new_origin_record(local_path: str) -> subprocess.CompletedProcess[str]:
             powershell,
             "-NoLogo",
             "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
             "-File",
             str(SCRIPT_PATH),
             "-CanonicalSlug",

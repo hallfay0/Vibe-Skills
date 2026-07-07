@@ -33,8 +33,8 @@ class OpenCodePreviewParityTests(unittest.TestCase):
         )
         payload = json.loads(result.stdout)
         self.assertEqual("opencode", payload["id"])
-        self.assertEqual(".config/opencode", payload["default_target_root"]["rel"])
-        self.assertEqual("host-home", payload["default_target_root"]["kind"])
+        self.assertEqual(".agents", payload["default_target_root"]["rel"])
+        self.assertEqual("shared-home", payload["default_target_root"]["kind"])
 
     def test_python_installer_materializes_opencode_preview_wrappers(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
@@ -67,12 +67,13 @@ class OpenCodePreviewParityTests(unittest.TestCase):
             self.assertTrue((target_root / "opencode.json.example").exists())
             self.assertFalse((target_root / "opencode.json").exists())
 
-    def test_powershell_check_accepts_opencode_preview_wrappers(self) -> None:
+    def test_powershell_install_and_check_use_skills_dir_without_opencode_wrappers(self) -> None:
         if shutil.which("pwsh") is None:
             self.skipTest("pwsh not available")
 
         with tempfile.TemporaryDirectory() as tempdir:
             target_root = Path(tempdir)
+            skills_dir = target_root / "skills"
 
             install_result = subprocess.run(
                 [
@@ -82,19 +83,15 @@ class OpenCodePreviewParityTests(unittest.TestCase):
                     "Bypass",
                     "-File",
                     str(REPO_ROOT / "install.ps1"),
-                    "-HostId",
-                    "opencode",
-                    "-Profile",
-                    "full",
-                    "-TargetRoot",
-                    str(target_root),
+                    "-SkillsDir",
+                    str(skills_dir),
                 ],
                 capture_output=True,
                 text=True,
                 check=True,
             )
-            self.assertIn("Host   : opencode", install_result.stdout)
-            self.assertIn("Mode   : preview-guidance", install_result.stdout)
+            install_payload = json.loads(install_result.stdout)
+            self.assertEqual("vibe-skill-install", install_payload["receipt_kind"])
 
             check_result = subprocess.run(
                 [
@@ -104,25 +101,21 @@ class OpenCodePreviewParityTests(unittest.TestCase):
                     "Bypass",
                     "-File",
                     str(REPO_ROOT / "check.ps1"),
-                    "-HostId",
-                    "opencode",
-                    "-Profile",
-                    "full",
-                    "-TargetRoot",
-                    str(target_root),
-                    "-Deep",
+                    "-SkillsDir",
+                    str(skills_dir),
                 ],
                 capture_output=True,
                 text=True,
+                check=True,
             )
-            if check_result.returncode != 0:
-                self.fail(
-                    "PowerShell opencode deep check should pass once preview wrappers are installed.\n"
-                    f"stdout:\n{check_result.stdout}\n\nstderr:\n{check_result.stderr}"
-                )
-            self.assertNotIn("[FAIL] opencode command/", check_result.stdout)
-            self.assertNotIn("[FAIL] opencode agent/", check_result.stdout)
-            self.assertIn("[OK] opencode preview config example", check_result.stdout)
+            check_payload = json.loads(check_result.stdout)
+            self.assertTrue(check_payload["ok"])
+            self.assertTrue((skills_dir / "vibe" / "SKILL.md").exists())
+            self.assertFalse((target_root / "commands").exists())
+            self.assertFalse((target_root / "command").exists())
+            self.assertFalse((target_root / "agents").exists())
+            self.assertFalse((target_root / "agent").exists())
+            self.assertFalse((target_root / "opencode.json.example").exists())
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .router_contract_support import candidate_name_score, keyword_ratio, normalize_text
+from .runtime_support import candidate_name_score, keyword_ratio, normalize_text
 
 
 def get_pack_skill_candidates(pack: dict[str, Any]) -> list[str]:

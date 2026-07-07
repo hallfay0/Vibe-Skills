@@ -47,7 +47,8 @@ def test_build_update_reminder_refreshes_stale_cache_and_emits_advisory(monkeypa
     assert 'update available' in message.lower()
     assert 'local=3.0.0@old' in message
     assert 'latest=3.0.1@new' in message
-    assert message.endswith('Run vibe-upgrade --host=codex.')
+    expected = f'Run update.ps1 -SkillsDir "{(REPO_ROOT / ".tmp-target").resolve()}".'
+    assert message.endswith(expected)
 
 
 def test_build_update_reminder_uses_fresh_cache_without_refresh(monkeypatch) -> None:
@@ -72,7 +73,8 @@ def test_build_update_reminder_uses_fresh_cache_without_refresh(monkeypatch) -> 
     message = build_update_reminder(REPO_ROOT, REPO_ROOT / '.tmp-target', 'codex')
 
     assert 'latest=3.0.1@new' in message
-    assert message.endswith('Run vibe-upgrade --host=codex.')
+    expected = f'Run update.ps1 -SkillsDir "{(REPO_ROOT / ".tmp-target").resolve()}".'
+    assert message.endswith(expected)
 
 
 def test_build_update_reminder_returns_none_when_no_update_is_available(monkeypatch) -> None:
@@ -180,7 +182,7 @@ def test_powershell_upgrade_reminder_uses_python_command_spec(tmp_path: Path) ->
     )
 
     completed = subprocess.run(
-        [powershell, '-NoLogo', '-NoProfile', '-File', str(harness_path)],
+            [powershell, '-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', str(harness_path)],
         capture_output=True,
         text=True,
         encoding='utf-8',

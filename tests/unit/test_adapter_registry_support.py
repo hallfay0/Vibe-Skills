@@ -29,8 +29,8 @@ def test_resolve_adapter_entry_returns_raw_registry_entry() -> None:
     registry = load_adapter_registry(ROOT)
     entry = resolve_adapter_entry(registry, 'windsurf')
     assert entry['id'] == 'windsurf'
-    assert entry['default_target_root']['rel'] == '.codeium/windsurf'
-    assert entry['default_target_root']['kind'] == 'host-home'
+    assert entry['default_target_root']['rel'] == '.agents'
+    assert entry['default_target_root']['kind'] == 'shared-home'
 
 
 def test_adapter_registry_exposes_shared_discoverable_vibe_entry_surface() -> None:

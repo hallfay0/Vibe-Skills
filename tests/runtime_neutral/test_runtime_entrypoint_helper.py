@@ -62,7 +62,7 @@ class RuntimeEntrypointHelperTests(unittest.TestCase):
             )
 
             completed = subprocess.run(
-                [powershell, "-NoLogo", "-NoProfile", "-Command", ps_script],
+                [powershell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
                 cwd=worktree_root,
                 capture_output=True,
                 text=True,
@@ -100,7 +100,7 @@ class RuntimeEntrypointHelperTests(unittest.TestCase):
             )
 
             completed = subprocess.run(
-                [powershell, "-NoLogo", "-NoProfile", "-Command", ps_script],
+                [powershell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
                 cwd=root,
                 capture_output=True,
                 text=True,
@@ -137,7 +137,7 @@ class RuntimeEntrypointHelperTests(unittest.TestCase):
             )
 
             completed = subprocess.run(
-                [powershell, "-NoLogo", "-NoProfile", "-Command", ps_script],
+                [powershell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
                 cwd=root,
                 capture_output=True,
                 text=True,
@@ -190,7 +190,7 @@ class RuntimeEntrypointHelperTests(unittest.TestCase):
             )
 
             completed = subprocess.run(
-                [powershell, "-NoLogo", "-NoProfile", "-Command", ps_script],
+                [powershell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
                 cwd=root,
                 capture_output=True,
                 text=True,
@@ -222,7 +222,7 @@ class RuntimeEntrypointHelperTests(unittest.TestCase):
         )
 
         completed = subprocess.run(
-            [powershell, "-NoLogo", "-NoProfile", "-Command", ps_script],
+            [powershell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,

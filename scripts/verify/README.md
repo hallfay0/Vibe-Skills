@@ -1,5 +1,9 @@
 This directory stores executable verification gates for local and CI use.
 
+The default release closure is intentionally small. Use it to prove the normal release path. Use touched-surface extension gates only when the change actually touches that family.
+
+`check.ps1` checks installed-copy health and receipt health for a selected `SkillsDir`; it does not replace release verification.
+
 ## Start Here
 
 - family map and typical run order: [`gate-family-index.md`](./gate-family-index.md)
@@ -36,15 +40,16 @@ pwsh -NoProfile -File .\..\governance\phase-end-cleanup.ps1 -WriteArtifacts -Inc
 ## Common Verify Sequence
 
 ```powershell
-& ".\vibe-pack-routing-smoke.ps1"
-& ".\vibe-router-contract-gate.ps1"
-& ".\vibe-current-routing-debt-gate.ps1" -WriteArtifacts
-& ".\vibe-version-packaging-gate.ps1" -WriteArtifacts
-& ".\vibe-output-artifact-boundary-gate.ps1" -WriteArtifacts
-& ".\vibe-installed-runtime-freshness-gate.ps1" -WriteReceipt
-& ".\vibe-release-install-runtime-coherence-gate.ps1" -WriteArtifacts
+& ".\vibe-governed-runtime-contract-gate.ps1" -WriteArtifacts
+& ".\vibe-canonical-entry-truth-gate.ps1" -SessionRoot <returned session_root> -WriteArtifacts
+& ".\vibe-runtime-execution-proof-gate.ps1" -WriteArtifacts
+& ".\vibe-release-truth-consistency-gate.ps1" -WriteArtifacts
 & ".\vibe-repo-cleanliness-gate.ps1" -WriteArtifacts
 ```
+
+This default closure path stays intentionally small. Packaging, freshness, and retired-routing audit gates are still available when the change actually touches those surfaces.
+
+If the change touches retired-routing language or route-era cleanup, run `vibe-router-contract-gate.ps1` before `vibe-current-routing-debt-gate.ps1` as an opt-in current routing debt audit pair.
 
 ## High-Frequency Quick Starts
 

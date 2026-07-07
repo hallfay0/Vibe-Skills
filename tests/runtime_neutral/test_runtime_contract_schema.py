@@ -47,7 +47,7 @@ def run_ps_json(body: str) -> dict[str, object]:
         raise unittest.SkipTest("PowerShell executable not available in PATH")
 
     completed = subprocess.run(
-        [shell, "-NoLogo", "-NoProfile", "-Command", body],
+        [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", body],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -73,6 +73,8 @@ def run_runtime(artifact_root: Path, *, extra_env: dict[str, str] | None = None)
             shell,
             "-NoLogo",
             "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
             "-Command",
             (
                 "& { "
@@ -468,6 +470,9 @@ class RuntimeContractSchemaTests(unittest.TestCase):
                 "custom_admission = [pscustomobject]@{ status = 'admitted'; target_root = '/tmp/custom'; admitted_candidates = @([pscustomobject]@{ skill_id = 'systematic-debugging' }, [pscustomobject]@{ skill_id = 'think-harder' }) } "
                 "}; "
                 "$runtime = [pscustomobject]@{ host_adapter = [pscustomobject]@{ requested_id = 'openclaw'; id = 'openclaw'; status = 'preview'; install_mode = 'scaffold'; check_mode = 'audit'; bootstrap_mode = 'bounded' }; host_closure = [pscustomobject]@{ path = '/tmp/closure.json' } }; "
+                "$hostDecision = [pscustomobject]@{ decision_kind = 'approval_response'; decision_action = 'approve_requirement'; continuation_context = [pscustomobject]@{ structured_bounded_reentry = $true; reentry_action = 'revise'; revision_target_stage = 'requirement_doc'; revision_delta = @('delta') }; phase_decomposition = [pscustomobject]@{ phases = @([pscustomobject]@{ phase_id = 'phase-1'; stage_type = 'implementation'; goal = 'Do work' }) }; skill_execution_decision = [pscustomobject]@{ selection_mode = 'curated_only'; approved_skill_ids = @('systematic-debugging') }; code_task_tdd_decision = [pscustomobject]@{ mode = 'required'; source = 'host_decision' } }; "
+                "$hostSkillExecutionDecision = [pscustomobject]@{ selection_mode = 'curated_only'; approved_skill_ids = @('systematic-debugging'); deferred_skill_ids = @(); rejected_skill_ids = @(); stale_skill_ids = @(); reconciliation_state = 'fully_aligned'; requires_recuration = $false }; "
+                "$codeTaskTddDecision = [pscustomobject]@{ mode = 'required'; source = 'host_decision' }; "
                 "$dispatch = [pscustomobject]@{ approved_dispatch = @([pscustomobject]@{ skill_id = 'systematic-debugging' }); local_specialist_suggestions = @([pscustomobject]@{ skill_id = 'think-harder' }); escalation_required = $true; escalation_status = 'pending_root_approval' }; "
                 "$policy = [pscustomobject]@{ freeze_before_requirement_doc = $true; child_specialist_suggestion_contract = [pscustomobject]@{ approval_owner = 'root_vibe'; status = 'auto_promote_when_safe_same_round' } }; "
                 "$packet = New-VibeRuntimeInputPacketProjection "
@@ -488,9 +493,11 @@ class RuntimeContractSchemaTests(unittest.TestCase):
                 "-Unattended:$false "
                 "-RouterScriptPath '/tmp/router.ps1' "
                 "-RuntimeSelectedSkill 'vibe' "
+                "-HostDecision $hostDecision "
+                "-HostSpecialistDispatchDecision $hostSkillExecutionDecision "
+                "-CodeTaskTddDecision $codeTaskTddDecision "
                 "-SpecialistRecommendations @([pscustomobject]@{ skill_id = 'systematic-debugging'; native_usage_required = $true }) "
                 "-SpecialistDispatch $dispatch "
-                "-OverlayDecisions @([pscustomobject]@{ name = 'danger'; decision = 'observe' }) "
                 "-Policy $policy; "
                 "$packet | ConvertTo-Json -Depth 20 }"
             )
@@ -498,16 +505,45 @@ class RuntimeContractSchemaTests(unittest.TestCase):
         self.assertEqual("runtime_input_freeze", payload["stage"])
         self.assertEqual("run-7", payload["run_id"])
         self.assertEqual("child", payload["governance_scope"])
-        self.assertEqual("systematic-debugging", payload["route_snapshot"]["selected_skill"])
         self.assertTrue(payload["route_snapshot"]["confirm_required"])
+        self.assertEqual("systematic-debugging", payload["work_binding"]["units"][0]["bound_skill"])
+        self.assertNotIn("selected_skill", payload["route_snapshot"])
+        self.assertNotIn("task_type", payload["canonical_router"])
+        self.assertNotIn("requested_skill", payload["canonical_router"])
+        field_order = list(payload)
+        self.assertLess(field_order.index("work_binding"), field_order.index("canonical_router"))
+        self.assertLess(field_order.index("work_binding"), field_order.index("route_snapshot"))
+        self.assertLess(field_order.index("specialist_decision"), field_order.index("skill_routing"))
+        self.assertLess(field_order.index("specialist_decision"), field_order.index("divergence_shadow"))
+        self.assertEqual("runtime_work_binding_v1", payload["work_binding"]["schema_version"])
+        self.assertEqual("approved_dispatch", payload["work_binding"]["source"])
+        self.assertEqual("projected_from_approved_dispatch", payload["work_binding"]["status"])
+        self.assertEqual("systematic-debugging", payload["work_binding"]["units"][0]["bound_skill"])
         self.assertEqual("admitted", payload["custom_admission"]["status"])
-        self.assertEqual(2, payload["custom_admission"]["admitted_candidate_count"])
+        self.assertEqual("/tmp/custom", payload["custom_admission"]["target_root"])
+        self.assertIn("phase_decomposition", payload["host_decision"])
+        self.assertNotIn("decision_kind", payload["host_decision"])
+        self.assertNotIn("decision_action", payload["host_decision"])
+        self.assertNotIn("approval_decision", payload["host_decision"])
+        self.assertNotIn("revision_delta", payload["host_decision"])
+        self.assertNotIn("continuation_context", payload["host_decision"])
+        self.assertNotIn("skill_execution_decision", payload["host_decision"])
+        self.assertNotIn("code_task_tdd_decision", payload["host_decision"])
+        self.assertEqual("revise", payload["continuation_context"]["reentry_action"])
+        self.assertEqual("curated_only", payload["host_skill_execution_decision"]["selection_mode"])
+        self.assertEqual("required", payload["code_task_tdd_decision"]["mode"])
         self.assertNotIn("specialist_dispatch", payload)
+        self.assertNotIn("overlay_decisions", payload)
+        self.assertNotIn("skill_execution_lock_summary", payload)
+        self.assertNotIn("execution_phase_decomposition", payload)
+        self.assertNotIn("host_reentry_action", payload)
+        self.assertNotIn("host_revision_target_stage", payload)
+        self.assertNotIn("host_revision_delta", payload)
         specialist_decision = payload["specialist_decision"]
         self.assertEqual("approved_dispatch", specialist_decision["decision_state"])
         self.assertEqual(["systematic-debugging"], specialist_decision["approved_dispatch_skill_ids"])
         self.assertEqual(["think-harder"], specialist_decision["local_suggestion_skill_ids"])
-        self.assertEqual("vibe", payload["divergence_shadow"]["runtime_selected_skill"])
+        self.assertNotIn("runtime_selected_skill", payload["divergence_shadow"])
         self.assertTrue(payload["divergence_shadow"]["skill_mismatch"])
         self.assertEqual("openclaw", payload["host_adapter"]["requested_host_id"])
         self.assertEqual("openclaw", payload["host_adapter"]["effective_host_id"])
@@ -519,6 +555,22 @@ class RuntimeContractSchemaTests(unittest.TestCase):
         self.assertEqual("workspace_sidecar_default", payload["storage"]["artifact_root_source"])
         self.assertEqual(expected_project_descriptor, payload["storage"]["project_descriptor_path"])
         self.assertTrue(payload["provenance"]["freeze_before_requirement_doc"])
+
+    def test_runtime_work_binding_projection_falls_back_to_compatibility_skill_routing(self) -> None:
+        payload = run_ps_json(
+            "& { "
+            f". {_ps_single_quote(str(RUNTIME_COMMON))}; "
+            "$binding = New-VibeRuntimeWorkBindingProjection "
+            "-Task 'debug task' "
+            "-RunId 'run-fallback' "
+            "-SkillRouting ([pscustomobject]@{ selected = @([pscustomobject]@{ skill_id = 'systematic-debugging' }) }); "
+            "$binding | ConvertTo-Json -Depth 10 }"
+        )
+
+        self.assertEqual("runtime_work_binding_v1", payload["schema_version"])
+        self.assertEqual("compatibility.skill_routing.selected", payload["source"])
+        self.assertEqual("compatibility_projection_from_skill_routing", payload["status"])
+        self.assertEqual("systematic-debugging", payload["units"][0]["bound_skill"])
 
     def test_runtime_summary_projection_preserves_public_contract_shape(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:

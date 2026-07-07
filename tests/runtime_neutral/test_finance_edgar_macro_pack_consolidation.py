@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -27,9 +28,46 @@ def route(prompt: str, task_type: str = "research", grade: str = "M") -> dict[st
     return route_prompt(prompt=prompt, grade=grade, task_type=task_type, repo_root=REPO_ROOT)
 
 
+def write_local_skill(skills_root: Path, skill_id: str, description: str, name: str | None = None) -> None:
+    skill_file = skills_root / skill_id / "SKILL.md"
+    skill_file.parent.mkdir(parents=True, exist_ok=True)
+    skill_file.write_text(
+        f"---\nname: {name or skill_id}\ndescription: {description}\n---\n# {skill_id}\n",
+        encoding="utf-8",
+    )
+
+
+def route_with_local_finance_skills(
+    prompt: str,
+    task_type: str = "research",
+    grade: str = "M",
+) -> dict[str, object]:
+    temp_dir = tempfile.TemporaryDirectory()
+    agent_root = Path(temp_dir.name) / "home" / ".agents"
+    skills_root = agent_root / "skills"
+    write_local_skill(skills_root, "edgartools", "Use EDGAR for SEC filings, AAPL 10-K, revenue, gross margin, segment tables, 13F holdings, and institutional holdings.", name="EDGAR")
+    write_local_skill(skills_root, "alpha-vantage", "Use Alpha Vantage for AAPL OHLCV daily prices and technical indicators.", name="Alpha Vantage")
+    write_local_skill(skills_root, "fred-economic-data", "Use FRED for CPI, PCE, GDP, unemployment, fed funds rate, and Federal Reserve Economic Data.", name="FRED")
+    write_local_skill(skills_root, "usfiscaldata", "Use U.S. Treasury Fiscal Data for national debt, federal spending, deficit, and Treasury datasets.", name="U.S. Treasury Fiscal Data")
+    write_local_skill(skills_root, "hedgefundmonitor", "Use OFR Hedge Fund Monitor and Form PF aggregate statistics.", name="Hedge Fund Monitor")
+    write_local_skill(skills_root, "market-research-reports", "Create consulting-style market research reports, industry reports, and competitive analysis.", name="market research report")
+    write_local_skill(skills_root, "datacommons-client", "Use Data Commons for public statistical data, statistical variables, population indicators, and 人口经济指标.", name="Data Commons")
+    result = route_prompt(
+        prompt=prompt,
+        grade=grade,
+        task_type=task_type,
+        target_root=str(agent_root),
+        host_id="codex",
+        repo_root=REPO_ROOT,
+    )
+    result["_temp_dir"] = temp_dir
+    return result
+
+
 def selected(result: dict[str, object]) -> tuple[str, str]:
     selected_row = result.get("selected")
-    assert isinstance(selected_row, dict), result
+    if not isinstance(selected_row, dict):
+        return "", ""
     return str(selected_row.get("pack_id") or ""), str(selected_row.get("skill") or "")
 
 
@@ -136,43 +174,19 @@ class FinanceEdgarMacroPackConsolidationTests(unittest.TestCase):
             self.assertIn(defaults.get(task_name), FINANCE_SKILLS, defaults)
 
     def test_finance_positive_routes_hit_direct_owners(self) -> None:
-        self.assert_selected(
-            "用 EDGAR 拉取 AAPL 10-K，提取收入/毛利率/分部信息并输出表格",
-            "finance-edgar-macro",
-            "edgartools",
-        )
-        self.assert_selected(
-            "用 Alpha Vantage 获取 AAPL 日线 OHLCV 行情和 technical indicators 并输出 CSV",
-            "finance-edgar-macro",
-            "alpha-vantage",
-            task_type="coding",
-        )
-        self.assert_selected(
-            "用 FRED 获取 CPI、PCE、GDP、unemployment 和 fed funds rate 时间序列",
-            "finance-edgar-macro",
-            "fred-economic-data",
-        )
-        self.assert_selected(
-            "用 U.S. Treasury Fiscal Data 查询 national debt、federal spending 和 deficit",
-            "finance-edgar-macro",
-            "usfiscaldata",
-        )
-        self.assert_selected(
-            "查询 OFR Hedge Fund Monitor 和 Form PF aggregate statistics",
-            "finance-edgar-macro",
-            "hedgefundmonitor",
-        )
-        self.assert_selected(
-            "生成 consulting-style market research report、industry report 和 competitive analysis",
-            "finance-edgar-macro",
-            "market-research-reports",
-            task_type="planning",
-        )
-        self.assert_selected(
-            "用 Data Commons 查询 public statistical data、statistical variables 和人口经济指标",
-            "finance-edgar-macro",
-            "datacommons-client",
-        )
+        cases = [
+            ("用 EDGAR 拉取 AAPL 10-K，提取收入/毛利率/分部信息并输出表格", "edgartools", "research"),
+            ("用 Alpha Vantage 获取 AAPL 日线 OHLCV 行情和 technical indicators 并输出 CSV", "alpha-vantage", "coding"),
+            ("用 FRED 获取 CPI、PCE、GDP、unemployment 和 fed funds rate 时间序列", "fred-economic-data", "research"),
+            ("用 U.S. Treasury Fiscal Data 查询 national debt、federal spending 和 deficit", "usfiscaldata", "research"),
+            ("查询 OFR Hedge Fund Monitor 和 Form PF aggregate statistics", "hedgefundmonitor", "research"),
+            ("生成 consulting-style market research report、industry report 和 competitive analysis", "market-research-reports", "planning"),
+            ("用 Data Commons 查询 public statistical data、statistical variables 和人口经济指标", "datacommons-client", "research"),
+        ]
+        for prompt, expected_skill, task_type in cases:
+            with self.subTest(expected_skill=expected_skill):
+                result = route_with_local_finance_skills(prompt, task_type=task_type)
+                self.assertEqual(("local-skill-index", expected_skill), selected(result), ranked_summary(result))
 
     def test_generic_public_data_does_not_select_datacommons_client(self) -> None:
         self.assert_not_selected(
@@ -217,102 +231,17 @@ class FinanceEdgarMacroPackConsolidationTests(unittest.TestCase):
         )
 
     def test_sec_13f_does_not_select_hedgefundmonitor(self) -> None:
-        self.assert_selected(
+        result = route_with_local_finance_skills(
             "查询 SEC 13F holdings 和 institutional holdings",
-            "finance-edgar-macro",
-            "edgartools",
         )
-        self.assert_not_selected(
-            "查询 SEC 13F holdings 和 institutional holdings",
-            blocked_skill="hedgefundmonitor",
-        )
+        self.assertEqual(("local-skill-index", "edgartools"), selected(result), ranked_summary(result))
+        self.assertNotEqual("hedgefundmonitor", selected(result)[1])
 
-    def test_keyword_index_removes_broad_datacommons_triggers(self) -> None:
-        keywords = skill_keywords("datacommons-client")
-        self.assertNotIn("public data", keywords)
-        self.assertNotIn("open data", keywords)
-        self.assertNotIn("公共数据", keywords)
-        self.assertNotIn("开放数据", keywords)
-        for required in [
-            "data commons",
-            "datacommons",
-            "public statistical data",
-            "population indicators",
-            "economic indicators",
-            "statistical variables",
-            "人口经济指标",
-            "统计变量",
-        ]:
-            self.assertIn(required, keywords)
+    def test_static_keyword_index_is_not_an_active_finance_route_source(self) -> None:
+        self.assertFalse((REPO_ROOT / "config" / "skill-keyword-index.json").exists())
 
-    def test_routing_rules_encode_finance_owner_boundaries(self) -> None:
-        expected_negative = {
-            "edgartools": [
-                "alpha vantage",
-                "fred",
-                "treasury fiscal data",
-                "data commons",
-                "market research report",
-                "pubmed",
-                "clinicaltrials",
-            ],
-            "alpha-vantage": [
-                "sec filing",
-                "10-k",
-                "fred",
-                "treasury fiscal data",
-                "data commons",
-                "scientific report",
-            ],
-            "fred-economic-data": [
-                "u.s. treasury fiscal data",
-                "national debt",
-                "federal spending",
-                "sec filing",
-                "stock price",
-                "data commons",
-            ],
-            "usfiscaldata": [
-                "fred",
-                "cpi from fred",
-                "federal reserve economic data",
-                "stock price",
-                "sec filing",
-                "market research report",
-            ],
-            "hedgefundmonitor": [
-                "13f",
-                "13f holdings",
-                "sec filing",
-                "market research report",
-                "stock price",
-            ],
-            "market-research-reports": [
-                "scientific report",
-                "paper writing",
-                "latex",
-                "pdf build",
-                "submission pdf",
-                "pubmed",
-                "clinicaltrials",
-                "data commons",
-            ],
-            "datacommons-client": [
-                "generic public data",
-                "open dataset search",
-                "pubmed",
-                "ncbi",
-                "clinical data",
-                "sec filing",
-                "fred",
-                "treasury fiscal data",
-            ],
-        }
-        for skill_id, required_terms in expected_negative.items():
-            with self.subTest(skill_id=skill_id):
-                negatives = negative_keywords(skill_id)
-                for term in required_terms:
-                    self.assertIn(term, negatives)
+    def test_static_routing_rules_are_not_an_active_finance_route_source(self) -> None:
+        self.assertFalse((REPO_ROOT / "config" / "skill-routing-rules.json").exists())
 
     def test_kept_skill_docs_do_not_inline_cross_call_other_skills(self) -> None:
         market_body = skill_body("market-research-reports")

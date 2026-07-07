@@ -35,8 +35,8 @@ def test_install_mode_for_host_reads_registry_projection() -> None:
 
 
 def test_resolve_default_target_root_uses_registry_env_projection(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv('WINDSURF_HOME', '/tmp/windsurf-home')
-    assert resolve_default_target_root('windsurf') == Path('/tmp/windsurf-home')
+    monkeypatch.setenv('VIBE_AGENTS_HOME', '/tmp/agents-home')
+    assert resolve_default_target_root('windsurf') == Path('/tmp/agents-home')
 
 
 def test_assert_target_root_matches_host_intent_rejects_host_mismatch(tmp_path: Path) -> None:

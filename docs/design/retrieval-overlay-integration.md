@@ -7,7 +7,7 @@ Add a lean, non-redundant retrieval strategy layer to VCO so that different sear
 ## Design Boundary
 
 - Post-route advisory overlay only.
-- Does not mutate selected pack/skill by default (`preserve_routing_assignment=true`).
+- Does not mutate selected pack/skill.
 - Mode-gated behavior:
   - `off`: disabled.
   - `shadow`: advice only.
@@ -25,7 +25,7 @@ Main + bundled:
 
 These configs define:
 
-- scope controls (`task_allow`, `grade_allow`, `route_mode_allow`)
+- scope controls (`task_allow`, `grade_allow`)
 - profile selection thresholds
 - query-variant budget by mode
 - source catalog and quality hints

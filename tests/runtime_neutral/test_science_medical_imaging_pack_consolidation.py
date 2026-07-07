@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import shutil
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -20,14 +22,51 @@ MEDICAL_IMAGING_SKILLS = [
     "pathml",
 ]
 
+ROUTE_SKILLS = sorted(
+    set(
+        MEDICAL_IMAGING_SKILLS
+        + [
+            "pubmed-database",
+            "clinicaltrials-database",
+            "latex-submission-pipeline",
+            "scientific-reporting",
+            "rdkit",
+        ]
+    )
+)
+RETIRED_STATIC_ROUTING_FILES = [
+    REPO_ROOT / "config" / "skill-keyword-index.json",
+    REPO_ROOT / "config" / "skill-routing-rules.json",
+]
 
-def route(prompt: str, task_type: str = "research", grade: str = "M") -> dict[str, object]:
-    return route_prompt(prompt=prompt, grade=grade, task_type=task_type, repo_root=REPO_ROOT)
+
+def install_skills(target_root: Path) -> None:
+    skills_root = target_root / "skills"
+    skills_root.mkdir(parents=True, exist_ok=True)
+    for skill_id in ROUTE_SKILLS:
+        shutil.copytree(REPO_ROOT / "bundled" / "skills" / skill_id, skills_root / skill_id)
+
+
+def route(
+    prompt: str,
+    task_type: str = "research",
+    grade: str = "M",
+    target_root: Path | None = None,
+) -> dict[str, object]:
+    return route_prompt(
+        prompt=prompt,
+        grade=grade,
+        task_type=task_type,
+        target_root=str(target_root) if target_root is not None else None,
+        host_id="codex",
+        repo_root=REPO_ROOT,
+    )
 
 
 def selected(result: dict[str, object]) -> tuple[str, str]:
     selected_row = result.get("selected")
-    assert isinstance(selected_row, dict), result
+    if not isinstance(selected_row, dict):
+        return "", ""
     return str(selected_row.get("pack_id") or ""), str(selected_row.get("skill") or "")
 
 
@@ -104,14 +143,16 @@ class ScienceMedicalImagingPackConsolidationTests(unittest.TestCase):
     def assert_selected(
         self,
         prompt: str,
-        expected_pack: str,
         expected_skill: str,
         *,
         task_type: str = "research",
         grade: str = "M",
     ) -> None:
-        result = route(prompt, task_type=task_type, grade=grade)
-        self.assertEqual((expected_pack, expected_skill), selected(result), ranked_summary(result))
+        with tempfile.TemporaryDirectory() as tempdir:
+            target_root = Path(tempdir) / ".agents"
+            install_skills(target_root)
+            result = route(prompt, task_type=task_type, grade=grade, target_root=target_root)
+        self.assertEqual(("local-skill-index", expected_skill), selected(result), ranked_summary(result))
 
     def assert_not_selected(
         self,
@@ -122,10 +163,13 @@ class ScienceMedicalImagingPackConsolidationTests(unittest.TestCase):
         task_type: str = "research",
         grade: str = "M",
     ) -> None:
-        result = route(prompt, task_type=task_type, grade=grade)
+        with tempfile.TemporaryDirectory() as tempdir:
+            target_root = Path(tempdir) / ".agents"
+            install_skills(target_root)
+            result = route(prompt, task_type=task_type, grade=grade, target_root=target_root)
         chosen_pack, chosen_skill = selected(result)
         if blocked_pack is not None:
-            self.assertNotEqual(blocked_pack, chosen_pack, ranked_summary(result))
+            self.assertNotIn(chosen_skill, MEDICAL_IMAGING_SKILLS, ranked_summary(result))
         if blocked_skill is not None:
             self.assertNotEqual(blocked_skill, chosen_skill, ranked_summary(result))
 
@@ -142,30 +186,25 @@ class ScienceMedicalImagingPackConsolidationTests(unittest.TestCase):
     def test_medical_imaging_positive_routes_hit_direct_owners(self) -> None:
         self.assert_selected(
             "用 pydicom 读取 CT DICOM tags，匿名化 PatientName，并导出 pixel array",
-            "science-medical-imaging",
             "pydicom",
             task_type="coding",
         )
         self.assert_selected(
             "从 NCI Imaging Data Commons 查询 TCIA cancer imaging cohort 并下载 DICOMWeb 样例",
-            "science-medical-imaging",
             "imaging-data-commons",
         )
         self.assert_selected(
             "用 histolab 对 whole slide image 做 tissue detection 和 H&E tile extraction",
-            "science-medical-imaging",
             "histolab",
             task_type="coding",
         )
         self.assert_selected(
             "用 OMERO server Python API 读取 microscopy image server 的 ROI annotations",
-            "science-medical-imaging",
             "omero-integration",
             task_type="coding",
         )
         self.assert_selected(
             "用 PathML 构建 computational pathology WSI pipeline，包含 nucleus segmentation 和 spatial graph",
-            "science-medical-imaging",
             "pathml",
             task_type="planning",
         )
@@ -218,7 +257,6 @@ class ScienceMedicalImagingPackConsolidationTests(unittest.TestCase):
     def test_histolab_and_pathml_split_is_stable(self) -> None:
         self.assert_selected(
             "用 histolab 做 WSI tile extraction、tissue detection 和 H&E tile dataset preparation",
-            "science-medical-imaging",
             "histolab",
             task_type="coding",
         )
@@ -229,7 +267,6 @@ class ScienceMedicalImagingPackConsolidationTests(unittest.TestCase):
         )
         self.assert_selected(
             "用 PathML 构建 digital pathology workflow，包含 nucleus segmentation、multiplex pathology 和 tissue graph",
-            "science-medical-imaging",
             "pathml",
             task_type="planning",
         )
@@ -240,84 +277,10 @@ class ScienceMedicalImagingPackConsolidationTests(unittest.TestCase):
         )
 
     def test_keyword_index_uses_specific_medical_imaging_terms(self) -> None:
-        required = {
-            "pydicom": ["dicom anonymization", "dicom pixel data", "medical scan"],
-            "imaging-data-commons": ["nci imaging data commons", "tcia", "dicomweb", "cancer imaging cohort"],
-            "histolab": ["wsi tile extraction", "tissue detection", "h&e tile"],
-            "omero-integration": ["omero server", "roi annotation", "microscopy image server"],
-            "pathml": ["computational pathology", "nucleus segmentation", "spatial pathology", "multiplex pathology"],
-        }
-        for skill_id, terms in required.items():
-            with self.subTest(skill_id=skill_id):
-                keywords = skill_keywords(skill_id)
-                for term in terms:
-                    self.assertIn(term, keywords)
+        self.assertFalse((REPO_ROOT / "config" / "skill-keyword-index.json").exists())
 
     def test_routing_rules_encode_medical_imaging_owner_boundaries(self) -> None:
-        expected_negative = {
-            "pydicom": [
-                "pubmed",
-                "clinicaltrials",
-                "latex",
-                "scientific report",
-                "generic image processing",
-                "ocr",
-                "screenshot",
-                "scRNA-seq",
-                "rdkit",
-                "data commons",
-            ],
-            "imaging-data-commons": [
-                "generic data commons",
-                "population indicators",
-                "statistical variables",
-                "dcid",
-                "pubmed",
-                "clinicaltrials",
-                "latex",
-                "scientific report",
-                "generic public dataset",
-            ],
-            "histolab": [
-                "dicom",
-                "dicomweb",
-                "omero",
-                "pathml workflow",
-                "nucleus segmentation",
-                "pubmed",
-                "clinicaltrials",
-                "generic image processing",
-                "ocr",
-            ],
-            "omero-integration": [
-                "pubmed",
-                "clinicaltrials",
-                "dicom",
-                "tcia",
-                "histolab",
-                "pathml",
-                "generic microscopy literature",
-                "scRNA-seq",
-                "rna-seq",
-            ],
-            "pathml": [
-                "dicom tag",
-                "dicom anonymization",
-                "imaging data commons",
-                "tcia",
-                "omero server",
-                "histolab tile extraction",
-                "pubmed",
-                "clinicaltrials",
-                "generic image processing",
-                "generic machine learning",
-            ],
-        }
-        for skill_id, required_terms in expected_negative.items():
-            with self.subTest(skill_id=skill_id):
-                negatives = negative_keywords(skill_id)
-                for term in required_terms:
-                    self.assertIn(term.lower(), negatives)
+        self.assertFalse((REPO_ROOT / "config" / "skill-routing-rules.json").exists())
 
     def test_kept_skill_docs_state_routing_boundaries(self) -> None:
         expected_phrases = {

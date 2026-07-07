@@ -42,7 +42,6 @@
     "config/observability-policy.json",
     "config/operator-preview-contract.json",
     "config/openspec-policy.json",
-    "config/pack-manifest.json",
     "config/phase-cleanup-policy.json",
     "config/plan-execution-policy.json",
     "config/powershell-host-policy.json",
@@ -65,8 +64,6 @@
     "config/skill-promotion-policy.json",
     "config/router-thresholds.json",
     "config/skill-alias-map.json",
-    "config/skill-keyword-index.json",
-    "config/skill-routing-rules.json",
     "config/runtime-config-manifest.json",
     "config/runtime-contract.json",
     "config/runtime-core-packaging.json",
@@ -75,7 +72,6 @@
     "config/runtime-script-manifest.json",
     "config/specialist-consultation-policy.json",
     "config/settings.template.codex.json",
-    "config/skills-lock.json",
     "config/system-design-overlay.json",
     "config/tool-registry.json",
     "config/opencode/agents/vibe-implement.md",
@@ -100,7 +96,6 @@
         "config/implementation-guardrails.json",
         "config/native-specialist-execution-policy.json",
         "config/operator-preview-contract.json",
-        "config/pack-manifest.json",
         "config/phase-cleanup-policy.json",
         "config/plan-execution-policy.json",
         "config/powershell-host-policy.json",
@@ -144,9 +139,7 @@
         "config/router-provider-registry.json",
         "config/skill-promotion-policy.json",
         "config/router-thresholds.json",
-        "config/skill-alias-map.json",
-        "config/skill-keyword-index.json",
-        "config/skill-routing-rules.json"
+        "config/skill-alias-map.json"
       ],
       "memory_policy_files": [
         "config/memory-backend-adapters.json",
@@ -178,7 +171,6 @@
       "distribution_and_lock_files": [
         "config/plugins-manifest.codex.json",
         "config/settings.template.codex.json",
-        "config/skills-lock.json",
         "config/upstream-lock.json"
       ],
       "opencode_preview_files": [

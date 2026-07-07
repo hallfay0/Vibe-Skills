@@ -44,7 +44,7 @@ def powershell() -> str:
 
 def run_gate(*args: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [powershell(), "-NoLogo", "-NoProfile", "-File", str(GATE), *args],
+        [powershell(), "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(GATE), *args],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -90,7 +90,7 @@ def copy_debt_gate_policy_fixture(repo_root: Path, *, current_paths: list[str]) 
 
 def run_fixture_gate(gate: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [powershell(), "-NoLogo", "-NoProfile", "-File", str(gate), "-Json"],
+        [powershell(), "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(gate), "-Json"],
         cwd=gate.parents[2],
         capture_output=True,
         text=True,
@@ -100,7 +100,7 @@ def run_fixture_gate(gate: Path) -> subprocess.CompletedProcess[str]:
 
 def run_fixture_gate_with_args(gate: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [powershell(), "-NoLogo", "-NoProfile", "-File", str(gate), *args],
+        [powershell(), "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(gate), *args],
         cwd=gate.parents[2],
         capture_output=True,
         text=True,
@@ -124,15 +124,15 @@ def test_gate_reports_json_and_clean_current_surfaces() -> None:
     assert payload["summary"]["P2"] == 0
     assert payload["summary"]["legacy_allowed_hits"] > 0
     assert "legacy_skill_routing" in payload["retired_terms"]
+    assert "work_binding" in payload["current_fields"]
+    assert "specialist_decision" in payload["current_fields"]
     assert "skill_routing.selected" in payload["current_fields"]
     assert payload["current_model"] == [
-        "skill_candidates",
-        "skill_routing.selected",
-        "skill_execution_lock",
-        "selected_skill_execution",
-        "skill_usage.used",
-        "skill_usage.unused",
-        "skill_usage.evidence",
+        "task_card",
+        "work_plan",
+        "work_binding",
+        "work_results",
+        "verification",
     ]
 
 
@@ -288,7 +288,7 @@ def test_repo_relative_path_requires_path_segment_boundary(tmp_path: Path) -> No
     )
 
     result = subprocess.run(
-        [powershell(), "-NoLogo", "-NoProfile", "-File", str(script)],
+        [powershell(), "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script)],
         cwd=tmp_path,
         capture_output=True,
         text=True,
@@ -378,7 +378,7 @@ def test_runtime_packet_sibling_recommendations_use_neutral_ranking_language() -
 
     assert "route_authority_eligible" not in text
     assert "additional XL route-authority specialist candidate" not in text
-    assert "additional XL ranked specialist candidate" in text
+    assert "additional XL ranked local installed specialist candidate" in text
 
 
 def test_current_unit_and_integration_fixtures_do_not_write_retired_root_fields() -> None:

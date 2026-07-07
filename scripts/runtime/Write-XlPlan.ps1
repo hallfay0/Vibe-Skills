@@ -123,11 +123,8 @@ $skillUsage = if ($runtimeInputPacket -and $runtimeInputPacket.PSObject.Properti
 } else {
     Read-VibeSkillUsageArtifact -SessionRoot $sessionRoot -Fallback $null
 }
-$selectedUsageSkill = if ($runtimeInputPacket -and $runtimeInputPacket.route_snapshot) {
-    [string]$runtimeInputPacket.route_snapshot.selected_skill
-} else {
-    ''
-}
+$selectedUsageSkill = Get-VibePrimaryBoundSkillId -RuntimeInputPacket $runtimeInputPacket
+$routeRuntimeAlignment = New-VibeRouteRuntimeAlignmentProjection -RuntimeInputPacket $runtimeInputPacket
 $requestedGradeFloor = if (
     $runtimeInputPacket -and
     $runtimeInputPacket.PSObject.Properties.Name -contains 'requested_grade_floor' -and
@@ -207,6 +204,14 @@ $approvedDispatch = @(Convert-VibeSkillRoutingSelectedToDispatch -RuntimeInputPa
 $localSuggestions = @()
 $executionPhaseDecomposition = if (
     $runtimeInputPacket -and
+    $runtimeInputPacket.PSObject.Properties.Name -contains 'host_decision' -and
+    $null -ne $runtimeInputPacket.host_decision -and
+    $runtimeInputPacket.host_decision.PSObject.Properties.Name -contains 'phase_decomposition' -and
+    $null -ne $runtimeInputPacket.host_decision.phase_decomposition
+) {
+    $runtimeInputPacket.host_decision.phase_decomposition
+} elseif (
+    $runtimeInputPacket -and
     $runtimeInputPacket.PSObject.Properties.Name -contains 'execution_phase_decomposition' -and
     $null -ne $runtimeInputPacket.execution_phase_decomposition
 ) {
@@ -267,50 +272,49 @@ if ($runtimeInputPacket) {
         "- Entry intent: $entryIntentId",
         "- Requested stop stage: $requestedStageStop",
         "- Requested grade floor: $requestedGradeFloorDisplay",
-        "- Frozen route pack: $([string]$runtimeInputPacket.route_snapshot.selected_pack)",
-        "- Frozen route skill: $([string]$runtimeInputPacket.route_snapshot.selected_skill)",
+        "- Bounded work skill: $selectedUsageSkill",
         "- Frozen route mode: $([string]$runtimeInputPacket.route_snapshot.route_mode)",
-        "- Router/runtime skill mismatch: $([bool]$runtimeInputPacket.divergence_shadow.skill_mismatch)"
+        "- Bounded work differs from runtime authority: $([bool]$routeRuntimeAlignment.skill_mismatch)"
     )
     $hostReentryAction = if (
-        $runtimeInputPacket.PSObject.Properties.Name -contains 'host_reentry_action' -and
-        -not [string]::IsNullOrWhiteSpace([string]$runtimeInputPacket.host_reentry_action)
-    ) {
-        [string]$runtimeInputPacket.host_reentry_action
-    } elseif (
         $runtimeInputPacket.PSObject.Properties.Name -contains 'continuation_context' -and
         $null -ne $runtimeInputPacket.continuation_context -and
         $runtimeInputPacket.continuation_context.PSObject.Properties.Name -contains 'reentry_action'
     ) {
         [string]$runtimeInputPacket.continuation_context.reentry_action
+    } elseif (
+        $runtimeInputPacket.PSObject.Properties.Name -contains 'host_reentry_action' -and
+        -not [string]::IsNullOrWhiteSpace([string]$runtimeInputPacket.host_reentry_action)
+    ) {
+        [string]$runtimeInputPacket.host_reentry_action
     } else {
         ''
     }
     $hostRevisionTargetStage = if (
-        $runtimeInputPacket.PSObject.Properties.Name -contains 'host_revision_target_stage' -and
-        -not [string]::IsNullOrWhiteSpace([string]$runtimeInputPacket.host_revision_target_stage)
-    ) {
-        [string]$runtimeInputPacket.host_revision_target_stage
-    } elseif (
         $runtimeInputPacket.PSObject.Properties.Name -contains 'continuation_context' -and
         $null -ne $runtimeInputPacket.continuation_context -and
         $runtimeInputPacket.continuation_context.PSObject.Properties.Name -contains 'revision_target_stage'
     ) {
         [string]$runtimeInputPacket.continuation_context.revision_target_stage
+    } elseif (
+        $runtimeInputPacket.PSObject.Properties.Name -contains 'host_revision_target_stage' -and
+        -not [string]::IsNullOrWhiteSpace([string]$runtimeInputPacket.host_revision_target_stage)
+    ) {
+        [string]$runtimeInputPacket.host_revision_target_stage
     } else {
         ''
     }
     $hostRevisionDelta = if (
-        $runtimeInputPacket.PSObject.Properties.Name -contains 'host_revision_delta' -and
-        $null -ne $runtimeInputPacket.host_revision_delta
-    ) {
-        @(Get-VibeNormalizedStringList -Values $runtimeInputPacket.host_revision_delta)
-    } elseif (
         $runtimeInputPacket.PSObject.Properties.Name -contains 'continuation_context' -and
         $null -ne $runtimeInputPacket.continuation_context -and
         $runtimeInputPacket.continuation_context.PSObject.Properties.Name -contains 'revision_delta'
     ) {
         @(Get-VibeNormalizedStringList -Values $runtimeInputPacket.continuation_context.revision_delta)
+    } elseif (
+        $runtimeInputPacket.PSObject.Properties.Name -contains 'host_revision_delta' -and
+        $null -ne $runtimeInputPacket.host_revision_delta
+    ) {
+        @(Get-VibeNormalizedStringList -Values $runtimeInputPacket.host_revision_delta)
     } else {
         @()
     }
@@ -436,7 +440,7 @@ if (@($approvedDispatch).Count -gt 0) {
         '',
         '## Selected Skill Execution Plan',
         '- Selected skill execution is mandatory and bounded inside governed `vibe`; it does not transfer runtime authority away from vibe.',
-        '- This section lists only skills selected into the six-stage work through `skill_routing.selected`.',
+        '- This section lists only skills selected into the six-stage work through `work_binding`.',
         '- Before specialist execution starts, governed `vibe` emits one unified disclosure for selected skills using each skill''s real `skill_md_path` or `native_skill_entrypoint`.',
         '- Each selected skill must be invoked through its native workflow, input contract, and validation style.',
         '- Selected skill outputs remain subordinate to the frozen requirement and the governed plan.'

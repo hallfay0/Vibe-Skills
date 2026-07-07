@@ -44,7 +44,7 @@ def run_ps_json(body: str) -> dict[str, object] | list[dict[str, object]]:
         raise unittest.SkipTest("PowerShell executable not available in PATH")
 
     completed = subprocess.run(
-        [shell, "-NoLogo", "-NoProfile", "-Command", body],
+        [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", body],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,

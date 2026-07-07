@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -37,7 +38,7 @@ def run_ps_json(script: str) -> dict[str, object]:
     if shell is None:
         raise unittest.SkipTest("PowerShell executable not available")
     result = subprocess.run(
-        [shell, "-NoLogo", "-NoProfile", "-Command", script],
+        [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -56,10 +57,57 @@ def as_list(value: object) -> list[object]:
 
 
 class BinarySkillUsageContractTests(unittest.TestCase):
+    def test_configured_skill_roots_follow_host_defaults(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            home = root / "home"
+            codex_target = home / ".agents"
+            claude_target = home / ".claude"
+
+            payload = run_ps_json(
+                "& { "
+                f". {ps_quote(str(RUNTIME_COMMON))}; "
+                f". {ps_quote(str(SKILL_USAGE_COMMON))}; "
+                f"$codex = @(Get-VibeConfiguredSkillRoots -RepoRoot {ps_quote(str(REPO_ROOT))} -TargetRoot {ps_quote(str(codex_target))} -HostId 'codex'); "
+                f"$claude = @(Get-VibeConfiguredSkillRoots -RepoRoot {ps_quote(str(REPO_ROOT))} -TargetRoot {ps_quote(str(claude_target))} -HostId 'claude-code'); "
+                "[pscustomobject]@{ codex = $codex; claude = $claude } | ConvertTo-Json -Depth 20 "
+                "}"
+            )
+
+            self.assertEqual(
+                [str((home / ".agents" / "skills").resolve()), str((home / ".codex" / "skills").resolve())],
+                payload["codex"],
+            )
+            self.assertEqual([str((home / ".claude" / "skills").resolve())], payload["claude"])
+
+    def test_local_skill_authority_honors_explicit_shared_root_for_claude_code(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            target_root = root / "home" / ".agents"
+            skill_dir = target_root / "skills" / "feature-planning"
+            skill_dir.mkdir(parents=True)
+            skill_path = skill_dir / "SKILL.md"
+            skill_path.write_text("# Feature Planning\n", encoding="utf-8", newline="\n")
+
+            payload = run_ps_json(
+                "& { "
+                f". {ps_quote(str(RUNTIME_COMMON))}; "
+                f". {ps_quote(str(SKILL_USAGE_COMMON))}; "
+                f"$authority = Resolve-VibeLocalSkillAuthority -RepoRoot {ps_quote(str(REPO_ROOT))} -SkillId 'feature-planning' -NativeSkillEntrypoint {ps_quote(str(skill_path))} -TargetRoot {ps_quote(str(target_root))} -HostId 'claude-code' -RequireProvidedEntrypoint; "
+                "$authority | ConvertTo-Json -Depth 20 "
+                "}"
+            )
+
+            self.assertTrue(payload["valid"])
+            self.assertEqual("ok", payload["reason"])
+            self.assertEqual(str(skill_path.resolve()), payload["canonical_entrypoint"])
+            self.assertEqual(str((target_root / "skills").resolve()), payload["source_root"])
+
     def test_full_skill_load_records_hash_path_line_and_byte_counts(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             root = Path(tempdir)
-            skill_dir = root / "bundled" / "skills" / "demo-skill"
+            target_root = root / "home" / ".agents"
+            skill_dir = root / "home" / ".agents" / "skills" / "demo-skill"
             skill_dir.mkdir(parents=True)
             skill_text = "---\nname: demo-skill\ndescription: demo\n---\n# Demo\nUse the demo workflow.\n"
             skill_path = skill_dir / "SKILL.md"
@@ -70,7 +118,7 @@ class BinarySkillUsageContractTests(unittest.TestCase):
                 "& { "
                 f". {ps_quote(str(RUNTIME_COMMON))}; "
                 f". {ps_quote(str(SKILL_USAGE_COMMON))}; "
-                f"$record = New-VibeSkillUsageLoadedSkill -RepoRoot {ps_quote(str(root))} -SkillId 'demo-skill' -LoadedAtStage 'skeleton_check'; "
+                f"$record = New-VibeSkillUsageLoadedSkill -RepoRoot {ps_quote(str(REPO_ROOT))} -SkillId 'demo-skill' -LoadedAtStage 'skeleton_check' -TargetRoot {ps_quote(str(target_root))} -HostId 'codex'; "
                 "$record | ConvertTo-Json -Depth 20 "
                 "}"
             )
@@ -86,7 +134,8 @@ class BinarySkillUsageContractTests(unittest.TestCase):
     def test_artifact_impact_promotes_loaded_skill_to_used_and_removes_unused_reason(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             root = Path(tempdir)
-            skill_dir = root / "bundled" / "skills" / "demo-skill"
+            target_root = root / "home" / ".agents"
+            skill_dir = root / "home" / ".agents" / "skills" / "demo-skill"
             skill_dir.mkdir(parents=True)
             (skill_dir / "SKILL.md").write_text("# Demo\nUse it.\n", encoding="utf-8", newline="\n")
 
@@ -94,7 +143,7 @@ class BinarySkillUsageContractTests(unittest.TestCase):
                 "& { "
                 f". {ps_quote(str(RUNTIME_COMMON))}; "
                 f". {ps_quote(str(SKILL_USAGE_COMMON))}; "
-                f"$loaded = New-VibeSkillUsageLoadedSkill -RepoRoot {ps_quote(str(root))} -SkillId 'demo-skill' -LoadedAtStage 'skeleton_check'; "
+                f"$loaded = New-VibeSkillUsageLoadedSkill -RepoRoot {ps_quote(str(REPO_ROOT))} -SkillId 'demo-skill' -LoadedAtStage 'skeleton_check' -TargetRoot {ps_quote(str(target_root))} -HostId 'codex'; "
                 "$usage = New-VibeInitialSkillUsage -LoadedSkills @($loaded) -TouchedSkills @([pscustomobject]@{ skill_id = 'demo-skill'; reason = 'loaded_but_no_artifact_impact' }); "
                 "$usage = Update-VibeSkillUsageArtifactImpact -SkillUsage $usage -SkillId 'demo-skill' -Stage 'xl_plan' -ArtifactRef 'xl_plan.md' -ImpactSummary 'Plan follows the loaded demo skill workflow.'; "
                 "$usage | ConvertTo-Json -Depth 20 "
@@ -116,7 +165,8 @@ class BinarySkillUsageContractTests(unittest.TestCase):
     def test_artifact_impact_can_update_after_empty_unused_json_roundtrip(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             root = Path(tempdir)
-            skill_dir = root / "bundled" / "skills" / "demo-skill"
+            target_root = root / "home" / ".agents"
+            skill_dir = root / "home" / ".agents" / "skills" / "demo-skill"
             skill_dir.mkdir(parents=True)
             (skill_dir / "SKILL.md").write_text("# Demo\nUse it.\n", encoding="utf-8", newline="\n")
 
@@ -124,7 +174,7 @@ class BinarySkillUsageContractTests(unittest.TestCase):
                 "& { "
                 f". {ps_quote(str(RUNTIME_COMMON))}; "
                 f". {ps_quote(str(SKILL_USAGE_COMMON))}; "
-                f"$loaded = New-VibeSkillUsageLoadedSkill -RepoRoot {ps_quote(str(root))} -SkillId 'demo-skill' -LoadedAtStage 'skeleton_check'; "
+                f"$loaded = New-VibeSkillUsageLoadedSkill -RepoRoot {ps_quote(str(REPO_ROOT))} -SkillId 'demo-skill' -LoadedAtStage 'skeleton_check' -TargetRoot {ps_quote(str(target_root))} -HostId 'codex'; "
                 "$usage = New-VibeInitialSkillUsage -LoadedSkills @($loaded) -TouchedSkills @([pscustomobject]@{ skill_id = 'demo-skill'; reason = 'loaded_but_no_artifact_impact' }); "
                 "$usage = Update-VibeSkillUsageArtifactImpact -SkillUsage $usage -SkillId 'demo-skill' -Stage 'requirement_doc' -ArtifactRef 'requirement.md' -ImpactSummary 'Requirement uses the demo skill.'; "
                 "$usage = ($usage | ConvertTo-Json -Depth 20 | ConvertFrom-Json); "
@@ -145,12 +195,26 @@ class BinarySkillUsageContractTests(unittest.TestCase):
             self.skipTest("PowerShell executable not available")
 
         with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            target_root = root / "home" / ".agents"
+            skill_dir = root / "home" / ".agents" / "skills" / "biopython-fasta"
+            skill_dir.mkdir(parents=True)
+            (skill_dir / "SKILL.md").write_text(
+                "---\nname: biopython-fasta\ndescription: Use biopython to parse FASTA and summarize sequence lengths.\n---\n# Biopython FASTA\n",
+                encoding="utf-8",
+                newline="\n",
+            )
             artifact_root = Path(tempdir) / "artifacts"
             run_id = "pytest-binary-skill-usage-freeze"
+            env = os.environ.copy()
+            env["VCO_HOST_ID"] = "codex"
+            env["VIBE_AGENTS_HOME"] = str(target_root)
             command = [
                 shell,
                 "-NoLogo",
                 "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
                 "-File",
                 str(REPO_ROOT / "scripts" / "runtime" / "Freeze-RuntimeInputPacket.ps1"),
                 "-Task",
@@ -162,11 +226,11 @@ class BinarySkillUsageContractTests(unittest.TestCase):
                 "-ArtifactRoot",
                 str(artifact_root),
             ]
-            subprocess.run(command, cwd=REPO_ROOT, capture_output=True, text=True, encoding="utf-8", check=True)
+            subprocess.run(command, cwd=REPO_ROOT, env=env, capture_output=True, text=True, encoding="utf-8", check=True)
 
             packet_path = next(artifact_root.rglob("runtime-input-packet.json"))
             packet = json.loads(packet_path.read_text(encoding="utf-8"))
-            selected_skill = packet["route_snapshot"]["selected_skill"]
+            selected_skill = packet["work_binding"]["units"][0]["bound_skill"]
             usage = packet["skill_usage"]
 
             self.assertEqual("binary_used_unused", usage["state_model"])

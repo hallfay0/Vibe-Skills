@@ -35,6 +35,7 @@ def test_runtime_packet_execution_runs_fixed_stage_sequence() -> None:
     assert result.route['runtime_selected_skill'] == 'vibe'
     assert result.route['task_type'] == 'coding'
     assert result.plan['internal_grade'] == 'L'
+    assert result.snapshot['terminal_stage'] == 'phase_cleanup'
 
 
 def test_runtime_packet_execution_stops_after_requested_stage_stop() -> None:
@@ -64,6 +65,7 @@ def test_runtime_packet_execution_stops_after_requested_stage_stop() -> None:
         'requirement_doc',
         'xl_plan',
     )
+    assert result.snapshot['terminal_stage'] == 'xl_plan'
     assert result.memory['stage_count'] == 4
 
 
@@ -92,6 +94,7 @@ def test_runtime_packet_execution_stops_after_requirement_freeze_for_vibe_want()
         'deep_interview',
         'requirement_doc',
     )
+    assert result.snapshot['terminal_stage'] == 'requirement_doc'
     assert result.memory['stage_count'] == 3
 
 

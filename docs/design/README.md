@@ -45,7 +45,6 @@ Representative leaves now grouped here include:
 ## Cross-Layer Handoff
 
 - [`../docs-information-architecture.md`](../docs-information-architecture.md): docs taxonomy and placement rules
-- [`../../scripts/verify/README.md`](../../scripts/verify/README.md): verify entry surface that consumes some design/playbook guidance
 - [`../../references/index.md`](../../references/index.md): long-lived contracts and matrices that complement design docs
 - [`../archive/root-docs/README.md`](../archive/root-docs/README.md): archived root-level playbooks, reports, and historical matrices
 
@@ -53,4 +52,5 @@ Representative leaves now grouped here include:
 
 - Put long-lived design notes, integration design leaves, and reusable playbooks here instead of adding more weakly linked root docs.
 - Keep current runtime summary, release truth, and dated execution receipts out of this directory.
+- Lower-level verify entry details still live in [`../../scripts/verify/README.md`](../../scripts/verify/README.md), but they are not the first handoff from this design index.
 - If a design doc becomes obsolete, move it to archive instead of re-expanding the docs root.

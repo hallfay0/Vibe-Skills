@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import shutil
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -31,19 +33,36 @@ DELETED_SKILLS = [
     "molfeat",
 ]
 
+ROUTE_SKILLS = sorted(set(KEPT_SKILLS + ["pubmed-database", "clinicaltrials-database"]))
 
-def route(prompt: str, task_type: str = "research", grade: str = "L") -> dict[str, object]:
+
+def install_skills(target_root: Path) -> None:
+    skills_root = target_root / "skills"
+    skills_root.mkdir(parents=True, exist_ok=True)
+    for skill_id in ROUTE_SKILLS:
+        shutil.copytree(REPO_ROOT / "bundled" / "skills" / skill_id, skills_root / skill_id)
+
+
+def route(
+    prompt: str,
+    task_type: str = "research",
+    grade: str = "L",
+    target_root: Path | None = None,
+) -> dict[str, object]:
     return route_prompt(
         prompt=prompt,
         grade=grade,
         task_type=task_type,
+        target_root=str(target_root) if target_root is not None else None,
+        host_id="codex",
         repo_root=REPO_ROOT,
     )
 
 
 def selected(result: dict[str, object]) -> tuple[str, str]:
     selected_row = result.get("selected")
-    assert isinstance(selected_row, dict), result
+    if not isinstance(selected_row, dict):
+        return "", ""
     return str(selected_row.get("pack_id") or ""), str(selected_row.get("skill") or "")
 
 
@@ -80,14 +99,16 @@ class ScienceChemDrugPackConsolidationTests(unittest.TestCase):
     def assert_selected(
         self,
         prompt: str,
-        expected_pack: str,
         expected_skill: str,
         *,
         task_type: str = "research",
         grade: str = "L",
     ) -> None:
-        result = route(prompt, task_type=task_type, grade=grade)
-        self.assertEqual((expected_pack, expected_skill), selected(result), ranked_summary(result))
+        with tempfile.TemporaryDirectory() as tempdir:
+            target_root = Path(tempdir) / ".agents"
+            install_skills(target_root)
+            result = route(prompt, task_type=task_type, grade=grade, target_root=target_root)
+        self.assertEqual(("local-skill-index", expected_skill), selected(result), ranked_summary(result))
 
     def assert_not_science_chem_drug(
         self,
@@ -96,8 +117,11 @@ class ScienceChemDrugPackConsolidationTests(unittest.TestCase):
         task_type: str = "research",
         grade: str = "L",
     ) -> None:
-        result = route(prompt, task_type=task_type, grade=grade)
-        self.assertNotEqual("science-chem-drug", selected(result)[0], ranked_summary(result))
+        with tempfile.TemporaryDirectory() as tempdir:
+            target_root = Path(tempdir) / ".agents"
+            install_skills(target_root)
+            result = route(prompt, task_type=task_type, grade=grade, target_root=target_root)
+        self.assertNotIn(selected(result)[1], KEPT_SKILLS, ranked_summary(result))
 
     def test_manifest_shrinks_to_three_route_owners(self) -> None:
         pack = pack_by_id("science-chem-drug")
@@ -128,14 +152,12 @@ class ScienceChemDrugPackConsolidationTests(unittest.TestCase):
     def test_rdkit_fingerprint_routes_to_rdkit(self) -> None:
         self.assert_selected(
             "用RDKit解析SMILES并计算Morgan fingerprint",
-            "science-chem-drug",
             "rdkit",
         )
 
     def test_chembl_activity_routes_to_chembl(self) -> None:
         self.assert_selected(
             "在 ChEMBL 查询 EGFR 靶点的 IC50 / Ki / Kd 活性数据，并导出 assay 表格",
-            "science-chem-drug",
             "chembl-database",
             grade="M",
         )
@@ -143,7 +165,6 @@ class ScienceChemDrugPackConsolidationTests(unittest.TestCase):
     def test_medchem_sar_routes_to_medchem(self) -> None:
         self.assert_selected(
             "做药物化学 SAR 分析、PAINS 过滤、Lipinski 规则和先导化合物优化建议",
-            "science-chem-drug",
             "medchem",
             task_type="planning",
         )
@@ -167,7 +188,6 @@ class ScienceChemDrugPackConsolidationTests(unittest.TestCase):
     def test_datamol_compat_prompt_routes_to_rdkit(self) -> None:
         self.assert_selected(
             "用 datamol 批量标准化 SMILES 并生成分子指纹",
-            "science-chem-drug",
             "rdkit",
             task_type="coding",
             grade="M",
@@ -181,14 +201,12 @@ class ScienceChemDrugPackConsolidationTests(unittest.TestCase):
     def test_pubmed_bibtex_does_not_route_to_chem_drug(self) -> None:
         self.assert_selected(
             "在 PubMed 检索文献并导出 BibTeX",
-            "science-literature-citations",
             "pubmed-database",
         )
 
     def test_clinical_trials_does_not_route_to_chem_drug(self) -> None:
         self.assert_selected(
             "在 ClinicalTrials.gov 按 NCT 编号查询临床试验入排标准和终点",
-            "science-clinical-regulatory",
             "clinicaltrials-database",
         )
 

@@ -95,3 +95,22 @@ def test_generated_nested_suffix_preserves_topology_and_legacy_behavior() -> Non
 
     assert module.resolve_generated_nested_compatibility_suffix(topology_governance) == Path("bundled/skills/vibe")
     assert module.resolve_generated_nested_compatibility_suffix(legacy_governance) == Path("bundled/skills/vibe")
+
+
+def test_generated_nested_suffix_can_be_disabled() -> None:
+    module = _load_module()
+    governance = {
+        "packaging": {
+            "generated_compatibility": {
+                "nested_runtime_root": {
+                    "relative_path": "",
+                    "materialization_mode": "disabled",
+                },
+            },
+        },
+        "source_of_truth": {
+            "bundled_root": "bundled/skills/vibe",
+        },
+    }
+
+    assert module.resolve_generated_nested_compatibility_suffix(governance) is None

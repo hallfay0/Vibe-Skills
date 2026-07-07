@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -11,18 +12,31 @@ sys.path.insert(0, str(REPO_ROOT / "packages" / "runtime-core" / "src"))
 from vgo_runtime.router_contract_runtime import route_prompt  # noqa: E402
 
 
-def route(prompt: str, task_type: str = "research", grade: str = "M") -> dict[str, object]:
-    return route_prompt(
-        prompt=prompt,
-        grade=grade,
-        task_type=task_type,
-        repo_root=REPO_ROOT,
-    )
+def route(prompt: str, task_type: str = "research", grade: str = "M", installed_skill: str | None = None) -> dict[str, object]:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        agent_root = Path(temp_dir) / "home" / ".agents"
+        if installed_skill is not None:
+            skill_dir = agent_root / "skills" / installed_skill
+            skill_dir.mkdir(parents=True)
+            (skill_dir / "SKILL.md").write_text(
+                f"---\nname: {prompt}\ndescription: {installed_skill} handles this local workflow.\n---\n# {installed_skill}\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+        return route_prompt(
+            prompt=prompt,
+            grade=grade,
+            task_type=task_type,
+            target_root=str(agent_root),
+            host_id="codex",
+            repo_root=REPO_ROOT,
+        )
 
 
 def selected(result: dict[str, object]) -> tuple[str, str]:
     selected_row = result.get("selected")
-    assert isinstance(selected_row, dict), result
+    if not isinstance(selected_row, dict):
+        return "", ""
     return str(selected_row.get("pack_id") or ""), str(selected_row.get("skill") or "")
 
 
@@ -52,8 +66,8 @@ class BioScienceDirectOwnerRoutingTests(unittest.TestCase):
         task_type: str = "research",
         grade: str = "M",
     ) -> None:
-        result = route(prompt, task_type=task_type, grade=grade)
-        self.assertEqual(("bio-science", expected_skill), selected(result), ranked_summary(result))
+        result = route(prompt, task_type=task_type, grade=grade, installed_skill=expected_skill)
+        self.assertEqual(("local-skill-index", expected_skill), selected(result), ranked_summary(result))
 
     def assert_not_selected(
         self,

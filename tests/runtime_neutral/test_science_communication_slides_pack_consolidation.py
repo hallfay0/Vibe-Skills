@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import shutil
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -38,19 +40,47 @@ REMOVED_PACK_TRIGGERS = [
     "示意图",
 ]
 
+ROUTE_SKILLS = sorted(
+    set(
+        KEPT_SKILLS
+        + [
+            "latex-posters",
+            "scientific-schematics",
+            "scientific-visualization",
+            "markitdown",
+            "generate-image",
+        ]
+    )
+)
 
-def route(prompt: str, task_type: str = "research", grade: str = "L") -> dict[str, object]:
+
+def install_skills(target_root: Path) -> None:
+    skills_root = target_root / "skills"
+    skills_root.mkdir(parents=True, exist_ok=True)
+    for skill_id in ROUTE_SKILLS:
+        shutil.copytree(REPO_ROOT / "bundled" / "skills" / skill_id, skills_root / skill_id)
+
+
+def route(
+    prompt: str,
+    task_type: str = "research",
+    grade: str = "L",
+    target_root: Path | None = None,
+) -> dict[str, object]:
     return route_prompt(
         prompt=prompt,
         grade=grade,
         task_type=task_type,
+        target_root=str(target_root) if target_root is not None else None,
+        host_id="codex",
         repo_root=REPO_ROOT,
     )
 
 
 def selected(result: dict[str, object]) -> tuple[str, str]:
     selected_row = result.get("selected")
-    assert isinstance(selected_row, dict), result
+    if not isinstance(selected_row, dict):
+        return "", ""
     return str(selected_row.get("pack_id") or ""), str(selected_row.get("skill") or "")
 
 
@@ -87,14 +117,16 @@ class ScienceCommunicationSlidesPackConsolidationTests(unittest.TestCase):
     def assert_selected(
         self,
         prompt: str,
-        expected_pack: str,
         expected_skill: str,
         *,
         task_type: str = "research",
         grade: str = "L",
     ) -> None:
-        result = route(prompt, task_type=task_type, grade=grade)
-        self.assertEqual((expected_pack, expected_skill), selected(result), ranked_summary(result))
+        with tempfile.TemporaryDirectory() as tempdir:
+            target_root = Path(tempdir) / ".agents"
+            install_skills(target_root)
+            result = route(prompt, task_type=task_type, grade=grade, target_root=target_root)
+        self.assertEqual(("local-skill-index", expected_skill), selected(result), ranked_summary(result))
 
     def assert_not_science_communication(
         self,
@@ -103,8 +135,11 @@ class ScienceCommunicationSlidesPackConsolidationTests(unittest.TestCase):
         task_type: str = "research",
         grade: str = "L",
     ) -> None:
-        result = route(prompt, task_type=task_type, grade=grade)
-        self.assertNotEqual("science-communication-slides", selected(result)[0], ranked_summary(result))
+        with tempfile.TemporaryDirectory() as tempdir:
+            target_root = Path(tempdir) / ".agents"
+            install_skills(target_root)
+            result = route(prompt, task_type=task_type, grade=grade, target_root=target_root)
+        self.assertNotIn(selected(result)[1], KEPT_SKILLS, ranked_summary(result))
 
     def test_manifest_shrinks_to_four_route_owners(self) -> None:
         pack = pack_by_id("science-communication-slides")
@@ -140,7 +175,6 @@ class ScienceCommunicationSlidesPackConsolidationTests(unittest.TestCase):
     def test_scientific_slide_deck_routes_to_scientific_slides(self) -> None:
         self.assert_selected(
             "顶级PPT制作：组会汇报 slide deck，需要讲述结构与视觉规范",
-            "science-communication-slides",
             "scientific-slides",
             task_type="planning",
             grade="L",
@@ -149,7 +183,6 @@ class ScienceCommunicationSlidesPackConsolidationTests(unittest.TestCase):
     def test_slidev_pdf_export_routes_to_slides_as_code(self) -> None:
         self.assert_selected(
             "用 Slidev 做组会汇报并导出 PDF",
-            "science-communication-slides",
             "slides-as-code",
             task_type="coding",
             grade="L",
@@ -158,7 +191,6 @@ class ScienceCommunicationSlidesPackConsolidationTests(unittest.TestCase):
     def test_marp_pdf_export_routes_to_slides_as_code(self) -> None:
         self.assert_selected(
             "用 Marp 做科研 presentation 并导出 PDF",
-            "science-communication-slides",
             "slides-as-code",
             task_type="coding",
             grade="L",
@@ -167,7 +199,6 @@ class ScienceCommunicationSlidesPackConsolidationTests(unittest.TestCase):
     def test_pptx_poster_routes_to_pptx_posters(self) -> None:
         self.assert_selected(
             "制作 PowerPoint PPTX 学术海报",
-            "science-communication-slides",
             "pptx-posters",
             task_type="planning",
             grade="L",
@@ -176,7 +207,6 @@ class ScienceCommunicationSlidesPackConsolidationTests(unittest.TestCase):
     def test_plain_conference_poster_routes_to_latex_posters(self) -> None:
         self.assert_selected(
             "制作学术海报 conference poster",
-            "scholarly-publishing-workflow",
             "latex-posters",
             task_type="planning",
             grade="L",
@@ -185,7 +215,6 @@ class ScienceCommunicationSlidesPackConsolidationTests(unittest.TestCase):
     def test_explicit_infographic_routes_to_infographics(self) -> None:
         self.assert_selected(
             "做一个研究结论信息图 infographic visual summary",
-            "science-communication-slides",
             "infographics",
             task_type="planning",
             grade="L",
@@ -194,7 +223,6 @@ class ScienceCommunicationSlidesPackConsolidationTests(unittest.TestCase):
     def test_mermaid_flowchart_leaves_slides_pack(self) -> None:
         self.assert_selected(
             "用 Mermaid 写一个实验流程图 flowchart，并给出可复制的 markdown",
-            "science-figures-visualization",
             "scientific-schematics",
             task_type="coding",
             grade="M",
@@ -203,7 +231,6 @@ class ScienceCommunicationSlidesPackConsolidationTests(unittest.TestCase):
     def test_mechanism_flowchart_routes_to_scientific_schematics(self) -> None:
         self.assert_selected(
             "画一个机制示意图和流程图",
-            "science-figures-visualization",
             "scientific-schematics",
             task_type="planning",
             grade="L",
@@ -212,7 +239,6 @@ class ScienceCommunicationSlidesPackConsolidationTests(unittest.TestCase):
     def test_result_figures_route_to_scientific_visualization(self) -> None:
         self.assert_selected(
             "绘制机器学习模型评估结果图和投稿图",
-            "science-figures-visualization",
             "scientific-visualization",
             task_type="coding",
             grade="L",
@@ -221,7 +247,6 @@ class ScienceCommunicationSlidesPackConsolidationTests(unittest.TestCase):
     def test_pdf_to_markdown_routes_to_markitdown_pack(self) -> None:
         self.assert_selected(
             "把 PDF 转成 Markdown，要求保留表格与标题结构",
-            "docs-markitdown-conversion",
             "markitdown",
             task_type="coding",
             grade="M",

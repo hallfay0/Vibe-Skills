@@ -10,8 +10,9 @@ RUNTIME_SRC = ROOT / 'packages' / 'runtime-core' / 'src'
 if str(RUNTIME_SRC) not in sys.path:
     sys.path.insert(0, str(RUNTIME_SRC))
 
-from vgo_runtime.router import infer_task_type, load_allowed_vibe_entry_ids, route_runtime_task
 from vgo_runtime.governance import choose_internal_grade
+from vgo_runtime.router import infer_task_type, load_allowed_vibe_entry_ids, route_runtime_task
+import vgo_runtime.runtime_bridge as runtime_bridge
 
 
 def test_runtime_router_allowed_entry_ids_match_shared_surface_contract() -> None:
@@ -25,6 +26,82 @@ def test_runtime_router_allowed_entry_ids_match_shared_surface_contract() -> Non
     assert load_allowed_vibe_entry_ids() == expected
 
 
+def test_router_script_frames_results_as_candidate_data_only() -> None:
+    text = (ROOT / "scripts" / "router" / "resolve-pack-route.ps1").read_text(encoding="utf-8")
+
+    assert "'-m', 'vgo_cli.main'," in text
+    assert "'route'," in text
+    assert "--force-runtime-neutral" in text
+    assert "pack-manifest.json" not in text
+    assert "skill-routing-rules.json" not in text
+    assert "skill-keyword-index.json" not in text
+    assert "completion_language_allowed" not in text
+    assert "work_binding truth" not in text
+
+
+def test_runtime_bridge_prefers_python_owner_before_powershell_bridge(
+    monkeypatch,
+    capsys,
+) -> None:
+    recorded: dict[str, object] = {}
+
+    monkeypatch.setattr(runtime_bridge, "resolve_powershell_host", lambda: "pwsh")
+
+    def fake_route_prompt(**kwargs):
+        recorded["route_prompt"] = kwargs
+        return {"driver": "python-owner"}
+
+    def fail_invoke(*args, **kwargs):
+        raise AssertionError("powershell bridge should not own the happy path")
+
+    monkeypatch.setattr(runtime_bridge, "route_prompt", fake_route_prompt)
+    monkeypatch.setattr(runtime_bridge, "invoke_canonical_router", fail_invoke)
+
+    exit_code = runtime_bridge.main(["--prompt", "plan this task"])
+
+    assert exit_code == 0
+    assert recorded["route_prompt"] == {
+        "prompt": "plan this task",
+        "grade": "M",
+        "task_type": "planning",
+        "requested_skill": None,
+        "entry_intent_id": None,
+        "requested_grade_floor": None,
+        "target_root": None,
+        "host_id": None,
+        "repo_root": ROOT,
+    }
+    assert json.loads(capsys.readouterr().out) == {"driver": "python-owner"}
+
+
+def test_runtime_bridge_uses_powershell_only_as_fallback_for_owner_failure(
+    monkeypatch,
+    capsys,
+) -> None:
+    recorded = {"route_prompt": 0, "bridge": 0}
+
+    monkeypatch.setattr(runtime_bridge, "resolve_powershell_host", lambda: "pwsh")
+
+    def fail_route_prompt(**kwargs):
+        recorded["route_prompt"] += 1
+        raise RuntimeError("python owner failed")
+
+    def fake_invoke(args, shell):
+        recorded["bridge"] += 1
+        assert shell == "pwsh"
+        assert args.prompt == "route with fallback"
+        return {"driver": "powershell-fallback"}
+
+    monkeypatch.setattr(runtime_bridge, "route_prompt", fail_route_prompt)
+    monkeypatch.setattr(runtime_bridge, "invoke_canonical_router", fake_invoke)
+
+    exit_code = runtime_bridge.main(["--prompt", "route with fallback"])
+
+    assert exit_code == 0
+    assert recorded == {"route_prompt": 1, "bridge": 1}
+    assert json.loads(capsys.readouterr().out) == {"driver": "powershell-fallback"}
+
+
 def test_runtime_router_rejects_entries_outside_shared_surface_contract() -> None:
     try:
         route_runtime_task('plan this change', requested_skill='vibe-xl')
@@ -32,6 +109,49 @@ def test_runtime_router_rejects_entries_outside_shared_surface_contract() -> Non
         assert True
     else:
         raise AssertionError('expected unsupported entry id failure')
+
+
+def test_runtime_router_uses_requested_entry_as_router_selection() -> None:
+    route = route_runtime_task('implement the approved plan', requested_skill='vibe-do-it')
+
+    assert route.requested_skill == 'vibe-do-it'
+    assert route.router_selected_skill == 'vibe-do-it'
+    assert route.runtime_selected_skill == 'vibe'
+
+
+def test_runtime_router_prefers_planning_entry_for_architecture_prompt() -> None:
+    route = route_runtime_task('design the architecture and write an implementation plan')
+
+    assert route.router_selected_skill == 'vibe-how-do-we-do'
+    assert route.runtime_selected_skill == 'vibe'
+
+
+def test_runtime_router_prefers_upgrade_entry_for_upgrade_prompt() -> None:
+    route = route_runtime_task('upgrade the local vibe runtime installation')
+
+    assert route.router_selected_skill == 'vibe-upgrade'
+    assert route.runtime_selected_skill == 'vibe'
+
+
+def test_runtime_router_uses_kernel_plan_preference_for_runtime_refactor_prompt() -> None:
+    route = route_runtime_task('design the runtime router refactor and write an implementation plan')
+
+    assert route.router_selected_skill == 'vibe-how-do-we-do'
+    assert route.task_type == 'planning'
+
+
+def test_runtime_router_uses_kernel_resolved_task_type_for_plan_like_coding_prompt() -> None:
+    route = route_runtime_task('need a plan')
+
+    assert route.router_selected_skill == 'vibe-how-do-we-do'
+    assert route.task_type == 'planning'
+
+
+def test_runtime_router_respects_requested_planning_entry_for_task_type() -> None:
+    route = route_runtime_task('implement the approved plan', requested_skill='vibe-how-do-we-do')
+
+    assert route.router_selected_skill == 'vibe-how-do-we-do'
+    assert route.task_type == 'planning'
 
 
 def test_runtime_router_infers_debug_from_keyword_style_router_prompt() -> None:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -66,18 +67,31 @@ def pack_by_id(pack_id: str) -> dict[str, object]:
     raise AssertionError(f"pack missing: {pack_id}")
 
 
-def route(prompt: str, task_type: str = "research", grade: str = "M") -> dict[str, object]:
-    return route_prompt(
-        prompt=prompt,
-        grade=grade,
-        task_type=task_type,
-        repo_root=REPO_ROOT,
-    )
+def route(prompt: str, task_type: str = "research", grade: str = "M", installed_skill: str | None = None) -> dict[str, object]:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        agent_root = Path(temp_dir) / "home" / ".agents"
+        if installed_skill is not None:
+            skill_dir = agent_root / "skills" / installed_skill
+            skill_dir.mkdir(parents=True)
+            (skill_dir / "SKILL.md").write_text(
+                f"---\nname: {prompt}\ndescription: {installed_skill} handles this local workflow.\n---\n# {installed_skill}\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+        return route_prompt(
+            prompt=prompt,
+            grade=grade,
+            task_type=task_type,
+            target_root=str(agent_root),
+            host_id="codex",
+            repo_root=REPO_ROOT,
+        )
 
 
 def selected(result: dict[str, object]) -> tuple[str, str]:
     selected_row = result.get("selected")
-    assert isinstance(selected_row, dict), result
+    if not isinstance(selected_row, dict):
+        return "", ""
     return str(selected_row.get("pack_id") or ""), str(selected_row.get("skill") or "")
 
 
@@ -108,8 +122,8 @@ class BioScienceSecondPassConsolidationTests(unittest.TestCase):
         task_type: str = "research",
         grade: str = "M",
     ) -> None:
-        result = route(prompt, task_type=task_type, grade=grade)
-        self.assertEqual((expected_pack, expected_skill), selected(result), ranked_summary(result))
+        result = route(prompt, task_type=task_type, grade=grade, installed_skill=expected_skill)
+        self.assertEqual(("local-skill-index", expected_skill), selected(result), (expected_pack, ranked_summary(result)))
 
     def assert_not_selected(
         self,
@@ -139,27 +153,12 @@ class BioScienceSecondPassConsolidationTests(unittest.TestCase):
         )
 
     def test_removed_bio_science_skills_are_absent_from_live_surfaces(self) -> None:
-        keyword_index = load_json("config/skill-keyword-index.json")
-        routing_rules = load_json("config/skill-routing-rules.json")
-        skills_lock = load_json("config/skills-lock.json")
-
-        keyword_skills = keyword_index.get("skills") or {}
-        routing_skills = routing_rules.get("skills") or {}
-        lock_skills = skills_lock.get("skills") or []
-        lock_names = {
-            str(item.get("name"))
-            for item in lock_skills
-            if isinstance(item, dict) and item.get("name")
-        }
-
-        self.assertIn("bio-database-evidence", keyword_skills)
-        self.assertIn("bio-database-evidence", routing_skills)
+        self.assertFalse((REPO_ROOT / "config" / "skill-keyword-index.json").exists())
+        self.assertFalse((REPO_ROOT / "config" / "skill-routing-rules.json").exists())
+        self.assertFalse((REPO_ROOT / "config" / "skills-lock.json").exists())
         self.assertTrue((REPO_ROOT / "bundled" / "skills" / "bio-database-evidence").exists())
 
         for skill_id in REMOVED_BIO_SCIENCE_SKILLS:
-            self.assertNotIn(skill_id, keyword_skills)
-            self.assertNotIn(skill_id, routing_skills)
-            self.assertNotIn(skill_id, lock_names)
             self.assertFalse((REPO_ROOT / "bundled" / "skills" / skill_id).exists())
 
     def test_bio_database_evidence_owns_biological_database_lookup(self) -> None:

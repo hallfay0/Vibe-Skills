@@ -58,6 +58,7 @@
                                                             "config/runtime-config-manifest.json"
                                                         ],
                                               "directories":  [
+                                                                  "adapters",
                                                                   "docs",
                                                                   "protocols",
                                                                   "templates",
@@ -66,8 +67,8 @@
                                           },
                       "generated_compatibility":  {
                                                       "nested_runtime_root":  {
-                                                                                  "relative_path":  "bundled/skills/vibe",
-                                                                                  "materialization_mode":  "install_only"
+                                                                                  "relative_path":  "",
+                                                                                  "materialization_mode":  "disabled"
                                                                               }
                                                   },
                       "manifests":  [
@@ -110,7 +111,8 @@
                                                               },
                                                     "directories":  {
                                                                         "runtime_support_assets":  [
-                                                                                                       "docs",
+                                                                                                      "adapters",
+                                                                                                      "docs",
                                                                                                        "protocols",
                                                                                                        "templates",
                                                                                                        "mcp"
@@ -125,7 +127,7 @@
     "runtime":  {
                     "installed_runtime":  {
                                               "target_relpath":  "skills/vibe",
-                                              "receipt_relpath":  "skills/vibe/outputs/runtime-freshness-receipt.json",
+                                              "receipt_relpath":  "skills/vibe/.vibeskills/install-receipt.json",
                                               "post_install_gate":  "scripts/verify/vibe-installed-runtime-freshness-gate.ps1",
                                               "frontmatter_gate":  "scripts/verify/vibe-bom-frontmatter-gate.ps1",
                                               "coherence_gate":  "scripts/verify/vibe-release-install-runtime-coherence-gate.ps1",
@@ -145,14 +147,11 @@
                                                                                "apps/vgo-cli/src/vgo_cli/errors.py",
                                                                                "apps/vgo-cli/src/vgo_cli/hosts.py",
                                                                                "apps/vgo-cli/src/vgo_cli/process.py",
-                                                                               "apps/vgo-cli/src/vgo_cli/install_support.py",
                                                                                "apps/vgo-cli/src/vgo_cli/workspace.py",
                                                                                "apps/vgo-cli/src/vgo_cli/commands.py",
                                                                                "apps/vgo-cli/src/vgo_cli/repo.py",
                                                                                "apps/vgo-cli/src/vgo_cli/external.py",
                                                                                "apps/vgo-cli/src/vgo_cli/output.py",
-                                                                               "apps/vgo-cli/src/vgo_cli/install_gates.py",
-                                                                               "apps/vgo-cli/src/vgo_cli/installer_bridge.py",
                                                                                "apps/vgo-cli/src/vgo_cli/skill_surface.py",
                                                                                "apps/vgo-cli/src/vgo_cli/core_bridge.py",
                                                                                "packages/contracts/src/vgo_contracts/__init__.py",
@@ -197,7 +196,7 @@
                                                                                "scripts/router/resolve-pack-route.ps1",
                                                                                "scripts/router/invoke-pack-route.py",
                                                                                "scripts/router/runtime_neutral/router_contract.py",
-                                                                               "packages/runtime-core/src/vgo_runtime/router_bridge.py",
+                                                                               "packages/runtime-core/src/vgo_runtime/runtime_bridge.py",
                                                                                "packages/runtime-core/src/vgo_runtime/router_contract_runtime.py",
                                                                                "packages/runtime-core/src/vgo_runtime/custom_admission.py",
                                                                                "scripts/verify/runtime_neutral/router_bridge_gate.py",
@@ -250,14 +249,11 @@
                                                                                                              "apps/vgo-cli/src/vgo_cli/errors.py",
                                                                                                              "apps/vgo-cli/src/vgo_cli/hosts.py",
                                                                                                              "apps/vgo-cli/src/vgo_cli/process.py",
-                                                                                                             "apps/vgo-cli/src/vgo_cli/install_support.py",
                                                                                                              "apps/vgo-cli/src/vgo_cli/workspace.py",
                                                                                                              "apps/vgo-cli/src/vgo_cli/commands.py",
                                                                                                              "apps/vgo-cli/src/vgo_cli/repo.py",
                                                                                                              "apps/vgo-cli/src/vgo_cli/external.py",
                                                                                                              "apps/vgo-cli/src/vgo_cli/output.py",
-                                                                                                             "apps/vgo-cli/src/vgo_cli/install_gates.py",
-                                                                                                             "apps/vgo-cli/src/vgo_cli/installer_bridge.py",
                                                                                                              "apps/vgo-cli/src/vgo_cli/skill_surface.py",
                                                                                                              "apps/vgo-cli/src/vgo_cli/core_bridge.py",
                                                                                                              "packages/contracts/src/vgo_contracts/__init__.py",
@@ -266,7 +262,7 @@
                                                                                                              "packages/installer-core/src/vgo_installer/install_runtime.py",
                                                                                                              "packages/installer-core/src/vgo_installer/uninstall_runtime.py",
                                                                                                              "packages/installer-core/src/vgo_installer/ledger_service.py",
-                                                                                                             "packages/runtime-core/src/vgo_runtime/router_bridge.py",
+                                                                                                             "packages/runtime-core/src/vgo_runtime/runtime_bridge.py",
                                                                                                              "packages/runtime-core/src/vgo_runtime/router_contract_runtime.py",
                                                                                                              "packages/runtime-core/src/vgo_runtime/custom_admission.py"
                                                                                                          ],

@@ -29,7 +29,9 @@ class CheckShellTargetRootGuardTests(unittest.TestCase):
             )
 
         self.assertNotEqual(0, result.returncode)
-        self.assertIn('Cursor home', result.stderr)
+        self.assertIn('unrecognized arguments', result.stderr)
+        self.assertIn('--host codex', result.stderr)
+        self.assertIn('--target-root', result.stderr)
 
     def test_check_sh_rejects_opencode_repo_local_root_for_codex(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
@@ -48,7 +50,9 @@ class CheckShellTargetRootGuardTests(unittest.TestCase):
             )
 
         self.assertNotEqual(0, result.returncode)
-        self.assertIn('OpenCode root', result.stderr)
+        self.assertIn('unrecognized arguments', result.stderr)
+        self.assertIn('--host codex', result.stderr)
+        self.assertIn('--target-root', result.stderr)
 
 
 if __name__ == '__main__':

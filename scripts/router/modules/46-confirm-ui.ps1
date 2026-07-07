@@ -4,11 +4,14 @@ $confirmUiHelperPath = Join-Path (Split-Path $PSScriptRoot -Parent) '..\common\v
 if (-not (Get-Command Resolve-VgoInstalledSkillsRoot -ErrorAction SilentlyContinue) -and (Test-Path -LiteralPath $confirmUiHelperPath)) {
     . $confirmUiHelperPath
 }
+$skillUsageHelperPath = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'runtime\VibeSkillUsage.Common.ps1'
+if (-not (Get-Command Resolve-VibeLocalSkillAuthority -ErrorAction SilentlyContinue) -and (Test-Path -LiteralPath $skillUsageHelperPath)) {
+    . $skillUsageHelperPath
+}
 
 function Get-ConfirmUiPolicyDefaults {
     return [pscustomobject]@{
         enabled = $true
-        emit_on_route_modes = @("confirm_required", "pack_overlay")
         options = [pscustomobject]@{
             max_skill_options = 5
             include_descriptions = $true
@@ -60,13 +63,11 @@ function Get-ConfirmUiPolicy {
     if (-not $Policy) { return $defaults }
 
     $enabled = if ($Policy.enabled -ne $null) { [bool]$Policy.enabled } else { [bool]$defaults.enabled }
-    $emitOnModes = if ($Policy.emit_on_route_modes) { @($Policy.emit_on_route_modes) } else { @($defaults.emit_on_route_modes) }
     $options = if ($Policy.options) { $Policy.options } else { $defaults.options }
     $unattended = if ($Policy.unattended) { $Policy.unattended } else { $defaults.unattended }
 
     return [pscustomobject]@{
         enabled = $enabled
-        emit_on_route_modes = @($emitOnModes)
         options = [pscustomobject]@{
             max_skill_options = if ($options.max_skill_options -ne $null) { [int]$options.max_skill_options } else { [int]$defaults.options.max_skill_options }
             include_descriptions = if ($options.include_descriptions -ne $null) { [bool]$options.include_descriptions } else { [bool]$defaults.options.include_descriptions }
@@ -306,18 +307,14 @@ function Resolve-SkillMdPath {
     if (-not $Skill) { return $null }
     $skillId = [string]$Skill
 
-    if ($RepoRoot) {
-        $bundled = Join-Path (Join-Path (Join-Path $RepoRoot "bundled") "skills") (Join-Path $skillId "SKILL.md")
-        if (Test-Path -LiteralPath $bundled) { return $bundled }
+    $authority = Resolve-VibeLocalSkillAuthority `
+        -RepoRoot $RepoRoot `
+        -SkillId $skillId `
+        -TargetRoot $TargetRoot `
+        -HostId $HostId
+    if ([bool]$authority.valid) {
+        return [string]$authority.canonical_entrypoint
     }
-
-    $userRoot = Resolve-VgoInstalledSkillsRoot -TargetRoot $TargetRoot -HostId $HostId
-    $installed = Join-Path $userRoot (Join-Path $skillId "SKILL.md")
-    if (Test-Path -LiteralPath $installed) { return $installed }
-
-    $customInstalled = Join-Path $userRoot (Join-Path 'custom' (Join-Path $skillId 'SKILL.md'))
-    if (Test-Path -LiteralPath $customInstalled) { return $customInstalled }
-
     return $null
 }
 
@@ -341,6 +338,61 @@ function Get-SkillDescriptor {
     }
 }
 
+function Test-ConfirmUiRequestedSkillMismatch {
+    param(
+        [object]$Result
+    )
+
+    if (-not $Result -or -not $Result.alias) { return $false }
+    $primaryCandidate = Get-ConfirmUiPrimaryCandidate -Result $Result
+    if (-not $primaryCandidate) { return $false }
+    $requestedCanonical = ''
+    if ($Result.alias.PSObject.Properties.Name -contains 'requested_canonical') {
+        $requestedCanonical = [string]$Result.alias.requested_canonical
+    } elseif ($Result.alias.PSObject.Properties.Name -contains 'canonical') {
+        $requestedCanonical = [string]$Result.alias.canonical
+    } elseif ($Result.alias.PSObject.Properties.Name -contains 'routing_canonical') {
+        $requestedCanonical = [string]$Result.alias.routing_canonical
+    }
+    $selectedSkill = if ($primaryCandidate.PSObject.Properties.Name -contains 'skill') { [string]$primaryCandidate.skill } else { '' }
+    if ([string]::IsNullOrWhiteSpace($requestedCanonical) -or [string]::IsNullOrWhiteSpace($selectedSkill)) { return $false }
+    return (-not [string]::Equals($requestedCanonical.Trim(), $selectedSkill.Trim(), [System.StringComparison]::OrdinalIgnoreCase))
+}
+
+function Test-ConfirmUiRequiresHumanReview {
+    param(
+        [object]$Result,
+        [string[]]$ClarificationQuestions
+    )
+
+    if (-not $Result) { return $false }
+    $selected = Get-ConfirmUiPrimaryCandidate -Result $Result
+    if (-not $selected) { return $false }
+    if ([bool]$Result.hazard_alert_required) { return $true }
+    if ($ClarificationQuestions -and $ClarificationQuestions.Count -gt 0) { return $true }
+
+    $destructive = if ($selected.PSObject.Properties.Name -contains 'destructive') { [bool]$selected.destructive } else { $false }
+    if ($destructive) { return $true }
+
+    $recommendedAction = if ($selected.PSObject.Properties.Name -contains 'recommended_promotion_action') { [string]$selected.recommended_promotion_action } else { '' }
+    return [string]::Equals($recommendedAction.Trim(), 'require_confirmation', [System.StringComparison]::OrdinalIgnoreCase)
+}
+
+function Get-ConfirmUiPrimaryCandidate {
+    param(
+        [object]$Result
+    )
+
+    if (-not $Result) { return $null }
+    if ($Result.PSObject.Properties.Name -contains 'primary_candidate' -and $Result.primary_candidate) {
+        return $Result.primary_candidate
+    }
+    if ($Result.PSObject.Properties.Name -contains 'selected' -and $Result.selected) {
+        return $Result.selected
+    }
+    return $null
+}
+
 function Build-ConfirmSkillOptions {
     param(
         [object]$Result,
@@ -349,17 +401,24 @@ function Build-ConfirmSkillOptions {
         [AllowEmptyString()] [string]$PromptText = '',
         [AllowNull()] [object]$SkillPromotionPolicy = $null,
         [AllowEmptyString()] [string]$TargetRoot = '',
-        [AllowEmptyString()] [string]$HostId = ''
+        [AllowEmptyString()] [string]$HostId = '',
+        [AllowNull()] [object]$UnattendedDecision = $null
     )
 
     $policy = Get-ConfirmUiPolicy -Policy $ConfirmUiPolicy
     if (-not $policy.enabled) { return $null }
     if (-not $Result) { return $null }
-    if (-not ($policy.emit_on_route_modes -contains [string]$Result.route_mode)) { return $null }
-    if (-not $Result.selected) { return $null }
+    if ($UnattendedDecision -and [bool]$UnattendedDecision.unattended) { return $null }
+    $primaryCandidate = Get-ConfirmUiPrimaryCandidate -Result $Result
+    if (-not $primaryCandidate) { return $null }
 
-    $selectedPack = [string]$Result.selected.pack_id
-    $selectedSkill = [string]$Result.selected.skill
+    $clarificationQuestions = @(Get-ConfirmUiClarificationQuestions -Result $Result)
+    $requiresHumanReview = Test-ConfirmUiRequiresHumanReview -Result $Result -ClarificationQuestions $clarificationQuestions
+    $requestedSkillMismatch = Test-ConfirmUiRequestedSkillMismatch -Result $Result
+    if (-not ($requiresHumanReview -or $requestedSkillMismatch)) { return $null }
+
+    $selectedPack = [string]$primaryCandidate.pack_id
+    $selectedSkill = [string]$primaryCandidate.skill
 
     $packRow = $null
     if ($Result.ranked) {
@@ -372,7 +431,7 @@ function Build-ConfirmSkillOptions {
         $ranking = @(
             [pscustomobject]@{
                 skill = $selectedSkill
-                score = if ($Result.selected.selection_score -ne $null) { [double]$Result.selected.selection_score } else { 0.0 }
+                score = if ($primaryCandidate.selection_score -ne $null) { [double]$primaryCandidate.selection_score } else { 0.0 }
             }
         )
     }
@@ -385,7 +444,7 @@ function Build-ConfirmSkillOptions {
         if (-not $selectedRow) {
             $selectedRow = [pscustomobject]@{
                 skill = $selectedSkill
-                score = if ($Result.selected.selection_score -ne $null) { [double]$Result.selected.selection_score } else { 0.0 }
+                score = if ($primaryCandidate.selection_score -ne $null) { [double]$primaryCandidate.selection_score } else { 0.0 }
             }
         }
     }
@@ -707,11 +766,14 @@ function Build-ConfirmUiText {
         }
         $lines += ''
     }
-    if ($Result -and [string]$Result.route_mode -eq 'confirm_required') {
-        $lines += ('Routing confirmation required: current candidate pack `{0}`. Available skills:' -f [string]$ConfirmSkillOptions.selected_pack)
+    $requiresHumanReview = Test-ConfirmUiRequiresHumanReview -Result $Result -ClarificationQuestions $clarificationQuestions
+    if ($requiresHumanReview) {
+        $lines += ('我将会在接下来的工作中使用这些 skills，你觉得 OK 吗？当前建议的技能包是 `{0}`。' -f [string]$ConfirmSkillOptions.selected_pack)
     } else {
-        $lines += ('Routing suggested candidate skills: current primary pack `{0}`. The host may keep the default primary choice or switch to another skill:' -f [string]$ConfirmSkillOptions.selected_pack)
+        $lines += ('我将会在接下来的工作中使用这些 skills，你觉得 OK 吗？当前建议的技能包是 `{0}`。' -f [string]$ConfirmSkillOptions.selected_pack)
     }
+    $lines += '这只是准备使用，不是实际使用证据；最终实际使用必须看 `skill_usage.used` 和证据文件。'
+    $lines += '可选 skills：'
 
     foreach ($opt in @($ConfirmSkillOptions.options)) {
         $desc = if ($opt.description) { [string]$opt.description } else { "" }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -16,13 +17,34 @@ from vgo_runtime.router_contract_runtime import route_prompt  # noqa: E402
 
 
 FREEZE_SCRIPT = REPO_ROOT / "scripts" / "runtime" / "Freeze-RuntimeInputPacket.ps1"
+ROUTE_SKILLS = [
+    "scientific-visualization",
+    "latex-submission-pipeline",
+    "pdf",
+    "literature-review",
+    "scikit-learn",
+]
 
 
-def route(prompt: str, task_type: str = "research", grade: str = "XL") -> dict[str, object]:
+def install_skills(target_root: Path) -> None:
+    skills_root = target_root / "skills"
+    skills_root.mkdir(parents=True, exist_ok=True)
+    for skill_id in ROUTE_SKILLS:
+        shutil.copytree(REPO_ROOT / "bundled" / "skills" / skill_id, skills_root / skill_id)
+
+
+def route(
+    prompt: str,
+    task_type: str = "research",
+    grade: str = "XL",
+    target_root: Path | None = None,
+) -> dict[str, object]:
     return route_prompt(
         prompt=prompt,
         grade=grade,
         task_type=task_type,
+        target_root=str(target_root) if target_root is not None else None,
+        host_id="codex",
         repo_root=REPO_ROOT,
     )
 
@@ -37,6 +59,13 @@ def selected_pack(result: dict[str, object]) -> str:
     selected = result.get("selected")
     assert isinstance(selected, dict), result
     return str(selected.get("pack_id") or "")
+
+
+def route_with_installed(prompt: str, task_type: str = "research", grade: str = "XL") -> dict[str, object]:
+    with tempfile.TemporaryDirectory() as tempdir:
+        target_root = Path(tempdir) / ".agents"
+        install_skills(target_root)
+        return route(prompt, task_type=task_type, grade=grade, target_root=target_root)
 
 
 def ranked_summary(result: dict[str, object]) -> list[tuple[str, str, float, str]]:
@@ -83,6 +112,11 @@ def freeze_packet(task: str) -> dict[str, object]:
     if shell is None:
         raise unittest.SkipTest("PowerShell executable not available")
     with tempfile.TemporaryDirectory() as tempdir:
+        home = Path(tempdir) / "home"
+        target_root = home / ".agents"
+        codex_home = home / ".codex"
+        install_skills(target_root)
+        codex_home.mkdir(parents=True, exist_ok=True)
         artifact_root = Path(tempdir) / "artifacts"
         subprocess.run(
             [
@@ -101,6 +135,8 @@ def freeze_packet(task: str) -> dict[str, object]:
                 "pytest-scientific-visualization-latex-routing",
                 "-ArtifactRoot",
                 str(artifact_root),
+                "-RequestedGradeFloor",
+                "XL",
             ],
             cwd=REPO_ROOT,
             capture_output=True,
@@ -108,6 +144,12 @@ def freeze_packet(task: str) -> dict[str, object]:
             encoding="utf-8",
             errors="replace",
             check=True,
+            env={
+                **dict(os.environ),
+                "CODEX_HOME": str(codex_home),
+                "VCO_HOST_ID": "codex",
+                "VIBE_AGENTS_HOME": str(target_root),
+            },
         )
         packet_path = next(artifact_root.rglob("runtime-input-packet.json"))
         return json.loads(packet_path.read_text(encoding="utf-8"))
@@ -115,37 +157,37 @@ def freeze_packet(task: str) -> dict[str, object]:
 
 class ScientificVisualizationLatexRoutingTests(unittest.TestCase):
     def test_data_visualization_result_figures_route_to_scientific_visualization(self) -> None:
-        result = route("对机器学习结果做数据可视化和结果图")
+        result = route_with_installed("对机器学习结果做数据可视化和结果图")
 
-        self.assertEqual("science-figures-visualization", selected_pack(result), ranked_summary(result))
+        self.assertEqual("local-skill-index", selected_pack(result), ranked_summary(result))
         self.assertEqual("scientific-visualization", selected_skill(result), ranked_summary(result))
 
     def test_model_evaluation_result_figures_route_to_scientific_visualization(self) -> None:
-        result = route("绘制模型评估结果图和投稿图")
+        result = route_with_installed("绘制模型评估结果图和投稿图")
 
-        self.assertEqual("science-figures-visualization", selected_pack(result), ranked_summary(result))
+        self.assertEqual("local-skill-index", selected_pack(result), ranked_summary(result))
         self.assertEqual("scientific-visualization", selected_skill(result), ranked_summary(result))
 
     def test_latex_paper_pdf_build_routes_to_latex_pipeline(self) -> None:
-        result = route("用 LaTeX 写论文并构建 PDF")
+        result = route_with_installed("用 LaTeX 写论文并构建 PDF")
 
-        self.assertEqual("scholarly-publishing-workflow", selected_pack(result), ranked_summary(result))
+        self.assertEqual("local-skill-index", selected_pack(result), ranked_summary(result))
         self.assertEqual("latex-submission-pipeline", selected_skill(result), ranked_summary(result))
 
     def test_latex_tooling_paper_build_routes_to_latex_pipeline(self) -> None:
-        result = route("配置 latexmk/chktex/latexindent 编译论文 PDF", task_type="coding")
+        result = route_with_installed("配置 latexmk/chktex/latexindent 编译论文 PDF", task_type="coding")
 
-        self.assertEqual("scholarly-publishing-workflow", selected_pack(result), ranked_summary(result))
+        self.assertEqual("local-skill-index", selected_pack(result), ranked_summary(result))
         self.assertEqual("latex-submission-pipeline", selected_skill(result), ranked_summary(result))
 
     def test_existing_pdf_extraction_still_routes_to_pdf(self) -> None:
-        result = route("读取 PDF 并提取正文")
+        result = route_with_installed("读取 PDF 并提取正文")
 
-        self.assertEqual("docs-media", selected_pack(result), ranked_summary(result))
+        self.assertEqual("local-skill-index", selected_pack(result), ranked_summary(result))
         self.assertEqual("pdf", selected_skill(result), ranked_summary(result))
 
     def test_generic_literature_review_does_not_route_to_latex_pipeline(self) -> None:
-        result = route("普通文献综述和论文研究")
+        result = route_with_installed("普通文献综述和论文研究")
 
         self.assertNotEqual("latex-submission-pipeline", selected_skill(result), ranked_summary(result))
 
@@ -156,7 +198,7 @@ class ScientificVisualizationLatexRoutingTests(unittest.TestCase):
         )
 
         routing = packet["skill_routing"]
-        selected = as_list(routing["selected"])
+        selected = as_list(routing.get("candidates"))
         selected_ids = {str(item["skill_id"]) for item in selected if isinstance(item, dict)}
         self.assertIn("scientific-visualization", selected_ids)
         self.assertIn("latex-submission-pipeline", selected_ids)

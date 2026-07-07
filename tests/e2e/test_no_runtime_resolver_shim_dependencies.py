@@ -22,7 +22,7 @@ def test_runtime_surfaces_do_not_depend_on_resolver_shims_outside_their_own_modu
         if file_path in ALLOWED_PATHS:
             continue
         relative = file_path.relative_to(ROOT)
-        if relative.parts[0] in {'tests', 'docs', '.git', '__pycache__'}:
+        if relative.parts[0] in {'tests', 'docs', '.git', '.tmp', '__pycache__'}:
             continue
         if file_path.suffix in {'.pyc'}:
             continue

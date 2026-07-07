@@ -27,6 +27,14 @@ def resolve_powershell() -> str | None:
 
 
 class CurrentRoutingContractScanTests(unittest.TestCase):
+    def test_scan_script_treats_work_binding_as_only_current_execution_truth_phrase(self) -> None:
+        text = SCAN_SCRIPT.read_text(encoding="utf-8")
+
+        self.assertIn("derived_from_work_binding", text)
+        self.assertIn("source = ''work_binding.units[*].bound_skill''", text)
+        self.assertNotIn("derived_from_skill_routing_selected", text)
+        self.assertNotIn("source = ''skill_routing.selected''", text)
+
     def test_scan_script_powershell_subprocess_calls_have_timeouts(self) -> None:
         text = Path(__file__).read_text(encoding="utf-8")
         run_call = "subprocess" + ".run("
@@ -41,7 +49,7 @@ class CurrentRoutingContractScanTests(unittest.TestCase):
             self.skipTest("PowerShell executable not available")
 
         completed = subprocess.run(
-            [shell, "-NoLogo", "-NoProfile", "-File", str(SCAN_SCRIPT), "-Json"],
+            [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(SCAN_SCRIPT), "-Json"],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
@@ -51,6 +59,7 @@ class CurrentRoutingContractScanTests(unittest.TestCase):
         )
         payload = json.loads(completed.stdout)
 
+        self.assertEqual(0, int(payload["current_entrypoint_guidance_violation_count"]))
         self.assertEqual(0, int(payload["current_surface_violation_count"]))
         self.assertEqual(0, int(payload["current_runtime_old_format_fallback_count"]))
         self.assertIn("retired_old_format_reference_count", payload)
@@ -81,7 +90,7 @@ class CurrentRoutingContractScanTests(unittest.TestCase):
             self.skipTest("PowerShell executable not available")
 
         completed = subprocess.run(
-            [shell, "-NoLogo", "-NoProfile", "-File", str(SCAN_SCRIPT)],
+            [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(SCAN_SCRIPT)],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
@@ -91,6 +100,7 @@ class CurrentRoutingContractScanTests(unittest.TestCase):
         )
 
         self.assertIn("VCO Current Routing Contract Scan", completed.stdout)
+        self.assertIn("Current entrypoint guidance violations: 0", completed.stdout)
         self.assertIn("Retired old-format references:", completed.stdout)
         self.assertIn("Hard cleanup current behavior test retired-field reads: 0", completed.stdout)
         self.assertIn("Hard cleanup historical docs with retired terms:", completed.stdout)
@@ -121,7 +131,7 @@ class CurrentRoutingContractScanTests(unittest.TestCase):
             )
 
             completed = subprocess.run(
-                [shell, "-NoLogo", "-NoProfile", "-File", str(SCAN_SCRIPT), "-RepoRoot", str(repo_root), "-Json"],
+                [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(SCAN_SCRIPT), "-RepoRoot", str(repo_root), "-Json"],
                 cwd=REPO_ROOT,
                 capture_output=True,
                 text=True,

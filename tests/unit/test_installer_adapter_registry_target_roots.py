@@ -28,9 +28,9 @@ def test_resolve_target_root_spec_projects_registry_target_root_semantics() -> N
     normalized, spec = resolve_target_root_spec(REPO_ROOT, 'windsurf')
 
     assert normalized == 'windsurf'
-    assert spec['env'] == 'WINDSURF_HOME'
-    assert spec['rel'] == '.codeium/windsurf'
-    assert spec['kind'] == 'host-home'
+    assert spec['env'] == 'VIBE_AGENTS_HOME'
+    assert spec['rel'] == '.agents'
+    assert spec['kind'] == 'shared-home'
     assert spec['install_mode'] == 'runtime-core'
 
 
@@ -38,9 +38,9 @@ def test_resolve_target_root_spec_projects_codex_to_real_host_root() -> None:
     normalized, spec = resolve_target_root_spec(REPO_ROOT, 'codex')
 
     assert normalized == 'codex'
-    assert spec['env'] == 'CODEX_HOME'
-    assert spec['rel'] == '.codex'
-    assert spec['kind'] == 'host-home'
+    assert spec['env'] == 'VIBE_AGENTS_HOME'
+    assert spec['rel'] == '.agents'
+    assert spec['kind'] == 'shared-home'
     assert spec['install_mode'] == 'governed'
 
 
@@ -48,9 +48,9 @@ def test_resolve_target_root_spec_projects_claude_code_to_real_host_root() -> No
     normalized, spec = resolve_target_root_spec(REPO_ROOT, 'claude-code')
 
     assert normalized == 'claude-code'
-    assert spec['env'] == 'CLAUDE_HOME'
-    assert spec['rel'] == '.claude'
-    assert spec['kind'] == 'host-home'
+    assert spec['env'] == 'VIBE_AGENTS_HOME'
+    assert spec['rel'] == '.agents'
+    assert spec['kind'] == 'shared-home'
     assert spec['install_mode'] == 'preview-guidance'
 
 
@@ -58,9 +58,9 @@ def test_resolve_target_root_spec_projects_cursor_to_real_host_root() -> None:
     normalized, spec = resolve_target_root_spec(REPO_ROOT, 'cursor')
 
     assert normalized == 'cursor'
-    assert spec['env'] == 'CURSOR_HOME'
-    assert spec['rel'] == '.cursor'
-    assert spec['kind'] == 'host-home'
+    assert spec['env'] == 'VIBE_AGENTS_HOME'
+    assert spec['rel'] == '.agents'
+    assert spec['kind'] == 'shared-home'
     assert spec['install_mode'] == 'preview-guidance'
 
 
@@ -68,9 +68,9 @@ def test_resolve_target_root_spec_projects_openclaw_to_real_host_root() -> None:
     normalized, spec = resolve_target_root_spec(REPO_ROOT, 'openclaw')
 
     assert normalized == 'openclaw'
-    assert spec['env'] == 'OPENCLAW_HOME'
-    assert spec['rel'] == '.openclaw'
-    assert spec['kind'] == 'host-home'
+    assert spec['env'] == 'VIBE_AGENTS_HOME'
+    assert spec['rel'] == '.agents'
+    assert spec['kind'] == 'shared-home'
     assert spec['install_mode'] == 'runtime-core'
 
 
@@ -78,9 +78,9 @@ def test_resolve_target_root_spec_projects_opencode_to_real_host_root() -> None:
     normalized, spec = resolve_target_root_spec(REPO_ROOT, 'opencode')
 
     assert normalized == 'opencode'
-    assert spec['env'] == 'OPENCODE_HOME'
-    assert spec['rel'] == '.config/opencode'
-    assert spec['kind'] == 'host-home'
+    assert spec['env'] == 'VIBE_AGENTS_HOME'
+    assert spec['rel'] == '.agents'
+    assert spec['kind'] == 'shared-home'
     assert spec['install_mode'] == 'preview-guidance'
 
 
@@ -139,15 +139,15 @@ def test_resolve_default_target_root_text_preserves_env_projection() -> None:
     resolved = resolve_default_target_root_text(
         REPO_ROOT,
         'windsurf',
-        env={'WINDSURF_HOME': '/tmp/windsurf-home'},
+        env={'VIBE_AGENTS_HOME': '/tmp/agents-home'},
         home='/home/tester',
     )
 
-    assert resolved == '/tmp/windsurf-home'
+    assert resolved == '/tmp/agents-home'
 
 
 def test_resolve_default_target_root_text_honors_explicit_empty_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv('WINDSURF_HOME', '/tmp/process-windsurf-home')
+    monkeypatch.setenv('VIBE_AGENTS_HOME', '/tmp/process-agents-home')
 
     resolved = resolve_default_target_root_text(
         REPO_ROOT,
@@ -156,7 +156,7 @@ def test_resolve_default_target_root_text_honors_explicit_empty_env(monkeypatch:
         home='/home/tester',
     )
 
-    assert resolved == '/home/tester/.codeium/windsurf'
+    assert resolved == '/home/tester/.agents'
 
 
 def test_resolve_default_target_root_text_preserves_posix_home_projection() -> None:
@@ -167,18 +167,18 @@ def test_resolve_default_target_root_text_preserves_posix_home_projection() -> N
         home='/home/tester',
     )
 
-    assert resolved == '/home/tester/.config/opencode'
+    assert resolved == '/home/tester/.agents'
 
 
 def test_resolve_default_target_root_uses_env_projection() -> None:
     resolved = resolve_default_target_root(
         REPO_ROOT,
         'windsurf',
-        env={'WINDSURF_HOME': '/tmp/windsurf-home'},
+        env={'VIBE_AGENTS_HOME': '/tmp/agents-home'},
         home='/home/tester',
     )
 
-    assert resolved == Path('/tmp/windsurf-home').resolve()
+    assert resolved == Path('/tmp/agents-home').resolve()
 
 
 def test_resolve_default_target_root_defaults_codex_to_real_home_root() -> None:
@@ -189,7 +189,7 @@ def test_resolve_default_target_root_defaults_codex_to_real_home_root() -> None:
         home='/home/tester',
     )
 
-    assert resolved == Path('/home/tester/.codex').resolve()
+    assert resolved == Path('/home/tester/.agents').resolve()
 
 
 def test_resolve_default_target_root_defaults_claude_code_to_real_home_root() -> None:
@@ -200,7 +200,7 @@ def test_resolve_default_target_root_defaults_claude_code_to_real_home_root() ->
         home='/home/tester',
     )
 
-    assert resolved == Path('/home/tester/.claude').resolve()
+    assert resolved == Path('/home/tester/.agents').resolve()
 
 
 def test_resolve_default_target_root_defaults_cursor_to_real_home_root() -> None:
@@ -211,7 +211,7 @@ def test_resolve_default_target_root_defaults_cursor_to_real_home_root() -> None
         home='/home/tester',
     )
 
-    assert resolved == Path('/home/tester/.cursor').resolve()
+    assert resolved == Path('/home/tester/.agents').resolve()
 
 
 def test_resolve_default_target_root_defaults_windsurf_to_real_home_root() -> None:
@@ -222,7 +222,7 @@ def test_resolve_default_target_root_defaults_windsurf_to_real_home_root() -> No
         home='/home/tester',
     )
 
-    assert resolved == Path('/home/tester/.codeium/windsurf').resolve()
+    assert resolved == Path('/home/tester/.agents').resolve()
 
 
 def test_resolve_default_target_root_defaults_openclaw_to_real_home_root() -> None:
@@ -233,7 +233,7 @@ def test_resolve_default_target_root_defaults_openclaw_to_real_home_root() -> No
         home='/home/tester',
     )
 
-    assert resolved == Path('/home/tester/.openclaw').resolve()
+    assert resolved == Path('/home/tester/.agents').resolve()
 
 
 def test_resolve_default_target_root_defaults_opencode_to_real_home_root() -> None:
@@ -244,7 +244,7 @@ def test_resolve_default_target_root_defaults_opencode_to_real_home_root() -> No
         home='/home/tester',
     )
 
-    assert resolved == Path('/home/tester/.config/opencode').resolve()
+    assert resolved == Path('/home/tester/.agents').resolve()
 
 
 def test_resolve_matching_target_root_hosts_preserves_opencode_compatibility_signature(tmp_path: Path) -> None:

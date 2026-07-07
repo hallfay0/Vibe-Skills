@@ -1,8 +1,11 @@
 # Vibe-Governed Project Delivery Acceptance Governance
 
-> Historical / Retired Note: This document discusses retired or cleanup-context routing terminology. The current routing model is `skill_candidates -> skill_routing.selected -> selected_skill_execution -> skill_usage`; old terms here are historical only and are not current runtime states.
+> Historical / Retired Note: This document may reference older cleanup terminology, but the current work-first truth model is `task_card -> work_plan -> work_binding -> work_results -> verification`. `skill_routing.selected` remains only as an optional compatibility mirror when older readers still expose it.
 
 This document defines the stable rule set for judging work completed under `vibe` as a delivered project rather than as a merely well-governed runtime session.
+
+When this page talks about runtime truth, read `work_binding` first. Delivery
+acceptance sits above runtime truth; it does not replace it.
 
 ## Why This Exists
 

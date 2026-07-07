@@ -107,6 +107,8 @@ class ClaudePreviewScaffoldTests(unittest.TestCase):
         cmd = [
             powershell,
             '-NoProfile',
+            '-ExecutionPolicy',
+            'Bypass',
             '-File',
             str(REPO_ROOT / 'scripts' / 'bootstrap' / 'scaffold-claude-preview.ps1'),
             '-RepoRoot',
@@ -134,21 +136,39 @@ class ClaudePreviewScaffoldTests(unittest.TestCase):
         host_settings_path = self.target_root / '.vibeskills' / 'host-settings.json'
         bootstrap_receipt_path = Path(str(payload['global_instruction_bootstrap_receipt']))
         settings = json.loads(settings_path.read_text(encoding='utf-8'))
+        closure = json.loads(closure_path.read_text(encoding='utf-8'))
+        host_settings = json.loads(host_settings_path.read_text(encoding='utf-8'))
         self.assertEqual(self.existing_settings['env'], settings['env'])
         self.assertEqual(self.existing_settings['model'], settings['model'])
         self.assertEqual('claude-code', settings['vibeskills']['host_id'])
         self.assertTrue(settings['vibeskills']['managed'])
+        self.assertEqual(str(self.target_root.resolve()), settings['vibeskills']['runtime_root'])
+        self.assertEqual(str(self.target_root.resolve()), settings['vibeskills']['host_bridge_root'])
+        self.assertEqual(payload['desired_shared_runtime_root'], settings['vibeskills']['desired_shared_runtime_root'])
+        self.assertEqual('legacy-host-root-override', settings['vibeskills']['runtime_layout_mode'])
         self.assertEqual(str((self.target_root / 'skills').resolve()), settings['vibeskills']['skills_root'])
         self.assertTrue(closure_path.exists())
         self.assertTrue(host_settings_path.exists())
         self.assertTrue(bootstrap_receipt_path.exists())
+        self.assertEqual(str(self.target_root.resolve()), closure['runtime_root'])
+        self.assertEqual(str(self.target_root.resolve()), closure['host_bridge_root'])
+        self.assertEqual(payload['desired_shared_runtime_root'], closure['desired_shared_runtime_root'])
+        self.assertEqual('legacy-host-root-override', closure['runtime_layout_mode'])
+        self.assertEqual(str(self.target_root.resolve()), host_settings['runtime_root'])
+        self.assertEqual(str(self.target_root.resolve()), host_settings['host_bridge_root'])
+        self.assertEqual(payload['desired_shared_runtime_root'], host_settings['desired_shared_runtime_root'])
+        self.assertEqual('legacy-host-root-override', host_settings['runtime_layout_mode'])
+        self.assertEqual(str(self.target_root.resolve()), payload['runtime_root'])
+        self.assertEqual(str(self.target_root.resolve()), payload['host_bridge_root'])
+        self.assertNotEqual(str(self.target_root.resolve()), payload['desired_shared_runtime_root'])
+        self.assertEqual('legacy-host-root-override', payload['runtime_layout_mode'])
         for name in self.EXPECTED_WRAPPER_SKILLS:
             self.assertTrue((self.target_root / 'skills' / name / 'SKILL.md').exists())
         self.assertFalse((self.target_root / 'commands').exists())
         self.assertEqual('preview-guidance', payload['install_mode'])
         self.assertEqual(str(closure_path), payload['host_closure_path'])
 
-    def test_preview_check_accepts_preview_settings_file_without_touching_real_settings(self) -> None:
+    def test_shell_install_rejects_legacy_claude_host_root_options_without_touching_real_settings(self) -> None:
         install_cmd = [
             'bash',
             str(REPO_ROOT / 'install.sh'),
@@ -159,35 +179,17 @@ class ClaudePreviewScaffoldTests(unittest.TestCase):
             '--profile',
             'full',
         ]
-        subprocess.run(install_cmd, capture_output=True, text=True, check=True)
+        result = subprocess.run(install_cmd, capture_output=True, text=True)
 
-        check_cmd = [
-            'bash',
-            str(REPO_ROOT / 'check.sh'),
-            '--host',
-            'claude-code',
-            '--profile',
-            'full',
-            '--target-root',
-            str(self.target_root),
-        ]
-        result = subprocess.run(check_cmd, capture_output=True, text=True, check=True)
-
-        self.assertIn('[OK] host closure manifest', result.stdout)
-        self.assertIn('[OK] host settings sidecar', result.stdout)
-        self.assertIn('managed settings.json surface', result.stdout)
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn('unrecognized arguments', result.stderr)
+        self.assertIn('--host claude-code', result.stderr)
+        self.assertIn('--target-root', result.stderr)
         settings = json.loads((self.target_root / 'settings.json').read_text(encoding='utf-8'))
         self.assertEqual(self.existing_settings['env'], settings['env'])
         self.assertEqual(self.existing_settings['model'], settings['model'])
-        self.assertEqual('claude-code', settings['vibeskills']['host_id'])
-        self.assertTrue((self.target_root / '.vibeskills' / 'host-settings.json').exists())
-        self.assertTrue(list((self.target_root / '.vibeskills').glob('global-instruction-bootstrap*.json')))
-        self.assertTrue((self.target_root / 'CLAUDE.md').exists())
-        for name in self.EXPECTED_WRAPPER_SKILLS:
-            self.assertTrue((self.target_root / 'skills' / name / 'SKILL.md').exists())
-        self.assertFalse((self.target_root / 'commands').exists())
 
-    def test_preview_check_deep_runs_bootstrap_doctor_for_claude_code(self) -> None:
+    def test_powershell_install_rejects_legacy_claude_host_root_options_without_touching_real_settings(self) -> None:
         powershell = resolve_powershell()
         if powershell is None:
             self.skipTest('PowerShell executable not available in PATH')
@@ -195,6 +197,8 @@ class ClaudePreviewScaffoldTests(unittest.TestCase):
         install_cmd = [
             powershell,
             '-NoProfile',
+            '-ExecutionPolicy',
+            'Bypass',
             '-File',
             str(REPO_ROOT / 'install.ps1'),
             '-HostId',
@@ -204,25 +208,14 @@ class ClaudePreviewScaffoldTests(unittest.TestCase):
             '-Profile',
             'full',
         ]
-        subprocess.run(install_cmd, capture_output=True, text=True, check=True)
+        result = subprocess.run(install_cmd, capture_output=True, text=True)
 
-        check_cmd = [
-            powershell,
-            '-NoProfile',
-            '-File',
-            str(REPO_ROOT / 'check.ps1'),
-            '-HostId',
-            'claude-code',
-            '-Profile',
-            'full',
-            '-TargetRoot',
-            str(self.target_root),
-            '-Deep',
-        ]
-        result = subprocess.run(check_cmd, capture_output=True, text=True)
-
-        self.assertNotIn("deep doctor skipped", result.stdout)
-        self.assertIn("[OK] vibe bootstrap doctor gate", result.stdout)
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn('parameter', result.stderr.lower())
+        self.assertIn('HostId', result.stderr)
+        settings = json.loads((self.target_root / 'settings.json').read_text(encoding='utf-8'))
+        self.assertEqual(self.existing_settings['env'], settings['env'])
+        self.assertEqual(self.existing_settings['model'], settings['model'])
 
 
 if __name__ == '__main__':

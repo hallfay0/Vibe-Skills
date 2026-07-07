@@ -55,6 +55,8 @@ def run_runtime(task: str, artifact_root: Path) -> dict[str, object]:
             shell,
             "-NoLogo",
             "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
             "-Command",
             (
                 "& { "
@@ -83,7 +85,7 @@ def run_runtime(task: str, artifact_root: Path) -> dict[str, object]:
 
 
 class ActiveConsultationSimplificationTests(unittest.TestCase):
-    def test_default_runtime_closes_without_active_consultation_artifacts(self) -> None:
+    def test_default_runtime_closes_without_active_consultation_artifacts_even_with_selected_skill(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             payload = run_runtime(SPECIALIST_TASK, Path(tempdir))
 
@@ -101,7 +103,6 @@ class ActiveConsultationSimplificationTests(unittest.TestCase):
 
             lifecycle = summary["specialist_lifecycle_disclosure"]
             layer_ids = [str(layer["layer_id"]) for layer in list(lifecycle["layers"])]
-            self.assertIn("discussion_routing", layer_ids)
             self.assertNotIn("discussion_consultation", layer_ids)
             self.assertNotIn("planning_consultation", layer_ids)
             self.assertNotIn("consultation", str(lifecycle["truth_model"]).lower())
@@ -112,10 +113,13 @@ class ActiveConsultationSimplificationTests(unittest.TestCase):
                 self.assertNotIn("## Specialist Consultation", text)
                 self.assertNotIn("consultation truth", text)
                 self.assertNotIn("stage assistant", text.lower())
-            self.assertIn("## Skill Usage", requirement_doc)
-            self.assertIn("## Binary Skill Usage Plan", execution_plan)
-            self.assertIn("used` / `unused", requirement_doc)
-            self.assertIn("skill_usage.used` / `skill_usage.unused", execution_plan)
+            self.assertIn("## Skill Execution Decision", requirement_doc)
+            self.assertIn("Decision state: approved_dispatch", requirement_doc)
+            self.assertIn("## Selected Skill", requirement_doc)
+            self.assertIn("Selected Skill: diagnose", requirement_doc)
+            self.assertIn("## Skill Execution Decision Plan", execution_plan)
+            self.assertIn("Frozen decision state: approved_dispatch", execution_plan)
+            self.assertIn("## Selected Skill Execution Plan", execution_plan)
 
     def test_legacy_consultation_projection_remains_readable_without_usage_claim(self) -> None:
         shell = resolve_powershell()
@@ -156,7 +160,7 @@ class ActiveConsultationSimplificationTests(unittest.TestCase):
             "}"
         )
         completed = subprocess.run(
-            [shell, "-NoLogo", "-NoProfile", "-Command", script],
+            [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
