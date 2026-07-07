@@ -36,7 +36,7 @@ from vgo_contracts.entry_root_guard import EntryRootGuardError, resolve_entry_re
 from vgo_contracts.host_launch_receipt import HostLaunchReceipt, read_host_launch_receipt, write_host_launch_receipt
 from vgo_runtime.kernel.loop import run_local_kernel
 from vgo_runtime.powershell_bridge import run_powershell_json_command
-from vgo_runtime.runtime_truth import build_runtime_truth_packet_from_payload
+from vgo_runtime.runtime_truth import build_runtime_truth_packet, build_runtime_truth_packet_from_payload
 from vgo_runtime.runtime_summary import build_runtime_summary, build_runtime_summary_from_payload
 from vgo_runtime.router import load_allowed_vibe_entry_ids
 from vgo_runtime.stage_stop import (
@@ -1614,15 +1614,83 @@ def _launch_local_agent_kernel(
     if work_binding_path is None:
         raise RuntimeError("local agent kernel summary requires a work_binding artifact")
     work_binding = _load_json_dict(work_binding_path, label="work-binding")
+    work_results_path = _artifact_path_from_artifacts(artifacts, "work_results")
+    work_results = _load_json_dict(work_results_path, label="work-results") if work_results_path else {}
+    verification_path = _artifact_path_from_artifacts(artifacts, "verification")
+    verification = _load_json_dict(verification_path, label="verification") if verification_path else {}
+    proof_ready = str(verification.get("result") or "") == "done"
+    local_status = "completed" if proof_ready else "needs_execution"
+    artifact_kind = "delivery" if proof_ready else "scaffold"
+    bound_skill_ids = _work_binding_bound_skill_ids({"work_binding": work_binding})
+    specialist_decision = {
+        "decision_state": "bound_skills" if bound_skill_ids else "no_specialist_recommendations",
+        "resolution_mode": "local_kernel_work_binding" if bound_skill_ids else "no_specialist_needed",
+        "approved_skill_ids": bound_skill_ids,
+    }
+    runtime_packet_path = session_root / MINIMUM_TRUTH_ARTIFACTS["runtime_input_packet"]
+    governance_capsule_path = session_root / MINIMUM_TRUTH_ARTIFACTS["governance_capsule"]
+    stage_lineage_path = session_root / MINIMUM_TRUTH_ARTIFACTS["stage_lineage"]
+    runtime_packet = build_runtime_truth_packet(
+        run_id=resolved_run_id,
+        task=prompt,
+        work_binding=work_binding,
+        work_results=work_results,
+        specialist_decision=specialist_decision,
+        base_fields={
+            "host_id": host_id,
+            "entry_intent_id": entry_id,
+            "requested_stage_stop": requested_stage_stop,
+            "effective_requested_stage_stop": effective_requested_stage_stop,
+            "stage_stop_source": stage_stop_source,
+            "launch_mode": "local-agent-kernel",
+            "status": local_status,
+            "proof_ready": proof_ready,
+            "artifact_kind": artifact_kind,
+        },
+    )
+    runtime_packet_path.write_text(json.dumps(runtime_packet, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    governance_capsule = {
+        "runtime_selected_skill": CANONICAL_RUNTIME_ENTRY_ID,
+        "host_id": host_id,
+        "entry_id": entry_id,
+        "launch_mode": "local-agent-kernel",
+        "status": local_status,
+        "proof_ready": proof_ready,
+        "artifact_kind": artifact_kind,
+    }
+    governance_capsule_path.write_text(json.dumps(governance_capsule, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    stage_lineage = {
+        "stages": [{"stage_name": effective_requested_stage_stop}],
+        "last_stage_name": effective_requested_stage_stop,
+        "status": local_status,
+        "proof_ready": proof_ready,
+        "artifact_kind": artifact_kind,
+    }
+    stage_lineage_path.write_text(json.dumps(stage_lineage, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    artifacts["runtime_input_packet"] = str(runtime_packet_path)
+    artifacts["governance_capsule"] = str(governance_capsule_path)
+    artifacts["stage_lineage"] = str(stage_lineage_path)
+    truth_artifacts = assert_minimum_truth_artifacts(session_root)
+    assert_minimum_truth_consistency(
+        receipt=receipt,
+        requested_entry_id=entry_id,
+        runtime_packet_path=truth_artifacts["runtime_input_packet"],
+        governance_capsule_path=truth_artifacts["governance_capsule"],
+        stage_lineage_path=truth_artifacts["stage_lineage"],
+    )
     summary = build_runtime_summary(
         run_id=resolved_run_id,
         task=prompt,
         artifacts=artifacts,
         work_binding=work_binding,
+        work_results=work_results,
         base_fields={
             "launch_mode": "local-agent-kernel",
             "host_id": host_id,
             "entry_id": entry_id,
+            "status": local_status,
+            "proof_ready": proof_ready,
+            "artifact_kind": artifact_kind,
             "requested_stage_stop": normalized_requested_stage_stop,
             "effective_requested_stage_stop": effective_requested_stage_stop,
             "stage_stop_source": stage_stop_source,
@@ -1661,6 +1729,8 @@ def _auto_local_agent_root_candidate(
     candidates: list[Path] = []
     if artifact_root is not None:
         candidates.append(Path(artifact_root).expanduser())
+    if repo_root.name.casefold() == "vibe" and (repo_root / "SKILL.md").is_file():
+        candidates.append(repo_root.parent)
     candidates.append(repo_root)
     seen: set[Path] = set()
     for candidate in candidates:
@@ -1740,10 +1810,17 @@ def _runtime_packet_records_no_specialist_resolution(runtime_packet: dict[str, A
         return False
     decision_state = str(specialist_decision.get("decision_state") or "").strip()
     resolution_mode = str(specialist_decision.get("resolution_mode") or "").strip()
-    return (
+    if (
         decision_state == "no_specialist_recommendations"
         and resolution_mode in {"no_matching_specialist", "no_specialist_needed"}
-    )
+    ):
+        return True
+    if decision_state == "degraded" and resolution_mode == "degraded":
+        degraded_ids = specialist_decision.get("degraded_skill_ids")
+        surfaced_ids = specialist_decision.get("surfaced_skill_ids")
+        recommendation_count = int(specialist_decision.get("recommendation_count") or 0)
+        return bool(degraded_ids or surfaced_ids or recommendation_count > 0)
+    return False
 
 
 def _skill_routing_selected_skill_ids(runtime_packet: dict[str, Any]) -> list[str]:

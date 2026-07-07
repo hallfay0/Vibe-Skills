@@ -2782,6 +2782,20 @@ enabled: true
     assert result.artifacts["work_binding"].endswith("work-binding.json")
     assert result.artifacts["work_results"].endswith("work-results.json")
     assert result.artifacts["verification"].endswith("verification.json")
+    assert result.artifacts["runtime_input_packet"].endswith("runtime-input-packet.json")
+    assert result.artifacts["governance_capsule"].endswith("governance-capsule.json")
+    assert result.artifacts["stage_lineage"].endswith("stage-lineage.json")
+    runtime_packet = json.loads(Path(result.artifacts["runtime_input_packet"]).read_text(encoding="utf-8"))
+    governance_capsule = json.loads(Path(result.artifacts["governance_capsule"]).read_text(encoding="utf-8"))
+    stage_lineage = json.loads(Path(result.artifacts["stage_lineage"]).read_text(encoding="utf-8"))
+    assert runtime_packet["status"] == "needs_execution"
+    assert runtime_packet["proof_ready"] is False
+    assert runtime_packet["artifact_kind"] == "scaffold"
+    assert runtime_packet["work_binding"]["units"][0]["bound_skill"] == "code-review"
+    assert governance_capsule["runtime_selected_skill"] == "vibe"
+    assert governance_capsule["status"] == "needs_execution"
+    assert stage_lineage["last_stage_name"] == "phase_cleanup"
+    assert stage_lineage["status"] == "needs_execution"
     receipt = json.loads(result.host_launch_receipt_path.read_text(encoding="utf-8"))
     assert receipt["launch_status"] == "verified"
     summary = json.loads(result.summary_path.read_text(encoding="utf-8"))
@@ -2813,6 +2827,9 @@ enabled: true
     assert summary["artifacts"]["work_dossier_markdown"].endswith("work-dossier.md")
     assert summary["artifacts"]["work_plan"].endswith("plan.json")
     assert summary["artifacts"]["work_results"].endswith("work-results.json")
+    assert summary["artifacts"]["runtime_input_packet"].endswith("runtime-input-packet.json")
+    assert summary["artifacts"]["governance_capsule"].endswith("governance-capsule.json")
+    assert summary["artifacts"]["stage_lineage"].endswith("stage-lineage.json")
     assert "work_dossier" not in summary
     assert "work_summary" not in summary
     assert "task_card" not in summary
@@ -2865,6 +2882,54 @@ enabled: true
     )
 
     assert result.launch_mode == "local-agent-kernel"
+    summary = json.loads(result.summary_path.read_text(encoding="utf-8"))
+    assert summary["summary_source"] == "auto local agent root detection"
+
+
+def test_canonical_entry_infers_skills_dir_from_installed_vibe_root(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    skills_dir = tmp_path / "skills"
+    installed_vibe_root = skills_dir / "vibe"
+    skill_dir = installed_vibe_root / "skills" / "local" / "code-review"
+    skill_dir.mkdir(parents=True, exist_ok=True)
+    (installed_vibe_root / "SKILL.md").write_text("# Vibe\n", encoding="utf-8")
+    (skill_dir / "SKILL.md").write_text(
+        """---
+id: code-review
+name: Code Review
+description: Review implementation risk and test gaps.
+when_to_use:
+  - The user asks for a review.
+not_for:
+  - Building a feature from scratch.
+inputs:
+  - changed files
+outputs:
+  - findings
+enabled: true
+---
+# Skill
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        canonical_entry,
+        "invoke_vibe_runtime_entrypoint",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("PowerShell bridge should not run")),
+    )
+
+    result = canonical_entry.launch_canonical_vibe(
+        repo_root=installed_vibe_root,
+        host_id="codex",
+        entry_id="vibe",
+        prompt="Review the runtime redesign and produce review notes.",
+    )
+
+    assert result.launch_mode == "local-agent-kernel"
+    assert result.session_root.parent == installed_vibe_root / "runs"
     summary = json.loads(result.summary_path.read_text(encoding="utf-8"))
     assert summary["summary_source"] == "auto local agent root detection"
 

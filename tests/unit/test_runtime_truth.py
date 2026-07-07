@@ -93,7 +93,9 @@ def test_build_runtime_truth_packet_omits_selected_and_keeps_routing_projection_
     assert "selected" not in payload["skill_routing"]
 
 
-def test_build_runtime_truth_packet_derives_skill_usage_from_work_results_not_selected_mirrors() -> None:
+def test_build_runtime_truth_packet_derives_skill_usage_from_work_results_not_selected_mirrors(tmp_path: Path) -> None:
+    artifact_path = tmp_path / "01-review-notes.md"
+    artifact_path.write_text("review evidence\n", encoding="utf-8")
     payload = build_runtime_truth_packet(
         run_id="run-123",
         task="review code",
@@ -110,7 +112,7 @@ def test_build_runtime_truth_packet_derives_skill_usage_from_work_results_not_se
                 {
                     "work_unit_id": "wu-1",
                     "used_skill": "code-review",
-                    "artifact_paths": ["outputs/runtime/run-123/01-review-notes.md"],
+                    "artifact_paths": [str(artifact_path)],
                     "proof_artifact_paths": [],
                 }
             ]
@@ -134,13 +136,14 @@ def test_build_runtime_truth_packet_derives_skill_usage_from_work_results_not_se
     )
 
     assert payload["skill_usage"] == {
+        "bound": [{"skill_id": "code-review", "work_unit_id": "wu-1"}],
         "used": [{"skill_id": "code-review", "work_unit_id": "wu-1"}],
         "unused": [],
         "evidence": [
             {
                 "skill_id": "code-review",
                 "work_unit_id": "wu-1",
-                "artifact": "outputs/runtime/run-123/01-review-notes.md",
+                "artifact": str(artifact_path),
                 "stage": "plan_execute",
                 "impact": "kernel work-unit artifact evidence recorded the skill use",
             }
@@ -180,6 +183,7 @@ def test_build_runtime_truth_packet_marks_selected_skill_unused_without_artifact
     )
 
     assert payload["skill_usage"] == {
+        "bound": [{"skill_id": "code-review", "work_unit_id": "wu-1"}],
         "used": [],
         "unused": [{"skill_id": "code-review", "work_unit_id": "wu-1"}],
         "evidence": [],

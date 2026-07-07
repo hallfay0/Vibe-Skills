@@ -1015,6 +1015,7 @@ if (
 $routerScriptPath = Join-Path $runtime.repo_root 'scripts/router/resolve-pack-route.ps1'
 $routerHostId = Resolve-VgoHostId -HostId $env:VCO_HOST_ID
 $routerTargetRoot = Resolve-VgoTargetRoot -HostId $routerHostId
+$routerSkillsDir = Resolve-VgoInstalledSkillsRoot -TargetRoot $routerTargetRoot -HostId $routerHostId
 $storageProjection = New-VibeWorkspaceArtifactProjection `
     -RepoRoot $runtime.repo_root `
     -Runtime $runtime `
@@ -1052,7 +1053,7 @@ $routeArgs = @(
     '-Grade', $grade,
     '-TaskType', $taskType,
     '-HostId', $routerHostId,
-    '-TargetRoot', $routerTargetRoot
+    '-TargetRoot', $routerSkillsDir
 )
 if (-not [string]::IsNullOrWhiteSpace([string]$requestedSkill)) {
     $routeArgs += @('-RequestedSkill', [string]$requestedSkill)

@@ -18,7 +18,7 @@
 > | 6 | `phase_cleanup` | Clean up temp artifacts and produce a final report |
 >
 > **Key terms used below:**
-> - **Internal specialist recommender**: The internal logic that suggests bounded specialist help after `vibe` is already the runtime authority.
+> - **Local installed specialist recommender**: semantic owner `packages/runtime-core/src/vgo_runtime/router_contract_runtime.py`; compatibility bridge `scripts/router/resolve-pack-route.ps1`.
 > - **Root/Child lane**: In multi-agent tasks, "root" is the coordinator; "child" lanes are workers. Only root makes final completion claims.
 > - **Frozen requirement/plan**: Once you approve the requirements or plan, they are locked -- the system will not silently change scope.
 > - **Proof bundle**: Evidence that a task was actually completed -- test results, output logs, verification commands.
@@ -37,6 +37,12 @@ When you need to explain a run or inspect artifacts, use this reading order:
 2. for most normal runs, stop there and read the work truth rather than a compatibility chain
 3. use this protocol to understand stage order and runtime lifecycle
 4. read `current-routing-contract.md` only if you still need the compatibility selection or execution chain
+
+Public proof layers around this protocol stay narrow:
+
+- `installed locally` belongs to install receipt / `check` and stays outside this protocol.
+- `runtime coherent` starts only after canonical entry returns a `session_root` and the runtime truth artifacts exist.
+- `delivery accepted` is decided by the delivery-acceptance report written during cleanup.
 
 ## Runtime Identity
 
@@ -223,7 +229,8 @@ Delegation must not bypass the fixed stage order.
 
 ## Specialist Recommender Integration Rules
 
-- specialist recommendation logic remains in `scripts/router/resolve-pack-route.ps1`
+- specialist recommendation semantic owner remains `packages/runtime-core/src/vgo_runtime/router_contract_runtime.py`
+- retained PowerShell callers still enter through compatibility bridge `scripts/router/resolve-pack-route.ps1`
 - `confirm_required` stays on the existing white-box confirm surface when specialist choice needs host confirmation
 - unattended routing is interpreted as a governed runtime mode choice, not as a second runtime
 - provider-backed intelligence remains advice-only

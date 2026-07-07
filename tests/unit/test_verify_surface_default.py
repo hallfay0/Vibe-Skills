@@ -13,7 +13,7 @@ EXPECTED_DEFAULT_CLOSURE_GATES = [
 
 def _read_default_closure_section() -> str:
     text = (REPO_ROOT / "scripts" / "verify" / "gate-family-index.md").read_text(encoding="utf-8")
-    return text.split("## Typical Closure Order", 1)[1].split("## Families", 1)[0]
+    return text.split("## Default release closure", 1)[1].split("## Touched-surface extension gates", 1)[0]
 
 
 def test_default_closure_story_mentions_only_small_gate_set() -> None:

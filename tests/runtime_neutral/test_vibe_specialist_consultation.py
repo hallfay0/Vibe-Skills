@@ -13,6 +13,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RUNTIME_SCRIPT = REPO_ROOT / "scripts" / "runtime" / "invoke-vibe-runtime.ps1"
 CONSULTATION_SCRIPT = REPO_ROOT / "scripts" / "runtime" / "VibeConsultation.Common.ps1"
+CONSULTATION_POLICY = REPO_ROOT / "config" / "specialist-consultation-policy.json"
 SPECIALIST_TASK = "I have a failing test and a stack trace. Help me debug systematically before proposing fixes."
 
 
@@ -78,11 +79,17 @@ def run_runtime(task: str, artifact_root: Path) -> dict[str, object]:
 class VibeSpecialistConsultationTests(unittest.TestCase):
     def test_consultation_module_declares_retired_old_routing_boundary(self) -> None:
         text = CONSULTATION_SCRIPT.read_text(encoding="utf-8")
+        policy = json.loads(CONSULTATION_POLICY.read_text(encoding="utf-8"))
+        compatibility_note = str(policy["compatibility_note"])
 
         self.assertIn("retired_old_routing_compat", text)
         self.assertIn("Old specialist consultation compatibility is retired", text)
-        self.assertIn("skill_routing.selected", text)
-        self.assertIn("skill_usage.used / skill_usage.unused", text)
+        self.assertIn("work_binding", text)
+        self.assertIn("optional compatibility mirror", text)
+        self.assertNotIn("skill_routing.selected plus skill_usage.used / skill_usage.unused", text)
+        self.assertIn("work_binding", compatibility_note)
+        self.assertIn("optional compatibility mirror", compatibility_note)
+        self.assertNotIn("skill_routing.selected plus skill_usage.used and skill_usage.unused", compatibility_note)
 
     def test_runtime_keeps_freeze_green_without_default_consultation(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:

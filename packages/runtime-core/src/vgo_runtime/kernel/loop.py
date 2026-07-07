@@ -984,6 +984,7 @@ def run_local_kernel(
         "verification_path": str(verification_path),
         "candidate_count": len(candidates),
         "completed_work_units": list(completed_work_units),
+        "failed_work_units": list(failed_work_units),
         "reused_work_units": list(reused_work_unit_ids),
         "superseded_work_units": [work_unit.id for work_unit in superseded_work_units],
         "state": run_state.state,

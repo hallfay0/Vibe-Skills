@@ -84,12 +84,12 @@ def _write_adapter_settings(repo_root: Path) -> None:
 def test_resolver_prefers_first_host_declared_local_root(tmp_path: Path) -> None:
     module = _load_module()
     repo_root = tmp_path / 'repo'
-    target_root = tmp_path / 'home' / '.agents'
+    target_root = tmp_path / 'home' / '.agents' / 'skills'
     _write_runtime_core_packaging(repo_root)
     _write_adapter_settings(repo_root)
 
     agents_skill = _write_skill(
-        tmp_path / 'home' / '.agents' / 'skills' / 'skill-alpha' / 'SKILL.md',
+        target_root / 'skill-alpha' / 'SKILL.md',
         'skill-alpha',
         'agents root',
     )
@@ -119,12 +119,12 @@ def test_resolver_prefers_first_host_declared_local_root(tmp_path: Path) -> None
 def test_resolver_uses_custom_subdirectory_under_host_root(tmp_path: Path) -> None:
     module = _load_module()
     repo_root = tmp_path / 'repo'
-    target_root = tmp_path / 'home' / '.agents'
+    target_root = tmp_path / 'home' / '.agents' / 'skills'
     _write_runtime_core_packaging(repo_root)
     _write_adapter_settings(repo_root)
 
     custom_skill = _write_skill(
-        tmp_path / 'home' / '.agents' / 'skills' / 'custom' / 'skill-beta' / 'SKILL.md',
+        target_root / 'custom' / 'skill-beta' / 'SKILL.md',
         'skill-beta',
         'custom local skill',
     )
@@ -149,12 +149,12 @@ def test_resolver_uses_custom_subdirectory_under_host_root(tmp_path: Path) -> No
 def test_resolver_keeps_legacy_installed_skill_fallback_when_split_semantics_available(tmp_path: Path) -> None:
     module = _load_module()
     repo_root = tmp_path / 'repo'
-    target_root = tmp_path / 'home' / '.agents'
+    target_root = tmp_path / 'home' / '.agents' / 'skills'
     _write_runtime_core_packaging(repo_root)
     _write_adapter_settings(repo_root)
 
     installed_public = _write_skill(
-        tmp_path / 'home' / '.agents' / 'skills' / 'legacy-skill' / 'SKILL.md',
+        target_root / 'legacy-skill' / 'SKILL.md',
         'legacy-skill',
         'local installed skill',
     )

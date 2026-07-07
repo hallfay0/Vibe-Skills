@@ -8,7 +8,7 @@ The public story for this pass is intentionally narrow:
 
 - declared local skill roots are the only specialist reference surface
 - a skill must have a readable `SKILL.md` before it can be selected
-- `work_binding` stays the first runtime truth for what was actually selected
+- `work_binding` stays the first runtime truth for what was bound
 
 This is a practical next step, not a claim that the final architecture is complete.
 
@@ -22,35 +22,42 @@ The new cut is simpler:
 - user-owned installed skills own capability
 - discovery only finds candidates
 - planning chooses bounded work
-- `work_binding` records what was actually bound
-- verification decides whether the work is done
+- `work_binding` records what was bound
+- verification states what the available evidence proves
 
 The runtime boundary for this pass is also explicit:
 
 - Python owns final truth artifacts, canonical validation, task semantics, `work_binding`, specialist decision truth, and structured runtime result data.
 - PowerShell still performs stage orchestration, environment setup, script bridging, host receipts, shell-native checks, and leaf execution.
+- Scaffolds and drafts are `needs_execution` with `proof_ready = false`; they are not completed work.
 - A future full-Python runtime is optional. It is not required for this version.
 
 This keeps problems local. If discovery quality is weak, we improve discovery. If plans are weak, we improve planning. If proof is weak, we improve verification.
 
 ## Design Rules
 
-- Install into the agent directory and treat that location as the runtime home.
+- Install into `<SkillsDir>/vibe` and treat `<SkillsDir>` as the public skills directory.
 - Prefer convention over configuration.
 - Treat host-declared local skill roots as the only specialist source.
 - Exclude controller entries such as `vibe` and `vibe-upgrade` from the specialist pool.
-- Keep `work_binding` as the first runtime truth surface.
+- Keep `work_binding` as the first runtime truth surface for bound skills.
+- Treat `skill_usage.bound` as binding only; material use requires `skill_usage.used` and evidence.
+- Require `runtime-input-packet.json`, `governance-capsule.json`, and `stage-lineage.json` before calling a local-agent-kernel launch canonical verified.
 - Use generated catalog and index files only as derived artifacts.
 - Do not require a central skill registry for ordinary skills.
 - Do not let an arbitrary directory become active just because it exists.
-- Do not let PowerShell own task semantics.
+- Do not add new task semantics to PowerShell; existing PowerShell stage scripts are transitional orchestration surfaces.
 - Do not describe the repo-owned bundled corpus as an extension or fallback story.
 
 ## Terminology
 
+### SkillsDir
+
+The public skills directory selected by install or runtime launch. Vibe lives at `<SkillsDir>/vibe`; ordinary skills live under `<SkillsDir>/*`.
+
 ### Host-Declared Local Skill Root
 
-A skill root declared by the current host adapter. It is read-only from the kernel's point of view and is the normal discovery path for specialist skills.
+A skill root declared by the current host adapter. It is read-only from the kernel's point of view and can point at the selected SkillsDir or another explicitly configured root.
 
 ### User-Owned Skill Folder
 
@@ -66,14 +73,14 @@ A deduplicated lookup cache projected from the catalog. It is the fast discovery
 
 ### Work Binding
 
-The runtime artifact that says which skill was actually bound to each bounded work unit. This is the first truth surface for selected-skill provenance.
+The runtime artifact that says which skill was bound to each bounded work unit. This is the first truth surface for binding provenance, not a material-use claim.
 
 ## Runtime Shape
 
 The installed runtime should look like this:
 
 ```text
-<agent_root>/
+<SkillsDir>/
   vibe/
     kernel/
       task/
@@ -94,7 +101,7 @@ The installed runtime should look like this:
         verification.json
 ```
 
-Host-declared local skill roots may live outside `<agent_root>`. They are referenced by discovery and catalog artifacts, not copied into a repo-owned central corpus first.
+Host-declared local skill roots may live outside the selected `<SkillsDir>`. They are referenced by discovery and catalog artifacts, not copied into a repo-owned central corpus first.
 
 ### Meaning Of Each Area
 
@@ -109,7 +116,7 @@ The system should discover skills by fixed declared roots, not by a layered rout
 
 ### Required Rules
 
-1. Resolve host-declared global skill roots in priority order.
+1. Resolve the selected `<SkillsDir>` or host-declared skill roots in priority order.
 2. Resolve host-declared project skill roots only when the host contract declares them.
 3. Scan `<root>/<skill-id>/SKILL.md` and `<root>/custom/<skill-id>/SKILL.md`.
 4. Read frontmatter from each discovered `SKILL.md`.
@@ -117,11 +124,11 @@ The system should discover skills by fixed declared roots, not by a layered rout
 6. Record invalid entries and inactive duplicates as diagnostics.
 7. Build `generated/skills-catalog.json` as the full discovered view.
 8. Project the active entries into `generated/skills-index.json` with schema `local_skill_index_v2`.
-9. Use `work_binding` as the runtime truth for what was actually selected.
+9. Use `work_binding` as the runtime truth for what was bound.
 
 ### Precedence
 
-The intended precedence for this pass is:
+The public contract is SkillsDir-centered. When a host supplies defaults, the intended duplicate-resolution order for this pass is:
 
 1. Codex: `~/.agents/skills`
 2. Codex: `~/.codex/skills`
@@ -218,7 +225,7 @@ Runs work units and records artifacts, outputs, and failures.
 
 ### Verifier Module
 
-Checks whether the work satisfies the completion criteria.
+Checks whether the available evidence satisfies the completion criteria or still needs execution.
 
 ### State Module
 
@@ -226,7 +233,7 @@ Owns the runtime loop and current status.
 
 ### Work Binding Artifact
 
-Records which skill was actually selected for each work unit and where that skill came from.
+Records which skill was bound to each work unit and where that skill came from.
 
 ## Runtime Contracts
 
@@ -392,6 +399,6 @@ This does not mean every old file must disappear on day one. It means those file
 
 ## Non-Negotiable Outcome
 
-The next version succeeds only if a user can install the kernel into an agent directory, make a skill visible through a declared user-owned root, and get useful bounded work without editing a stack of routing files.
+The next version succeeds only if a user can install Vibe into `<SkillsDir>/vibe`, make a skill visible under a declared user-owned root, and get honest bounded work status without editing a stack of routing files.
 
 If that is not true, the design is still too heavy.

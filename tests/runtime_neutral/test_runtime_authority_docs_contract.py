@@ -20,6 +20,11 @@ def test_runtime_authority_docs_describe_current_python_and_powershell_roles() -
         "canonical validation",
         "structured runtime result",
         "PowerShell still performs stage orchestration",
+        "Do not add new task semantics to PowerShell",
+        "existing PowerShell stage scripts are transitional orchestration surfaces",
+    )
+    forbidden_claims = (
+        "Do not let PowerShell own task semantics.",
     )
 
     for path in docs:
@@ -27,6 +32,8 @@ def test_runtime_authority_docs_describe_current_python_and_powershell_roles() -
         for claim in required_claims:
             assert claim in content, path
         for claim in forbidden_overclaims:
+            assert claim not in content, path
+        for claim in forbidden_claims:
             assert claim not in content, path
 
 
@@ -37,7 +44,8 @@ def test_chinese_readme_describes_current_python_and_powershell_roles() -> None:
         "Python 负责最终 truth artifacts",
         "canonical validation",
         "PowerShell 仍然承担阶段编排",
-        "不把它描述成已经只是薄壳",
+        "不要把新的任务语义继续加到 PowerShell",
+        "现有 PowerShell 阶段脚本只是迁移期编排面",
     )
     for claim in required_claims:
         assert claim in content

@@ -158,6 +158,18 @@ if ($hasReceipt -and $hasRuntimePacket -and $hasGovernanceCapsule -and $hasStage
                 [string]$specialistDecision.decision_state -eq 'no_specialist_recommendations' -and
                 [string]$specialistDecision.resolution_mode -in @('no_matching_specialist', 'no_specialist_needed')
             )
+            $hasDegradedSpecialistResolution = (
+                (Test-ObjectHasProperty -InputObject $specialistDecision -PropertyName 'decision_state') -and
+                (Test-ObjectHasProperty -InputObject $specialistDecision -PropertyName 'resolution_mode') -and
+                [string]$specialistDecision.decision_state -eq 'degraded' -and
+                [string]$specialistDecision.resolution_mode -eq 'degraded' -and
+                (
+                    ((Test-ObjectHasProperty -InputObject $specialistDecision -PropertyName 'degraded_skill_ids') -and @($specialistDecision.degraded_skill_ids).Count -gt 0) -or
+                    ((Test-ObjectHasProperty -InputObject $specialistDecision -PropertyName 'surfaced_skill_ids') -and @($specialistDecision.surfaced_skill_ids).Count -gt 0) -or
+                    ((Test-ObjectHasProperty -InputObject $specialistDecision -PropertyName 'recommendation_count') -and [int]$specialistDecision.recommendation_count -gt 0)
+                )
+            )
+            $hasNoSpecialistResolution = ($hasNoSpecialistResolution -or $hasDegradedSpecialistResolution)
         }
         Add-Assertion -Assertions $assertions -Pass $true -Message 'runtime packet specialist selection mirror remains optional when work_binding carries bounded work truth'
     } else {
@@ -171,7 +183,7 @@ if ($hasReceipt -and $hasRuntimePacket -and $hasGovernanceCapsule -and $hasStage
             @()
         }
         Add-Assertion -Assertions $assertions -Pass ($boundSkillIds.Count -ge 0) -Message 'runtime packet exposes kernel-native work_binding'
-        Add-Assertion -Assertions $assertions -Pass ($boundSkillIds.Count -ge 1 -or $hasNoSpecialistResolution) -Message 'runtime packet records work_binding or no-specialist resolution'
+        Add-Assertion -Assertions $assertions -Pass ($boundSkillIds.Count -ge 1 -or $hasNoSpecialistResolution) -Message 'runtime packet records work_binding, no-specialist resolution, or degraded specialist evidence'
         $missingMirrorSkillIds = @($selectedSkillIds | Where-Object { $_ -notin $boundSkillIds })
         Add-Assertion -Assertions $assertions -Pass ($missingMirrorSkillIds.Count -eq 0) -Message 'runtime packet skill_routing.selected stays a compatibility mirror of work_binding'
     }

@@ -34,7 +34,7 @@ def test_resolve_skill_md_path_uses_host_declared_local_root_for_specialist(tmp_
     descriptor = skill_root / "SKILL.md"
     descriptor.write_text("---\nname: scikit-learn\ndescription: local install\n---\n", encoding="utf-8")
 
-    resolved = module.resolve_skill_md_path(repo, "scikit-learn", str(agent_root), "codex")
+    resolved = module.resolve_skill_md_path(repo, "scikit-learn", str(agent_root / "skills"), "codex")
 
     assert resolved == descriptor
 

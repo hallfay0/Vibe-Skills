@@ -11,6 +11,7 @@ $RepoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 function Show-WrapperUsage {
   Write-Output 'Usage: check.ps1 [-SkillsDir <path>] [-Help|-?]'
   Write-Output 'Checks the installed Vibe folder and receipt under <SkillsDir>\vibe.'
+  Write-Output 'This proves installed locally only.'
 }
 
 function Get-PreferredPythonInvocation {

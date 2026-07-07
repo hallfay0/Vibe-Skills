@@ -71,21 +71,24 @@ def _index_payload() -> dict[str, object]:
     }
 
 
-def test_execute_work_unit_records_completed_artifact() -> None:
+def test_execute_work_unit_records_scaffold_that_needs_execution() -> None:
     task_card = build_task_card(prompt="Review the runtime change.")
     plan = build_work_plan(task_card, find_skill_candidates(task_card, _index_payload()))
 
     result = execute_work_unit(Path("D:/agent-root"), task_card, plan.work_units[0])
 
     assert result.work_unit_id == "wu-1"
-    assert result.status == "completed"
-    assert result.used_skill == "code-review"
+    assert result.status == "needs_execution"
+    assert result.lifecycle_state == "scaffolded"
+    assert result.used_skill is None
+    assert result.artifact_kind == "scaffold"
+    assert result.proof_ready is False
     assert result.artifacts == ("review notes",)
     assert result.artifact_paths == ()
     assert result.proof_artifact_paths == ()
     assert result.checked_targets == ("review notes exists", "review findings are explicit")
-    assert result.proof[0] == "wu-1: used skill code-review"
-    assert "code-review" in result.notes[0]
+    assert result.proof[0] == "wu-1: scaffolded for bound skill code-review"
+    assert "requires real execution evidence" in result.notes[0]
 
 
 def test_verify_run_requests_rework_when_a_work_unit_fails() -> None:
@@ -106,6 +109,21 @@ def test_verify_run_requests_rework_when_a_work_unit_fails() -> None:
 
     assert verification.result == "revise_execution"
     assert verification.failed_criteria == ("review exists",)
+
+
+def test_verify_run_reports_needs_execution_for_scaffold_only_result() -> None:
+    task_card = build_task_card(
+        prompt="Review the runtime change.",
+        context={"completion_criteria": ["review exists"]},
+    )
+    plan = build_work_plan(task_card, find_skill_candidates(task_card, _index_payload()))
+    result = execute_work_unit(Path("D:/agent-root"), task_card, plan.work_units[0])
+
+    verification = verify_run(task_card, plan, (result,))
+
+    assert verification.result == "needs_execution"
+    assert verification.failed_criteria == ("review exists",)
+    assert any("requires real execution evidence" in note for note in verification.notes)
 
 
 def test_run_state_round_trip_persists_json(tmp_path: Path) -> None:
@@ -172,8 +190,8 @@ enabled: true
     run_root = vibe_root / "runs" / "run-123"
     assert result["run_id"] == "run-123"
     assert list(result)[:4] == ["run_id", "work_dossier", "artifacts", "work_summary"]
-    assert result["verification"]["result"] == "done"
-    assert result["verification"]["evidence"]
+    assert result["verification"]["result"] == "needs_execution"
+    assert not result["verification"]["evidence"]
     assert result["artifacts"]["work_dossier"].endswith("work-dossier.json")
     assert result["artifacts"]["work_dossier_markdown"].endswith("work-dossier.md")
     assert result["artifacts"]["task_card"].endswith("task-card.json")
@@ -181,14 +199,14 @@ enabled: true
     assert result["artifacts"]["work_binding"].endswith("work-binding.json")
     assert result["artifacts"]["work_results"].endswith("work-results.json")
     assert result["artifacts"]["verification"].endswith("verification.json")
-    assert result["work_summary"]["proof_ready"] is True
+    assert result["work_summary"]["proof_ready"] is False
     assert result["work_summary"]["work_unit_count"] == 1
     assert result["work_summary"]["primary_artifact"] == "work_dossier"
     assert result["work_summary"]["primary_artifact_path"].endswith("work-dossier.json")
     assert result["work_dossier"]["task_card"]["id"] == result["task_card"]["id"]
     assert result["work_dossier"]["work_plan"]["task_id"] == result["task_card"]["id"]
     assert result["work_dossier"]["work_binding"]["task_id"] == result["task_card"]["id"]
-    assert result["work_dossier"]["verification"]["result"] == "done"
+    assert result["work_dossier"]["verification"]["result"] == "needs_execution"
     assert result["work_dossier"]["closure"]["task"] == result["task_card"]["goal"]
     assert result["work_dossier"]["closure"]["skills"]["bound_skill_ids"] == ["code-review"]
     assert result["work_dossier"]["closure"]["outputs"]["artifacts"] == ["review notes"]
@@ -207,11 +225,14 @@ enabled: true
     assert result["work_dossier"]["artifact_paths"]["verification"].endswith("verification.json")
     assert result["work_dossier"]["artifact_paths"]["proof"].endswith("work-dossier.json")
     assert result["work_dossier"]["artifact_paths"]["proof_markdown"].endswith("work-dossier.md")
-    assert result["work_dossier"]["closure"]["proof"]["result"] == "done"
+    assert result["work_dossier"]["closure"]["proof"]["result"] == "needs_execution"
     assert result["work_dossier"]["closure"]["proof"]["evidence_count"] == len(result["verification"]["evidence"])
     assert result["work_plan"]["task_id"] == result["task_card"]["id"]
     assert result["work_binding"]["task_id"] == result["task_card"]["id"]
-    assert result["work_results"]["work_results"][0]["used_skill"] == "code-review"
+    assert result["work_results"]["work_results"][0]["status"] == "needs_execution"
+    assert result["work_results"]["work_results"][0]["used_skill"] is None
+    assert result["work_results"]["work_results"][0]["artifact_kind"] == "scaffold"
+    assert result["work_results"]["work_results"][0]["proof_ready"] is False
     assert result["work_dossier_path"].endswith("work-dossier.json")
     assert result["work_dossier_markdown_path"].endswith("work-dossier.md")
     assert result["work_plan_path"].endswith("plan.json")
@@ -245,12 +266,7 @@ enabled: true
     assert "- verification: " in dossier_text
     assert dossier_text.index("## Task Card") < dossier_text.index("## Task Evolution")
     assert dossier_text.index("## Verification") < dossier_text.index("## Proof")
-    artifact_path_line = next(
-        line
-        for line in result["verification"]["evidence"]
-        if "artifact paths " in line
-    )
-    delivery_path = Path(artifact_path_line.split("artifact paths ", 1)[1])
+    delivery_path = Path(result["work_results"]["work_results"][0]["artifact_paths"][0])
     assert delivery_path.is_file()
     assert "work-products" in str(delivery_path)
 
@@ -332,8 +348,8 @@ enabled: true
 
     assert inspected["run_id"] == "run-123"
     assert list(inspected)[:4] == ["run_id", "work_dossier", "summary", "artifacts"]
-    assert inspected["summary"]["verification_result"] == "done"
-    assert inspected["summary"]["proof_ready"] is True
+    assert inspected["summary"]["verification_result"] == "needs_execution"
+    assert inspected["summary"]["proof_ready"] is False
     assert inspected["summary"]["work_unit_count"] == 1
     assert inspected["summary"]["primary_artifact"] == "work_dossier"
     assert inspected["summary"]["primary_artifact_path"].endswith("work-dossier.json")
@@ -341,7 +357,7 @@ enabled: true
     assert inspected["artifacts"]["work_dossier_markdown"].endswith("work-dossier.md")
     assert inspected["work_dossier"]["task_card"]["id"] == inspected["task_card"]["id"]
     assert inspected["work_dossier"]["work_plan"]["task_id"] == inspected["task_card"]["id"]
-    assert inspected["work_dossier"]["verification"]["result"] == "done"
+    assert inspected["work_dossier"]["verification"]["result"] == "needs_execution"
     assert inspected["work_dossier"]["reading_order"] == [
         "task_card",
         "work_plan",
@@ -360,18 +376,21 @@ enabled: true
     assert inspected["work_binding"]["units"][0]["bound_skill"] == "code-review"
     assert inspected["work_binding"]["units"][0]["binding_profile"] == "general_support_owner"
     assert inspected["work_binding"]["units"][0]["binding_reason"] == "Selected the only supporting skill."
-    assert inspected["work_results"]["work_results"][0]["used_skill"] == "code-review"
+    assert inspected["work_results"]["work_results"][0]["status"] == "needs_execution"
+    assert inspected["work_results"]["work_results"][0]["used_skill"] is None
+    assert inspected["work_results"]["work_results"][0]["artifact_kind"] == "scaffold"
+    assert inspected["work_results"]["work_results"][0]["proof_ready"] is False
     assert inspected["work_results"]["work_results"][0]["artifact_paths"]
     assert inspected["work_results"]["work_results"][0]["proof_artifact_paths"]
     assert inspected["work_results"]["work_results"][0]["execution_receipt_path"].endswith("execution-receipt.json")
-    assert inspected["verification"]["evidence"]
+    assert not inspected["verification"]["evidence"]
     assert inspected["artifacts"]["verification"].endswith("verification.json")
     assert inspected["artifacts"]["work_binding"].endswith("work-binding.json")
     assert inspected["artifacts"]["work_results"].endswith("work-results.json")
 
 
 def test_run_local_kernel_writes_host_aware_skills_catalog_artifact(tmp_path: Path) -> None:
-    agent_root = tmp_path / "agent-root" / ".agents"
+    agent_root = tmp_path / "skills"
     workspace_root = tmp_path / "workspace"
     vibe_root = agent_root / "vibe"
     local_skill_dir = vibe_root / "skills" / "local" / "code-review"
@@ -393,7 +412,7 @@ enabled: true
 ---""",
         encoding="utf-8",
     )
-    host_skill_dir = (agent_root / "skills" / "write-report")
+    host_skill_dir = (agent_root / "write-report")
     host_skill_dir.mkdir(parents=True, exist_ok=True)
     (host_skill_dir / "SKILL.md").write_text(
         """---
@@ -426,9 +445,7 @@ enabled: true
     assert catalog_path.is_file()
     catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
     assert catalog["host_roots"] == [
-        str((agent_root / "skills").resolve()),
-        str((agent_root.parent / ".codex" / "skills").resolve()),
-        str((agent_root.parent / ".claude" / "skills").resolve()),
+        str(agent_root.resolve()),
     ]
     assert catalog["catalog_source_kinds"] == ["host_installed", "vibe_local"]
     assert any(
@@ -608,18 +625,19 @@ enabled: true
         "focused tests",
         "verification evidence",
     )
-    assert resumed["completed_work_units"] == ["wu-1", "wu-2", "wu-3"]
-    assert resumed["reused_work_units"] == ["wu-1"]
+    assert resumed["completed_work_units"] == []
+    assert resumed["failed_work_units"] == ["wu-1", "wu-2", "wu-3"]
+    assert resumed["reused_work_units"] == []
     assert resumed["superseded_work_units"] == []
     assert resumed["work_summary"]["continuation_mode"] == "revised"
     assert resumed["work_summary"]["accepted_revision_count"] == 1
-    assert resumed["work_summary"]["reused_work_unit_count"] == 1
+    assert resumed["work_summary"]["reused_work_unit_count"] == 0
     inspected = inspect_local_run(agent_root=agent_root, run_id="resume-run")
     assert inspected["summary"]["task_id"] == resumed["task_card"]["id"]
     assert inspected["summary"]["work_unit_count"] == 3
     assert inspected["summary"]["continuation_mode"] == "revised"
     assert inspected["summary"]["accepted_revision_count"] == 1
-    assert inspected["summary"]["reused_work_unit_count"] == 1
+    assert inspected["summary"]["reused_work_unit_count"] == 0
     assert inspected["summary"]["superseded_work_unit_count"] == 0
     assert [unit["bound_skill"] for unit in inspected["work_binding"]["units"]] == [
         "code-review",
@@ -629,9 +647,9 @@ enabled: true
 
 
 def test_inspect_local_run_reports_skills_catalog_and_selected_skill_source_kind(tmp_path: Path) -> None:
-    agent_root = tmp_path / "agent-root" / ".agents"
+    agent_root = tmp_path / "skills"
     workspace_root = tmp_path / "workspace"
-    host_skill_dir = agent_root / "skills" / "write-report"
+    host_skill_dir = agent_root / "write-report"
     host_skill_dir.mkdir(parents=True, exist_ok=True)
     (host_skill_dir / "SKILL.md").write_text(
         """---
@@ -672,9 +690,7 @@ enabled: true
     ]
     assert inspected["work_dossier"]["artifact_paths"]["skills_catalog"].endswith("skills-catalog.json")
     assert inspected["skills_catalog"]["host_roots"] == [
-        str((agent_root / "skills").resolve()),
-        str((agent_root.parent / ".codex" / "skills").resolve()),
-        str((agent_root.parent / ".claude" / "skills").resolve()),
+        str(agent_root.resolve()),
     ]
 
 
@@ -727,9 +743,7 @@ enabled: true
         "workspace_root": str(workspace_root.resolve()),
         "resolved_host_roots": [
             str(extra_skills_root.resolve()),
-            str((agent_root.parent / ".agents" / "skills").resolve()),
-            str((agent_root.parent / ".codex" / "skills").resolve()),
-            str((agent_root.parent / ".claude" / "skills").resolve()),
+            str(agent_root.resolve()),
         ],
         "matches_run_catalog": True,
     }
@@ -784,7 +798,7 @@ def test_inspect_main_passes_host_context_to_inspect_local_run(
 
 
 def test_run_local_kernel_does_not_reuse_work_when_selected_skill_source_changes(tmp_path: Path) -> None:
-    agent_root = tmp_path / "agent-root" / ".agents"
+    agent_root = tmp_path / "skills"
     workspace_root = tmp_path / "workspace"
     vibe_local_skill_dir = agent_root / "vibe" / "skills" / "local" / "write-report"
     vibe_local_skill_dir.mkdir(parents=True, exist_ok=True)
@@ -815,7 +829,7 @@ enabled: true
     assert first["work_binding"]["units"][0]["provenance"]["source_kind"] == "vibe_local"
     assert first["reused_work_units"] == []
 
-    host_skill_dir = agent_root / "skills" / "write-report"
+    host_skill_dir = agent_root / "write-report"
     host_skill_dir.mkdir(parents=True, exist_ok=True)
     (host_skill_dir / "SKILL.md").write_text(
         """---

@@ -87,6 +87,19 @@ function Invoke-SupportedHostRuntimeTruthProbe {
             [string]$specialistDecision.decision_state -eq 'no_specialist_recommendations' -and
             [string]$specialistDecision.resolution_mode -in @('no_matching_specialist', 'no_specialist_needed')
         )
+        $degradedSpecialistResolved = (
+            $null -ne $specialistDecision -and
+            $specialistDecision.PSObject.Properties.Name -contains 'decision_state' -and
+            $specialistDecision.PSObject.Properties.Name -contains 'resolution_mode' -and
+            [string]$specialistDecision.decision_state -eq 'degraded' -and
+            [string]$specialistDecision.resolution_mode -eq 'degraded' -and
+            (
+                (($specialistDecision.PSObject.Properties.Name -contains 'degraded_skill_ids') -and @($specialistDecision.degraded_skill_ids).Count -gt 0) -or
+                (($specialistDecision.PSObject.Properties.Name -contains 'surfaced_skill_ids') -and @($specialistDecision.surfaced_skill_ids).Count -gt 0) -or
+                (($specialistDecision.PSObject.Properties.Name -contains 'recommendation_count') -and [int]$specialistDecision.recommendation_count -gt 0)
+            )
+        )
+        $noSpecialistResolved = ($noSpecialistResolved -or $degradedSpecialistResolved)
         $boundSkillIds = @(Get-VibeWorkBindingBoundSkillIds -RuntimeInputPacket $runtimeInput)
         $selectedSkillIds = if (
             $runtimeInput.PSObject.Properties.Name -contains 'skill_routing' -and
@@ -97,7 +110,7 @@ function Invoke-SupportedHostRuntimeTruthProbe {
         } else {
             @()
         }
-        Add-Assertion -Assertions $Assertions -Pass (($boundSkillIds.Count -ge 1) -or $noSpecialistResolved) -Message "$HostId runtime-input-packet records bounded work truth or no-specialist resolution"
+        Add-Assertion -Assertions $Assertions -Pass (($boundSkillIds.Count -ge 1) -or $noSpecialistResolved) -Message "$HostId runtime-input-packet records bounded work truth, no-specialist resolution, or degraded specialist evidence"
         Add-Assertion -Assertions $Assertions -Pass (($selectedSkillIds.Count -eq 0) -or ((@($selectedSkillIds) | Where-Object { $_ -in @($boundSkillIds) }).Count -eq $selectedSkillIds.Count)) -Message "$HostId compatibility selected skills stay subordinate to work_binding when they remain visible"
         $divergenceShadow = if ($runtimeInput.PSObject.Properties.Name -contains 'divergence_shadow') { $runtimeInput.divergence_shadow } else { $null }
         $runtimeSelectedSkill = if ($divergenceShadow -and $divergenceShadow.PSObject.Properties.Name -contains 'runtime_selected_skill') { [string]$divergenceShadow.runtime_selected_skill } else { '' }

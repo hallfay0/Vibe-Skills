@@ -4,11 +4,11 @@
 
 This project is moving toward a small work kernel.
 
-The kernel is the part that should understand the goal, organize useful skills into bounded work units, execute the work, verify the result, and leave proof behind.
+The kernel is the part that should understand the goal, organize useful skills into bounded work units, prepare executable work, verify what the evidence can prove, and leave proof behind.
 
 The shortest correct explanation is:
 
-`task card -> build work model -> bind skills -> execute -> verify -> prove done`
+`task card -> build work model -> bind skills -> produce evidence or needs_execution -> verify scope -> prove only what is proven`
 
 If a change makes the system harder to explain than that, the design is drifting.
 
@@ -25,6 +25,15 @@ It should be understood as:
 
 Work matters more than routing.
 Skills are materials, not the product.
+
+For this submit boundary, responsibilities stay narrow:
+
+- the installer owns file placement and receipt-owned update safety
+- the router owns which skills are bound to bounded work
+- the runtime owns stage state, scaffold status, and execution evidence
+- verification owns what the available evidence can and cannot prove
+
+`bound` is not `used`, and scaffold output is not completed work.
 
 ## Main Layers
 

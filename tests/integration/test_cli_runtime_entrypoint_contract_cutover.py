@@ -115,10 +115,19 @@ def test_cli_canonical_entry_proves_runtime_backed_truth_for_supported_hosts() -
                 specialist_decision.get("decision_state") == "no_specialist_recommendations"
                 and specialist_decision.get("resolution_mode") in {"no_matching_specialist", "no_specialist_needed"}
             )
+            degraded_specialist_resolved = (
+                specialist_decision.get("decision_state") == "degraded"
+                and specialist_decision.get("resolution_mode") == "degraded"
+                and bool(
+                    specialist_decision.get("degraded_skill_ids")
+                    or specialist_decision.get("surfaced_skill_ids")
+                    or specialist_decision.get("recommendation_count")
+                )
+            )
             bound_units = (runtime_packet.get("work_binding") or {}).get("units") or []
             bound_skill_ids = [unit.get("bound_skill") for unit in bound_units if isinstance(unit, dict) and unit.get("bound_skill")]
             selected = ((runtime_packet.get("skill_routing") or {}).get("selected") or [])
-            assert len(bound_skill_ids) >= 1 or no_specialist_resolved, host_id
+            assert len(bound_skill_ids) >= 1 or no_specialist_resolved or degraded_specialist_resolved, host_id
             assert (
                 len(selected) == 0
                 or all(item.get("skill_id") in bound_skill_ids for item in selected if isinstance(item, dict))

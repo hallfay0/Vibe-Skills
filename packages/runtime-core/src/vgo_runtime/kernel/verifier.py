@@ -33,6 +33,22 @@ def verify_run(task_card: TaskCard, plan: WorkPlan, work_results: tuple[Any, ...
             evidence=(),
         )
 
+    needs_execution_results = [
+        result for result in work_results if _result_attr(result, "status", "") == "needs_execution"
+    ]
+    if needs_execution_results:
+        failed = task_card.completion_criteria or ("real execution evidence is required",)
+        return VerificationResult(
+            result="needs_execution",
+            notes=tuple(
+                str(note)
+                for result in needs_execution_results
+                for note in _result_attr(result, "notes", ())
+            ),
+            failed_criteria=failed,
+            evidence=(),
+        )
+
     failed_results = [result for result in work_results if _result_attr(result, "status", "") != "completed"]
     if failed_results:
         failed = task_card.completion_criteria or ("execution completed successfully",)

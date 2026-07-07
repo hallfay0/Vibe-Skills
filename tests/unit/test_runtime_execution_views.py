@@ -50,7 +50,9 @@ def test_execute_runtime_packet_plan_view_does_not_repeat_kernel_payload() -> No
     assert "kernel" not in result.plan
 
 
-def test_runtime_summary_prefers_kernel_skill_usage_over_route_era_mirrors() -> None:
+def test_runtime_summary_prefers_kernel_skill_usage_over_route_era_mirrors(tmp_path: Path) -> None:
+    artifact_path = tmp_path / "01-review-notes.md"
+    artifact_path.write_text("review evidence\n", encoding="utf-8")
     summary = build_runtime_summary(
         run_id="run-123",
         task="review code",
@@ -61,7 +63,7 @@ def test_runtime_summary_prefers_kernel_skill_usage_over_route_era_mirrors() -> 
                 {
                     "work_unit_id": "wu-1",
                     "used_skill": "code-review",
-                    "artifact_paths": ["outputs/runtime/run-123/01-review-notes.md"],
+                    "artifact_paths": [str(artifact_path)],
                     "proof_artifact_paths": [],
                 }
             ]
@@ -79,5 +81,6 @@ def test_runtime_summary_prefers_kernel_skill_usage_over_route_era_mirrors() -> 
 
     assert summary["bound_skill_ids"] == ["code-review"]
     assert summary["used_skill_ids"] == ["code-review"]
+    assert summary["skill_usage"]["bound"] == [{"skill_id": "code-review", "work_unit_id": "wu-1"}]
     assert summary["skill_usage"]["used"] == [{"skill_id": "code-review", "work_unit_id": "wu-1"}]
     assert summary["skill_usage"]["unused"] == []

@@ -10,6 +10,15 @@ DEFAULT_SKILL_ROOTS = (
     "~/.codex/skills",
     "~/.claude/skills",
 )
+DEFAULT_SKILL_ROOTS_BY_HOST = {
+    "codex": (
+        "~/.agents/skills",
+        "~/.codex/skills",
+    ),
+    "claude-code": (
+        "~/.claude/skills",
+    ),
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,7 +34,17 @@ def _normalize_host_id(host_id: str) -> str:
 
 
 def _home_from_agent_root(agent_root: Path) -> Path:
-    return agent_root.resolve().parent
+    resolved = agent_root.resolve()
+    if resolved.name.casefold() == "skills" and resolved.parent.name.casefold() in {".agents", ".codex", ".claude"}:
+        return resolved.parent.parent
+    return resolved.parent
+
+
+def _skills_dir_from_agent_root(agent_root: Path) -> Path:
+    resolved = agent_root.resolve()
+    if resolved.name.casefold() in {".agents", ".codex", ".claude"}:
+        return (resolved / "skills").resolve()
+    return resolved
 
 
 def _is_absolute_path(raw_path: str) -> bool:
@@ -123,16 +142,17 @@ def resolve_host_skill_roots(
         source=str(user_config),
     )
 
-    for default_root in DEFAULT_SKILL_ROOTS:
-        _append_roots(
-            roots,
-            seen,
-            host_id=normalized_host_id,
-            root_key="default",
-            raw_roots=(default_root,),
-            base_root=home_root,
-            home_root=home_root,
-            source=f"default:{default_root}",
+    skills_dir = _skills_dir_from_agent_root(agent_root)
+    skills_dir_key = str(skills_dir).casefold()
+    if skills_dir_key not in seen:
+        seen.add(skills_dir_key)
+        roots.append(
+            HostSkillRoot(
+                host_id=normalized_host_id,
+                root_key="skills_dir",
+                path=skills_dir,
+                source=f"skills_dir:{skills_dir}",
+            )
         )
 
     return tuple(roots)

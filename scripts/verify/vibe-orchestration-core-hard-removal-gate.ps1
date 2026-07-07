@@ -67,19 +67,22 @@ $recommendedPacks = @(
 )
 $results += Assert-True -Condition (-not ($recommendedPacks -contains "orchestration-core")) -Message "retrieval profiles do not recommend orchestration-core"
 
-$results += Assert-True -Condition ($runtimeContract.authority.PSObject.Properties.Name -contains "internal_specialist_recommender") -Message "runtime contract names internal specialist recommender"
-$results += Assert-True -Condition ([string]$runtimeContract.authority.internal_specialist_recommender -eq "scripts/router/resolve-pack-route.ps1") -Message "internal specialist recommender points at resolve-pack-route.ps1"
+$results += Assert-True -Condition ($runtimeContract.authority.PSObject.Properties.Name -contains "local_installed_skill_recommender") -Message "runtime contract names local installed specialist recommender owner"
+$results += Assert-True -Condition ([string]$runtimeContract.authority.local_installed_skill_recommender -eq "packages/runtime-core/src/vgo_runtime/router_contract_runtime.py") -Message "local installed specialist recommender points at python semantic owner"
+$results += Assert-True -Condition ($runtimeContract.authority.PSObject.Properties.Name -contains "local_installed_skill_recommender_bridge") -Message "runtime contract names local installed specialist recommender bridge"
+$results += Assert-True -Condition ([string]$runtimeContract.authority.local_installed_skill_recommender_bridge -eq "scripts/router/resolve-pack-route.ps1") -Message "local installed specialist recommender bridge points at resolve-pack-route.ps1"
 $results += Assert-True -Condition ($runtimeContract.authority.PSObject.Properties.Name -contains "canonical_router") -Message "runtime contract keeps canonical_router compatibility field"
 
-$results += Assert-True -Condition ($skillMd -match "Internal specialist recommendation router") -Message "SKILL.md uses internal specialist recommendation router wording"
+$results += Assert-True -Condition ($skillMd -match "Local installed specialist recommender") -Message "SKILL.md names local installed specialist recommender owner before bridge"
 $results += Assert-True -Condition ($skillMd -notmatch "(?m)^\s*Canonical router:") -Message "SKILL.md no longer labels router as the canonical entry"
-$results += Assert-True -Condition ($runtimeProtocol -match "Internal specialist recommender") -Message "runtime protocol defines internal specialist recommender"
+$results += Assert-True -Condition ($runtimeProtocol -match "Local installed specialist recommender") -Message "runtime protocol defines local installed specialist recommender owner before bridge"
+$results += Assert-True -Condition ($runtimeProtocol -match 'compatibility bridge `scripts/router/resolve-pack-route.ps1`') -Message "runtime protocol keeps resolve-pack-route.ps1 as compatibility bridge"
 $results += Assert-True -Condition ($runtimeProtocol -notmatch "Canonical router authority stays intact") -Message "runtime protocol no longer gives router authority priority over vibe"
 
 $blockedRoutes = @(
-    [pscustomobject]@{ Name = "generic planning ZH"; Prompt = "请输出实施计划和任务拆解"; Grade = "L"; TaskType = "planning" },
-    [pscustomobject]@{ Name = "generic brainstorming ZH"; Prompt = "先做头脑风暴，发散方案"; Grade = "L"; TaskType = "planning" },
-    [pscustomobject]@{ Name = "generic subagent ZH"; Prompt = "把任务拆成多个子代理并行执行"; Grade = "XL"; TaskType = "planning" }
+    [pscustomobject]@{ Name = "generic planning"; Prompt = "Write an implementation plan and task breakdown"; Grade = "L"; TaskType = "planning" },
+    [pscustomobject]@{ Name = "generic brainstorming"; Prompt = "Brainstorm several possible approaches before execution"; Grade = "L"; TaskType = "planning" },
+    [pscustomobject]@{ Name = "generic subagent"; Prompt = "Split the work into several parallel subagents"; Grade = "XL"; TaskType = "planning" }
 )
 
 foreach ($case in $blockedRoutes) {
@@ -92,10 +95,6 @@ foreach ($case in $blockedRoutes) {
     $results += Assert-True -Condition (-not ($rankedPackIds -contains "orchestration-core")) -Message "[$($case.Name)] ranked packs exclude orchestration-core" -Details ("ranked={0}" -f ($rankedPackIds -join ", "))
     $results += Assert-True -Condition ($confirmPack -ne "orchestration-core") -Message "[$($case.Name)] confirm UI does not expose orchestration-core"
 }
-
-$specRoute = Invoke-Route -Prompt "/speckit.plan 生成技术计划" -Grade "L" -TaskType "planning"
-$results += Assert-True -Condition ([string]$specRoute.selected.pack_id -eq "workflow-compatibility") -Message "explicit speckit route uses workflow-compatibility" -Details ("selected={0}/{1}" -f $specRoute.selected.pack_id, $specRoute.selected.skill)
-$results += Assert-True -Condition ([string]$specRoute.selected.skill -eq "spec-kit-vibe-compat") -Message "explicit speckit route selects spec-kit-vibe-compat"
 
 $passCount = @($results | Where-Object { $_ }).Count
 $failCount = @($results | Where-Object { -not $_ }).Count

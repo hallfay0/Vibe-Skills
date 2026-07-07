@@ -24,6 +24,8 @@ class WorkUnitResult:
     execution_receipt_path: str | None
     reused_from_work_unit_id: str | None = None
     failure_reason: str | None = None
+    artifact_kind: str = "scaffold"
+    proof_ready: bool = False
 
     def model_dump(self) -> dict[str, object]:
         return asdict(self)
@@ -175,12 +177,15 @@ def _write_execution_receipt(
     payload = {
         "work_unit_id": work_unit.id,
         "work_goal": work_unit.goal,
-        "used_skill": preferred_skill,
+        "bound_skill": preferred_skill,
+        "used_skill": None,
         "binding_profile": work_unit.binding_profile,
         "binding_reason": work_unit.binding_reason,
         "artifact_paths": list(artifact_paths),
         "checked_targets": list(checked_targets),
-        "status": "completed",
+        "status": "needs_execution",
+        "artifact_kind": "scaffold",
+        "proof_ready": False,
     }
     receipt_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return receipt_path
@@ -242,29 +247,31 @@ def execute_work_unit(
             ).resolve()
         )
     proof = (
-        f"{work_unit.id}: used skill {preferred_skill}",
+        f"{work_unit.id}: scaffolded for bound skill {preferred_skill}",
         f"{work_unit.id}: binding profile {work_unit.binding_profile}",
         f"{work_unit.id}: binding reason {work_unit.binding_reason or 'not recorded'}",
-        f"{work_unit.id}: produced artifacts {', '.join(work_unit.expected_artifacts)}",
+        f"{work_unit.id}: scaffold artifacts {', '.join(work_unit.expected_artifacts)}",
         f"{work_unit.id}: artifact paths {', '.join(artifact_paths) if artifact_paths else 'in-memory only'}",
         f"{work_unit.id}: checked targets {', '.join(work_unit.verification)}",
         f"{work_unit.id}: execution receipt {execution_receipt_path or 'not written'}",
     )
     return WorkUnitResult(
         work_unit_id=work_unit.id,
-        status="completed",
-        lifecycle_state="executed",
-        used_skill=work_unit.preferred_skill,
+        status="needs_execution",
+        lifecycle_state="scaffolded",
+        used_skill=None,
         artifacts=work_unit.expected_artifacts,
         artifact_paths=artifact_paths,
         proof_artifact_paths=proof_artifact_paths,
         checked_targets=work_unit.verification,
         notes=(
-            f"executed with {preferred_skill}",
+            f"requires real execution evidence for bound skill {preferred_skill}",
             f"binding profile: {work_unit.binding_profile}",
             f"binding reason: {work_unit.binding_reason or 'not recorded'}",
         ),
         proof=proof,
         execution_receipt_path=execution_receipt_path,
         reused_from_work_unit_id=None,
+        artifact_kind="scaffold",
+        proof_ready=False,
     )

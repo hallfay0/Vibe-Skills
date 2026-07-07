@@ -54,7 +54,7 @@ tags:
         "small csv report compare sleep hours stress and focus with data quality, trend, relationship, correlation, regression, figure, reader report",
         "M",
         "research",
-        target_root=str(agent_root),
+        target_root=str(skills_root),
         host_id="codex",
         repo_root=Path(__file__).resolve().parents[4],
     )
@@ -146,7 +146,7 @@ tags:
         "small csv report compare sleep hours stress and focus with data quality, trend, relationship, correlation, regression, figure, reader report",
         "M",
         "research",
-        target_root=str(agent_root),
+        target_root=str(skills_root),
         host_id="codex",
         repo_root=Path(__file__).resolve().parents[4],
     )
@@ -195,7 +195,7 @@ Use for correlation plots, regression figures, data quality charts, and visual r
         "比较睡眠时长和主观压力水平对第二天专注度的影响。小数据，检查数据质量和基本趋势，用相关、回归、图表，写普通读者报告。",
         "XL",
         "research",
-        target_root=str(agent_root),
+        target_root=str(skills_root),
         host_id="codex",
         repo_root=Path(__file__).resolve().parents[4],
     )
@@ -291,7 +291,7 @@ tags:
         "XL clinical machine learning study with synthetic CSV, data quality checks, exploratory analysis, statistical relationship tests, scikit-learn prediction model, SHAP explanation, reader figures, Chinese report, PPT summary, and actual skill evidence files",
         "XL",
         "planning",
-        target_root=str(agent_root),
+        target_root=str(skills_root),
         host_id="codex",
         repo_root=Path(__file__).resolve().parents[4],
     )
@@ -371,7 +371,7 @@ tags:
         "XL clinical machine learning study with statistical tests, scikit-learn prediction model, SHAP explanation, reader figures, Chinese report, PPT summary, and actual skill evidence files",
         "XL",
         "planning",
-        target_root=str(agent_root),
+        target_root=str(skills_root),
         host_id="codex",
         repo_root=Path(__file__).resolve().parents[4],
     )
@@ -504,7 +504,7 @@ tags:
         "XL clinical machine learning study with data quality, EDA, statistics, scikit-learn model, SHAP explanation, reader figures, Chinese report, and openable PPTX summary",
         "XL",
         "planning",
-        target_root=str(agent_root),
+        target_root=str(skills_root),
         host_id="codex",
         repo_root=Path(__file__).resolve().parents[4],
     )

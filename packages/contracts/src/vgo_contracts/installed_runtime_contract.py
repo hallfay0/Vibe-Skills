@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+# Repo/runtime audit contract for freshness and coherence gates.
+# This is not the public simple-install receipt contract.
 
 DEFAULT_INSTALLED_RUNTIME_TARGET_RELPATH = "skills/vibe"
 DEFAULT_INSTALLED_RUNTIME_RECEIPT_RELPATH = "skills/vibe/outputs/runtime-freshness-receipt.json"

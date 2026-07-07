@@ -36,7 +36,7 @@ def test_execute_runtime_packet_exposes_kernel_compatibility_data() -> None:
     assert result.snapshot['effective_requested_stage_stop'] == 'xl_plan'
     assert result.snapshot['stage_stop_source'] == 'requested'
     assert result.snapshot['terminal_stage'] == 'xl_plan'
-    assert result.snapshot['verification']['result'] == 'done'
+    assert result.snapshot['verification']['result'] == 'needs_execution'
     assert result.snapshot['work_plan']['work_units'][0]['bound_skill'] == 'vibe-how-do-we-do'
     assert result.snapshot['work_binding']['units'][0]['bound_skill'] == 'vibe-how-do-we-do'
     assert result.snapshot['work_results'][0]['artifact_paths']
@@ -58,7 +58,7 @@ def test_execute_runtime_packet_keeps_requested_entry_but_reports_kernel_plan() 
     assert result.route['router_selected_skill'] == 'vibe-do-it'
     assert result.snapshot['task_card']['mode'] == result.route['task_type']
     assert len(result.snapshot['work_plan']['work_units']) >= 1
-    assert result.snapshot['work_results'][0]['status'] == 'completed'
+    assert result.snapshot['work_results'][0]['status'] == 'needs_execution'
 
 
 def test_execute_runtime_packet_uses_kernel_suggested_stage_stop_when_none_requested() -> None:
@@ -139,6 +139,7 @@ def test_selected_skill_is_not_reported_as_used_without_artifact_evidence() -> N
         ],
     )
 
+    assert usage["bound"] == [{"skill_id": "code-review", "work_unit_id": "wu-1"}]
     assert usage["used"] == []
     assert usage["unused"] == [{"skill_id": "code-review", "work_unit_id": "wu-1"}]
     assert usage["evidence"] == []

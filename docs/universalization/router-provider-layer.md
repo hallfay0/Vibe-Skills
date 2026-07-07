@@ -9,11 +9,15 @@ This layer documents how that intelligence remains replaceable, optional, and su
 
 ## Canonical Rule
 
-The canonical router remains:
+The current routing semantic owner is:
+
+- `packages/runtime-core/src/vgo_runtime/router_contract_runtime.py`
+
+The retained PowerShell bridge is:
 
 - `scripts/router/resolve-pack-route.ps1`
 
-Provider layers may assist that router, but they must not own assignment.
+Provider layers may assist the Python-owned router, but they must not own assignment. `scripts/router/resolve-pack-route.ps1` remains a compatibility bridge for retained callers, not the owner of routing semantics.
 
 ## Contract Files
 

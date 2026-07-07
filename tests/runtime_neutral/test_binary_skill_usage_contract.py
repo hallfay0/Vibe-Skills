@@ -57,6 +57,29 @@ def as_list(value: object) -> list[object]:
 
 
 class BinarySkillUsageContractTests(unittest.TestCase):
+    def test_configured_skill_roots_follow_host_defaults(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            home = root / "home"
+            codex_target = home / ".agents"
+            claude_target = home / ".claude"
+
+            payload = run_ps_json(
+                "& { "
+                f". {ps_quote(str(RUNTIME_COMMON))}; "
+                f". {ps_quote(str(SKILL_USAGE_COMMON))}; "
+                f"$codex = @(Get-VibeConfiguredSkillRoots -RepoRoot {ps_quote(str(REPO_ROOT))} -TargetRoot {ps_quote(str(codex_target))} -HostId 'codex'); "
+                f"$claude = @(Get-VibeConfiguredSkillRoots -RepoRoot {ps_quote(str(REPO_ROOT))} -TargetRoot {ps_quote(str(claude_target))} -HostId 'claude-code'); "
+                "[pscustomobject]@{ codex = $codex; claude = $claude } | ConvertTo-Json -Depth 20 "
+                "}"
+            )
+
+            self.assertEqual(
+                [str((home / ".agents" / "skills").resolve()), str((home / ".codex" / "skills").resolve())],
+                payload["codex"],
+            )
+            self.assertEqual([str((home / ".claude" / "skills").resolve())], payload["claude"])
+
     def test_full_skill_load_records_hash_path_line_and_byte_counts(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             root = Path(tempdir)

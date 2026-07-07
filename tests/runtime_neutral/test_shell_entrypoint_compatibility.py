@@ -34,7 +34,7 @@ class ShellEntrypointCompatibilityTests(unittest.TestCase):
         self.assertIn("PYTHON_MIN_MINOR=10", helper_content)
         self.assertIn("requires Python ${PYTHON_MIN_MAJOR}.${PYTHON_MIN_MINOR}+", helper_content)
         self.assertIn("python3 --version", helper_content)
-        for relpath in ("install.sh", "check.sh", "scripts/bootstrap/one-shot-setup.sh"):
+        for relpath in ("install.sh", "check.sh"):
             content = (REPO_ROOT / relpath).read_text(encoding="utf-8")
             self.assertIn("PYTHON_MIN_MAJOR=3", content, relpath)
             self.assertIn("PYTHON_MIN_MINOR=10", content, relpath)
@@ -72,7 +72,7 @@ class ShellEntrypointCompatibilityTests(unittest.TestCase):
             env = dict(os.environ)
             env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
             result = subprocess.run(
-                ["bash", str(REPO_ROOT / "check.sh"), "--host", "codex", "--profile", "minimal"],
+                ["bash", str(REPO_ROOT / "check.sh"), "--skills-dir", str(Path(tempdir) / "skills")],
                 cwd=REPO_ROOT,
                 env=env,
                 capture_output=True,

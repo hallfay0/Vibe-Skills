@@ -20,8 +20,8 @@ def _write_skill_roots_config(path: Path, roots: list[str]) -> None:
     path.write_text(json.dumps({"schema_version": 1, "extra_skill_roots": roots}), encoding="utf-8")
 
 
-def test_resolve_host_skill_roots_uses_project_user_then_default_order(tmp_path: Path) -> None:
-    agent_root = tmp_path / "home" / ".agents"
+def test_resolve_host_skill_roots_uses_project_user_then_skills_dir_order(tmp_path: Path) -> None:
+    skills_dir = tmp_path / "home" / ".agents" / "skills"
     workspace_root = tmp_path / "workspace"
     _write_skill_roots_config(tmp_path / "home" / ".vibeskills" / "skill-roots.json", ["D:/user-skills"])
     _write_skill_roots_config(workspace_root / ".vibeskills" / "skill-roots.json", ["project-skills"])
@@ -29,21 +29,50 @@ def test_resolve_host_skill_roots_uses_project_user_then_default_order(tmp_path:
     roots = resolve_host_skill_roots(
         repo_root=REPO_ROOT,
         host_id="codex",
-        agent_root=agent_root,
+        agent_root=skills_dir,
         workspace_root=workspace_root,
     )
 
     assert roots == (
         HostSkillRoot("codex", "workspace_extra", (workspace_root / "project-skills").resolve(), str((workspace_root / ".vibeskills" / "skill-roots.json").resolve())),
         HostSkillRoot("codex", "user_extra", Path("D:/user-skills").resolve(), str((tmp_path / "home" / ".vibeskills" / "skill-roots.json").resolve())),
-        HostSkillRoot("codex", "default", (tmp_path / "home" / ".agents" / "skills").resolve(), "default:~/.agents/skills"),
-        HostSkillRoot("codex", "default", (tmp_path / "home" / ".codex" / "skills").resolve(), "default:~/.codex/skills"),
-        HostSkillRoot("codex", "default", (tmp_path / "home" / ".claude" / "skills").resolve(), "default:~/.claude/skills"),
+        HostSkillRoot("codex", "skills_dir", skills_dir.resolve(), f"skills_dir:{skills_dir.resolve()}"),
+    )
+
+
+def test_resolve_host_skill_roots_uses_the_explicit_skills_dir_for_claude_code(tmp_path: Path) -> None:
+    skills_dir = tmp_path / "common-skills"
+
+    roots = resolve_host_skill_roots(
+        repo_root=REPO_ROOT,
+        host_id="claude-code",
+        agent_root=skills_dir,
+        workspace_root=None,
+    )
+
+    assert roots == (
+        HostSkillRoot("claude-code", "skills_dir", skills_dir.resolve(), f"skills_dir:{skills_dir.resolve()}"),
+    )
+
+
+def test_resolve_host_skill_roots_accepts_legacy_host_root_as_skills_parent(tmp_path: Path) -> None:
+    host_root = tmp_path / "home" / ".agents"
+
+    roots = resolve_host_skill_roots(
+        repo_root=REPO_ROOT,
+        host_id="codex",
+        agent_root=host_root,
+        workspace_root=None,
+    )
+
+    skills_dir = (host_root / "skills").resolve()
+    assert roots == (
+        HostSkillRoot("codex", "skills_dir", skills_dir, f"skills_dir:{skills_dir}"),
     )
 
 
 def test_resolve_host_skill_roots_deduplicates_roots_by_precedence(tmp_path: Path) -> None:
-    agent_root = tmp_path / "home" / ".agents"
+    agent_root = tmp_path / "home" / ".agents" / "skills"
     workspace_root = tmp_path / "workspace"
     shared_root = tmp_path / "shared-skills"
     _write_skill_roots_config(tmp_path / "home" / ".vibeskills" / "skill-roots.json", [str(shared_root)])
@@ -61,7 +90,7 @@ def test_resolve_host_skill_roots_deduplicates_roots_by_precedence(tmp_path: Pat
 
 
 def test_resolve_host_skill_roots_rejects_invalid_config_shape(tmp_path: Path) -> None:
-    agent_root = tmp_path / "home" / ".agents"
+    agent_root = tmp_path / "home" / ".agents" / "skills"
     config_path = tmp_path / "home" / ".vibeskills" / "skill-roots.json"
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text('{"schema_version": 1, "extra_skill_roots": "not-a-list"}', encoding="utf-8")

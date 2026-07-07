@@ -81,8 +81,6 @@ $oldFormatFallbackPatterns = @(
 $allowedCurrentExecutionPhrases = @(
     'derived_from_work_binding',
     'source = ''work_binding.units[*].bound_skill''',
-    'derived_from_skill_routing_selected',
-    'source = ''skill_routing.selected''',
     'no_specialist_recommendations'
 )
 

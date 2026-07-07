@@ -46,7 +46,11 @@ function Get-VibeConfiguredSkillRoots {
     } else {
         [System.IO.Path]::GetFullPath($TargetRoot)
     }
-    $defaultSkillRoots = @('~/.agents/skills', '~/.codex/skills', '~/.claude/skills')
+    $defaultSkillRoots = if ($resolvedHostId -eq 'claude-code') {
+        @('~/.claude/skills')
+    } else {
+        @('~/.agents/skills', '~/.codex/skills')
+    }
     $roots = New-Object System.Collections.Generic.List[string]
     $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     foreach ($rawValue in $defaultSkillRoots) {

@@ -74,9 +74,11 @@ def build_skill_usage_projection(
     bound_units = work_binding.get("units", []) if isinstance(work_binding, dict) else []
     result_rows = work_results if isinstance(work_results, list) else []
 
+    bound = _build_bound_entries(bound_units)
     used: list[dict[str, str]] = []
     evidence: list[dict[str, str]] = []
     seen_used_keys: set[tuple[str, str]] = set()
+    used_keys: set[tuple[str, str]] = set()
     used_skill_ids: set[str] = set()
     for row in result_rows:
         if not isinstance(row, dict):
@@ -90,6 +92,7 @@ def build_skill_usage_projection(
         if key in seen_used_keys:
             continue
         seen_used_keys.add(key)
+        used_keys.add(key)
         used_skill_ids.add(skill_id.casefold())
         used.append(
             {
@@ -107,18 +110,19 @@ def build_skill_usage_projection(
             }
         )
 
-    if not used and isinstance(compatibility_mirror, dict):
+    if not result_rows and isinstance(compatibility_mirror, dict):
         used = _normalize_usage_entries(compatibility_mirror.get("used"))
         evidence = _normalize_evidence_entries(compatibility_mirror.get("evidence"))
         used_skill_ids = {str(entry.get("skill_id") or "").strip().casefold() for entry in used if isinstance(entry, dict)}
         used_skill_ids.discard("")
 
-    unused = _build_unused_entries(bound_units=bound_units, used_skill_ids=used_skill_ids)
-    if not unused and isinstance(compatibility_mirror, dict):
+    unused = _build_unused_entries(bound_units=bound_units, used_keys=used_keys)
+    if not result_rows and not unused and isinstance(compatibility_mirror, dict):
         unused = _normalize_usage_entries(compatibility_mirror.get("unused"))
 
     if not include_binary_compat_fields:
         return {
+            "bound": bound,
             "used": used,
             "unused": unused,
             "evidence": evidence,
@@ -139,8 +143,9 @@ def build_skill_usage_projection(
     ]
 
     return {
-        "state_model": "binary_used_unused",
+        "state_model": "bound_used_unused",
         "loaded_skills": loaded_skills,
+        "bound": bound,
         "used": used,
         "unused": unused_with_reasons,
         "used_skills": used_skills,
@@ -157,15 +162,39 @@ def _first_artifact_evidence(row: dict[str, Any]) -> str | None:
             continue
         for value in values:
             text = str(value).strip()
-            if text:
+            if text and Path(text).is_file():
                 return text
     return None
+
+
+def _build_bound_entries(bound_units: object) -> list[dict[str, str]]:
+    if not isinstance(bound_units, list):
+        return []
+
+    bound: list[dict[str, str]] = []
+    seen_bound_keys: set[tuple[str, str]] = set()
+    for unit in bound_units:
+        if not isinstance(unit, dict):
+            continue
+        skill_id = str(unit.get("bound_skill") or "").strip()
+        work_unit_id = str(unit.get("work_unit_id") or "").strip()
+        if not skill_id:
+            continue
+        key = (skill_id.casefold(), work_unit_id.casefold())
+        if key in seen_bound_keys:
+            continue
+        seen_bound_keys.add(key)
+        entry = {"skill_id": skill_id}
+        if work_unit_id:
+            entry["work_unit_id"] = work_unit_id
+        bound.append(entry)
+    return bound
 
 
 def _build_unused_entries(
     *,
     bound_units: object,
-    used_skill_ids: set[str],
+    used_keys: set[tuple[str, str]],
 ) -> list[dict[str, str]]:
     if not isinstance(bound_units, list):
         return []
@@ -177,7 +206,7 @@ def _build_unused_entries(
             continue
         skill_id = str(unit.get("bound_skill") or "").strip()
         work_unit_id = str(unit.get("work_unit_id") or "").strip()
-        if not skill_id or skill_id.casefold() in used_skill_ids:
+        if not skill_id or (skill_id.casefold(), work_unit_id.casefold()) in used_keys:
             continue
         key = (skill_id.casefold(), work_unit_id.casefold())
         if key in seen_unused_keys:

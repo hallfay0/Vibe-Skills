@@ -349,6 +349,30 @@ def test_truth_gate_accepts_explicit_no_specialist_decision(tmp_path: Path) -> N
     assert result.returncode == 0, result.stdout + result.stderr
 
 
+def test_truth_gate_accepts_explicit_degraded_specialist_decision(tmp_path: Path) -> None:
+    session_root = tmp_path / "session"
+    _write_valid_canonical_entry_artifacts(session_root)
+    runtime_packet_path = session_root / "runtime-input-packet.json"
+    runtime_packet = json.loads(runtime_packet_path.read_text(encoding="utf-8"))
+    runtime_packet["work_binding"]["units"] = []
+    runtime_packet["specialist_decision"] = {
+        "decision_state": "degraded",
+        "resolution_mode": "degraded",
+        "recommendation_count": 1,
+        "candidate_skill_ids_reviewed": ["gpt-image"],
+        "selected_skill_ids": [],
+        "surfaced_skill_ids": ["gpt-image"],
+        "degraded_skill_ids": ["gpt-image"],
+        "rejected_candidates": [],
+    }
+    runtime_packet["skill_routing"]["selected"] = []
+    _write_json(runtime_packet_path, runtime_packet)
+
+    result = _run_truth_gate(session_root)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
 def test_truth_gate_accepts_verified_canonical_entry_session(tmp_path: Path) -> None:
     session_root = tmp_path / "session"
     _write_valid_canonical_entry_artifacts(session_root)
@@ -482,7 +506,7 @@ def test_truth_gate_accepts_missing_skill_routing_when_work_binding_preserves_se
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert "[PASS] runtime packet includes work_binding" in result.stdout
-    assert "[PASS] runtime packet records work_binding or no-specialist resolution" in result.stdout
+    assert "[PASS] runtime packet records work_binding, no-specialist resolution, or degraded specialist evidence" in result.stdout
     assert "[PASS] runtime packet skill_routing stays optional compatibility mirror" in result.stdout
 
 

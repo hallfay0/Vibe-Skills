@@ -1,6 +1,6 @@
 ---
 name: vibe
-description: Vibe Code Orchestrator (VCO) is a governed runtime entry that freezes requirements, plans XL-first execution, and enforces verification and phase cleanup.
+description: Vibe Code Orchestrator (VCO) is a governed runtime entry that freezes requirements, bounds execution, and enforces verification and phase cleanup.
 ---
 
 # Vibe Governed Runtime Entry
@@ -43,7 +43,7 @@ Do not simulate stages, claim canonical entry from reading this file or wrapper 
 Do not manually create `outputs/runtime/vibe-sessions/<run-id>/`.
 Do not use the Vibe installation root as the governed artifact root.
 
-Local installed specialist recommender: `scripts/router/resolve-pack-route.ps1`
+Local installed specialist recommender: semantic owner `packages/runtime-core/src/vgo_runtime/router_contract_runtime.py`; compatibility bridge `scripts/router/resolve-pack-route.ps1`
 
 Specialist recommender input rules:
 
@@ -83,7 +83,10 @@ PYTHONPATH="$REPO_ROOT/apps/vgo-cli/src" python -m vgo_cli.main canonical-entry 
 ```
 
 Only validate canonical proof artifacts after canonical-entry returns a `session_root`.
+`check` on an installed copy proves only `installed locally`.
+It does not prove `runtime coherent` or `delivery accepted`.
 Proof of canonical launch is post-launch and requires: `host-launch-receipt.json`, `runtime-input-packet.json`, `governance-capsule.json`, and `stage-lineage.json` under the returned `session_root`.
+`local-agent-kernel` follows the same proof rule. If it cannot produce those truth artifacts, it may produce local work scaffolds, but it must not be treated as `canonical verified`.
 
 ## Hard Stop And Re-entry
 
@@ -198,7 +201,7 @@ with a reason rather than forced into execution.
 For interactive L/XL work, surface the selected skill list before execution and
 ask the user: "我将会在接下来的工作中使用这些 skills，你觉得 OK 吗？" This approval
 only means the skills may be used; final material-use claims still require
-`skill_usage.used` and evidence files.
+`skill_usage.used` and evidence files. `skill_usage.bound` only means a skill was attached to a work unit; it is not a material-use claim.
 
 Only selected skills become execution units. The host must not invent unsurfaced
 skills, bypass runtime validation, create hidden skill sub-sessions, or open a
@@ -220,6 +223,7 @@ Never claim success without evidence. Minimum invariants:
 - Emit cleanup receipts before claiming phase completion.
 - Expose failures, fallback, degraded status, or blocked state explicitly.
 - Do not add mock success paths, swallowed errors, or template-only pass results.
+- Treat scaffold or draft artifacts as `needs_execution` with `proof_ready = false`; do not call them completed work.
 - Do not use fallback or boundary behavior to bypass real execution,
   verification, or root-cause repair.
 
@@ -239,5 +243,5 @@ Read these references only after canonical launch or when maintaining the repo:
 - Runtime family: governed-runtime-first
 - Version: 3.1.1
 - Updated: 2026-05-06
-- Local installed specialist recommender: `scripts/router/resolve-pack-route.ps1`
+- Local installed specialist recommender: semantic owner `packages/runtime-core/src/vgo_runtime/router_contract_runtime.py`; compatibility bridge `scripts/router/resolve-pack-route.ps1`
 - Primary contract metadata: `core/skill-contracts/v1/vibe.json`

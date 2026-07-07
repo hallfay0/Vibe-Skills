@@ -148,7 +148,7 @@ def test_local_router_selects_new_installed_skill_not_present_in_old_pack_files(
         prompt="Analyze sleep logs and stress scores, then summarize focus patterns.",
         grade="L",
         task_type="research",
-        target_root=str(agent_root),
+        target_root=str(skills_root),
         host_id="codex",
         repo_root=REPO_ROOT,
     )
@@ -179,7 +179,7 @@ def test_local_router_offers_confirm_for_plausible_local_near_match(tmp_path: Pa
         prompt="Review sleep and stress patterns from wearable exports before I decide next steps.",
         grade="L",
         task_type="research",
-        target_root=str(agent_root),
+        target_root=str(skills_root),
         host_id="codex",
         repo_root=REPO_ROOT,
     )
@@ -209,7 +209,7 @@ def test_local_router_uses_declared_capability_bridge_for_semantic_near_match(tm
         prompt="Need a preview deployment for this Next.js app before merge.",
         grade="L",
         task_type="coding",
-        target_root=str(agent_root),
+        target_root=str(skills_root),
         host_id="codex",
         repo_root=REPO_ROOT,
     )
@@ -239,7 +239,7 @@ def test_local_router_uses_body_intent_weak_capability_bridge_for_semantic_near_
         prompt="Need a preview deployment for this Next.js app before merge.",
         grade="L",
         task_type="coding",
-        target_root=str(agent_root),
+        target_root=str(skills_root),
         host_id="codex",
         repo_root=REPO_ROOT,
     )
@@ -268,7 +268,7 @@ def test_local_router_does_not_use_metadata_only_weak_capability_bridge_for_sema
         prompt="Need a preview deployment for this Next.js app before merge.",
         grade="L",
         task_type="coding",
-        target_root=str(agent_root),
+        target_root=str(skills_root),
         host_id="codex",
         repo_root=REPO_ROOT,
     )
@@ -307,7 +307,7 @@ def test_local_router_reports_actual_top1_top2_gap_for_selected_candidate(tmp_pa
         prompt="Need a preview deployment for this app before merge.",
         grade="L",
         task_type="coding",
-        target_root=str(agent_root),
+        target_root=str(skills_root),
         host_id="codex",
         repo_root=REPO_ROOT,
     )
@@ -346,7 +346,7 @@ def test_local_router_does_not_auto_route_when_top_gap_is_below_threshold(tmp_pa
         prompt="Package pass/fail rollups and coverage summaries for this pytest run.",
         grade="L",
         task_type="coding",
-        target_root=str(agent_root),
+        target_root=str(skills_root),
         host_id="codex",
         repo_root=REPO_ROOT,
     )
@@ -372,7 +372,7 @@ def test_local_router_allows_explicit_existing_skill_and_rejects_absent_old_skil
         grade="M",
         task_type="planning",
         requested_skill="fresh-local-skill",
-        target_root=str(agent_root),
+        target_root=str(skills_root),
         host_id="codex",
         repo_root=REPO_ROOT,
     )
@@ -381,7 +381,7 @@ def test_local_router_allows_explicit_existing_skill_and_rejects_absent_old_skil
         grade="M",
         task_type="planning",
         requested_skill="manuscript-as-code",
-        target_root=str(agent_root),
+        target_root=str(skills_root),
         host_id="codex",
         repo_root=REPO_ROOT,
     )
@@ -403,7 +403,7 @@ def test_local_router_does_not_fallback_when_no_local_candidate_matches(tmp_path
         prompt="Prepare a quantum compiler proof for superconducting qubit pulse schedules.",
         grade="XL",
         task_type="research",
-        target_root=str(agent_root),
+        target_root=str(skills_root),
         host_id="codex",
         repo_root=REPO_ROOT,
     )

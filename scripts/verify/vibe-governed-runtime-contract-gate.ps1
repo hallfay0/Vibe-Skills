@@ -156,6 +156,19 @@ $noSpecialistResolved = (
     [string]$specialistDecision.decision_state -eq 'no_specialist_recommendations' -and
     [string]$specialistDecision.resolution_mode -in @('no_matching_specialist', 'no_specialist_needed')
 )
+$degradedSpecialistResolved = (
+    $null -ne $specialistDecision -and
+    $specialistDecision.PSObject.Properties.Name -contains 'decision_state' -and
+    $specialistDecision.PSObject.Properties.Name -contains 'resolution_mode' -and
+    [string]$specialistDecision.decision_state -eq 'degraded' -and
+    [string]$specialistDecision.resolution_mode -eq 'degraded' -and
+    (
+        (($specialistDecision.PSObject.Properties.Name -contains 'degraded_skill_ids') -and @($specialistDecision.degraded_skill_ids).Count -gt 0) -or
+        (($specialistDecision.PSObject.Properties.Name -contains 'surfaced_skill_ids') -and @($specialistDecision.surfaced_skill_ids).Count -gt 0) -or
+        (($specialistDecision.PSObject.Properties.Name -contains 'recommendation_count') -and [int]$specialistDecision.recommendation_count -gt 0)
+    )
+)
+$noSpecialistResolved = ($noSpecialistResolved -or $degradedSpecialistResolved)
 $legacySkillRouting = if ($runtimeInputPacket.PSObject.Properties.Name -contains 'legacy_skill_routing') { $runtimeInputPacket.legacy_skill_routing } else { $null }
 $specialistRecommendations = if ($runtimeInputPacket.PSObject.Properties.Name -contains 'specialist_recommendations') {
     @($runtimeInputPacket.specialist_recommendations)

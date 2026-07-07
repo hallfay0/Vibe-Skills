@@ -20,6 +20,8 @@ def test_vibe_skill_frontloads_canonical_bootstrap_contract() -> None:
     assert "Do not use the Vibe installation root as the governed artifact root" in content
     assert "Do not search the current workspace, repository, or install root for canonical proof files before launch" in content
     assert "Only validate canonical proof artifacts after canonical-entry returns a `session_root`" in content
+    assert "`check` on an installed copy proves only `installed locally`." in content
+    assert "It does not prove `runtime coherent` or `delivery accepted`." in content
     assert "Do not inspect the repo, protocol docs, or prior run outputs before canonical launch returns" in content
     assert "Do not simulate stages, claim canonical entry from reading this file or wrapper text" in content
     assert "Proof of canonical launch is post-launch and requires: `host-launch-receipt.json`, `runtime-input-packet.json`, `governance-capsule.json`, and `stage-lineage.json` under the returned `session_root`." in content
