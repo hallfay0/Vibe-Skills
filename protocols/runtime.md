@@ -230,6 +230,7 @@ Delegation must not bypass the fixed stage order.
 ## Specialist Recommender Integration Rules
 
 - specialist recommendation semantic owner remains `packages/runtime-core/src/vgo_runtime/router_contract_runtime.py`
+- Python direct-first is the current happy path for local installed specialist recommendation
 - retained PowerShell callers still enter through compatibility bridge `scripts/router/resolve-pack-route.ps1`
 - `confirm_required` stays on the existing white-box confirm surface when specialist choice needs host confirmation
 - unattended routing is interpreted as a governed runtime mode choice, not as a second runtime

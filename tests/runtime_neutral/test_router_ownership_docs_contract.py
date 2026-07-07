@@ -30,6 +30,7 @@ def test_router_readme_names_python_runtime_as_current_routing_owner() -> None:
         "Current routing semantic owner",
         "packages/runtime-core/src/vgo_runtime/router_contract_runtime.py",
         "resolve-pack-route.ps1 is a compatibility bridge",
+        "Python direct-first",
         "modules/ is legacy/helper/compatibility",
     )
     for claim in required_claims:
@@ -74,6 +75,7 @@ def test_runtime_protocol_names_python_router_owner_before_bridge() -> None:
     required_claims = (
         "semantic owner `packages/runtime-core/src/vgo_runtime/router_contract_runtime.py`",
         "compatibility bridge `scripts/router/resolve-pack-route.ps1`",
+        "Python direct-first",
     )
     forbidden_claims = (
         "Internal specialist recommender",

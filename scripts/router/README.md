@@ -9,7 +9,9 @@
 
 Current routing semantic owner: `packages/runtime-core/src/vgo_runtime/router_contract_runtime.py`.
 
-`resolve-pack-route.ps1 is a compatibility bridge` for retained callers that still enter through PowerShell. `modules/ is legacy/helper/compatibility`; it can support retained projections, but it is not the current owner of routing semantics.
+Python direct-first is the current happy path.
+
+`resolve-pack-route.ps1 is a compatibility bridge` for retained callers that still enter through PowerShell or for owner-failure fallback. `modules/ is legacy/helper/compatibility`; it can support retained projections, but it is not the current owner of routing semantics.
 
 ## Current Layout
 

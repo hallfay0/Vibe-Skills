@@ -2097,13 +2097,46 @@ def launch_canonical_vibe(
             force_runtime_neutral=force_runtime_neutral,
         )
     except Exception:
-        failed_receipt = HostLaunchReceipt(**{**receipt.model_dump(), "launch_status": "failed"})
-        write_host_launch_receipt(receipt_path, failed_receipt)
+        _mark_host_launch_failed(receipt_path, receipt)
         raise
 
+    try:
+        return _finalize_canonical_launch_result(
+            receipt=receipt,
+            receipt_path=receipt_path,
+            requested_entry_id=requested_entry_id,
+            requested_stage_stop=requested_stage_stop,
+            effective_requested_stage_stop=effective_requested_stage_stop,
+            effective_prompt=effective_prompt,
+            payload=payload,
+            fallback_run_id=resolved_run_id,
+            fallback_summary_path=summary_path,
+        )
+    except Exception:
+        _mark_host_launch_failed(receipt_path, receipt)
+        raise
+
+
+def _mark_host_launch_failed(receipt_path: Path, receipt: HostLaunchReceipt) -> None:
+    failed_receipt = HostLaunchReceipt(**{**receipt.model_dump(), "launch_status": "failed"})
+    write_host_launch_receipt(receipt_path, failed_receipt)
+
+
+def _finalize_canonical_launch_result(
+    *,
+    receipt: HostLaunchReceipt,
+    receipt_path: Path,
+    requested_entry_id: str,
+    requested_stage_stop: str | None,
+    effective_requested_stage_stop: str | None,
+    effective_prompt: str,
+    payload: dict[str, Any],
+    fallback_run_id: str,
+    fallback_summary_path: Path,
+) -> CanonicalLaunchResult:
     session_root = Path(str(payload["session_root"])).resolve()
-    resolved_run_id = str(payload.get("run_id") or resolved_run_id or session_root.name)
-    summary_path = Path(str(payload.get("summary_path") or summary_path)).resolve()
+    resolved_run_id = str(payload.get("run_id") or fallback_run_id or session_root.name)
+    summary_path = Path(str(payload.get("summary_path") or fallback_summary_path)).resolve()
 
     summary = dict(payload.get("summary") or {})
     if summary_path.exists():
@@ -2112,20 +2145,15 @@ def launch_canonical_vibe(
     if receipt_path.parent != session_root:
         receipt_path = write_host_launch_receipt(session_root, receipt)
 
-    try:
-        artifacts = assert_minimum_truth_artifacts(session_root)
-        _ = _load_runtime_truth_packet(Path(artifacts["runtime_input_packet"]))
-        assert_minimum_truth_consistency(
-            receipt=receipt,
-            requested_entry_id=requested_entry_id,
-            runtime_packet_path=artifacts["runtime_input_packet"],
-            governance_capsule_path=artifacts["governance_capsule"],
-            stage_lineage_path=artifacts["stage_lineage"],
-        )
-    except Exception:
-        failed_receipt = HostLaunchReceipt(**{**receipt.model_dump(), "launch_status": "failed"})
-        write_host_launch_receipt(receipt_path, failed_receipt)
-        raise
+    artifacts = assert_minimum_truth_artifacts(session_root)
+    _ = _load_runtime_truth_packet(Path(artifacts["runtime_input_packet"]))
+    assert_minimum_truth_consistency(
+        receipt=receipt,
+        requested_entry_id=requested_entry_id,
+        runtime_packet_path=artifacts["runtime_input_packet"],
+        governance_capsule_path=artifacts["governance_capsule"],
+        stage_lineage_path=artifacts["stage_lineage"],
+    )
 
     stage_lineage = _load_json_dict(Path(artifacts["stage_lineage"]), label="stage-lineage")
     runtime_packet = _load_json_dict(Path(artifacts["runtime_input_packet"]), label="runtime-input-packet")

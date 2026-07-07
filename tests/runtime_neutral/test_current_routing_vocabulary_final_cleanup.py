@@ -26,6 +26,7 @@ CURRENT_USER_VISIBLE_RUNTIME_FILES = [
     REPO_ROOT / "scripts" / "verify" / "vibe-runtime-execution-proof-gate.ps1",
 ]
 RUNTIME_EXECUTION_PROOF_GATE = REPO_ROOT / "scripts" / "verify" / "vibe-runtime-execution-proof-gate.ps1"
+GOVERNED_RUNTIME_CONTRACT_GATE = REPO_ROOT / "scripts" / "verify" / "vibe-governed-runtime-contract-gate.ps1"
 NO_SILENT_FALLBACK_GATE = REPO_ROOT / "scripts" / "verify" / "vibe-no-silent-fallback-contract-gate.ps1"
 CHILD_SPECIALIST_ESCALATION_GATE = REPO_ROOT / "scripts" / "verify" / "vibe-child-specialist-escalation-gate.ps1"
 EXECUTION_CLOSURE_GATE = REPO_ROOT / "scripts" / "verify" / ("vibe-specialist-" + "dispatch-closure-gate.ps1")
@@ -164,6 +165,13 @@ class CurrentRoutingVocabularyFinalCleanupTests(unittest.TestCase):
         self.assertNotIn("executeReceipt.specialist_dispatch_unit_count", text)
         self.assertNotIn("executionManifest.specialist_accounting.dispatch_unit_count", text)
         self.assertNotIn("proofManifest.specialist_dispatch_unit_count", text)
+
+    def test_governed_runtime_contract_gate_tracks_approved_dispatch_skill_ids_not_one_named_skill(self) -> None:
+        text = read(GOVERNED_RUNTIME_CONTRACT_GATE)
+
+        self.assertIn("approved_dispatch_skill_ids", text)
+        self.assertIn("runtime smoke preserves approved dispatch skills in work_binding or records no-specialist resolution", text)
+        self.assertNotIn("runtime smoke preserves systematic-debugging in work_binding or records no-specialist resolution", text)
 
     def test_no_silent_fallback_gate_keeps_selected_skill_mirror_subordinate_to_work_binding(self) -> None:
         text = read(NO_SILENT_FALLBACK_GATE)

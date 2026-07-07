@@ -72,11 +72,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv or sys.argv[1:])
-    shell = None if args.force_runtime_neutral else resolve_powershell_host()
-
-    if shell:
-        payload = invoke_canonical_router(args, shell)
-    else:
+    repo_root = resolve_repo_root(Path(__file__))
+    try:
         payload = route_prompt(
             prompt=args.prompt,
             grade=args.grade,
@@ -86,8 +83,15 @@ def main(argv: list[str] | None = None) -> int:
             requested_grade_floor=args.requested_grade_floor,
             target_root=args.target_root,
             host_id=args.host_id,
-            repo_root=resolve_repo_root(Path(__file__)),
+            repo_root=repo_root,
         )
+    except Exception:
+        if args.force_runtime_neutral:
+            raise
+        shell = resolve_powershell_host()
+        if shell is None:
+            raise
+        payload = invoke_canonical_router(args, shell)
 
     json.dump(payload, sys.stdout, ensure_ascii=False, indent=2)
     sys.stdout.write('\n')
