@@ -6,9 +6,7 @@ description: Vibe Code Orchestrator (VCO) is a governed runtime entry that freez
 # Vibe Governed Runtime Entry
 
 This file is the host-facing SOP for entering canonical `vibe`. Keep it small:
-runtime details belong in `protocols/runtime.md`, execution discipline belongs in
-`protocols/do.md`, and host wrapper recipes belong in installer-generated wrapper
-docs.
+runtime details belong in `protocols/runtime.md`, execution discipline belongs in `protocols/do.md`, and host wrapper recipes belong in installer-generated wrapper docs.
 
 ## Trigger Contract
 
