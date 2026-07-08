@@ -506,10 +506,16 @@ def test_recommended_full_and_enterprise_reference_pages_are_archived_not_active
         assert (REPO_ROOT / "docs" / "archive" / "install-legacy" / "2026-07-02" / Path(path).name).exists()
 
 
-def test_opencode_reference_page_is_archived_not_active_install_guidance() -> None:
-    for path in (
-        "docs/install/opencode-path.en.md",
-        "docs/install/opencode-path.md",
-    ):
-        assert not (REPO_ROOT / path).exists()
-        assert (REPO_ROOT / "docs" / "archive" / "install-legacy" / "2026-07-02" / Path(path).name).exists()
+def test_opencode_reference_page_stays_preview_scaffold_not_main_install_guidance() -> None:
+    active_note = REPO_ROOT / "docs/install/opencode-path.en.md"
+    archived_note = REPO_ROOT / "docs/archive/install-legacy/2026-07-02/opencode-path.en.md"
+    archived_cn_note = REPO_ROOT / "docs/archive/install-legacy/2026-07-02/opencode-path.md"
+
+    assert active_note.exists()
+    assert archived_note.exists()
+    assert archived_cn_note.exists()
+    assert not (REPO_ROOT / "docs/install/opencode-path.md").exists()
+
+    text = active_note.read_text(encoding="utf-8")
+    assert "preview host-adapter guide" in text
+    assert "not the main public install story" in text
