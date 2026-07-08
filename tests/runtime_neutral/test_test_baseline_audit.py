@@ -37,6 +37,7 @@ class TestBaselineAuditPolicyTests(unittest.TestCase):
         self.assertEqual(EXPECTED_LAYER_IDS, [layer["id"] for layer in policy["layers"]])
         self.assertNotIn("classification", policy)
         self.assertNotIn("risk_keywords", policy)
+        self.assertEqual("contract_support", policy["layers"][0]["selection_scope"])
 
     def test_capability_layers_use_explicit_targets_and_packaging_is_touched_only(self) -> None:
         policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
@@ -56,6 +57,7 @@ class TestBaselineAuditPolicyTests(unittest.TestCase):
         self.assertEqual("default_regression", layers["default_runtime_entry_truth"]["selection_scope"])
         self.assertEqual("default_regression", layers["default_routing_mainline"]["selection_scope"])
         self.assertEqual("touched_surface_only", layers["touched_packaging_release"]["selection_scope"])
+        self.assertEqual("host_boundary", layers["integration_host_boundary"]["selection_scope"])
 
     def test_default_capability_layers_keep_file_serial_diagnostics(self) -> None:
         policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
@@ -130,7 +132,17 @@ class TestBaselineAuditPolicyTests(unittest.TestCase):
         self.assertIn("tests/runtime_neutral/test_custom_admission_bridge.py", command_map[("default_routing_mainline",)])
         self.assertIn("tests/runtime_neutral/test_release_truth_gate.py", command_map[("touched_packaging_release",)])
         self.assertEqual(
-            [sys.executable, "-m", "pytest", "tests/integration", "--collect-only", "-q"],
+            [
+                sys.executable,
+                "-m",
+                "pytest",
+                "tests/integration/test_host_global_bootstrap_shell_lifecycle.py",
+                "tests/integration/test_install_rerun_matrix.py",
+                "tests/integration/test_powershell_captured_process_argument_integrity.py",
+                "tests/integration/test_powershell_wrapper_host_validation_dedupe.py",
+                "--collect-only",
+                "-q",
+            ],
             command_map[("integration_host_boundary",)],
         )
 
@@ -250,7 +262,7 @@ class TestBaselineAuditPolicyTests(unittest.TestCase):
         policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
         nodes = [
             "tests/runtime_neutral/test_governed_runtime_bridge.py::test_bridge",
-            "tests/runtime_neutral/test_runtime_contract_goldens.py::test_golden",
+            "tests/runtime_neutral/test_runtime_delivery_acceptance.py::test_delivery",
             "tests/runtime_neutral/test_install_profile_differentiation.py::test_profile",
         ]
 
@@ -262,7 +274,7 @@ class TestBaselineAuditPolicyTests(unittest.TestCase):
         )
 
         self.assertIn("tests/runtime_neutral/test_governed_runtime_bridge.py", command)
-        self.assertIn("tests/runtime_neutral/test_runtime_contract_goldens.py", command)
+        self.assertIn("tests/runtime_neutral/test_runtime_delivery_acceptance.py", command)
         self.assertNotIn("tests/runtime_neutral/test_install_profile_differentiation.py", command)
 
     def test_build_artifact_summarizes_capability_layers_without_risk_taxonomy(self) -> None:
@@ -273,7 +285,7 @@ class TestBaselineAuditPolicyTests(unittest.TestCase):
             "tests/runtime_neutral/test_governed_runtime_bridge.py::test_bridge",
             "tests/runtime_neutral/test_custom_admission_bridge.py::test_bridge",
             "tests/runtime_neutral/test_pack_manifest_role_contract.py::test_manifest",
-            "tests/integration/test_runtime_core_packaging_roles.py::test_roles",
+            "tests/integration/test_install_rerun_matrix.py::test_build_install_plan_preserves_rerun_semantics",
         ]
 
         artifact = audit.build_artifact(
@@ -288,8 +300,10 @@ class TestBaselineAuditPolicyTests(unittest.TestCase):
         self.assertEqual(6, artifact["summary"]["total_nodes"])
         self.assertEqual(0, artifact["summary"]["risk_tag_count"])
         self.assertEqual({}, artifact["risks"])
+        self.assertEqual("contract_support", artifact["layers"]["contract_unit"]["selection_scope"])
         self.assertEqual("default_regression", artifact["layers"]["default_install_lifecycle"]["selection_scope"])
         self.assertEqual("touched_surface_only", artifact["layers"]["touched_packaging_release"]["selection_scope"])
+        self.assertEqual("host_boundary", artifact["layers"]["integration_host_boundary"]["selection_scope"])
         self.assertEqual(1, artifact["layers"]["contract_unit"]["node_count"])
         self.assertEqual(1, artifact["layers"]["default_install_lifecycle"]["node_count"])
         self.assertEqual(1, artifact["layers"]["default_runtime_entry_truth"]["node_count"])
@@ -362,7 +376,7 @@ class FakeRunner:
                 "tests/runtime_neutral/test_governed_runtime_bridge.py::test_bridge",
                 "tests/runtime_neutral/test_custom_admission_bridge.py::test_bridge",
                 "tests/runtime_neutral/test_pack_manifest_role_contract.py::test_manifest",
-                "tests/integration/test_runtime_core_packaging_roles.py::test_roles",
+                "tests/integration/test_install_rerun_matrix.py::test_build_install_plan_preserves_rerun_semantics",
                 "6 tests collected",
             ]
         )
@@ -426,14 +440,14 @@ class TestBaselineAuditCliTests(unittest.TestCase):
         layers = {layer["id"]: layer for layer in policy["layers"]}
         layers["default_runtime_entry_truth"]["pytest_args"] = [
             "tests/runtime_neutral/test_governed_runtime_bridge.py",
-            "tests/runtime_neutral/test_runtime_contract_goldens.py",
+            "tests/runtime_neutral/test_runtime_delivery_acceptance.py",
             "-k",
             "runtime",
             "--maxfail=1",
         ]
         nodes = [
             "tests/runtime_neutral/test_governed_runtime_bridge.py::test_bridge",
-            "tests/runtime_neutral/test_runtime_contract_goldens.py::test_golden",
+            "tests/runtime_neutral/test_runtime_delivery_acceptance.py::test_delivery",
             "tests/runtime_neutral/test_install_profile_differentiation.py::test_profile",
         ]
 
@@ -448,7 +462,7 @@ class TestBaselineAuditCliTests(unittest.TestCase):
         self.assertEqual("runtime", command[command.index("-k") + 1])
         self.assertIn("--maxfail=1", command)
         self.assertIn("tests/runtime_neutral/test_governed_runtime_bridge.py", command)
-        self.assertIn("tests/runtime_neutral/test_runtime_contract_goldens.py", command)
+        self.assertIn("tests/runtime_neutral/test_runtime_delivery_acceptance.py", command)
         self.assertNotIn("tests/runtime_neutral/test_install_profile_differentiation.py", command)
 
     def test_run_layer_accepts_capability_layer(self) -> None:
@@ -487,7 +501,7 @@ class TestBaselineAuditCliTests(unittest.TestCase):
             "default_runtime_entry_truth",
             collected_nodes=[
                 "tests/runtime_neutral/test_governed_runtime_bridge.py::test_bridge",
-                "tests/runtime_neutral/test_runtime_contract_goldens.py::test_golden",
+                "tests/runtime_neutral/test_runtime_delivery_acceptance.py::test_delivery",
             ],
             runner=runner,
         )
@@ -502,7 +516,7 @@ class TestBaselineAuditCliTests(unittest.TestCase):
             run_calls[0]["command"],
         )
         self.assertEqual(123, run_calls[0]["kwargs"]["timeout"])
-        self.assertIn("tests/runtime_neutral/test_runtime_contract_goldens.py", result["stdout"])
+        self.assertIn("tests/runtime_neutral/test_runtime_delivery_acceptance.py", result["stdout"])
 
     def test_run_layer_file_serial_strategy_caps_file_timeout_by_layer_budget(self) -> None:
         policy = copy.deepcopy(audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json"))

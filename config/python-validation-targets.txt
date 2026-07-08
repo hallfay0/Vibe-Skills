@@ -1,15 +1,12 @@
 # Small always-on Python validation surface for CI and local gate-parity runs.
 # Keep this list to one or two anchors per default capability plus policy contracts.
 
-# Repo invariant anchor.
-tests/contract/test_repo_layout_contract.py
-
 # Default install lifecycle.
 tests/runtime_neutral/test_install_profile_differentiation.py
 
 # Default runtime entry truth.
 tests/runtime_neutral/test_governed_runtime_bridge.py
-tests/runtime_neutral/test_runtime_contract_goldens.py
+tests/runtime_neutral/test_runtime_delivery_acceptance.py
 
 # Default routing mainline.
 tests/runtime_neutral/test_custom_admission_bridge.py

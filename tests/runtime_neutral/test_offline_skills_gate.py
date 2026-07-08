@@ -10,6 +10,10 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 OFFLINE_GATE = REPO_ROOT / "scripts" / "verify" / "vibe-offline-skills-gate.ps1"
+OFFLINE_REQUIRED_AUDIT = REPO_ROOT / "scripts" / "verify" / "vibe-offline-required-skills-audit.ps1"
+OFFLINE_LOCK_PARITY_AUDIT = REPO_ROOT / "scripts" / "verify" / "vibe-offline-lock-parity-audit.ps1"
+OFFLINE_HASH_AUDIT = REPO_ROOT / "scripts" / "verify" / "vibe-offline-hash-audit.ps1"
+OFFLINE_LIB_ROOT = REPO_ROOT / "scripts" / "verify" / "lib"
 
 
 def resolve_powershell() -> str | None:
@@ -64,6 +68,10 @@ class OfflineSkillsGateTests(unittest.TestCase):
 
     def _write_fixture(self) -> None:
         self._write("scripts/verify/vibe-offline-skills-gate.ps1", OFFLINE_GATE.read_text(encoding="utf-8"))
+        self._write("scripts/verify/vibe-offline-required-skills-audit.ps1", OFFLINE_REQUIRED_AUDIT.read_text(encoding="utf-8"))
+        self._write("scripts/verify/vibe-offline-lock-parity-audit.ps1", OFFLINE_LOCK_PARITY_AUDIT.read_text(encoding="utf-8"))
+        self._write("scripts/verify/vibe-offline-hash-audit.ps1", OFFLINE_HASH_AUDIT.read_text(encoding="utf-8"))
+        shutil.copytree(OFFLINE_LIB_ROOT, self.root / "scripts" / "verify" / "lib", dirs_exist_ok=True)
         self._write("config/pack-manifest.json", json.dumps({"packs": []}, indent=2) + "\n")
         self._write("SKILL.md", "---\nname: vibe\ndescription: canonical fixture\n---\n")
         self._write(
@@ -117,7 +125,7 @@ class OfflineSkillsGateTests(unittest.TestCase):
             + "\n",
         )
 
-    def _run_gate(self) -> subprocess.CompletedProcess[str]:
+    def _run_script(self, script_name: str, *args: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             [
                 self.powershell,
@@ -125,21 +133,38 @@ class OfflineSkillsGateTests(unittest.TestCase):
                 "-ExecutionPolicy",
                 "Bypass",
                 "-File",
-                str(self.root / "scripts" / "verify" / "vibe-offline-skills-gate.ps1"),
-                "-SkipHash",
+                str(self.root / "scripts" / "verify" / script_name),
+                *args,
             ],
             cwd=self.root,
             capture_output=True,
             text=True,
         )
 
-    def test_gate_accepts_canonical_vibe_when_not_present_under_bundled_skills(self) -> None:
-        result = self._run_gate()
+    def test_required_skills_audit_accepts_canonical_vibe_when_not_present_under_bundled_skills(self) -> None:
+        result = self._run_script("vibe-offline-required-skills-audit.ps1")
         self.assertEqual(0, result.returncode, msg=result.stdout + result.stderr)
         self.assertNotIn("missing required routed skills: vibe", result.stdout)
         self.assertNotIn("skills-lock entries missing in skills root: vibe", result.stdout)
 
-    def test_gate_fails_when_stale_vibe_entry_remains_in_bundled_skills_lock(self) -> None:
+    def test_wrapper_skips_lock_based_audits_when_skills_lock_is_absent(self) -> None:
+        (self.root / "config" / "skills-lock.json").unlink()
+
+        result = self._run_script("vibe-offline-skills-gate.ps1", "-SkipHash")
+        self.assertEqual(0, result.returncode, msg=result.stdout + result.stderr)
+        self.assertIn("[SKIP] skills-lock audit requires a generated lock file", result.stdout)
+        self.assertIn("Offline skill audit wrapper passed.", result.stdout)
+
+    def test_lock_parity_audit_requires_explicit_lock_when_called_directly(self) -> None:
+        (self.root / "config" / "skills-lock.json").unlink()
+
+        result = self._run_script("vibe-offline-lock-parity-audit.ps1")
+        self.assertNotEqual(0, result.returncode)
+        combined = result.stdout + result.stderr
+        self.assertIn("Skills lock not found:", combined)
+        self.assertIn("run scripts/verify/vibe-generate-skills-lock.ps1 or pass -SkillsLockPath", combined)
+
+    def test_lock_parity_audit_fails_when_stale_vibe_entry_remains_in_bundled_skills_lock(self) -> None:
         payload = json.loads((self.root / "config" / "skills-lock.json").read_text(encoding="utf-8"))
         payload["skills"].append(
             {
@@ -154,11 +179,11 @@ class OfflineSkillsGateTests(unittest.TestCase):
         payload["skill_count"] = len(payload["skills"])
         (self.root / "config" / "skills-lock.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8", newline="\n")
 
-        result = self._run_gate()
+        result = self._run_script("vibe-offline-lock-parity-audit.ps1")
         self.assertNotEqual(0, result.returncode)
-        self.assertIn("skills-lock entries missing in skills root: vibe", result.stdout)
+        self.assertIn("missing in skills root: vibe", result.stdout)
 
-    def test_gate_fails_when_required_wrapper_skill_is_missing(self) -> None:
+    def test_required_skills_audit_fails_when_required_wrapper_skill_is_missing(self) -> None:
         wrapper_root = self.root / "bundled" / "skills" / "vibe-do-it"
         shutil.rmtree(wrapper_root)
 
@@ -171,9 +196,9 @@ class OfflineSkillsGateTests(unittest.TestCase):
         payload["skill_count"] = len(payload["skills"])
         (self.root / "config" / "skills-lock.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8", newline="\n")
 
-        result = self._run_gate()
+        result = self._run_script("vibe-offline-required-skills-audit.ps1")
         self.assertNotEqual(0, result.returncode)
-        self.assertIn("missing required routed skills: vibe-do-it", result.stdout)
+        self.assertIn("missing: vibe-do-it", result.stdout)
 
 
 if __name__ == "__main__":
