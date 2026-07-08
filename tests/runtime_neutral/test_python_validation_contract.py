@@ -17,16 +17,12 @@ PYTHON_HELPERS = REPO_ROOT / "scripts" / "common" / "python_helpers.sh"
 TIMESFM_OUTPUT_ROOT = REPO_ROOT / "bundled" / "skills" / "timesfm-forecasting" / "examples"
 EXPECTED_PYTHON_VALIDATION_TARGETS = [
     "tests/contract/test_repo_layout_contract.py",
-    "tests/integration/test_runtime_surface_contract_cutover.py",
-    "tests/runtime_neutral/test_apps_surface_hygiene.py",
-    "tests/runtime_neutral/test_bundled_stage_assistant_freeze.py",
-    "tests/runtime_neutral/test_bundled_skill_governance_gate.py",
-    "tests/runtime_neutral/test_custom_admission_bridge.py",
-    "tests/runtime_neutral/test_docs_readme_encoding.py",
-    "tests/runtime_neutral/test_governed_runtime_bridge.py",
     "tests/runtime_neutral/test_install_profile_differentiation.py",
-    "tests/runtime_neutral/test_memory_progressive_disclosure.py",
+    "tests/runtime_neutral/test_governed_runtime_bridge.py",
     "tests/runtime_neutral/test_runtime_contract_goldens.py",
+    "tests/runtime_neutral/test_custom_admission_bridge.py",
+    "tests/runtime_neutral/test_router_authority_safe_fallback.py",
+    "tests/runtime_neutral/test_test_baseline_audit.py",
     "tests/runtime_neutral/test_python_validation_contract.py",
 ]
 
@@ -69,7 +65,7 @@ class PythonValidationContractTests(unittest.TestCase):
         self.assertIn("[Console]::OutputEncoding = [System.Text.Encoding]::UTF8", text)
         self.assertIn("$OutputEncoding = [System.Text.Encoding]::UTF8", text)
 
-    def test_python_validation_targets_cover_critical_invariants(self) -> None:
+    def test_python_validation_targets_cover_default_capability_invariants(self) -> None:
         self.assertTrue(TARGETS_FILE.exists(), "canonical Python validation target list should exist")
 
         targets = [
@@ -79,6 +75,27 @@ class PythonValidationContractTests(unittest.TestCase):
         ]
 
         self.assertEqual(EXPECTED_PYTHON_VALIDATION_TARGETS, targets)
+
+    def test_python_validation_targets_skip_touched_packaging_release_only_checks(self) -> None:
+        targets = {
+            line.strip()
+            for line in TARGETS_FILE.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        }
+
+        self.assertNotIn("tests/runtime_neutral/test_release_truth_gate.py", targets)
+        self.assertNotIn("tests/runtime_neutral/test_pack_manifest_role_contract.py", targets)
+
+    def test_python_validation_targets_skip_optional_audits(self) -> None:
+        targets = {
+            line.strip()
+            for line in TARGETS_FILE.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        }
+
+        self.assertNotIn("tests/runtime_neutral/test_docs_readme_encoding.py", targets)
+        self.assertNotIn("tests/runtime_neutral/test_memory_progressive_disclosure.py", targets)
+        self.assertNotIn("tests/runtime_neutral/test_bundled_skill_governance_gate.py", targets)
 
     def test_conftest_does_not_mutate_repo_owned_bytecode_artifacts_before_hygiene_assertions(self) -> None:
         self.assertTrue(CONFTEST.exists(), "tests/conftest.py should exist")

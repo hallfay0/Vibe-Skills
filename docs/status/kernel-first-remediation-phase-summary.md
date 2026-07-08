@@ -43,8 +43,7 @@ Focused proof that passed during this phase:
   observed result: `99 passed`
 - `py -3 -m pytest tests/unit/test_kernel_benchmark.py -q`
   observed result: `9 passed, 1 warning`
-- `py -3 -m pytest tests/runtime_neutral/test_documentation_surface_alignment.py tests/runtime_neutral/test_current_routing_debt_gate_docs.py -q`
-  observed result: `23 passed`
+- a docs-oriented routing debt proof ran during this phase, but that retired cleanup test has since been removed from the live suite
 - `py -3 -m pytest tests/unit -q`
   observed result: `497 passed, 1 warning`
 - `py -3 -m pytest tests/unit/test_runtime_truth.py tests/unit/test_runtime_execution.py tests/runtime_neutral/test_bootstrap_shell_target_root_guard.py tests/runtime_neutral/test_check_installed_runtime_root.py tests/runtime_neutral/test_apps_surface_hygiene.py tests/runtime_neutral/test_binary_skill_usage_contract.py tests/runtime_neutral/test_current_routing_debt_gate.py tests/runtime_neutral/test_skill_execution_lock_contract.py tests/runtime_neutral/test_l_xl_native_execution_topology.py -q`

@@ -50,7 +50,6 @@ $currentRuntimeFiles = @(
 
 $legacyAllowedFiles = @(
     'scripts/runtime/VibeConsultation.Common.ps1',
-    'tests/runtime_neutral/test_vibe_specialist_consultation.py',
     'tests/runtime_neutral/test_active_consultation_simplification.py'
 )
 

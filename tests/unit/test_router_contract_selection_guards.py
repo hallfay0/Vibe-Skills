@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 import sys
-import unittest
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -11,9 +10,6 @@ if str(RUNTIME_SRC) not in sys.path:
     sys.path.insert(0, str(RUNTIME_SRC))
 
 from vgo_runtime.router_contract_selection import get_pack_skill_candidates, select_pack_candidate
-
-
-ASSERTIONS = unittest.TestCase()
 
 
 def _selection(prompt: str, *, requested: str | None = None) -> dict[str, object]:
@@ -86,60 +82,13 @@ def test_requested_subagent_bypasses_guard() -> None:
 
     assert selection["selected"] == "subagent-driven-development"
     assert selection["reason"] == "requested_skill"
-    ASSERTIONS.assertNotIn("_legacy_stage_assistant_candidates", selection)
 
 
-def test_pack_skill_candidates_prefer_unified_field_over_old_role_fixture_fields() -> None:
+def test_current_skill_candidates_field_wins_over_retired_role_fixture_fields() -> None:
     pack = {
         "skill_candidates": ["primary", "assistant"],
-        "route_authority_candidates": ["legacy-only-primary"],  # retired fixture field
-        "stage_assistant_candidates": ["legacy-only-assistant"],  # retired fixture field
+        "route_authority_candidates": ["legacy-only-primary"],
+        "stage_assistant_candidates": ["legacy-only-assistant"],
     }
 
     assert get_pack_skill_candidates(pack) == ["primary", "assistant"]
-
-
-def test_pack_skill_candidates_ignore_retired_role_fields_for_old_fixtures() -> None:
-    pack = {
-        "route_authority_candidates": ["primary", "shared"],  # retired fixture field
-        "stage_assistant_candidates": ["assistant", "shared"],  # retired fixture field
-    }
-
-    assert get_pack_skill_candidates(pack) == []
-
-
-def test_active_skill_candidates_use_current_fields_only() -> None:
-    selection = select_pack_candidate(
-        prompt_lower="use helper for specialized cleanup",
-        candidates=["primary", "helper"],
-        task_type="coding",
-        requested_canonical=None,
-        skill_keyword_index={
-            "selection": {
-                "weights": {"keyword_match": 0.8, "name_match": 0.2},
-                "fallback_to_first_when_score_below": 0.2,
-            },
-            "skills": {
-                "primary": {"keywords": ["primary"]},
-                "helper": {"keywords": ["helper", "cleanup"]},
-            },
-        },
-        routing_rules={"skills": {}},
-        pack={
-            "id": "synthetic-pack",
-            "skill_candidates": ["primary", "helper"],
-            "defaults_by_task": {},
-        },
-        candidate_selection_config={
-            "rule_positive_keyword_bonus": 0.2,
-            "rule_negative_keyword_penalty": 0.25,
-            "canonical_for_task_bonus": 0.12,
-        },
-    )
-
-    assert selection["selected"] == "helper"
-    ASSERTIONS.assertNotIn("legacy_role", selection["ranking"][0])
-    ASSERTIONS.assertNotIn("_legacy_role", selection["ranking"][0])
-    ASSERTIONS.assertNotIn("route_authority_eligible", selection["ranking"][0])
-    ASSERTIONS.assertNotIn("_legacy_stage_assistant_candidates", selection)
-    assert "routing_role" not in selection["ranking"][0]

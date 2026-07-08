@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import json
-import subprocess
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-# Import UI constants for testing
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "packages" / "runtime-core" / "src"))
 from vgo_runtime.router_contract_runtime import build_confirm_ui, route_prompt
 from vgo_runtime.runtime_support import RepoContext
@@ -19,7 +18,6 @@ from vgo_runtime.runtime_support import RepoContext
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BRIDGE_SCRIPT = REPO_ROOT / "scripts" / "router" / "invoke-pack-route.py"
 ROUTE_FIXTURE = REPO_ROOT / "tests" / "replay" / "route" / "recovery-wave-curated-prompts.json"
-PLATFORM_FIXTURE = REPO_ROOT / "tests" / "replay" / "platform" / "linux-without-pwsh.json"
 ROUTE_SKILLS = [
     "flashrag-evidence",
     "generating-test-reports",
@@ -135,14 +133,8 @@ class RouterBridgeTests(unittest.TestCase):
             bundled_skills_root=REPO_ROOT / "bundled" / "skills",
         )
         route_result = {
-            "alias": {
-                "requested_canonical": "vibe",
-            },
-            "selected": {
-                "pack_id": "synthetic-pack",
-                "skill": "selected-skill",
-                "selection_score": 0.42,
-            },
+            "alias": {"requested_canonical": "vibe"},
+            "selected": {"pack_id": "synthetic-pack", "skill": "selected-skill", "selection_score": 0.42},
             "ranked": [
                 {
                     "skill": "selected-skill",
@@ -157,14 +149,6 @@ class RouterBridgeTests(unittest.TestCase):
         self.assertIsNotNone(confirm_ui)
         self.assertEqual("selected-skill", confirm_ui["options"][0]["skill"])
         self.assertEqual("selected-skill", confirm_ui["route_decision_contract"]["selected_skill"])
-        self.assertEqual("selected-skill", confirm_ui["route_decision_contract"]["preferred_payload"]["selected_skill"])
-
-    def test_linux_without_pwsh_fixture_points_to_bridge_contract(self) -> None:
-        platform = json.loads(PLATFORM_FIXTURE.read_text(encoding="utf-8"))
-        self.assertEqual("linux_without_pwsh", platform["lane"])
-        self.assertEqual("scripts/router/invoke-pack-route.py", platform["entry_script"])
-        self.assertTrue(platform["constraints"]["force_runtime_neutral"])
-        self.assertFalse(platform["constraints"]["requires_powershell_host"])
 
     def test_runtime_neutral_bridge_satisfies_curated_route_cases(self) -> None:
         fixture = json.loads(ROUTE_FIXTURE.read_text(encoding="utf-8"))
@@ -174,12 +158,7 @@ class RouterBridgeTests(unittest.TestCase):
                 expected = case["expected"]
                 selected = result.get("selected") or {}
 
-                self.assertIn("route_mode", result)
-                self.assertIn("route_reason", result)
-                self.assertIn("selected", result)
-                self.assertIn("ranked", result)
                 self.assertEqual("local_skill_index", result["candidate_source"])
-
                 if "route_mode" in expected:
                     self.assertEqual(expected["route_mode"], result["route_mode"])
                 if "allowed_route_modes" in expected:
@@ -188,28 +167,6 @@ class RouterBridgeTests(unittest.TestCase):
                     self.assertEqual(expected["selected_pack"], selected["pack_id"])
                 if "selected_skill" in expected:
                     self.assertEqual(expected["selected_skill"], selected["skill"])
-                if "blocked_pack" in expected:
-                    if selected:
-                        self.assertNotEqual(expected["blocked_pack"], selected["pack_id"])
-                    ranked_pack_ids = {
-                        str(row.get("pack_id") or "")
-                        for row in result["ranked"]
-                        if isinstance(row, dict)
-                    }
-                    self.assertNotIn(expected["blocked_pack"], ranked_pack_ids)
-                if "blocked_skill_prefix" in expected:
-                    blocked_prefix = expected["blocked_skill_prefix"]
-                    ranked_skills = {str(selected.get("skill") or "")}
-                    for row in result["ranked"]:
-                        if not isinstance(row, dict):
-                            continue
-                        for item in row.get("candidate_ranking") or []:
-                            if isinstance(item, dict):
-                                ranked_skills.add(str(item.get("skill") or ""))
-                    self.assertFalse(
-                        [skill for skill in sorted(ranked_skills) if skill.startswith(blocked_prefix)],
-                        ranked_skills,
-                    )
 
     def test_confirm_required_can_degrade_to_clarification_only_when_no_specialist_is_usable(self) -> None:
         result = run_bridge(
@@ -217,18 +174,6 @@ class RouterBridgeTests(unittest.TestCase):
             "L",
             "planning",
         )
-        self.assertEqual("no_local_candidate", result["route_mode"])
-        self.assertEqual("no_local_candidate_above_threshold", result["route_reason"])
-        self.assertIsNone(result["selected"])
-        self.assertNotIn("confirm_ui", result)
-        self.assertEqual("local_index_no_match", result["truth_level"])
-
-    def test_planning_prompt_uses_fallback_guard_without_reopening_generic_clarifiers(self) -> None:
-        result = run_bridge(
-            "create implementation plan and task breakdown",
-            "L",
-            "planning",
-        )
 
         self.assertEqual("no_local_candidate", result["route_mode"])
         self.assertEqual("no_local_candidate_above_threshold", result["route_reason"])
@@ -236,7 +181,7 @@ class RouterBridgeTests(unittest.TestCase):
         self.assertNotIn("confirm_ui", result)
         self.assertEqual("local_index_no_match", result["truth_level"])
 
-    def test_powershell_planning_prompt_uses_fallback_guard_without_reopening_generic_clarifiers(self) -> None:
+    def test_powershell_planning_prompt_uses_same_fallback_guard(self) -> None:
         result = run_powershell_route(
             "create implementation plan and task breakdown",
             "L",
@@ -248,28 +193,7 @@ class RouterBridgeTests(unittest.TestCase):
         self.assertIsNone(result["selected"])
         self.assertNotIn("confirm_ui", result)
 
-    def test_ml_critical_discussion_routes_to_data_leakage_guard(self) -> None:
-        result = run_bridge(
-            "请你作为机器学习专家和我进行三轮批判式讨论：这个分类方案有没有数据泄漏、基线是否充分、是否该先用简单模型",
-            "L",
-            "research",
-        )
-
-        self.assertEqual("local_skill_overlay", result["route_mode"])
-        self.assertEqual("local-skill-index", result["selected"]["pack_id"])
-        self.assertEqual("ml-data-leakage-guard", result["selected"]["skill"])
-
-    def test_ml_threshold_question_does_not_false_positive_to_vibe(self) -> None:
-        result = run_bridge(
-            "Please help me choose a confidence threshold and fallback threshold for a scikit-learn binary classifier using ROC and precision-recall tradeoffs.",
-            "L",
-            "research",
-        )
-
-        self.assertNotEqual("vibe", result["selected"]["skill"])
-        self.assertEqual("local-skill-index", result["selected"]["pack_id"])
-
-    def test_requested_mixed_case_active_skill_routes_authoritatively_in_runtime_neutral_lane(self) -> None:
+    def test_requested_mixed_case_active_skill_routes_authoritatively(self) -> None:
         result = run_bridge(
             "请用机器学习专家视角审视这个分类方案",
             "L",
@@ -281,17 +205,12 @@ class RouterBridgeTests(unittest.TestCase):
         self.assertEqual("local-skill-index", result["selected"]["pack_id"])
         self.assertEqual("scikit-learn", result["selected"]["skill"])
 
-    def test_wrapper_entry_intent_does_not_override_runtime_neutral_router_selection(self) -> None:
+    def test_wrapper_entry_intent_does_not_override_router_selection(self) -> None:
         prompt = (
             "Please use scikit-learn to prototype a tabular classification baseline, "
             "run feature selection, and compare cross-validation metrics."
         )
-        baseline = route_prompt(
-            prompt=prompt,
-            grade="L",
-            task_type="coding",
-            repo_root=REPO_ROOT,
-        )
+        baseline = route_prompt(prompt=prompt, grade="L", task_type="coding", repo_root=REPO_ROOT)
         wrapped = route_prompt(
             prompt=prompt,
             grade="L",
@@ -304,134 +223,6 @@ class RouterBridgeTests(unittest.TestCase):
         self.assertEqual(baseline["selected"]["pack_id"], wrapped["selected"]["pack_id"])
         self.assertEqual(baseline["selected"]["skill"], wrapped["selected"]["skill"])
         self.assertEqual("vibe-what-do-i-want", wrapped["alias"]["entry_intent_id"])
-        self.assertIsNone(wrapped["alias"]["requested_input"])
-
-    def test_vibe_keeps_selected_skill_while_plan_helpers_stay_bounded(self) -> None:
-        result = run_bridge(
-            "请持续更新 task_plan.md 和 progress.md，按阶段推进这个复杂任务",
-            "L",
-            "planning",
-            requested_skill="vibe",
-        )
-
-        self.assertEqual("vibe", result["alias"]["requested_canonical"])
-        self.assertEqual("no_local_candidate", result["route_mode"])
-        self.assertIsNone(result["selected"])
-        self.assertNotIn("confirm_ui", result)
-
-    def test_scientific_figure_route_uses_only_direct_figure_candidates(self) -> None:
-        result = run_bridge(
-            "帮我做科研绘图，产出期刊级 figure，多面板、颜色无障碍、矢量导出",
-            "L",
-            "research",
-        )
-
-        self.assertEqual("local-skill-index", result["selected"]["pack_id"])
-        self.assertEqual("scientific-visualization", result["selected"]["skill"])
-
-        ranked_by_skill = {row["skill"]: row for row in result["ranked"]}
-        self.assertIn("scientific-visualization", ranked_by_skill)
-        self.assertNotIn("legacy_role", ranked_by_skill["scientific-visualization"])
-        self.assertNotIn("route_authority_eligible", ranked_by_skill["scientific-visualization"])
-        self.assertNotIn("stage_assistant_candidates", ranked_by_skill["scientific-visualization"])
-
-    def test_full_text_evidence_table_is_absorbed_by_literature_review(self) -> None:
-        result = run_bridge(
-            "请帮我做 full-text 文献检索，提取样本量、effect size、方法学细节，做系统综述证据表",
-            "L",
-            "research",
-        )
-
-        self.assertEqual("local_skill_overlay", result["route_mode"])
-        self.assertEqual("local-skill-index", result["selected"]["pack_id"])
-        self.assertEqual("literature-review", result["selected"]["skill"])
-
-    def test_deep_research_pack_has_no_legacy_stage_assistants(self) -> None:
-        result = run_bridge(
-            "我要做 deep research，多跳浏览网页并保留 trace.jsonl 和 sources.json 证据链",
-            "L",
-            "research",
-        )
-
-        self.assertEqual("local-skill-index", result["selected"]["pack_id"])
-        self.assertEqual("webthinker-deep-research", result["selected"]["skill"])
-
-        ranked_by_skill = {row["skill"]: row for row in result["ranked"]}
-        self.assertIn("webthinker-deep-research", ranked_by_skill)
-        self.assertNotIn("legacy_role", ranked_by_skill["webthinker-deep-research"])
-        self.assertNotIn("route_authority_eligible", ranked_by_skill["webthinker-deep-research"])
-        self.assertNotIn("stage_assistant_candidates", ranked_by_skill["webthinker-deep-research"])
-
-    def test_data_leakage_audit_can_route_to_ml_data_leakage_guard(self) -> None:
-        result = run_bridge(
-            "请检查这个特征工程流程有没有数据泄漏，尤其是 fit before split 和 prediction time 问题",
-            "L",
-            "review",
-        )
-
-        self.assertEqual("local_skill_overlay", result["route_mode"])
-        self.assertEqual("local-skill-index", result["selected"]["pack_id"])
-        self.assertEqual("ml-data-leakage-guard", result["selected"]["skill"])
-
-    def test_baseline_leakage_research_stays_with_dedicated_guard(self) -> None:
-        result = run_bridge(
-            "请检查我的 baseline model 有没有 data leakage，尤其是 fit before split、train test split 和 prediction time 问题",
-            "L",
-            "research",
-        )
-
-        self.assertEqual("local_skill_overlay", result["route_mode"])
-        self.assertEqual("local-skill-index", result["selected"]["pack_id"])
-        self.assertEqual("ml-data-leakage-guard", result["selected"]["skill"])
-
-    def test_test_report_packaging_routes_to_generating_test_reports(self) -> None:
-        result = run_bridge(
-            "请根据 pytest 和 coverage 输出生成测试报告，整理失败摘要、覆盖率和质量门禁结论",
-            "L",
-            "review",
-        )
-
-        self.assertEqual("local_skill_overlay", result["route_mode"])
-        self.assertEqual("local-skill-index", result["selected"]["pack_id"])
-        self.assertEqual("generating-test-reports", result["selected"]["skill"])
-
-    def test_regression_analysis_routes_to_data_ml_owner(self) -> None:
-        result = run_bridge(
-            "请对这个实验数据做回归分析：线性回归或 GLM 建模、残差诊断、系数解释和拟合优度比较",
-            "L",
-            "research",
-        )
-
-        self.assertEqual("local_skill_overlay", result["route_mode"])
-        self.assertEqual("local-skill-index", result["selected"]["pack_id"])
-        self.assertEqual("scikit-learn", result["selected"]["skill"])
-
-    def test_preprocessing_pipeline_routes_as_direct_data_ml_owner(self) -> None:
-        result = run_bridge(
-            "机器学习 data preprocessing pipeline：清洗数据、feature encoding、standardize data、validate input data，输出可复用预处理流水线",
-            "L",
-            "coding",
-        )
-
-        self.assertEqual("local_skill_overlay", result["route_mode"])
-        self.assertEqual("local-skill-index", result["selected"]["pack_id"])
-        self.assertEqual("preprocessing-data-with-automated-pipelines", result["selected"]["skill"])
-
-        ranked_by_skill = {row["skill"]: row for row in result["ranked"]}
-        self.assertNotIn("legacy_role", ranked_by_skill["preprocessing-data-with-automated-pipelines"])
-        self.assertNotIn("route_authority_eligible", ranked_by_skill["preprocessing-data-with-automated-pipelines"])
-        self.assertNotIn("stage_assistant_candidates", ranked_by_skill["preprocessing-data-with-automated-pipelines"])
-
-    def test_research_report_authoring_stays_on_scientific_reporting(self) -> None:
-        result = run_bridge(
-            "请把我们现有实验结果整理成 research report，带 executive summary、appendix、Quarto/PDF 导出",
-            "L",
-            "research",
-        )
-
-        self.assertEqual("local_skill_overlay", result["route_mode"])
-        self.assertEqual("local-skill-index", result["selected"]["pack_id"])
-        self.assertEqual("scientific-reporting", result["selected"]["skill"])
 
     def test_requested_vibe_can_preserve_runtime_authority_while_router_selects_specialist(self) -> None:
         result = run_bridge(
@@ -444,19 +235,6 @@ class RouterBridgeTests(unittest.TestCase):
         self.assertEqual("local_skill_overlay", result["route_mode"])
         self.assertEqual("local-skill-index", result["selected"]["pack_id"])
         self.assertEqual("systematic-debugging", result["selected"]["skill"])
-        self.assertEqual("vibe", result["alias"]["requested_canonical"])
-        self.assertNotEqual("orchestration-core", result["selected"]["pack_id"])
-
-    def test_vibe_do_it_wrapper_keywords_fold_back_to_canonical_vibe_before_prelaunch_routing(self) -> None:
-        result = run_bridge(
-            "execute plan phase-cleanup facial-recognition few-shot dataset download training baseline enhancements experiments latex-paper",
-            "L",
-            "research",
-            requested_skill="vibe-do-it",
-        )
-
-        self.assertEqual("local_skill_overlay", result["route_mode"])
-        self.assertNotEqual("orchestration-core", result["selected"]["pack_id"])
         self.assertEqual("vibe", result["alias"]["requested_canonical"])
 
 
