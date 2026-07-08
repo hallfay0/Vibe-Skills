@@ -12,7 +12,7 @@ CLI_SRC = REPO_ROOT / 'apps' / 'vgo-cli' / 'src'
 if str(CLI_SRC) not in sys.path:
     sys.path.insert(0, str(CLI_SRC))
 
-from vgo_cli.install_gates import run_runtime_neutral_freshness_gate
+from vgo_cli.install_gates import run_offline_gate, run_runtime_neutral_freshness_gate
 import vgo_cli.install_gates as install_gates
 
 
@@ -38,3 +38,29 @@ def test_run_runtime_neutral_freshness_gate_executes_python_gate(monkeypatch: py
 
     assert result is not None
     assert recorded['command'] == [sys.executable, str(gate_path), '--target-root', str(tmp_path / 'target'), '--write-receipt']
+
+
+def test_run_offline_gate_uses_required_skills_audit_seam(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    gate_path = tmp_path / 'scripts' / 'verify' / 'vibe-offline-required-skills-audit.ps1'
+    gate_path.parent.mkdir(parents=True)
+    gate_path.write_text('Write-Host ok', encoding='utf-8')
+
+    recorded: dict[str, object] = {}
+
+    monkeypatch.setattr(install_gates, 'choose_powershell', lambda: 'pwsh')
+
+    def fake_run_powershell_file(script_path: Path, *args: str) -> subprocess.CompletedProcess[str]:
+        recorded['script_path'] = script_path
+        recorded['args'] = list(args)
+        return subprocess.CompletedProcess(args=[str(script_path), *args], returncode=0, stdout='', stderr='')
+
+    monkeypatch.setattr(install_gates, 'run_powershell_file', fake_run_powershell_file)
+    monkeypatch.setattr(install_gates, 'print_process_output', lambda result: None)
+
+    run_offline_gate(tmp_path, tmp_path / 'target-root')
+
+    assert recorded['script_path'] == gate_path
+    assert recorded['args'] == [
+        '-SkillsRoot', str(tmp_path / 'target-root' / 'skills'),
+        '-PackManifestPath', str(tmp_path / 'config' / 'pack-manifest.json'),
+    ]

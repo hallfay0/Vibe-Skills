@@ -9,6 +9,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PYTEST_INI = REPO_ROOT / "pytest.ini"
 WORKFLOW = REPO_ROOT / ".github" / "workflows" / "vco-gates.yml"
+OPTIONAL_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "vco-optional-audits.yml"
 TARGETS_FILE = REPO_ROOT / "config" / "python-validation-targets.txt"
 PACK_MANIFEST = REPO_ROOT / "config" / "pack-manifest.json"
 RESOLVE_PACK_ROUTE = REPO_ROOT / "scripts" / "router" / "resolve-pack-route.ps1"
@@ -16,10 +17,9 @@ CONFTEST = REPO_ROOT / "tests" / "conftest.py"
 PYTHON_HELPERS = REPO_ROOT / "scripts" / "common" / "python_helpers.sh"
 TIMESFM_OUTPUT_ROOT = REPO_ROOT / "bundled" / "skills" / "timesfm-forecasting" / "examples"
 EXPECTED_PYTHON_VALIDATION_TARGETS = [
-    "tests/contract/test_repo_layout_contract.py",
     "tests/runtime_neutral/test_install_profile_differentiation.py",
     "tests/runtime_neutral/test_governed_runtime_bridge.py",
-    "tests/runtime_neutral/test_runtime_contract_goldens.py",
+    "tests/runtime_neutral/test_runtime_delivery_acceptance.py",
     "tests/runtime_neutral/test_custom_admission_bridge.py",
     "tests/runtime_neutral/test_router_authority_safe_fallback.py",
     "tests/runtime_neutral/test_test_baseline_audit.py",
@@ -48,6 +48,23 @@ class PythonValidationContractTests(unittest.TestCase):
         self.assertIn('if [ "${#targets[@]}" -eq 0 ]; then', text)
         self.assertIn("canonical python validation target list is empty", text)
         self.assertIn("ubuntu-latest", text)
+        self.assertIn("windows-latest", text)
+        self.assertIn("test-baseline-audit.py --run-layer integration_host_boundary", text)
+        self.assertNotIn("vibe-pack-regression-matrix.ps1", text)
+        self.assertNotIn("vibe-offline-skills-gate.ps1", text)
+
+    def test_optional_audit_workflow_keeps_heavier_checks_outside_default_lane(self) -> None:
+        text = OPTIONAL_WORKFLOW.read_text(encoding="utf-8-sig")
+
+        self.assertIn("workflow_dispatch:", text)
+        self.assertIn("audit_suite:", text)
+        self.assertIn("capability_baseline", text)
+        self.assertIn("packaging_release", text)
+        self.assertIn("host_boundary", text)
+        self.assertIn("touched_packaging_release", text)
+        self.assertIn("integration_host_boundary", text)
+        self.assertNotIn("pull_request:", text)
+        self.assertNotIn("push:", text)
 
     def test_shared_shell_python_helper_keeps_python_resolution_policy_canonical(self) -> None:
         self.assertTrue(PYTHON_HELPERS.exists(), "shared shell Python helper should exist")
@@ -93,9 +110,11 @@ class PythonValidationContractTests(unittest.TestCase):
             if line.strip() and not line.lstrip().startswith("#")
         }
 
+        self.assertNotIn("tests/contract/test_repo_layout_contract.py", targets)
         self.assertNotIn("tests/runtime_neutral/test_docs_readme_encoding.py", targets)
         self.assertNotIn("tests/runtime_neutral/test_memory_progressive_disclosure.py", targets)
         self.assertNotIn("tests/runtime_neutral/test_bundled_skill_governance_gate.py", targets)
+        self.assertNotIn("tests/runtime_neutral/test_runtime_contract_goldens.py", targets)
 
     def test_conftest_does_not_mutate_repo_owned_bytecode_artifacts_before_hygiene_assertions(self) -> None:
         self.assertTrue(CONFTEST.exists(), "tests/conftest.py should exist")

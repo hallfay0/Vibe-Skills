@@ -66,7 +66,7 @@ def run_runtime_freshness_gate(repo_root: Path, target_root: Path, *, skip_gate:
 
 
 def run_offline_gate(repo_root: Path, target_root: Path) -> None:
-    gate_path = repo_root / 'scripts' / 'verify' / 'vibe-offline-skills-gate.ps1'
+    gate_path = repo_root / 'scripts' / 'verify' / 'vibe-offline-required-skills-audit.ps1'
     if not gate_path.exists():
         raise CliError(f'StrictOffline requested, but offline gate script is missing: {gate_path}')
     if not choose_powershell():
@@ -75,8 +75,7 @@ def run_offline_gate(repo_root: Path, target_root: Path) -> None:
         gate_path,
         '-SkillsRoot', str(target_root / 'skills'),
         '-PackManifestPath', str(repo_root / 'config' / 'pack-manifest.json'),
-        '-SkillsLockPath', str(repo_root / 'config' / 'skills-lock.json'),
     )
     print_process_output(result)
     if result.returncode != 0:
-        raise CliError('StrictOffline validation failed (vibe-offline-skills-gate).')
+        raise CliError('StrictOffline validation failed (vibe-offline-required-skills-audit).')
