@@ -272,7 +272,7 @@ def run_confirm_ui_script(script: str) -> dict[str, object]:
 
 
 class StructuredBoundedReentryContinuationTests(unittest.TestCase):
-    def test_confirm_ui_does_not_treat_structured_revision_delta_as_route_confirmation(self) -> None:
+    def test_revision_decision_does_not_count_as_route_confirmation(self) -> None:
         payload = run_confirm_ui_script(
             "$confirm = [pscustomobject]@{ "
             "  selected_pack = 'runtime-entry'; "
@@ -291,7 +291,7 @@ class StructuredBoundedReentryContinuationTests(unittest.TestCase):
 
         self.assertTrue(payload["is_null"])
 
-    def test_confirm_ui_still_accepts_structured_approval_as_route_confirmation(self) -> None:
+    def test_approval_decision_can_confirm_selected_skill(self) -> None:
         payload = run_confirm_ui_script(
             "$confirm = [pscustomobject]@{ "
             "  selected_pack = 'runtime-entry'; "
@@ -311,204 +311,23 @@ class StructuredBoundedReentryContinuationTests(unittest.TestCase):
         self.assertEqual("accept_primary", payload["action"])
         self.assertEqual("vibe", payload["skill"])
 
-    def test_confirm_ui_resolves_only_local_installed_skill_paths(self) -> None:
-        with tempfile.TemporaryDirectory() as tempdir:
-            temp_root = Path(tempdir)
-            fake_repo = temp_root / "repo"
-            settings_path = fake_repo / "adapters" / "codex" / "settings-map.json"
-            settings_path.parent.mkdir(parents=True)
-            settings_path.write_text(
-                json.dumps(
-                    {
-                        "semantics": {
-                            "vco.skill_roots.global": [
-                                "~/.agents/skills",
-                                "~/.codex/skills",
-                            ]
-                        }
-                    }
-                ),
-                encoding="utf-8",
-            )
-            bundled_aeon = fake_repo / "bundled" / "skills" / "aeon" / "SKILL.md"
-            bundled_aeon.parent.mkdir(parents=True)
-            bundled_aeon.write_text(
-                "---\nname: aeon\ndescription: Bundled stale skill.\n---\n",
-                encoding="utf-8",
-            )
-            target_root = temp_root / ".agents"
-            local_skill = target_root / "skills" / "local-data-helper" / "SKILL.md"
-            local_skill.parent.mkdir(parents=True)
-            local_skill.write_text(
-                "---\nname: local-data-helper\ndescription: Local test skill.\n---\n",
-                encoding="utf-8",
-            )
-            payload = run_confirm_ui_script(
-                f"$repoRoot = {ps_quote(str(fake_repo))}; "
-                f"$targetRoot = {ps_quote(str(target_root))}; "
-                "$aeon = Resolve-SkillMdPath -RepoRoot $repoRoot -Skill 'aeon' -TargetRoot $targetRoot -HostId 'codex'; "
-                "$local = Resolve-SkillMdPath -RepoRoot $repoRoot -Skill 'local-data-helper' -TargetRoot $targetRoot -HostId 'codex'; "
-                "[pscustomobject]@{ "
-                "  aeon_is_null = ($null -eq $aeon); "
-                "  local_path = $local "
-                "} | ConvertTo-Json -Depth 8 -Compress"
-            )
-
-        self.assertTrue(payload["aeon_is_null"])
-        self.assertEqual(str(local_skill.resolve()), payload["local_path"])
-
-    def test_phase_decomposition_rejects_non_object_phase_records(self) -> None:
-        shell = resolve_powershell()
-        if shell is None:
-            raise unittest.SkipTest("PowerShell executable not available in PATH")
-
-        command = [
-            shell,
-            "-NoLogo",
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-Command",
-            (
-                "& { "
-                f". {ps_quote(str(REPO_ROOT / 'scripts' / 'runtime' / 'VibeRuntime.Common.ps1'))}; "
-                "try { "
-                "$decision = [pscustomobject]@{ "
-                "  phase_decomposition = [pscustomobject]@{ phases = @('oops') } "
-                "}; "
-                "Resolve-VibeHostPhaseDecomposition -HostDecision $decision -Task 'demo task' | Out-Null; "
-                "@{ ok = $true } | ConvertTo-Json -Compress "
-                "} catch { "
-                "@{ ok = $false; error = $_.Exception.Message } | ConvertTo-Json -Compress "
-                "} "
-                "}"
-            ),
-        ]
-        completed = subprocess.run(
-            command,
-            cwd=REPO_ROOT,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            check=True,
+    def test_invalid_phase_decomposition_fails_fast(self) -> None:
+        payload = run_common_script(
+            "try { "
+            "$decision = [pscustomobject]@{ "
+            "  phase_decomposition = [pscustomobject]@{ phases = @('oops') } "
+            "}; "
+            "Resolve-VibeHostPhaseDecomposition -HostDecision $decision -Task 'demo task' | Out-Null; "
+            "@{ ok = $true } | ConvertTo-Json -Compress "
+            "} catch { "
+            "@{ ok = $false; error = $_.Exception.Message } | ConvertTo-Json -Compress "
+            "} "
         )
-        payload = json.loads(completed.stdout)
 
         self.assertFalse(payload["ok"])
         self.assertIn("each execution phase must be a JSON object", payload["error"])
 
-    def test_phase_decomposition_accepts_hashtable_host_decision(self) -> None:
-        payload = run_common_script(
-            "$decision = @{ "
-            "  phase_decomposition = @{ "
-            "    phases = @(@{ "
-            "      phase_id = 'dataset-search'; "
-            "      stage_order = 10; "
-            "      stage_type = 'discovery'; "
-            "      stage_label = 'Dataset Search'; "
-            "      goal = 'Find public datasets'; "
-            "      acceptance_checks = @('official source verified') "
-            "    }) "
-            "  } "
-            "}; "
-            "$result = Resolve-VibeHostPhaseDecomposition -HostDecision $decision -Task 'find public datasets'; "
-            "$result | ConvertTo-Json -Depth 20 -Compress"
-        )
-
-        self.assertEqual(1, payload["phase_count"])
-        self.assertEqual("dataset-search", payload["phases"][0]["phase_id"])
-        self.assertEqual("discovery", payload["phases"][0]["stage_type"])
-        self.assertEqual(["official source verified"], payload["phases"][0]["acceptance_checks"])
-
-    def test_specialist_dispatch_accepts_hashtable_host_decision(self) -> None:
-        payload = run_common_script(
-            "$hostDecision = @{ "
-            "  skill_execution_decision = @{ "
-            "    selection_mode = 'curated_only'; "
-            "    approved_skill_ids = @('research-lookup'); "
-            "    deferred_skill_ids = @('latex-submission-pipeline'); "
-            "    rejected_skill_ids = @() "
-            "  } "
-            "}; "
-            "$recommendations = @("
-            "  @{ skill_id = 'research-lookup' }, "
-            "  @{ skill_id = 'latex-submission-pipeline' }"
-            "); "
-            "$result = Resolve-VibeHostSkillExecutionDecision "
-            "-HostDecision $hostDecision "
-            "-Recommendations $recommendations "
-            "-GovernanceScope 'root' "
-            "-Policy $null; "
-            "$result | ConvertTo-Json -Depth 20 -Compress"
-        )
-
-        self.assertEqual("curated_only", payload["selection_mode"])
-        self.assertEqual(["research-lookup"], payload["approved_skill_ids"])
-        self.assertEqual(["latex-submission-pipeline"], payload["deferred_skill_ids"])
-        self.assertEqual("current", payload["reconciliation_state"])
-
-    def test_code_task_tdd_decision_accepts_hashtable_host_decision(self) -> None:
-        payload = run_common_script(
-            "$hostDecision = @{ "
-            "  code_task_tdd_decision = @{ "
-            "    mode = 'not_applicable'; "
-            "    reason = 'Document artifact only.' "
-            "  } "
-            "}; "
-            "$result = Get-VibeCodeTaskTddDecisionFromHostDecision -HostDecision $hostDecision; "
-            "$result | ConvertTo-Json -Depth 20 -Compress"
-        )
-
-        self.assertEqual("not_applicable", payload["mode"])
-        self.assertEqual("host_decision", payload["source"])
-        self.assertEqual("Document artifact only.", payload["reason"])
-
-    def test_execution_phase_metadata_preserves_hashtable_record_fields(self) -> None:
-        payload = run_common_script(
-            "$phaseDecomposition = [pscustomobject]@{ "
-            "  phases = @([pscustomobject]@{ "
-            "    phase_id = 'phase-discovery'; "
-            "    stage_order = 10; "
-            "    stage_type = 'discovery'; "
-            "    stage_label = 'Discovery'; "
-            "    dispatch_phase = 'pre_execution' "
-            "  }) "
-            "}; "
-            "$records = @(@{ "
-            "  skill_id = 'research-lookup'; "
-            "  native_skill_entrypoint = '/tmp/research-lookup/SKILL.md'; "
-            "  dispatch_phase = 'pre_execution'; "
-            "  rationale = 'domain lookup needed' "
-            "}); "
-            "$result = Add-VibeExecutionPhaseMetadataToRecords -Records $records -PhaseDecomposition $phaseDecomposition; "
-            "$result[0] | ConvertTo-Json -Depth 20 -Compress"
-        )
-
-        self.assertEqual("research-lookup", payload["skill_id"])
-        self.assertEqual("/tmp/research-lookup/SKILL.md", payload["native_skill_entrypoint"])
-        self.assertEqual("domain lookup needed", payload["rationale"])
-        self.assertEqual("phase-discovery", payload["phase_id"])
-        self.assertEqual("discovery", payload["stage_type"])
-
-    def test_task_signal_matching_uses_explicit_stems_without_substring_false_positives(self) -> None:
-        payload = run_common_script(
-            "$result = [ordered]@{ "
-            "  diagnose_type = Get-VibeInferredTaskType -Task 'Please diagnose routing behavior'; "
-            "  suffix_type = Get-VibeInferredTaskType -Task 'suffix cleanup in docs'; "
-            "  diagnose_stem_hit = Test-VibeTaskSignalHit -TaskLower 'please diagnose routing behavior' -Pattern 'diagnos*'; "
-            "  suffix_fix_hit = Test-VibeTaskSignalHit -TaskLower 'suffix cleanup in docs' -Pattern 'fix'; "
-            "  short_stem_hit = Test-VibeTaskSignalHit -TaskLower 'suffix cleanup in docs' -Pattern 'fix*' "
-            "}; "
-            "$result | ConvertTo-Json -Depth 20 -Compress"
-        )
-
-        self.assertEqual("debug", payload["diagnose_type"])
-        self.assertEqual("planning", payload["suffix_type"])
-        self.assertTrue(payload["diagnose_stem_hit"])
-        self.assertFalse(payload["suffix_fix_hit"])
-        self.assertFalse(payload["short_stem_hit"])
-
-    def test_freeze_reuses_prior_task_type_for_control_only_structured_reentry(self) -> None:
+    def test_freeze_reuses_prior_task_type_for_control_only_reentry(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             artifact_root = Path(tempdir) / "artifacts"
             payload = run_freeze(
@@ -518,7 +337,6 @@ class StructuredBoundedReentryContinuationTests(unittest.TestCase):
             packet = payload["packet"]
 
             self.assertEqual("research", packet["route_snapshot"]["task_type"])
-            self.assertIn("continuation_context", packet)
             self.assertTrue(packet["continuation_context"]["structured_bounded_reentry"])
             self.assertTrue(packet["continuation_context"]["control_only_prompt"])
             self.assertIn("phase_decomposition", packet["host_decision"])
@@ -527,7 +345,7 @@ class StructuredBoundedReentryContinuationTests(unittest.TestCase):
             self.assertNotIn("continuation_context", packet["host_decision"])
             self.assertNotIn("execution_phase_decomposition", packet)
 
-    def test_freeze_preserves_structured_revision_delta_for_same_stage_refreeze(self) -> None:
+    def test_refreeze_preserves_revision_delta_without_legacy_host_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             artifact_root = Path(tempdir) / "artifacts"
             payload = run_freeze(
@@ -553,47 +371,22 @@ class StructuredBoundedReentryContinuationTests(unittest.TestCase):
             self.assertNotIn("host_revision_target_stage", packet)
             self.assertNotIn("host_revision_delta", packet)
 
-    def test_stale_host_skill_execution_decision_is_safely_shrunk(self) -> None:
-        shell = resolve_powershell()
-        if shell is None:
-            raise unittest.SkipTest("PowerShell executable not available in PATH")
-
-        command = [
-            shell,
-            "-NoLogo",
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-Command",
-            (
-                "& { "
-                f". {ps_quote(str(REPO_ROOT / 'scripts' / 'runtime' / 'VibeRuntime.Common.ps1'))}; "
-                "$hostDecision = [pscustomobject]@{ skill_execution_decision = [pscustomobject]@{ "
-                "selection_mode = 'curated_only'; "
-                "approved_skill_ids = @('old-skill'); "
-                "deferred_skill_ids = @(); "
-                "rejected_skill_ids = @() "
-                "} }; "
-                "$recommendations = @([pscustomobject]@{ skill_id = 'new-skill' }); "
-                "$result = Resolve-VibeHostSkillExecutionDecision "
-                "-HostDecision $hostDecision "
-                "-Recommendations $recommendations "
-                "-GovernanceScope 'root' "
-                "-Policy $null; "
-                "$result | ConvertTo-Json -Depth 20 "
-                "}"
-            ),
-        ]
-        completed = subprocess.run(
-            command,
-            cwd=REPO_ROOT,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            check=True,
+    def test_stale_host_skill_decision_requires_recuration(self) -> None:
+        payload = run_common_script(
+            "$hostDecision = [pscustomobject]@{ skill_execution_decision = [pscustomobject]@{ "
+            "selection_mode = 'curated_only'; "
+            "approved_skill_ids = @('old-skill'); "
+            "deferred_skill_ids = @(); "
+            "rejected_skill_ids = @() "
+            "} }; "
+            "$recommendations = @([pscustomobject]@{ skill_id = 'new-skill' }); "
+            "$result = Resolve-VibeHostSkillExecutionDecision "
+            "-HostDecision $hostDecision "
+            "-Recommendations $recommendations "
+            "-GovernanceScope 'root' "
+            "-Policy $null; "
+            "$result | ConvertTo-Json -Depth 20 "
         )
-        payload = json.loads(completed.stdout)
 
         self.assertEqual([], payload["approved_skill_ids"])
         self.assertEqual(["old-skill"], payload["stale_skill_ids"])

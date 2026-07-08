@@ -25,9 +25,7 @@
     "tests/runtime_neutral/test_installed_host_runtime_simulation.py"
   ],
   "retired_behavior_tests": [
-    "tests/runtime_neutral/test_retired_old_routing_compat.py",
-    "tests/runtime_neutral/test_simplified_skill_routing_contract.py",
-    "tests/runtime_neutral/test_current_routing_contract_cleanup.py"
+    "tests/runtime_neutral/test_simplified_skill_routing_contract.py"
   ],
   "historical_docs": [
     "docs/governance/binary-skill-usage-routing-2026-04-28.md",
@@ -119,19 +117,7 @@
     "docs/governance/terminology-governance.md"
   ],
   "allowed_negative_files": [
-    "tests/runtime_neutral/test_current_routing_debt_gate.py",
-    "tests/runtime_neutral/test_current_routing_debt_erasure_policy.py",
-    "tests/runtime_neutral/test_current_routing_contract_cleanup.py",
-    "tests/runtime_neutral/test_routing_terminology_hard_cleanup.py",
-    "tests/runtime_neutral/test_retired_old_routing_compat.py",
     "tests/runtime_neutral/test_runtime_route_output_shape.py",
-    "tests/runtime_neutral/test_global_pack_consolidation_audit.py",
-    "tests/runtime_neutral/test_code_quality_pack_consolidation_audit.py",
-    "tests/runtime_neutral/test_bio_science_pack_consolidation_audit.py",
-    "tests/runtime_neutral/test_ml_skills_pruning_audit.py",
-    "tests/runtime_neutral/test_historical_routing_doc_compression.py",
-    "tests/runtime_neutral/test_final_stage_assistant_removal.py",
-    "tests/runtime_neutral/test_terminology_field_simplification.py",
     "tests/unit/test_router_contract_selection_guards.py",
     "scripts/verify/vibe-current-routing-debt-gate.ps1",
     "scripts/verify/vibe-current-routing-contract-scan.ps1",

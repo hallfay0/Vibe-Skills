@@ -95,14 +95,12 @@ Top-level install and uninstall wrappers now depend on `vgo_cli.main` rather tha
 
 ### Guard Rails
 
-This contract is protected by:
+This contract is protected by the remaining behavior-first wrapper and install topology checks:
 
-- `tests/integration/test_shell_wrapper_contract.py`
-- `tests/integration/test_pwsh_wrapper_contract.py`
-- `tests/integration/test_check_entrypoint_registry_cutover.py`
-- `tests/integration/test_bootstrap_entrypoint_registry_cutover.py`
-- `tests/integration/test_powershell_installer_registry_cutover.py`
-- `tests/runtime_neutral/test_shell_entrypoint_compatibility.py`
+- `tests/runtime_neutral/test_simple_powershell_installer_wrappers.py`
+- `tests/runtime_neutral/test_check_installed_runtime_root.py`
+- `tests/runtime_neutral/test_install_profile_differentiation.py`
+- `tests/integration/test_host_global_bootstrap_shell_lifecycle.py`
 - `tests/runtime_neutral/test_install_generated_nested_bundled.py`
 - `tests/runtime_neutral/test_claude_preview_scaffold.py`
 - `tests/runtime_neutral/test_cursor_managed_preview.py`

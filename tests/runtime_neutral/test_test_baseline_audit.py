@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import json
 import copy
+import json
 import subprocess
 import sys
 import tempfile
@@ -18,48 +18,57 @@ if str(CORE_SRC) not in sys.path:
 from vgo_verify import test_baseline_audit as audit
 
 
+EXPECTED_LAYER_IDS = [
+    "contract_unit",
+    "default_install_lifecycle",
+    "default_runtime_entry_truth",
+    "default_routing_mainline",
+    "touched_packaging_release",
+    "integration_host_boundary",
+]
+
+
 class TestBaselineAuditPolicyTests(unittest.TestCase):
-    def test_policy_file_has_expected_layers_and_network_default(self) -> None:
+    def test_policy_file_has_capability_layers_and_network_default(self) -> None:
         policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
 
         self.assertEqual(1, policy["version"])
         self.assertFalse(policy["defaults"]["external_network_allowed"])
-        self.assertEqual(
-            [
-                "contract_unit",
-                "runtime_neutral_fast",
-                "runtime_neutral_heavy",
-                "runtime_neutral_heavy_install",
-                "runtime_neutral_heavy_runtime",
-                "runtime_neutral_heavy_router_contract",
-                "integration_host_boundary",
-            ],
-            [layer["id"] for layer in policy["layers"]],
-        )
-        self.assertEqual(["tests/contract", "tests/unit"], policy["layers"][0]["pytest_args"])
+        self.assertEqual(EXPECTED_LAYER_IDS, [layer["id"] for layer in policy["layers"]])
+        self.assertNotIn("classification", policy)
+        self.assertNotIn("risk_keywords", policy)
 
-    def test_runtime_neutral_heavy_timeout_has_windows_runtime_budget(self) -> None:
+    def test_capability_layers_use_explicit_targets_and_packaging_is_touched_only(self) -> None:
         policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
         layers = {layer["id"]: layer for layer in policy["layers"]}
 
-        self.assertGreaterEqual(layers["runtime_neutral_heavy"]["timeout_seconds"], 1800)
+        for layer_id in (
+            "default_install_lifecycle",
+            "default_runtime_entry_truth",
+            "default_routing_mainline",
+            "touched_packaging_release",
+        ):
+            pytest_args = layers[layer_id]["pytest_args"]
+            self.assertTrue(pytest_args, layer_id)
+            self.assertTrue(all(arg.endswith(".py") for arg in pytest_args), layer_id)
 
-    def test_runtime_neutral_heavy_uses_file_serial_diagnostics(self) -> None:
+        self.assertEqual("default_regression", layers["default_install_lifecycle"]["selection_scope"])
+        self.assertEqual("default_regression", layers["default_runtime_entry_truth"]["selection_scope"])
+        self.assertEqual("default_regression", layers["default_routing_mainline"]["selection_scope"])
+        self.assertEqual("touched_surface_only", layers["touched_packaging_release"]["selection_scope"])
+
+    def test_default_capability_layers_keep_file_serial_diagnostics(self) -> None:
         policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
         layers = {layer["id"]: layer for layer in policy["layers"]}
 
-        self.assertEqual("file_serial", layers["runtime_neutral_heavy"]["run_strategy"])
-        self.assertGreaterEqual(layers["runtime_neutral_heavy"]["per_file_timeout_seconds"], 300)
-
-    def test_heavy_sublayer_include_patterns_are_parent_heavy_classification_patterns(self) -> None:
-        policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
-        heavy_patterns = set(policy["classification"]["heavy_file_patterns"])
-
-        for layer in policy["layers"]:
-            if layer.get("source_layer_id") != "runtime_neutral_heavy":
-                continue
-            missing = [pattern for pattern in layer.get("include_file_patterns", []) if pattern not in heavy_patterns]
-            self.assertEqual([], missing, f"{layer['id']} patterns must classify into runtime_neutral_heavy first")
+        for layer_id in (
+            "default_install_lifecycle",
+            "default_runtime_entry_truth",
+            "default_routing_mainline",
+            "touched_packaging_release",
+        ):
+            self.assertEqual("file_serial", layers[layer_id]["run_strategy"], layer_id)
+            self.assertGreaterEqual(layers[layer_id]["per_file_timeout_seconds"], 300, layer_id)
 
     def test_policy_load_rejects_duplicate_layer_ids(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
@@ -73,8 +82,6 @@ class TestBaselineAuditPolicyTests(unittest.TestCase):
                             {"id": "contract_unit", "pytest_args": ["tests/unit"]},
                             {"id": "contract_unit", "pytest_args": ["tests/contract"]},
                         ],
-                        "classification": {"heavy_file_patterns": [], "host_boundary_file_patterns": []},
-                        "risk_keywords": [],
                     }
                 )
                 + "\n",
@@ -91,7 +98,7 @@ class TestBaselineAuditPolicyTests(unittest.TestCase):
                 "tests/unit/test_alpha.py::test_param[value]",
                 "tests/runtime_neutral/test_beta.py::BetaTests::test_two",
                 "packages/runtime-core/src/vgo_runtime/test_lock.py::test_package_node",
-                "3 tests collected",
+                "4 tests collected",
             ]
         )
 
@@ -105,29 +112,26 @@ class TestBaselineAuditPolicyTests(unittest.TestCase):
             audit.parse_collect_output(output),
         )
 
-    def test_build_collect_commands_deduplicates_shared_pytest_args(self) -> None:
+    def test_build_collect_commands_uses_explicit_capability_targets(self) -> None:
         policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
         commands = audit.build_collect_commands(policy)
 
-        self.assertEqual(3, len(commands))
-        command_map = {tuple(item["pytest_args"]): item["command"] for item in commands}
+        self.assertEqual(6, len(commands))
+        command_map = {
+            tuple(item["source_layer_ids"]): item["command"]
+            for item in commands
+        }
         self.assertEqual(
             [sys.executable, "-m", "pytest", "tests/contract", "tests/unit", "--collect-only", "-q"],
-            command_map[("tests/contract", "tests/unit")],
+            command_map[("contract_unit",)],
         )
+        self.assertIn("tests/runtime_neutral/test_install_profile_differentiation.py", command_map[("default_install_lifecycle",)])
+        self.assertIn("tests/runtime_neutral/test_governed_runtime_bridge.py", command_map[("default_runtime_entry_truth",)])
+        self.assertIn("tests/runtime_neutral/test_custom_admission_bridge.py", command_map[("default_routing_mainline",)])
+        self.assertIn("tests/runtime_neutral/test_release_truth_gate.py", command_map[("touched_packaging_release",)])
         self.assertEqual(
             [sys.executable, "-m", "pytest", "tests/integration", "--collect-only", "-q"],
-            command_map[("tests/integration",)],
-        )
-        self.assertEqual(
-            [
-                "runtime_neutral_fast",
-                "runtime_neutral_heavy",
-                "runtime_neutral_heavy_install",
-                "runtime_neutral_heavy_runtime",
-                "runtime_neutral_heavy_router_contract",
-            ],
-            commands[1]["source_layer_ids"],
+            command_map[("integration_host_boundary",)],
         )
 
     def test_script_entrypoint_disables_bytecode_before_core_import(self) -> None:
@@ -138,119 +142,78 @@ class TestBaselineAuditPolicyTests(unittest.TestCase):
 
         self.assertLess(disable_index, import_index)
 
-    def test_scan_file_risks_tags_configured_keywords(self) -> None:
+    def test_scan_file_risks_is_empty_under_explicit_policy(self) -> None:
         policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
         with tempfile.TemporaryDirectory() as tempdir:
-            path = Path(tempdir) / "tests" / "runtime_neutral" / "test_download.py"
+            path = Path(tempdir) / "tests" / "runtime_neutral" / "test_release.py"
             path.parent.mkdir(parents=True)
-            path.write_text("def test_rejects_before_network():\n    assert 'https://' and 'download'\n", encoding="utf-8")
+            path.write_text("def test_release():\n    assert 'https://example.invalid'\n", encoding="utf-8")
 
             risks = audit.scan_file_risks(path, policy)
 
-        self.assertIn("download", risks)
-        self.assertIn("external_url", risks)
+        self.assertEqual([], risks)
 
-    def test_classify_known_heavy_runtime_file(self) -> None:
+    def test_classify_node_uses_explicit_install_layer_membership(self) -> None:
         policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
-        node = "tests/runtime_neutral/test_install_profile_differentiation.py::test_profile"
 
-        item = audit.classify_node(node, REPO_ROOT, policy)
-
-        self.assertEqual("runtime_neutral_heavy", item["layer_id"])
-        self.assertIn("host_install", item["risk_tags"])
-        self.assertIn("heavy_file_pattern:install_profile", item["reasons"])
-
-    def test_classify_slow_runtime_invocation_file_as_heavy(self) -> None:
-        policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
-        node = "tests/runtime_neutral/test_multi_host_specialist_execution.py::test_runtime"
-
-        item = audit.classify_node(node, REPO_ROOT, policy)
-
-        self.assertEqual("runtime_neutral_heavy", item["layer_id"])
-        self.assertIn("heavy", item["risk_tags"])
-        self.assertIn("heavy_file_pattern:multi_host_specialist_execution", item["reasons"])
-
-    def test_classify_regular_runtime_neutral_file_as_fast(self) -> None:
-        policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
-        node = "tests/runtime_neutral/test_runtime_contracts.py::test_contract_shape"
-
-        item = audit.classify_node(node, REPO_ROOT, policy)
-
-        self.assertEqual("runtime_neutral_fast", item["layer_id"])
-        self.assertEqual("tests/runtime_neutral/test_runtime_contracts.py", item["file"])
-
-    def test_classify_runtime_neutral_host_install_keyword_is_excluded_from_fast(self) -> None:
-        policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
-        with tempfile.TemporaryDirectory() as tempdir:
-            root = Path(tempdir)
-            path = root / "tests" / "runtime_neutral" / "test_host_state_keyword.py"
-            path.parent.mkdir(parents=True)
-            path.write_text("def test_host_state():\n    assert '.vibeskills'\n", encoding="utf-8")
-
-            item = audit.classify_node("tests/runtime_neutral/test_host_state_keyword.py::test_host_state", root, policy)
-
-        self.assertEqual("runtime_neutral_heavy", item["layer_id"])
-        self.assertIn("host_install", item["risk_tags"])
-        self.assertIn("fast_layer_excluded_risk:host_install", item["reasons"])
-
-    def test_classify_runtime_neutral_host_boundary_path_is_excluded_from_fast(self) -> None:
-        policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
-        with tempfile.TemporaryDirectory() as tempdir:
-            root = Path(tempdir)
-            path = root / "tests" / "runtime_neutral" / "test_canonical_entry_contract.py"
-            path.parent.mkdir(parents=True)
-            path.write_text("def test_help():\n    assert True\n", encoding="utf-8")
-
-            item = audit.classify_node("tests/runtime_neutral/test_canonical_entry_contract.py::test_help", root, policy)
-
-        self.assertEqual("integration_host_boundary", item["layer_id"])
-        self.assertIn("host_boundary", item["risk_tags"])
-        self.assertIn("fast_layer_excluded_risk:host_boundary", item["reasons"])
-
-    def test_select_layer_files_separates_fast_and_heavy_runtime_neutral_files(self) -> None:
-        policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
-        nodes = [
-            "tests/runtime_neutral/test_runtime_contracts.py::test_contract_shape",
+        item = audit.classify_node(
             "tests/runtime_neutral/test_install_profile_differentiation.py::test_profile",
-        ]
+            REPO_ROOT,
+            policy,
+        )
 
-        fast_files = audit.select_layer_files(nodes, REPO_ROOT, policy, "runtime_neutral_fast")
-        heavy_files = audit.select_layer_files(nodes, REPO_ROOT, policy, "runtime_neutral_heavy")
+        self.assertEqual("default_install_lifecycle", item["layer_id"])
+        self.assertEqual([], item["risk_tags"])
+        self.assertIn("pytest_target:tests/runtime_neutral/test_install_profile_differentiation.py", item["reasons"])
 
-        self.assertEqual(["tests/runtime_neutral/test_runtime_contracts.py"], fast_files)
-        self.assertEqual(["tests/runtime_neutral/test_install_profile_differentiation.py"], heavy_files)
+    def test_classify_node_uses_explicit_runtime_truth_layer_membership(self) -> None:
+        policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
 
-    def test_select_layer_files_splits_heavy_into_targeted_sublayers(self) -> None:
+        item = audit.classify_node(
+            "tests/runtime_neutral/test_governed_runtime_bridge.py::test_bridge",
+            REPO_ROOT,
+            policy,
+        )
+
+        self.assertEqual("default_runtime_entry_truth", item["layer_id"])
+        self.assertEqual("tests/runtime_neutral/test_governed_runtime_bridge.py", item["file"])
+
+    def test_classify_node_uses_explicit_routing_layer_membership(self) -> None:
+        policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
+
+        item = audit.classify_node(
+            "tests/runtime_neutral/test_custom_admission_bridge.py::test_bridge",
+            REPO_ROOT,
+            policy,
+        )
+
+        self.assertEqual("default_routing_mainline", item["layer_id"])
+        self.assertIn("pytest_target:tests/runtime_neutral/test_custom_admission_bridge.py", item["reasons"])
+
+    def test_classify_node_rejects_runtime_file_outside_explicit_policy(self) -> None:
+        policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
+
+        with self.assertRaisesRegex(audit.PolicyError, "No policy layer targets tests/runtime_neutral/test_runtime_contracts.py"):
+            audit.classify_node("tests/runtime_neutral/test_runtime_contracts.py::test_contract_shape", REPO_ROOT, policy)
+
+    def test_select_layer_files_returns_only_explicit_capability_targets(self) -> None:
         policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
         nodes = [
             "tests/runtime_neutral/test_install_profile_differentiation.py::test_profile",
-            "tests/runtime_neutral/test_l_xl_native_execution_topology.py::test_topology",
-            "tests/runtime_neutral/test_current_routing_contract_scan.py::test_scan",
+            "tests/runtime_neutral/test_governed_runtime_bridge.py::test_bridge",
+            "tests/runtime_neutral/test_custom_admission_bridge.py::test_bridge",
+            "tests/runtime_neutral/test_pack_manifest_role_contract.py::test_manifest",
         ]
 
-        install_files = audit.select_layer_files(nodes, REPO_ROOT, policy, "runtime_neutral_heavy_install")
-        runtime_files = audit.select_layer_files(nodes, REPO_ROOT, policy, "runtime_neutral_heavy_runtime")
-        router_files = audit.select_layer_files(nodes, REPO_ROOT, policy, "runtime_neutral_heavy_router_contract")
+        install_files = audit.select_layer_files(nodes, REPO_ROOT, policy, "default_install_lifecycle")
+        runtime_files = audit.select_layer_files(nodes, REPO_ROOT, policy, "default_runtime_entry_truth")
+        routing_files = audit.select_layer_files(nodes, REPO_ROOT, policy, "default_routing_mainline")
+        packaging_files = audit.select_layer_files(nodes, REPO_ROOT, policy, "touched_packaging_release")
 
         self.assertEqual(["tests/runtime_neutral/test_install_profile_differentiation.py"], install_files)
-        self.assertEqual(["tests/runtime_neutral/test_l_xl_native_execution_topology.py"], runtime_files)
-        self.assertEqual(["tests/runtime_neutral/test_current_routing_contract_scan.py"], router_files)
-
-    def test_heavy_sublayer_union_covers_current_heavy_files(self) -> None:
-        policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
-        nodes, _collection_results = audit.run_collect_commands(REPO_ROOT, policy)
-
-        heavy_selected = set(audit.select_layer_files(nodes, REPO_ROOT, policy, "runtime_neutral_heavy"))
-        sublayer_selected: set[str] = set()
-        for layer_id in (
-            "runtime_neutral_heavy_install",
-            "runtime_neutral_heavy_runtime",
-            "runtime_neutral_heavy_router_contract",
-        ):
-            sublayer_selected.update(audit.select_layer_files(nodes, REPO_ROOT, policy, layer_id))
-
-        self.assertGreater(len(heavy_selected), 0)
-        self.assertEqual(heavy_selected, sublayer_selected)
+        self.assertEqual(["tests/runtime_neutral/test_governed_runtime_bridge.py"], runtime_files)
+        self.assertEqual(["tests/runtime_neutral/test_custom_admission_bridge.py"], routing_files)
+        self.assertEqual(["tests/runtime_neutral/test_pack_manifest_role_contract.py"], packaging_files)
 
     def test_run_collect_commands_reports_layer_context_on_timeout(self) -> None:
         policy = {
@@ -258,7 +221,7 @@ class TestBaselineAuditPolicyTests(unittest.TestCase):
             "layers": [
                 {
                     "id": "slow_layer",
-                    "pytest_args": ["tests/runtime_neutral/test_runtime_contracts.py"],
+                    "pytest_args": ["tests/runtime_neutral/test_governed_runtime_bridge.py"],
                     "timeout_seconds": 7,
                 }
             ],
@@ -277,36 +240,39 @@ class TestBaselineAuditPolicyTests(unittest.TestCase):
 
         message = str(raised.exception)
         self.assertIn("pytest collection timed out", message)
-        self.assertIn("tests/runtime_neutral/test_runtime_contracts.py", message)
+        self.assertIn("tests/runtime_neutral/test_governed_runtime_bridge.py", message)
         self.assertIn("slow_layer", message)
         self.assertIn("7s", message)
         self.assertIn("partial stdout", message)
         self.assertIn("partial stderr", message)
 
-    def test_build_run_layer_command_uses_classified_files_when_nodes_are_available(self) -> None:
+    def test_build_run_layer_command_uses_explicit_files_when_nodes_are_available(self) -> None:
         policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
         nodes = [
-            "tests/runtime_neutral/test_runtime_contracts.py::test_contract_shape",
+            "tests/runtime_neutral/test_governed_runtime_bridge.py::test_bridge",
+            "tests/runtime_neutral/test_runtime_contract_goldens.py::test_golden",
             "tests/runtime_neutral/test_install_profile_differentiation.py::test_profile",
         ]
 
         command = audit.build_run_layer_command(
             policy,
-            "runtime_neutral_fast",
+            "default_runtime_entry_truth",
             repo_root=REPO_ROOT,
             collected_nodes=nodes,
         )
 
-        self.assertIn("tests/runtime_neutral/test_runtime_contracts.py", command)
+        self.assertIn("tests/runtime_neutral/test_governed_runtime_bridge.py", command)
+        self.assertIn("tests/runtime_neutral/test_runtime_contract_goldens.py", command)
         self.assertNotIn("tests/runtime_neutral/test_install_profile_differentiation.py", command)
-        self.assertNotIn("tests/runtime_neutral", command)
 
-    def test_build_artifact_summarizes_layers_and_risks(self) -> None:
+    def test_build_artifact_summarizes_capability_layers_without_risk_taxonomy(self) -> None:
         policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
         nodes = [
             "tests/unit/test_vgo_verify_repo.py::test_repo_root",
-            "tests/runtime_neutral/test_runtime_contracts.py::test_contract_shape",
             "tests/runtime_neutral/test_install_profile_differentiation.py::test_profile",
+            "tests/runtime_neutral/test_governed_runtime_bridge.py::test_bridge",
+            "tests/runtime_neutral/test_custom_admission_bridge.py::test_bridge",
+            "tests/runtime_neutral/test_pack_manifest_role_contract.py::test_manifest",
             "tests/integration/test_runtime_core_packaging_roles.py::test_roles",
         ]
 
@@ -319,13 +285,17 @@ class TestBaselineAuditPolicyTests(unittest.TestCase):
             run_result=None,
         )
 
-        self.assertEqual(4, artifact["summary"]["total_nodes"])
+        self.assertEqual(6, artifact["summary"]["total_nodes"])
+        self.assertEqual(0, artifact["summary"]["risk_tag_count"])
+        self.assertEqual({}, artifact["risks"])
+        self.assertEqual("default_regression", artifact["layers"]["default_install_lifecycle"]["selection_scope"])
+        self.assertEqual("touched_surface_only", artifact["layers"]["touched_packaging_release"]["selection_scope"])
         self.assertEqual(1, artifact["layers"]["contract_unit"]["node_count"])
-        self.assertEqual(1, artifact["layers"]["runtime_neutral_fast"]["node_count"])
-        self.assertEqual(1, artifact["layers"]["runtime_neutral_heavy"]["node_count"])
-        self.assertEqual(1, artifact["layers"]["runtime_neutral_heavy_install"]["node_count"])
+        self.assertEqual(1, artifact["layers"]["default_install_lifecycle"]["node_count"])
+        self.assertEqual(1, artifact["layers"]["default_runtime_entry_truth"]["node_count"])
+        self.assertEqual(1, artifact["layers"]["default_routing_mainline"]["node_count"])
+        self.assertEqual(1, artifact["layers"]["touched_packaging_release"]["node_count"])
         self.assertEqual(1, artifact["layers"]["integration_host_boundary"]["node_count"])
-        self.assertIn("host_install", artifact["risks"])
 
     def test_write_artifacts_emits_json_and_markdown(self) -> None:
         policy = audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json")
@@ -341,6 +311,7 @@ class TestBaselineAuditPolicyTests(unittest.TestCase):
             collection_results=[],
             run_result=None,
         )
+
         with tempfile.TemporaryDirectory() as tempdir:
             written = audit.write_artifacts(REPO_ROOT, artifact, tempdir, policy=policy)
             json_path = Path(written["json"])
@@ -387,10 +358,12 @@ class FakeRunner:
         stdout = "\n".join(
             [
                 "tests/unit/test_vgo_verify_repo.py::test_repo_root",
-                "tests/runtime_neutral/test_runtime_contracts.py::test_contract_shape",
                 "tests/runtime_neutral/test_install_profile_differentiation.py::test_profile",
-                "tests/runtime_neutral/test_l_xl_native_execution_topology.py::test_topology",
-                "3 tests collected",
+                "tests/runtime_neutral/test_governed_runtime_bridge.py::test_bridge",
+                "tests/runtime_neutral/test_custom_admission_bridge.py::test_bridge",
+                "tests/runtime_neutral/test_pack_manifest_role_contract.py::test_manifest",
+                "tests/integration/test_runtime_core_packaging_roles.py::test_roles",
+                "6 tests collected",
             ]
         )
         if "--collect-only" not in command:
@@ -404,7 +377,7 @@ class TestBaselineAuditCliTests(unittest.TestCase):
         exit_code = audit.main(["--collect-only"], runner=runner)
 
         self.assertEqual(0, exit_code)
-        self.assertEqual(3, len(runner.calls))
+        self.assertEqual(6, len(runner.calls))
         self.assertTrue(all("--collect-only" in call["command"] for call in runner.calls))
         for call in runner.calls:
             env = call["kwargs"]["env"]
@@ -417,7 +390,7 @@ class TestBaselineAuditCliTests(unittest.TestCase):
         exit_code = audit.main(["--collect-only", "--run-layer", "contract_unit"], runner=runner)
 
         self.assertEqual(0, exit_code)
-        self.assertEqual(3, len(runner.calls))
+        self.assertEqual(6, len(runner.calls))
         self.assertTrue(all("--collect-only" in call["command"] for call in runner.calls))
 
     def test_run_layer_sets_disable_network_env(self) -> None:
@@ -436,54 +409,57 @@ class TestBaselineAuditCliTests(unittest.TestCase):
             run_calls[0]["command"],
         )
 
-    def test_run_layer_uses_classified_files_for_requested_layer(self) -> None:
+    def test_run_layer_uses_capability_files_for_requested_layer(self) -> None:
         runner = FakeRunner()
-        exit_code = audit.main(["--run-layer", "runtime_neutral_fast"], runner=runner)
+        exit_code = audit.main(["--run-layer", "default_runtime_entry_truth"], runner=runner)
 
         self.assertEqual(0, exit_code)
         run_calls = [call for call in runner.calls if "--collect-only" not in call["command"]]
         self.assertEqual(1, len(run_calls))
         command = run_calls[0]["command"]
-        self.assertIn("tests/runtime_neutral/test_runtime_contracts.py", command)
+        self.assertIn("tests/runtime_neutral/test_governed_runtime_bridge.py", command)
         self.assertNotIn("tests/runtime_neutral/test_install_profile_differentiation.py", command)
         self.assertNotIn("tests/runtime_neutral", command)
 
     def test_build_run_layer_command_preserves_pytest_options_when_narrowing_to_files(self) -> None:
         policy = copy.deepcopy(audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json"))
         layers = {layer["id"]: layer for layer in policy["layers"]}
-        layers["runtime_neutral_fast"]["pytest_args"] = [
-            "tests/runtime_neutral",
+        layers["default_runtime_entry_truth"]["pytest_args"] = [
+            "tests/runtime_neutral/test_governed_runtime_bridge.py",
+            "tests/runtime_neutral/test_runtime_contract_goldens.py",
             "-k",
-            "runtime_contracts",
+            "runtime",
             "--maxfail=1",
         ]
         nodes = [
-            "tests/runtime_neutral/test_runtime_contracts.py::test_contract_shape",
+            "tests/runtime_neutral/test_governed_runtime_bridge.py::test_bridge",
+            "tests/runtime_neutral/test_runtime_contract_goldens.py::test_golden",
             "tests/runtime_neutral/test_install_profile_differentiation.py::test_profile",
         ]
 
         command = audit.build_run_layer_command(
             policy,
-            "runtime_neutral_fast",
+            "default_runtime_entry_truth",
             repo_root=REPO_ROOT,
             collected_nodes=nodes,
         )
 
         self.assertIn("-k", command)
-        self.assertEqual("runtime_contracts", command[command.index("-k") + 1])
+        self.assertEqual("runtime", command[command.index("-k") + 1])
         self.assertIn("--maxfail=1", command)
-        self.assertIn("tests/runtime_neutral/test_runtime_contracts.py", command)
-        self.assertNotIn("tests/runtime_neutral", command)
+        self.assertIn("tests/runtime_neutral/test_governed_runtime_bridge.py", command)
+        self.assertIn("tests/runtime_neutral/test_runtime_contract_goldens.py", command)
+        self.assertNotIn("tests/runtime_neutral/test_install_profile_differentiation.py", command)
 
-    def test_run_layer_accepts_policy_defined_heavy_sublayer(self) -> None:
+    def test_run_layer_accepts_capability_layer(self) -> None:
         runner = FakeRunner()
-        exit_code = audit.main(["--run-layer", "runtime_neutral_heavy_runtime"], runner=runner)
+        exit_code = audit.main(["--run-layer", "default_routing_mainline"], runner=runner)
 
         self.assertEqual(0, exit_code)
         run_calls = [call for call in runner.calls if "--collect-only" not in call["command"]]
         self.assertEqual(1, len(run_calls))
         self.assertEqual(
-            [sys.executable, "-m", "pytest", "tests/runtime_neutral/test_l_xl_native_execution_topology.py", "-q"],
+            [sys.executable, "-m", "pytest", "tests/runtime_neutral/test_custom_admission_bridge.py", "-q"],
             run_calls[0]["command"],
         )
 
@@ -502,17 +478,16 @@ class TestBaselineAuditCliTests(unittest.TestCase):
     def test_run_layer_file_serial_strategy_records_per_file_results(self) -> None:
         policy = copy.deepcopy(audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json"))
         layers = {layer["id"]: layer for layer in policy["layers"]}
-        layers["runtime_neutral_heavy"]["run_strategy"] = "file_serial"
-        layers["runtime_neutral_heavy"]["per_file_timeout_seconds"] = 123
+        layers["default_runtime_entry_truth"]["per_file_timeout_seconds"] = 123
         runner = FakeRunner()
 
         result = audit.run_layer(
             REPO_ROOT,
             policy,
-            "runtime_neutral_heavy",
+            "default_runtime_entry_truth",
             collected_nodes=[
-                "tests/runtime_neutral/test_install_profile_differentiation.py::test_profile",
-                "tests/runtime_neutral/test_multi_host_specialist_execution.py::test_runtime",
+                "tests/runtime_neutral/test_governed_runtime_bridge.py::test_bridge",
+                "tests/runtime_neutral/test_runtime_contract_goldens.py::test_golden",
             ],
             runner=runner,
         )
@@ -523,25 +498,24 @@ class TestBaselineAuditCliTests(unittest.TestCase):
         run_calls = [call for call in runner.calls if "--collect-only" not in call["command"]]
         self.assertEqual(2, len(run_calls))
         self.assertEqual(
-            [sys.executable, "-m", "pytest", "tests/runtime_neutral/test_install_profile_differentiation.py", "-q"],
+            [sys.executable, "-m", "pytest", "tests/runtime_neutral/test_governed_runtime_bridge.py", "-q"],
             run_calls[0]["command"],
         )
         self.assertEqual(123, run_calls[0]["kwargs"]["timeout"])
-        self.assertIn("tests/runtime_neutral/test_multi_host_specialist_execution.py", result["stdout"])
+        self.assertIn("tests/runtime_neutral/test_runtime_contract_goldens.py", result["stdout"])
 
     def test_run_layer_file_serial_strategy_caps_file_timeout_by_layer_budget(self) -> None:
         policy = copy.deepcopy(audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json"))
         layers = {layer["id"]: layer for layer in policy["layers"]}
-        layers["runtime_neutral_heavy"]["run_strategy"] = "file_serial"
-        layers["runtime_neutral_heavy"]["timeout_seconds"] = 5
-        layers["runtime_neutral_heavy"]["per_file_timeout_seconds"] = 123
+        layers["default_runtime_entry_truth"]["timeout_seconds"] = 5
+        layers["default_runtime_entry_truth"]["per_file_timeout_seconds"] = 123
         runner = FakeRunner()
 
         audit.run_layer(
             REPO_ROOT,
             policy,
-            "runtime_neutral_heavy",
-            collected_nodes=["tests/runtime_neutral/test_install_profile_differentiation.py::test_profile"],
+            "default_runtime_entry_truth",
+            collected_nodes=["tests/runtime_neutral/test_governed_runtime_bridge.py::test_bridge"],
             runner=runner,
         )
 
@@ -571,35 +545,31 @@ class TestBaselineAuditCliTests(unittest.TestCase):
         self.assertEqual(0, result["selected_file_count"])
 
     def test_run_layer_file_serial_strategy_emits_progress_events(self) -> None:
-        policy = copy.deepcopy(audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json"))
-        layers = {layer["id"]: layer for layer in policy["layers"]}
-        layers["runtime_neutral_heavy"]["run_strategy"] = "file_serial"
         runner = FakeRunner()
         events: list[str] = []
 
         audit.run_layer(
             REPO_ROOT,
-            policy,
-            "runtime_neutral_heavy",
-            collected_nodes=["tests/runtime_neutral/test_install_profile_differentiation.py::test_profile"],
+            audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json"),
+            "default_runtime_entry_truth",
+            collected_nodes=["tests/runtime_neutral/test_governed_runtime_bridge.py::test_bridge"],
             runner=runner,
             progress=events.append,
         )
 
         self.assertEqual(
-            ["[INFO] start_file tests/runtime_neutral/test_install_profile_differentiation.py"],
+            ["[INFO] start_file tests/runtime_neutral/test_governed_runtime_bridge.py"],
             events[:1],
         )
         self.assertIn(
-            "[FILE] tests/runtime_neutral/test_install_profile_differentiation.py exit_code=0",
+            "[FILE] tests/runtime_neutral/test_governed_runtime_bridge.py exit_code=0",
             events[-1],
         )
 
     def test_run_layer_file_serial_strategy_reports_timeout_file(self) -> None:
         policy = copy.deepcopy(audit.load_policy(REPO_ROOT / "config" / "test-baseline-policy.json"))
         layers = {layer["id"]: layer for layer in policy["layers"]}
-        layers["runtime_neutral_heavy"]["run_strategy"] = "file_serial"
-        layers["runtime_neutral_heavy"]["per_file_timeout_seconds"] = 7
+        layers["default_runtime_entry_truth"]["per_file_timeout_seconds"] = 7
 
         def timeout_runner(command: list[str], **kwargs: object) -> FakeCompletedProcess:
             raise subprocess.TimeoutExpired(command, kwargs["timeout"], output="partial stdout", stderr="partial stderr")
@@ -607,14 +577,14 @@ class TestBaselineAuditCliTests(unittest.TestCase):
         result = audit.run_layer(
             REPO_ROOT,
             policy,
-            "runtime_neutral_heavy",
-            collected_nodes=["tests/runtime_neutral/test_install_profile_differentiation.py::test_profile"],
+            "default_runtime_entry_truth",
+            collected_nodes=["tests/runtime_neutral/test_governed_runtime_bridge.py::test_bridge"],
             runner=timeout_runner,
         )
 
         self.assertEqual(124, result["exit_code"])
         self.assertEqual("timeout", result["file_results"][0]["status"])
-        self.assertEqual("tests/runtime_neutral/test_install_profile_differentiation.py", result["file_results"][0]["file"])
+        self.assertEqual("tests/runtime_neutral/test_governed_runtime_bridge.py", result["file_results"][0]["file"])
         self.assertIn("partial stdout", result["stdout"])
         self.assertIn("partial stderr", result["stderr"])
 

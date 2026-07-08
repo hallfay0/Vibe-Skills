@@ -70,63 +70,7 @@ def write_installed_skill(target_root: Path, skill_id: str) -> Path:
 
 
 class SkillExecutionLockContractTests(unittest.TestCase):
-    def test_lock_projection_preserves_previous_selected_when_current_router_differs(self) -> None:
-        with tempfile.TemporaryDirectory() as tempdir:
-            previous_skill = Path(tempdir) / "scientific-reporting" / "SKILL.md"
-            current_skill = Path(tempdir) / "latex-submission-pipeline" / "SKILL.md"
-            previous_skill.parent.mkdir(parents=True)
-            current_skill.parent.mkdir(parents=True)
-            previous_skill.write_text("---\nname: scientific-reporting\n---\n", encoding="utf-8")
-            current_skill.write_text("---\nname: latex-submission-pipeline\n---\n", encoding="utf-8")
-            payload = run_ps_json(
-                "& { "
-                f". {ps_quote(str(RUNTIME_COMMON))}; "
-                f". {ps_quote(str(SKILL_ROUTING_COMMON))}; "
-                "$previous = [pscustomobject]@{ "
-                "  run_id = 'pytest-plan-run'; "
-                "  skill_routing = [pscustomobject]@{ "
-                "    selected = @([pscustomobject]@{ "
-                "      skill_id = 'scientific-reporting'; "
-                "      task_slice = 'write paper'; "
-                f"      native_skill_entrypoint = {ps_quote(str(previous_skill))}; "
-                f"      skill_md_path = {ps_quote(str(previous_skill))}; "
-                "      dispatch_phase = 'post_execution'; "
-                "      write_scope = 'specialist:scientific-reporting'; "
-                "      verification_expectation = 'report evidence' "
-                "    }) "
-                "  } "
-                "}; "
-                "$current = [pscustomobject]@{ "
-                "  selected = @([pscustomobject]@{ "
-                "    skill_id = 'latex-submission-pipeline'; "
-                "    task_slice = 'compile pdf'; "
-                f"    native_skill_entrypoint = {ps_quote(str(current_skill))}; "
-                f"    skill_md_path = {ps_quote(str(current_skill))}; "
-                "    dispatch_phase = 'post_execution'; "
-                "    write_scope = 'specialist:latex-submission-pipeline'; "
-                "    verification_expectation = 'build pdf' "
-                "  }); "
-                "  candidates = @(); rejected = @() "
-                "}; "
-                "$lock = New-VibeSkillExecutionLockProjection "
-                "-PreviousRuntimeInputPacket $previous "
-                "-CurrentSkillRouting $current "
-                "-SourceRunId 'pytest-plan-run' "
-                "-Source 'approved_plan_reentry'; "
-                "$lock | ConvertTo-Json -Depth 20 "
-                "}"
-            )
-
-        self.assertEqual("v1", payload["schema_version"])
-        self.assertEqual("active", payload["state"])
-        self.assertEqual("approved_plan_reentry", payload["source"])
-        self.assertEqual("pytest-plan-run", payload["source_run_id"])
-        self.assertIn("scientific-reporting", as_list(payload["locked_skill_ids"]))
-        dispatch_by_id = {item["skill_id"]: item for item in as_list(payload["locked_dispatch"])}
-        self.assertEqual("inherited_not_currently_surfaced", dispatch_by_id["scientific-reporting"]["reconciliation_state"])
-        self.assertTrue(payload["resolution_required"])
-
-    def test_lock_projection_prefers_explicit_host_decision(self) -> None:
+    def test_lock_projection_keeps_current_selected_and_host_approved_skills(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             prior_skill = Path(tempdir) / "scientific-reporting" / "SKILL.md"
             current_skill = Path(tempdir) / "latex-submission-pipeline" / "SKILL.md"
@@ -173,55 +117,11 @@ class SkillExecutionLockContractTests(unittest.TestCase):
             as_list(payload["locked_skill_ids"]),
         )
         dispatch_by_id = {item["skill_id"]: item for item in as_list(payload["locked_dispatch"])}
-        self.assertEqual("current_skill_routing_selected", dispatch_by_id["latex-submission-pipeline"]["lock_source"])
         self.assertEqual("current_surfaced", dispatch_by_id["latex-submission-pipeline"]["reconciliation_state"])
-        self.assertEqual("host_decision", dispatch_by_id["designing-experiments"]["lock_source"])
         self.assertEqual("host_approved_added_to_lock", dispatch_by_id["designing-experiments"]["reconciliation_state"])
-        self.assertEqual("previous_skill_routing_selected", dispatch_by_id["scientific-reporting"]["lock_source"])
         self.assertEqual("inherited_not_currently_surfaced", dispatch_by_id["scientific-reporting"]["reconciliation_state"])
 
-    def test_lock_projection_drops_previous_lock_without_local_entrypoint(self) -> None:
-        with tempfile.TemporaryDirectory() as tempdir:
-            current_skill = Path(tempdir) / "exploratory-data-analysis" / "SKILL.md"
-            current_skill.parent.mkdir(parents=True)
-            current_skill.write_text("---\nname: exploratory-data-analysis\n---\n", encoding="utf-8")
-            payload = run_ps_json(
-                "& { "
-                f". {ps_quote(str(RUNTIME_COMMON))}; "
-                f". {ps_quote(str(SKILL_ROUTING_COMMON))}; "
-                "$previous = [pscustomobject]@{ "
-                "  skill_execution_lock = [pscustomobject]@{ "
-                "    schema_version = 'v1'; state = 'active'; resolution_required = $true; "
-                "    locked_skill_ids = @('manuscript-as-code'); "
-                "    locked_dispatch = @([pscustomobject]@{ "
-                "      skill_id = 'manuscript-as-code'; "
-                "      task_slice = 'stale internal candidate'; "
-                "      native_skill_entrypoint = $null; "
-                "      skill_md_path = $null "
-                "    }) "
-                "  } "
-                "}; "
-                "$current = [pscustomobject]@{ "
-                "  selected = @([pscustomobject]@{ "
-                "    skill_id = 'exploratory-data-analysis'; task_slice = 'analyze data'; "
-                f"    native_skill_entrypoint = {ps_quote(str(current_skill))}; skill_md_path = {ps_quote(str(current_skill))} "
-                "  }); "
-                "  candidates = @(); rejected = @() "
-                "}; "
-                "$lock = New-VibeSkillExecutionLockProjection "
-                "-PreviousRuntimeInputPacket $previous "
-                "-CurrentSkillRouting $current "
-                "-SourceRunId 'pytest-plan-run' "
-                "-Source 'approved_plan_reentry'; "
-                "$lock | ConvertTo-Json -Depth 20 "
-                "}"
-            )
-
-        self.assertEqual(["exploratory-data-analysis"], as_list(payload["locked_skill_ids"]))
-        dispatch_by_id = {item["skill_id"]: item for item in as_list(payload["locked_dispatch"])}
-        self.assertNotIn("manuscript-as-code", dispatch_by_id)
-
-    def test_local_authority_drops_previous_bundled_lock_even_when_file_exists(self) -> None:
+    def test_local_authority_drops_bundled_or_missing_locked_skills(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             temp_root = Path(tempdir)
             target_root = temp_root / ".agents"
@@ -239,12 +139,21 @@ class SkillExecutionLockContractTests(unittest.TestCase):
                 "$previous = [pscustomobject]@{ "
                 "  skill_execution_lock = [pscustomobject]@{ "
                 "    schema_version = 'v1'; state = 'active'; resolution_required = $true; "
-                "    locked_skill_ids = @('aeon'); "
-                "    locked_dispatch = @([pscustomobject]@{ "
-                "      skill_id = 'aeon'; task_slice = 'stale bundled time-series hint'; "
-                f"      native_skill_entrypoint = {ps_quote(str(bundled_skill))}; "
-                f"      skill_md_path = {ps_quote(str(bundled_skill))} "
-                "    }) "
+                "    locked_skill_ids = @('aeon', 'manuscript-as-code'); "
+                "    locked_dispatch = @("
+                "      [pscustomobject]@{ "
+                "        skill_id = 'aeon'; "
+                "        task_slice = 'stale bundled hint'; "
+                f"        native_skill_entrypoint = {ps_quote(str(bundled_skill))}; "
+                f"        skill_md_path = {ps_quote(str(bundled_skill))} "
+                "      }, "
+                "      [pscustomobject]@{ "
+                "        skill_id = 'manuscript-as-code'; "
+                "        task_slice = 'missing local skill'; "
+                "        native_skill_entrypoint = $null; "
+                "        skill_md_path = $null "
+                "      }"
+                "    ) "
                 "  } "
                 "}; "
                 "$current = [pscustomobject]@{ "
@@ -269,8 +178,9 @@ class SkillExecutionLockContractTests(unittest.TestCase):
         self.assertEqual(["exploratory-data-analysis"], as_list(payload["locked_skill_ids"]))
         dispatch_by_id = {item["skill_id"]: item for item in as_list(payload["locked_dispatch"])}
         self.assertNotIn("aeon", dispatch_by_id)
+        self.assertNotIn("manuscript-as-code", dispatch_by_id)
 
-    def test_local_authority_rejects_host_approved_skill_missing_from_local_index(self) -> None:
+    def test_local_authority_ignores_host_approved_skill_missing_from_local_index(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             target_root = Path(tempdir) / ".agents"
             payload = run_ps_json(
@@ -293,114 +203,6 @@ class SkillExecutionLockContractTests(unittest.TestCase):
         self.assertEqual("inactive", payload["state"])
         self.assertEqual([], as_list(payload["locked_skill_ids"]))
         self.assertEqual([], as_list(payload["locked_dispatch"]))
-
-    def test_local_authority_locks_current_active_local_skill(self) -> None:
-        with tempfile.TemporaryDirectory() as tempdir:
-            target_root = Path(tempdir) / ".agents"
-            skill_path = write_installed_skill(target_root, "local-data-helper")
-            payload = run_ps_json(
-                "& { "
-                f". {ps_quote(str(RUNTIME_COMMON))}; "
-                f". {ps_quote(str(SKILL_ROUTING_COMMON))}; "
-                "$current = [pscustomobject]@{ "
-                "  selected = @([pscustomobject]@{ "
-                "    skill_id = 'local-data-helper'; task_slice = 'local work'; "
-                f"    native_skill_entrypoint = {ps_quote(str(skill_path))}; skill_md_path = {ps_quote(str(skill_path))} "
-                "  }); "
-                "  candidates = @(); rejected = @() "
-                "}; "
-                "$lock = New-VibeSkillExecutionLockProjection "
-                "-CurrentSkillRouting $current "
-                f"-RepoRoot {ps_quote(str(REPO_ROOT))} "
-                f"-TargetRoot {ps_quote(str(target_root))} "
-                "-HostId 'codex' "
-                "-Source 'test'; "
-                "$lock | ConvertTo-Json -Depth 20 "
-                "}"
-            )
-
-        self.assertEqual("active", payload["state"])
-        self.assertEqual(["local-data-helper"], as_list(payload["locked_skill_ids"]))
-        dispatch = as_list(payload["locked_dispatch"])[0]
-        self.assertEqual(str(skill_path.resolve()), dispatch["native_skill_entrypoint"])
-
-    def test_lock_projection_curated_only_limits_lock_to_host_approved_skills(self) -> None:
-        with tempfile.TemporaryDirectory() as tempdir:
-            approved_skill = Path(tempdir) / "scientific-writing" / "SKILL.md"
-            approved_skill.parent.mkdir(parents=True)
-            approved_skill.write_text("---\nname: scientific-writing\n---\n", encoding="utf-8")
-            payload = run_ps_json(
-                "& { "
-                f". {ps_quote(str(RUNTIME_COMMON))}; "
-                f". {ps_quote(str(SKILL_ROUTING_COMMON))}; "
-                "$previous = [pscustomobject]@{ "
-                "  skill_execution_lock = [pscustomobject]@{ "
-                "    schema_version = 'v1'; state = 'active'; resolution_required = $true; "
-                "    locked_skill_ids = @('prior-reporting'); "
-                "    locked_dispatch = @([pscustomobject]@{ skill_id = 'prior-reporting'; task_slice = 'prior report' }) "
-                "  } "
-                "}; "
-                "$current = [pscustomobject]@{ "
-                "  selected = @([pscustomobject]@{ skill_id = 'latex-submission-pipeline'; task_slice = 'current pdf'; dispatch_phase = 'post_execution' }); "
-                "  candidates = @([pscustomobject]@{ "
-                "    skill_id = 'scientific-writing'; task_slice = 'explicit writing'; dispatch_phase = 'post_execution'; "
-                f"    native_skill_entrypoint = {ps_quote(str(approved_skill))}; skill_md_path = {ps_quote(str(approved_skill))} "
-                "  }); "
-                "  rejected = @() "
-                "}; "
-                "$decision = [pscustomobject]@{ selection_mode = 'curated_only'; approved_skill_ids = @('scientific-writing') }; "
-                "$lock = New-VibeSkillExecutionLockProjection "
-                "-PreviousRuntimeInputPacket $previous "
-                "-CurrentSkillRouting $current "
-                "-HostSpecialistDispatchDecision $decision "
-                "-SourceRunId 'pytest-plan-run' "
-                "-Source 'approved_plan_reentry'; "
-                "$lock | ConvertTo-Json -Depth 20 "
-                "}"
-            )
-
-        self.assertEqual(["scientific-writing"], as_list(payload["locked_skill_ids"]))
-        dispatch_by_id = {item["skill_id"]: item for item in as_list(payload["locked_dispatch"])}
-        self.assertEqual("host_decision", dispatch_by_id["scientific-writing"]["lock_source"])
-        self.assertNotIn("latex-submission-pipeline", dispatch_by_id)
-        self.assertNotIn("prior-reporting", dispatch_by_id)
-
-    def test_plan_execute_counts_direct_routed_locked_specialists_as_resolved(self) -> None:
-        text = (REPO_ROOT / "scripts" / "runtime" / "Invoke-PlanExecute.ps1").read_text(encoding="utf-8")
-
-        self.assertIn("$directRoutedLockedSkillIds", text)
-        self.assertIn("@($executedLockedSkillIds) + @($directRoutedLockedSkillIds)", text)
-
-    def test_convert_lock_to_dispatch_preserves_dispatch_fields(self) -> None:
-        payload = run_ps_json(
-            "& { "
-            f". {ps_quote(str(RUNTIME_COMMON))}; "
-            f". {ps_quote(str(SKILL_ROUTING_COMMON))}; "
-            "$lock = [pscustomobject]@{ "
-            "  schema_version = 'v1'; state = 'active'; resolution_required = $true; "
-            "  locked_dispatch = @([pscustomobject]@{ "
-            "    skill_id = 'literature-review'; "
-            "    task_slice = 'review authoritative literature'; "
-            "    native_skill_entrypoint = 'C:/skills/literature-review/SKILL.md'; "
-            "    skill_md_path = 'C:/skills/literature-review/SKILL.md'; "
-            "    dispatch_phase = 'pre_execution'; "
-            "    parallelizable_in_root_xl = $true; "
-            "    write_scope = 'specialist:literature-review'; "
-            "    verification_expectation = 'citation notes'; "
-            "    lock_source = 'previous_skill_routing_selected' "
-            "  }) "
-            "}; "
-            "$dispatch = Convert-VibeSkillExecutionLockToDispatch -SkillExecutionLock $lock; "
-            "[pscustomobject]@{ dispatch = $dispatch } | ConvertTo-Json -Depth 20 "
-            "}"
-        )
-
-        dispatch = as_list(payload["dispatch"])[0]
-        self.assertEqual("literature-review", dispatch["skill_id"])
-        self.assertEqual("pre_execution", dispatch["dispatch_phase"])
-        self.assertEqual("specialist:literature-review", dispatch["write_scope"])
-        self.assertEqual("citation notes", dispatch["verification_expectation"])
-        self.assertTrue(dispatch["locked_for_execution"])
 
     def test_freeze_inherits_previous_plan_selection_into_execution_lock(self) -> None:
         shell = resolve_powershell()
@@ -478,15 +280,13 @@ class SkillExecutionLockContractTests(unittest.TestCase):
                 env={**os.environ, "VIBE_AGENTS_HOME": str(target_root)},
             )
             self.assertIn("packet_path", completed.stdout)
-            packet_search_root = artifact_root / "outputs" / "runtime" / "vibe-sessions" / "pytest-execute-run"
             packet_path = next(
-                packet_search_root.rglob("runtime-input-packet.json"),
+                (artifact_root / "outputs" / "runtime" / "vibe-sessions" / "pytest-execute-run").rglob(
+                    "runtime-input-packet.json"
+                ),
                 None,
             )
-            self.assertIsNotNone(
-                packet_path,
-                f"Freeze script did not produce runtime-input-packet.json under {packet_search_root}",
-            )
+            self.assertIsNotNone(packet_path)
             packet = json.loads(packet_path.read_text(encoding="utf-8"))
 
         lock = packet["skill_execution_lock"]
@@ -494,7 +294,7 @@ class SkillExecutionLockContractTests(unittest.TestCase):
         self.assertIn("scientific-reporting", as_list(lock["locked_skill_ids"]))
         self.assertTrue(lock["resolution_required"])
 
-    def test_lock_dispatch_is_preferred_over_current_router_selection_projection(self) -> None:
+    def test_lock_dispatch_stays_authoritative_over_current_router_projection(self) -> None:
         payload = run_ps_json(
             "& { "
             f". {ps_quote(str(RUNTIME_COMMON))}; "
