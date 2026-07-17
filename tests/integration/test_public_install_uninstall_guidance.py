@@ -33,7 +33,7 @@ def test_root_readme_points_public_install_to_versioned_release_zip() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
 
     assert "published release zip" in readme
-    assert "download the release zip" in readme.lower()
+    assert "download the published release zip" in readme.lower()
     assert "installs the repo's `vibe` skill" not in readme
 
 

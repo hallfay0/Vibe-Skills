@@ -87,9 +87,9 @@ def test_quick_start_explains_install_run_and_delivery_records_without_legacy_st
     english = (REPO_ROOT / "docs" / "quick-start.en.md").read_text(encoding="utf-8")
     chinese = (REPO_ROOT / "docs" / "quick-start.md").read_text(encoding="utf-8")
 
-    assert "`installed locally`" in english
-    assert "`runtime coherent`" in english
-    assert "`delivery accepted`" in english
+    assert "`check` only checks whether installer-managed files are present" in english
+    assert "`session_root` is the record folder for one task" in english
+    assert "`delivery-acceptance-report.json` or `.md` stores the final check" in english
 
     assert "`check` 只检查安装器管理的文件是否都在" in chinese
     assert "`session_root` 是一次任务的记录文件夹" in chinese

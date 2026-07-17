@@ -6,7 +6,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_runtime_authority_docs_describe_current_python_and_powershell_roles() -> None:
+def test_english_readme_routes_internal_runtime_roles_to_the_architecture_docs() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     architecture = (
         REPO_ROOT / "docs" / "architecture" / "local-agent-kernel-v2.md"
@@ -14,14 +14,6 @@ def test_runtime_authority_docs_describe_current_python_and_powershell_roles() -
     forbidden_overclaims = (
         "PowerShell stays only as a thin host wrapper",
         "PowerShell owns launcher wrappers, host receipts, shell-native checks, and leaf execution only",
-    )
-    readme_claims = (
-        "Python owns canonical validation",
-        "truth chain from `agent_skill_organization`",
-        "PowerShell performs stage orchestration",
-        "The current Agent performs the approved module work",
-        "Do not add new task semantics or task execution to PowerShell",
-        "existing PowerShell stage scripts are transitional orchestration surfaces",
     )
     architecture_claims = (
         "Python owns final truth artifacts",
@@ -35,8 +27,17 @@ def test_runtime_authority_docs_describe_current_python_and_powershell_roles() -
         "Do not let PowerShell own task semantics.",
     )
 
-    for claim in readme_claims:
-        assert claim in readme
+    assert "[architecture guide](./docs/architecture/local-agent-kernel-v2.md)" in readme
+    assert "roles of Python and PowerShell" in readme
+
+    internal_phrases = (
+        "canonical validation",
+        "truth chain",
+        "stage orchestration",
+        "transitional orchestration surfaces",
+    )
+    for phrase in internal_phrases:
+        assert phrase not in readme
     for claim in architecture_claims:
         assert claim in architecture
     for content in (readme, architecture):

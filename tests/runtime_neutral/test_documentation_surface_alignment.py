@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 
@@ -34,6 +35,32 @@ def test_readmes_describe_only_public_vibe_entry_surface() -> None:
         assert "宿主渲染标签" not in content
         for legacy_alias in ("vibe-want", "vibe-how", "vibe-do"):
             assert re.search(rf"(?<![\w-]){re.escape(legacy_alias)}(?![\w-])", content) is None
+
+
+def test_readme_heroes_keep_one_release_badge_and_consistent_install_buttons() -> None:
+    for path in ("README.md", "README.zh.md"):
+        content = _read(path)
+        assert content.count("img.shields.io") == 1
+        assert "<kbd>" not in content
+        assert "One_Entry" not in content
+        assert "Skill_Model" not in content
+        assert "Host_Neutral" not in content
+        assert "Evidence_Checked" not in content
+
+    for path in (
+        "docs/assets/install-cta-en.svg",
+        "docs/assets/install-cta-cn.svg",
+    ):
+        svg_path = REPO_ROOT / path
+        root = ET.parse(svg_path).getroot()
+        content = svg_path.read_text(encoding="utf-8")
+
+        assert root.attrib["width"] == "327"
+        assert root.attrib["height"] == "56"
+        assert root.attrib["viewBox"] == "0 0 327 56"
+        assert "#0F4C4E" in content
+        assert "linearGradient" not in content
+        assert "<filter" not in content
 
 
 def test_root_skill_keeps_update_on_the_command_path_not_a_public_skill() -> None:
@@ -227,21 +254,19 @@ def test_readmes_describe_local_installed_skill_story_without_repromoting_a_cent
     english = _read("README.md")
     chinese = _read("README.zh.md")
     english_lower = english.lower()
+    english_compact = " ".join(english_lower.split())
     chinese_lower = chinese.lower()
 
-    assert "installed local skills are the only specialist reference surface" in english_lower
+    assert "local skill folders you configure" in english_lower
     assert "readable `skill.md`" in english_lower
+    assert "agent_skill_organization" in english
     assert "module_assignments" in english
-    assert "runtime truth" in english_lower or "first truth surface" in english_lower
-    assert (
-        "without a new central catalog" in english_lower
-        or "not a bigger central catalog" in english_lower
-        or "without turning the product into a giant central catalog again" in english_lower
-    )
+    assert "stores the actual assignment" in english_compact
+    assert "without waiting for the vibeskills repository" in english_compact
+    assert "does not call every installed skill automatically" in english_lower
     assert "external-first extension" not in english_lower
     assert "starter set" not in english_lower
     assert "local_first_skills" not in english_lower
-    assert "not a claim" in english_lower and "final architecture" in english_lower
     assert "Local + starter Skills stay the product surface." not in english
 
     assert "指定的本地 Skill 文件夹" in chinese
@@ -260,13 +285,13 @@ def test_public_readmes_separate_open_integration_from_verified_tool_support() -
     english = _read("README.md")
     chinese = _read("README.zh.md")
 
-    assert "The runtime contract and public release bundle are host-neutral" in english
-    assert "Any Skill can participate" in english
-    assert "unambiguous ID" in english
-    assert "Host-neutral design does not mean every host is already verified" in english
-    assert "generic host contract is `advisory-only`" in english.lower()
+    assert "does not depend on the interface or command format" in english
+    assert "Any local Skill can participate" in english
+    assert "has a unique name" in english
+    assert "before every workflow has been fully tested" in english
+    assert "not described as fully supported before they are tested" in english
 
-    assert "不是只为 Codex、Claude Code 或 Cursor 写的" in chinese
+    assert "主要工作方式不依赖 Codex、Claude Code 或 Cursor" in chinese
     assert "任意本地 Skill" in chinese
     assert "名称不重复" in chinese
     assert "能接入，不等于已经在每种工具上完整测试过" in chinese
@@ -283,7 +308,7 @@ def test_public_readmes_describe_the_supporting_task_features() -> None:
         "Recommends a task level",
         "Checks the final result",
         "Plans tests for code work",
-        "up to two non-conflicting work units at the same time",
+        "up to two non-conflicting parts at the same time",
         "test-driven development",
     ):
         assert phrase in english
@@ -294,7 +319,7 @@ def test_public_readmes_describe_the_supporting_task_features() -> None:
         "自动推荐任务级别",
         "检查最终结果",
         "安排测试",
-        "最多两项工作同时进行",
+        "最多同时推进两项工作",
         "测试驱动开发",
     ):
         assert phrase in chinese
@@ -322,7 +347,7 @@ def test_quick_start_points_normal_skill_extension_to_the_simple_install_docs() 
     chinese = _read("docs/quick-start.md")
 
     assert "local-first" not in english
-    assert "declared local roots" in english or "local installed roots" in english
+    assert "configured local folders" in english
     assert "Custom Skills onboarding" not in english
     assert "custom-workflow-onboarding" not in english
     assert "install/README.en.md" in english
@@ -464,7 +489,7 @@ def test_kernel_docs_keep_external_first_story_narrow_and_do_not_overclaim() -> 
         r"(should not be described as|is not)\s+automatic orchestration of all installed skills",
         interfaces,
     )
-    assert "not a claim" in readme and "final architecture" in readme
+    assert "does not call every installed skill automatically" in readme
     assert "不会自动调用你安装的所有 Skills" in readme_zh
 
 
@@ -487,17 +512,14 @@ def test_default_closure_docs_keep_small_proof_set_story() -> None:
     assert 'small default closure set + routing smoke + router contract' in proof_bundle
     assert 'vibe-current-routing-debt-gate.ps1' in proof_bundle
     assert 'Additional final regression checks stay outside the default closure gate set' in proof_bundle
-    assert "normal closeout path should stay small" in readme
+    assert "run wider audits only when there is a reason" in readme
     assert "default closure story should stay small" in architecture
 
 
 def test_public_readmes_keep_install_run_and_delivery_records_separate() -> None:
     english = _read("README.md")
     chinese = _read("README.zh.md")
-
-    assert "`installed locally`" in english
-    assert "`runtime coherent`" in english
-    assert "`delivery accepted`" in english
+    english_compact = " ".join(english.split())
 
     for record in (
         "`install-receipt.json`",
@@ -506,7 +528,10 @@ def test_public_readmes_keep_install_run_and_delivery_records_separate() -> None
         "`module-execution.json`",
         "`delivery-acceptance-report.json`",
     ):
+        assert record in english
         assert record in chinese
+    assert "A successful installation does not mean the task ran" in english_compact
+    assert "a task record does not mean the final result passed" in english_compact
     assert "安装成功，不代表任务已经跑完" in chinese
     assert "有运行记录，也不代表" in chinese
     assert "最终结果已经通过检查" in chinese
@@ -515,12 +540,24 @@ def test_public_readmes_keep_install_run_and_delivery_records_separate() -> None
     assert "当前验证入口" not in chinese
 
 
-def test_chinese_public_docs_avoid_internal_runtime_language() -> None:
+def test_public_readmes_and_quick_starts_avoid_internal_runtime_language() -> None:
     public_docs = (
+        _read("README.md"),
         _read("README.zh.md"),
+        _read("docs/quick-start.en.md"),
         _read("docs/quick-start.md"),
     )
     internal_phrases = (
+        "host-neutral",
+        "adapter",
+        "carrier",
+        "canonical bridge",
+        "public boundary",
+        "runtime truth",
+        "proof layer",
+        "work-kernel",
+        "governed runtime",
+        "harness",
         "宿主中立",
         "载体",
         "适配器",
@@ -529,13 +566,11 @@ def test_chinese_public_docs_avoid_internal_runtime_language() -> None:
         "运行时真相",
         "真相面",
         "工作内核",
-        "governed runtime",
-        "harness",
     )
 
     for content in public_docs:
         for phrase in internal_phrases:
-            assert phrase not in content
+            assert phrase.casefold() not in content.casefold()
 
 
 def test_runtime_protocol_maps_public_proof_layers_without_reintroducing_install_host_ready_states() -> None:

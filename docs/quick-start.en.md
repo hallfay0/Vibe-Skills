@@ -2,96 +2,104 @@
 
 [中文](./quick-start.md)
 
-If this is your first time in the repository, you do not need to read every document first.
+You do not need to read every document before trying VibeSkills.
 
-Think of VibeSkills as a **work-kernel entry** for AI agents:
+Think of it as a way to help an AI complete a complex task from beginning to
+end:
 
-> You bring the goal. `vibe` manages the work rhythm: clarify the requirement, build a work model, bind the right Skills where they help, push toward testing and verification, and preserve the useful context.
+> You provide the goal. `vibe` clarifies the task, splits it into parts, finds
+> useful Skills for each part, checks the result, and saves the progress.
 
-It is not a long tool menu that leaves the user to choose every step. It is one portable work loop that helps Skills-capable agents start faster, stay more disciplined, and handle work across phases.
+VibeSkills arranges the work so the AI is less likely to skip steps and a long
+task can continue in a later session.
 
-## 1. What problem does it solve?
+## 1. What it helps with
 
-VibeSkills focuses on five practical problems:
-
-| Problem | What VibeSkills does |
+| Common problem | What VibeSkills does |
 |:---|:---|
-| Too many Skills, unclear which one to call | The kernel binds relevant Skills after the work shape is clear |
-| Agents skip requirements, planning, or testing | `vibe` moves work through bounded stages |
-| Users keep saying "plan first" or "verify it" | You provide the goal; the harness absorbs more of the control burden |
-| Long work loses context across sessions | Requirements, plans, decisions, and evidence are stored in structured places |
-| New domain Skills are hard to integrate | The core uses the Skills installed in declared local roots, so users can add capability without turning the product into a bigger central catalog |
+| There are many Skills and it is unclear which one to use | Splits the task first, then finds useful Skills for each part |
+| The AI skips requirements, planning, or tests | Stops at important points and continues after confirmation |
+| The user has to keep saying "plan first" or "check it" | Lets the user state the goal while `vibe` arranges the steps |
+| A long task loses its progress between sessions | Saves the requirement, plan, important decisions, progress, and result |
+| A new Skill is hard to add to the workflow | Finds Skills placed in configured local folders when they fit the task |
 
-If you remember one line:
+The short version:
 
-> **VibeSkills packages skill binding, verification, and cross-session memory into one portable work-kernel entry that is easy to install and easy to start using.**
+> **VibeSkills makes the task clear, uses Skills where they help, checks the
+> result, and saves enough information to continue later.**
 
-## 2. Start fast
+## 2. Start quickly
 
-Open the simple install guide:
+Open the installation guide:
 
 - [`install/README.en.md`](./install/README.en.md)
 
-Use the default skills directory if you want the shortest path. Start from the published release zip, not from a repo checkout. If VibeSkills is already installed, download the newer published release zip and run `update` against the same skills directory.
+The simplest path starts from the published release zip, not a repository
+checkout. If VibeSkills is already installed, download the newer zip and run
+`update` against the same Skills folder.
 
-After install, invoke it through your carrier's Skills entry. The core contract
-is host-neutral; exact syntax belongs to the adapter. `$vibe` in Codex and
-`/vibe` in Claude Code are examples, not a limit on which carriers can consume
-the runtime. A new carrier can integrate through a compatible adapter, while
-its support status remains unproven until the corresponding host evidence is
-recorded.
+After installation, start it from the Skills entry in your current AI tool.
+Codex can use `$vibe`, while Claude Code can use `/vibe`. These are the start
+commands used by those tools. Other tools can also connect, but the project
+describes them as fully supported only after their workflow has been tested.
 
-See the [host capability matrix](./universalization/host-capability-matrix.md)
-for current adapter evidence and support labels.
+See the [support status](./universalization/host-capability-matrix.md) for the
+current details.
 
-For updates, keep the same management path from the newer extracted release copy:
+For an update, run the command from the newly extracted release folder:
 
 - `update.ps1 -SkillsDir <skills-dir>`
 - `update.sh --skills-dir <skills-dir>`
 
-## 3. Current public entries
+## 3. How to start it
 
-The current public, host-visible entry is:
+You only need one entry:
 
 - `vibe`
 
-`vibe` is the main entry. It stops at requirement, plan, and execution boundaries, then continues only after explicit confirmation.
+`vibe` confirms the requirement and plan, stops when it needs your decision,
+and continues after confirmation.
 
-Installed-copy upgrades stay on the command path. Use `update` with the same skills directory instead of a second public runtime entry.
+Use `update` against the existing Skills folder when upgrading. There is no
+separate upgrade Skill to remember.
 
-Older stage-specific and legacy CLI entries are retired from the public host-visible surface and should not be advertised or installed.
+Stage-specific entries from older versions are retired and should not be
+installed or called.
 
-If you want a stronger execution lane, use only the public lightweight overrides:
+For a more complex task, you can use:
 
 - `--l`
 - `--xl`
 
-Older stage IDs may still exist in runtime metadata for compatibility and continuity, but they are not commands or skills that users should invoke.
+Older names may still appear in internal records, but they are not commands or
+Skills for users to call.
 
 ## 4. What to read next
 
-Pick by intent:
-
 | Goal | Read |
 |:---|:---|
-| Full project introduction | [`../README.md`](../README.md) |
+| Read the full project introduction | [`../README.md`](../README.md) |
 | Install or update | [`install/README.en.md`](./install/README.en.md) |
-| Direct command reference | [`install/README.en.md`](./install/README.en.md) |
-| Unsure about host roots | [`cold-start-install-paths.en.md`](./cold-start-install-paths.en.md) |
-| Using OpenCode | [`cold-start-install-paths.en.md`](./cold-start-install-paths.en.md) |
-| Using OpenClaw | [`cold-start-install-paths.en.md`](./cold-start-install-paths.en.md) |
-| Manual/offline install | [`install/README.en.md`](./install/README.en.md) |
-| Normal skill extension path after install | [`install/README.en.md`](./install/README.en.md) |
-| Add or scan more local skill roots | [`install/README.en.md`](./install/README.en.md) |
-| Why the project exists | [`manifesto.en.md`](./manifesto.en.md) |
+| See every installation command | [`install/README.en.md`](./install/README.en.md) |
+| Find the right Skills folder | [`cold-start-install-paths.en.md`](./cold-start-install-paths.en.md) |
+| Use OpenCode | [`cold-start-install-paths.en.md`](./cold-start-install-paths.en.md) |
+| Use OpenClaw | [`cold-start-install-paths.en.md`](./cold-start-install-paths.en.md) |
+| Install manually or offline | [`install/README.en.md`](./install/README.en.md) |
+| Let VibeSkills find more local Skills | [`install/README.en.md`](./install/README.en.md) |
+| Add another local Skill folder | [`install/README.en.md`](./install/README.en.md) |
+| Read why the project exists | [`manifesto.en.md`](./manifesto.en.md) |
 
-## 5. Common confusion
+## 5. Common questions
 
-- `$vibe` or `/vibe` only enters the governed runtime. It does not by itself prove that host plugins, providers, or online enhancement are fully configured.
-- `check` proves `installed locally`.
-- `runtime coherent` starts only after a real `vibe` run returns a `session_root` with runtime truth artifacts.
-- `delivery accepted` comes from `delivery-acceptance-report.json` / `.md`.
-- VibeSkills is a Skills-format runtime, not a standalone CLI you run directly in a terminal.
+- `$vibe` and `/vibe` start VibeSkills. Tool-specific extensions may still need
+  separate setup.
+- `check` only checks whether installer-managed files are present and unchanged.
+- `session_root` is the record folder for one task. It stores the input,
+  progress, important decisions, and summary.
+- `delivery-acceptance-report.json` or `.md` stores the final check and shows
+  which items passed, failed, or were blocked.
+- VibeSkills starts from an AI tool's Skills entry. It is not a separate terminal
+  application.
 
 ## Recommended reading order
 
@@ -101,8 +109,9 @@ For the shortest path:
 2. [`install/README.en.md`](./install/README.en.md)
 3. Try `vibe` on a small task
 
-Start with something simple, for example:
+For example:
 
 > Clarify this requirement and turn it into a plan `$vibe`
 
-The difference becomes clear quickly: the user does not have to act as the dispatcher, and the agent gets a steadier way to move work through the harness.
+You should quickly see the difference from a normal list of Skills: the AI can
+continue from the confirmed plan without needing a reminder for every next step.
