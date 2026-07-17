@@ -38,7 +38,7 @@ bash ./uninstall.sh --skills-dir "$HOME/.agents/skills"
 2. 下载并解压 `vibe-skills-4.0.0-public.zip`。
 3. 从 v4 解压目录对原来的 `SkillsDir` 运行 `update`。
 4. 运行 `check`，确认收据登记文件缺失为 `0`、漂移为 `0`。
-5. 后续统一调用 `vibe`。旧的 `vibe-what-do-i-want`、`vibe-how-do-we-do`、`vibe-do-it` 和 `vibe-upgrade` 入口不再属于 v4 公开运行时。
+5. 后续统一调用 `vibe`。已退役的旧入口不再属于 v4 公开运行时。
 
 v4 不会自动安装或推荐 `chrome`、`chrome-devtools`、`playwright`、`context7` 或 `claude-flow` MCP。安装器也不会替用户修改这些 MCP 的主机配置。
 

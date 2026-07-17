@@ -524,7 +524,7 @@ Update and uninstall use the same boundary. For updates, download the newer publ
 .\uninstall.ps1 -SkillsDir C:\Users\you\.agents\skills
 ```
 
-When upgrading from v3 to v4, keep the same `SkillsDir`, run the v4 `update` wrapper, then run `check`. Legacy `vibe-what-do-i-want`, `vibe-how-do-we-do`, `vibe-do-it`, and `vibe-upgrade` entry names are retired; use `vibe` for the governed runtime.
+When upgrading from v3 to v4, keep the same `SkillsDir`, run the v4 `update` wrapper, then run `check`. Retired legacy entry names are not part of the v4 public runtime; use `vibe` for governed work.
 
 The installer writes only Vibe-owned files under `<SkillsDir>/vibe`. It does not edit Codex, Claude, Agents, host settings, command wrappers, or global prompt files. Re-running install or update preserves user-added files and refuses unowned path conflicts instead of deleting the directory.
 
