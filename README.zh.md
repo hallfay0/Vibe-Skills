@@ -538,7 +538,7 @@ v4 公开发布物是 host-neutral、以 SkillsDir 为中心的 `vibe-skills-4.0
 - 卸载入口：`uninstall.ps1 -SkillsDir <skills-dir>`
 - 详细说明：[`docs/install/README.md`](docs/install/README.md)
 
-从 v3 升级到 v4 时，继续使用原来的 `SkillsDir`，运行 v4 发布包里的 `update`，再运行 `check`。旧的 `vibe-what-do-i-want`、`vibe-how-do-we-do`、`vibe-do-it` 和 `vibe-upgrade` 入口已经退役，统一使用 `vibe`。
+从 v3 升级到 v4 时，继续使用原来的 `SkillsDir`，运行 v4 发布包里的 `update`，再运行 `check`。已退役的旧入口不再属于 v4 的公开运行时，后续统一使用 `vibe`。
 
 ### 需要时再展开更多文档
 

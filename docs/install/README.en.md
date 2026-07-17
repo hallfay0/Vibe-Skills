@@ -38,7 +38,7 @@ To update, download the newer published release zip first, extract it, run `upda
 2. Download and extract `vibe-skills-4.0.0-public.zip`.
 3. Run the v4 `update` wrapper against the existing `SkillsDir`.
 4. Run `check` and confirm that receipt-owned missing and drifted file counts are both `0`.
-5. Use `vibe` for subsequent governed runs. The legacy `vibe-what-do-i-want`, `vibe-how-do-we-do`, `vibe-do-it`, and `vibe-upgrade` entry names are not part of the v4 public runtime.
+5. Use `vibe` for subsequent governed runs. Retired legacy entry names are not part of the v4 public runtime.
 
 v4 does not automatically install or recommend the `chrome`, `chrome-devtools`, `playwright`, `context7`, or `claude-flow` MCPs. The installer also does not modify their host configuration.
 
