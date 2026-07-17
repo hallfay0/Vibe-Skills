@@ -167,18 +167,6 @@ VibeSkills 会把安装情况、任务过程和最终检查分别保存下来。
 维护项目时，可以使用这份[提交前检查清单](docs/status/non-regression-proof-bundle.md)。
 一般先完成清单里的基础检查；只有发现风险时，再扩大检查范围。
 
-### 当前版本
-
-| 项目 | 内容 |
-|:---|:---|
-| 版本 | [`v4.0.0`](https://github.com/foryourhealth111-pixel/Vibe-Skills/releases/tag/v4.0.0)，发布于 2026-07-17 |
-| 安装包 | `vibe-skills-4.0.0-public.zip` |
-| SHA-256 | `0b16a5f615a485b8d082407d458cc5c4ffe2cee443c6211fc941cd6678987dc9` |
-| 标签目标提交 | `9cf0dcbf7c6e377806c00b2e0d2ffe75cb612d35` |
-
-[v4 发布说明](./docs/releases/v4.0.0.md)写明了发布前做过哪些检查，以及从旧版本
-升级时要注意什么。
-
 ## 安装
 
 请从发布页面下载发布版本 zip，并先解压到准备安装 Skills 的文件夹之外。

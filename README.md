@@ -165,18 +165,6 @@ The normal closeout path should stay small: prove the governed runtime, entry
 truth, execution proof, release consistency, and repository cleanliness before
 running wider audits.
 
-### Current Release Facts
-
-| Item | Published value |
-|:---|:---|
-| Release | [`v4.0.0`](https://github.com/foryourhealth111-pixel/Vibe-Skills/releases/tag/v4.0.0), published 2026-07-17 |
-| Asset | `vibe-skills-4.0.0-public.zip` |
-| SHA-256 | `0b16a5f615a485b8d082407d458cc5c4ffe2cee443c6211fc941cd6678987dc9` |
-| Tag target | `9cf0dcbf7c6e377806c00b2e0d2ffe75cb612d35` |
-
-The [v4 release notes](./docs/releases/v4.0.0.md) record the validation and
-migration evidence used for publication.
-
 ## Install
 
 Public installation starts from a published release zip. Download the release zip outside the managed `SkillsDir`. The default target is `~/.agents/skills`.
