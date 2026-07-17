@@ -1,14 +1,16 @@
 # Simple Install
 
-The public install path starts from the [GitHub Releases page](https://github.com/foryourhealth111-pixel/Vibe-Skills/releases). The v4.0.0 asset is named `vibe-skills-4.0.0-public.zip`. Download and extract it, then run the wrappers from that release directory. The installer does one thing: it installs `vibe` into a skills directory.
+The public install path starts from a published release, not a repository checkout. Download the current [vibe-skills-4.0.0-public.zip](https://github.com/foryourhealth111-pixel/Vibe-Skills/releases/download/v4.0.0/vibe-skills-4.0.0-public.zip), extract it outside the managed Skills directory, and run the wrappers from the extracted folder.
+
+The published ZIP SHA-256 is `0b16a5f615a485b8d082407d458cc5c4ffe2cee443c6211fc941cd6678987dc9`.
 
 The default directory is `~/.agents/skills`. If a host or your own workflow needs a different skills directory, pass it explicitly, for example `~/.codex/skills` or `~/.claude/skills`.
+
+## Install
 
 ```powershell
 pwsh -NoProfile -File .\install.ps1 -SkillsDir "$HOME\.agents\skills"
 pwsh -NoProfile -File .\check.ps1 -SkillsDir "$HOME\.agents\skills"
-pwsh -NoProfile -File .\update.ps1 -SkillsDir "$HOME\.agents\skills"
-pwsh -NoProfile -File .\uninstall.ps1 -SkillsDir "$HOME\.agents\skills"
 ```
 
 For a Codex-only install, target the Codex skills directory explicitly:
@@ -21,16 +23,42 @@ pwsh -NoProfile -File .\check.ps1 -SkillsDir "$HOME\.codex\skills"
 ```bash
 bash ./install.sh --skills-dir "$HOME/.agents/skills"
 bash ./check.sh --skills-dir "$HOME/.agents/skills"
-bash ./update.sh --skills-dir "$HOME/.agents/skills"
-bash ./uninstall.sh --skills-dir "$HOME/.agents/skills"
 ```
 
 After installation, the managed directory is `<SkillsDir>/vibe`. The install receipt lives at `<SkillsDir>/vibe/.vibeskills/install-receipt.json`.
 
-`check` verifies the files recorded in the receipt. `update` refuses to overwrite user edits when drift is detected. `uninstall` removes only files recorded in the receipt and keeps user-added files.
+`check` verifies the files recorded in the receipt.
 `check` proves `installed locally`. It does not prove `runtime coherent` or `delivery accepted`.
 
-To update, download the newer published release zip first, extract it, run `update` from that newer release copy against the same `SkillsDir`, and then run `check`. Do not extract the new release inside the managed `<SkillsDir>/vibe` directory.
+## Update An Existing Install
+
+Download the newer published release ZIP first, extract it, and run these commands from that newer release copy against the same `SkillsDir`:
+
+```powershell
+pwsh -NoProfile -File .\update.ps1 -SkillsDir "$HOME\.agents\skills"
+pwsh -NoProfile -File .\check.ps1 -SkillsDir "$HOME\.agents\skills"
+```
+
+```bash
+bash ./update.sh --skills-dir "$HOME/.agents/skills"
+bash ./check.sh --skills-dir "$HOME/.agents/skills"
+```
+
+Do not extract the new release inside the managed `<SkillsDir>/vibe` directory. `update` refuses to overwrite receipt-owned files when drift is detected.
+
+## Uninstall
+
+Uninstall is not part of the install or update sequence. Run it only when you intend to remove VibeSkills:
+
+```powershell
+pwsh -NoProfile -File .\uninstall.ps1 -SkillsDir "$HOME\.agents\skills"
+```
+
+```bash
+bash ./uninstall.sh --skills-dir "$HOME/.agents/skills"
+```
+
+`uninstall` removes only files recorded in the receipt and keeps user-added files.
 
 ## Upgrading From v3 To v4
 
