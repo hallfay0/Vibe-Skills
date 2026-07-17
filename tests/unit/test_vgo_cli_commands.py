@@ -256,15 +256,15 @@ def test_canonical_entry_command_delegates_to_runtime_core_bridge(monkeypatch: p
 
     monkeypatch.setattr(cli_commands, 'run_canonical_entry_core', fake_run_canonical_entry_core)
     monkeypatch.setattr(cli_commands, 'print_process_output', fake_print)
-    monkeypatch.setattr(cli_commands, 'normalize_host_id', lambda host_id: 'codex')
 
     args = argparse.Namespace(
         repo_root=str(tmp_path),
         prompt='plan runtime entry hardening',
-        host_id='CoDeX',
-        entry_id='vibe',
+        host_id=None,
+        entry_id=None,
         requested_stage_stop='phase_cleanup',
         requested_grade_floor='XL',
+        workspace_root=str(tmp_path / 'workspace'),
         artifact_root=str(tmp_path / 'artifacts'),
         local_agent_root=str(tmp_path / 'agent-root'),
         run_id='run-123',
@@ -278,12 +278,11 @@ def test_canonical_entry_command_delegates_to_runtime_core_bridge(monkeypatch: p
     assert recorded['repo_root'] == tmp_path.resolve()
     assert recorded['argv'] == [
         '--repo-root', str(tmp_path.resolve()),
-        '--host-id', 'codex',
-        '--entry-id', 'vibe',
         '--prompt', 'plan runtime entry hardening',
         '--requested-stage-stop', 'phase_cleanup',
         '--requested-grade-floor', 'XL',
         '--run-id', 'run-123',
+        '--workspace-root', str(tmp_path / 'workspace'),
         '--artifact-root', str((tmp_path / 'artifacts')),
         '--local-agent-root', str(tmp_path / 'agent-root'),
         '--continue-from-run-id', 'prior-run',
@@ -292,6 +291,48 @@ def test_canonical_entry_command_delegates_to_runtime_core_bridge(monkeypatch: p
         '--force-runtime-neutral',
     ]
     assert recorded['printed_stdout'] == '{"run_id":"r1"}\n'
+
+
+def test_canonical_entry_command_passes_host_and_canonical_entry_flags_when_explicit(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import vgo_cli.commands as cli_commands
+
+    recorded: dict[str, object] = {}
+
+    def fake_run_canonical_entry_core(repo_root: Path, argv: list[str]) -> subprocess.CompletedProcess[str]:
+        recorded['argv'] = list(argv)
+        return subprocess.CompletedProcess(args=list(argv), returncode=0, stdout='{"run_id":"r2"}\n', stderr='')
+
+    monkeypatch.setattr(cli_commands, 'run_canonical_entry_core', fake_run_canonical_entry_core)
+    monkeypatch.setattr(cli_commands, 'print_process_output', lambda result: None)
+
+    args = argparse.Namespace(
+        repo_root=str(tmp_path),
+        prompt='continue canonical vibe',
+        host_id='opencode',
+        entry_id='vibe',
+        requested_stage_stop='xl_plan',
+        requested_grade_floor=None,
+        artifact_root=None,
+        local_agent_root=None,
+        run_id=None,
+        continue_from_run_id=None,
+        bounded_reentry_token=None,
+        host_decision_json=None,
+        host_decision_json_file=None,
+        force_runtime_neutral=False,
+    )
+
+    assert canonical_entry_command(args) == 0
+    assert recorded['argv'] == [
+        '--repo-root', str(tmp_path.resolve()),
+        '--prompt', 'continue canonical vibe',
+        '--host-id', 'opencode',
+        '--entry-id', 'vibe',
+        '--requested-stage-stop', 'xl_plan',
+    ]
 
 
 
@@ -499,10 +540,27 @@ def test_install_command_uses_simplified_skills_dir_install(tmp_path: Path, caps
     assert '"receipt_kind": "vibe-skill-install"' in capsys.readouterr().out
 
 
+def _write_minimal_install_source(repo_root: Path) -> None:
+    (repo_root / 'config').mkdir(parents=True, exist_ok=True)
+    (repo_root / 'SKILL.md').write_text('# vibe\n', encoding='utf-8')
+    (repo_root / 'config' / 'version-governance.json').write_text(
+        json.dumps(
+            {
+                'packaging': {
+                    'runtime_payload': {
+                        'files': ['SKILL.md'],
+                        'directories': ['config'],
+                    }
+                }
+            }
+        ),
+        encoding='utf-8',
+    )
+
+
 def test_install_command_marks_non_git_source_as_unknown_dirty(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     repo_root = tmp_path / 'repo'
-    (repo_root / 'SKILL.md').parent.mkdir(parents=True, exist_ok=True)
-    (repo_root / 'SKILL.md').write_text('# vibe\n', encoding='utf-8')
+    _write_minimal_install_source(repo_root)
     skills_dir = tmp_path / 'skills'
 
     assert install_command(argparse.Namespace(repo_root=str(repo_root), skills_dir=str(skills_dir))) == 0
@@ -517,8 +575,7 @@ def test_install_command_uses_public_release_bundle_metadata_when_present(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     release_root = tmp_path / 'release-root'
-    release_root.mkdir(parents=True, exist_ok=True)
-    (release_root / 'SKILL.md').write_text('# vibe\n', encoding='utf-8')
+    _write_minimal_install_source(release_root)
     (release_root / 'release-bundle.json').write_text(
         json.dumps(
             {
@@ -690,8 +747,26 @@ def test_build_parser_includes_canonical_entry_subcommand() -> None:
 
     assert args.command == 'canonical-entry'
     assert args.handler is canonical_entry_command
-    assert args.host_id == 'codex'
-    assert args.entry_id == 'vibe'
+    assert args.host_id is None
+    assert args.entry_id is None
+    assert args.workspace_root is None
+
+
+def test_build_parser_accepts_hidden_canonical_entry_workspace_root() -> None:
+    parser = build_parser()
+    args = parser.parse_args(
+        [
+            'canonical-entry',
+            '--repo-root',
+            '/tmp/repo',
+            '--prompt',
+            'continue canonical vibe',
+            '--workspace-root',
+            '/tmp/workspace',
+        ]
+    )
+
+    assert args.workspace_root == '/tmp/workspace'
 
 
 def test_build_parser_accepts_canonical_entry_host_decision_json_file() -> None:
