@@ -117,18 +117,32 @@ need four different kinds of help, all four can receive explicit Skill support.
 If a module does not need a specialist, it stays Agent-owned. The goal is useful
 coverage, not a larger call count.
 
-## What The Runtime Organizes
+## What Else VibeSkills Does
 
-| Work surface | What VibeSkills does |
-|:---|:---|
-| Requirement | Confirms the goal, constraints, inputs, and expected delivery before work begins |
-| Module map | Splits composite work into bounded units with ownership, dependencies, outputs, and checks |
-| Skill organization | Reads relevant local Skill contracts and decides which modules they can assist |
-| Execution | Hands the approved modules to the current Agent with the Skill organization kept explicit |
-| Delivery | Checks module results, keeps failed or blocked work visible, and preserves context for continuation |
+- **Confirms the requirement.** Before work begins, VibeSkills confirms the goal,
+  constraints, available material, and expected delivery. It does not begin
+  execution while the requirement is still waiting for approval.
 
-Approval boundaries are real stops. A requirement stop is not a completed plan,
-and a plan stop is not completed execution.
+- **Saves the task record.** The requirement, plan, progress, and final result are
+  saved with the run. A later session can continue from those records, and a
+  review can trace what was agreed and what was actually done.
+
+- **Recommends a task level.** VibeSkills recommends `L` or `XL` from the task's
+  scope, number of steps, dependencies, and opportunities for parallel work. The
+  user can also choose. `L` suits multi-step work of manageable size and moves
+  through the parts in order, with less overhead. `XL` suits larger work with
+  several relatively independent parts; it uses a more detailed breakdown and
+  can run up to two non-conflicting work units at the same time, with additional
+  coordination and result collection.
+
+- **Checks the final result.** VibeSkills compares every planned item with the
+  actual result. If required work is incomplete, failed, or blocked, the task is
+  not reported as complete.
+
+- **Plans tests for code work.** When a task involves code, VibeSkills prefers
+  test-driven development when appropriate: demonstrate the problem with a
+  failing test, make the change, then run the tests again. Test results are saved
+  with the rest of the task record.
 
 ## Skill Organization, Not Passive Discovery
 

@@ -273,6 +273,38 @@ def test_public_readmes_separate_open_integration_from_verified_tool_support() -
     assert "在实际测试之前不会写成“已经完整支持”" in chinese
 
 
+def test_public_readmes_describe_the_supporting_task_features() -> None:
+    english = _read("README.md")
+    chinese = _read("README.zh.md")
+
+    for phrase in (
+        "Confirms the requirement",
+        "Saves the task record",
+        "Recommends a task level",
+        "Checks the final result",
+        "Plans tests for code work",
+        "up to two non-conflicting work units at the same time",
+        "test-driven development",
+    ):
+        assert phrase in english
+
+    for phrase in (
+        "确认需求",
+        "保存任务记录",
+        "自动推荐任务级别",
+        "检查最终结果",
+        "安排测试",
+        "最多两项工作同时进行",
+        "测试驱动开发",
+    ):
+        assert phrase in chinese
+
+    assert "需求没有确认时" in chinese
+    assert "不会直接开始执行" in chinese
+    assert "更换会话后，可以从已有记录继续" in chinese
+    assert "任务就不会被写成已经完成" in chinese
+
+
 def test_quick_start_does_not_advertise_disabled_stage_labels() -> None:
     disabled_stage_labels = (
         "Vibe: What Do I Want?",
