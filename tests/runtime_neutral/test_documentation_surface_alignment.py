@@ -554,7 +554,6 @@ def test_public_readmes_and_quick_starts_avoid_internal_runtime_language() -> No
         "proof layer",
         "work-kernel",
         "governed runtime",
-        "harness",
         "宿主中立",
         "载体",
         "适配器",

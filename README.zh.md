@@ -102,6 +102,14 @@ flowchart TB
 
 ## 除了组织 Skills，它还会做这些事
 
+VibeSkills 把 harness 工程的一种基本做法用在了 Skills 的组织和调用上。简单说，
+就是给任务加上一套从开始到结束都能照着走的流程：先确认需求，再安排工作并保存
+记录，最后对照计划检查结果。Skills 的选择、分工和执行，也放在这套流程里进行。
+
+<p align="center">
+  <img src="./docs/assets/vibeskills-harness-overview.svg" width="920" alt="VibeSkills 从确认需求开始，经过 L 或 XL 分级、组织 Skills、执行并保存记录，最后检查结果；代码任务可以进入 TDD 循环">
+</p>
+
 - **确认需求。** 开始工作前，VibeSkills 会先确认任务目标、限制条件、已有材料和
   最后需要交付的内容。需求没有确认时，它会停在这里，不会直接开始执行。
 

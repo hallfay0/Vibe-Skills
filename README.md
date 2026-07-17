@@ -104,6 +104,16 @@ to increase the number of calls.
 
 ## What else VibeSkills does
 
+VibeSkills applies a basic harness-engineering idea to the way Skills are
+organized and used. In plain terms, the task follows one clear process from
+start to finish: confirm the requirement, organize the work, save the record,
+and check the final result against the plan. The decisions about which Skills
+to use, where they help, and what they do all stay inside that process.
+
+<p align="center">
+  <img src="./docs/assets/vibeskills-harness-overview.svg" width="920" alt="VibeSkills confirms the requirement, chooses L or XL, organizes Skills, records the work, and checks the result; code work can enter a TDD loop">
+</p>
+
 - **Confirms the requirement.** Before work begins, VibeSkills confirms the goal,
   constraints, available material, and expected delivery. It does not begin
   execution while the requirement is still waiting for approval.
