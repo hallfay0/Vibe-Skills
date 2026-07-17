@@ -18,20 +18,18 @@ so more of the capability you already installed can contribute where it actually
   <img src="https://img.shields.io/github/v/release/foryourhealth111-pixel/Vibe-Skills?display_name=tag&sort=semver&style=for-the-badge&color=14515B" alt="Latest release">
 </a>
 
-<br><br>
+<br>
 
 <a href="./docs/install/README.en.md">
   <img src="./docs/assets/install-cta-en.svg" width="327" height="56" alt="Install VibeSkills">
 </a>
 
-<br><br>
+<br>
 
 <a href="./docs/quick-start.en.md">Quick start</a> ·
 <a href="https://github.com/foryourhealth111-pixel/Vibe-Skills/releases/tag/v4.0.0">v4.0.0 release</a> ·
 <a href="./docs/README.md">Documentation</a> ·
 <a href="https://github.com/foryourhealth111-pixel/Vibe-Skills/stargazers">Star the project</a>
-
-<br><br>
 
 </div>
 
@@ -194,35 +192,6 @@ Install, update, check, uninstall, and migration commands are kept in one guide:
 Current asset:
 [vibe-skills-4.0.0-public.zip](https://github.com/foryourhealth111-pixel/Vibe-Skills/releases/download/v4.0.0/vibe-skills-4.0.0-public.zip)
 
-## Use it with different AI tools
-
-VibeSkills does not depend on the interface or command format of Codex, Claude
-Code, or Cursor. A tool needs a way to find local Skills, start `vibe`, wait for
-user confirmation, and save the run result.
-
-| What | Requirement |
-|:---|:---|
-| Local Skill | Any local Skill can participate when it is in a configured folder, has a readable and valid `SKILL.md`, has a unique name, and fits the work. |
-| AI tool | The tool needs to know where to find Skills, how to start `vibe`, when to wait for confirmation, and where to save the result. |
-| Current support | A tool may be able to connect before every workflow has been fully tested. The project reports the tested status of each tool separately. |
-
-<details>
-<summary><strong>Tools tested so far</strong></summary>
-
-The repository includes the files needed to use VibeSkills with Codex, Claude
-Code, Cursor, Windsurf, OpenClaw, and OpenCode. Codex and Claude Code have been
-tested through the main workflow with some conditions. The other tools are in
-an earlier stage. Tools outside this list have general integration guidance,
-but are not described as fully supported before they are tested.
-
-See the [support status](./docs/universalization/host-capability-matrix.md) for
-the current details.
-
-</details>
-
-The start command can differ by tool. Codex can use `$vibe`, while Claude Code
-can use `/vibe`. The project records how far each tool has been tested.
-
 ## What installation changes
 
 - You only need to remember one entry: `vibe`.
@@ -249,6 +218,7 @@ the [architecture guide](./docs/architecture/local-agent-kernel-v2.md).
 | Install, update, uninstall | [Simple install](./docs/install/README.en.md) |
 | First use | [Quick start](./docs/quick-start.en.md) |
 | Current release | [v4.0.0 notes](./docs/releases/v4.0.0.md) |
+| See which AI tools have been tested | [Support status](./docs/universalization/host-capability-matrix.md) |
 | How it works | [Documentation index](./docs/README.md) |
 | Troubleshooting | [Troubleshooting guide](./docs/troubleshooting.md) |
 | Contributing | [Contribution guide](./CONTRIBUTING.md) |

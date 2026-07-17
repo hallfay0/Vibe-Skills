@@ -40,8 +40,10 @@ def test_readmes_describe_only_public_vibe_entry_surface() -> None:
 def test_readme_heroes_keep_one_release_badge_and_consistent_install_buttons() -> None:
     for path in ("README.md", "README.zh.md"):
         content = _read(path)
+        hero = content[content.index('<div align="center">') : content.index("</div>", content.index('<div align="center">'))]
         assert content.count("img.shields.io") == 1
         assert "<kbd>" not in content
+        assert "<br><br>" not in hero
         assert "One_Entry" not in content
         assert "Skill_Model" not in content
         assert "Host_Neutral" not in content
@@ -281,21 +283,16 @@ def test_readmes_describe_local_installed_skill_story_without_repromoting_a_cent
     assert "本地 + starter Skills 仍然是默认产品面。" not in chinese
 
 
-def test_public_readmes_separate_open_integration_from_verified_tool_support() -> None:
+def test_root_readmes_route_tool_support_details_to_the_support_status_doc() -> None:
     english = _read("README.md")
     chinese = _read("README.zh.md")
 
-    assert "does not depend on the interface or command format" in english
-    assert "Any local Skill can participate" in english
-    assert "has a unique name" in english
-    assert "before every workflow has been fully tested" in english
-    assert "not described as fully supported before they are tested" in english
-
-    assert "主要工作方式不依赖 Codex、Claude Code 或 Cursor" in chinese
-    assert "任意本地 Skill" in chinese
-    assert "名称不重复" in chinese
-    assert "能接入，不等于已经在每种工具上完整测试过" in chinese
-    assert "在实际测试之前不会写成“已经完整支持”" in chinese
+    assert "Use it with different AI tools" not in english
+    assert "可以配合不同的 AI 工具使用" not in chinese
+    assert "| Current support |" not in english
+    assert "| 实际支持情况 |" not in chinese
+    assert "[Support status](./docs/universalization/host-capability-matrix.md)" in english
+    assert "[支持情况说明](./docs/universalization/host-capability-matrix.md)" in chinese
 
 
 def test_public_readmes_describe_the_supporting_task_features() -> None:
