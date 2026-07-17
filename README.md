@@ -2,67 +2,134 @@
   <strong>English</strong> | <a href="./README.zh.md">中文</a>
 </div>
 
-<p align="center">
-  <img src="./docs/assets/vibeskills-octopus-mark.svg" width="112" alt="VibeSkills mark">
-</p>
+<div align="center">
 
-# VibeSkills
+<img src="./logo.png" width="230" alt="VibeSkills logo">
 
-**A governed workflow for complex AI work.**
+<h1>VibeSkills</h1>
 
-VibeSkills turns one difficult request into confirmed scope, bounded work,
-local-skill assistance, verification evidence, and context that can be resumed.
-You start with one public entry, `vibe`; the runtime provides the work rhythm
-around the AI agent instead of leaving every next step to the user.
+<h3>Make local Skills work as a system.</h3>
 
-[Install](#install) · [Quick start](./docs/quick-start.en.md) ·
-[v4.0.0 release](https://github.com/foryourhealth111-pixel/Vibe-Skills/releases/tag/v4.0.0) ·
-[Documentation](./docs/README.md)
+<p><strong>Complex tasks often trigger only the most obvious Skills.</strong><br>
+VibeSkills maps the whole task first, then organizes relevant local Skills around each module,<br>
+so more of the capability you already installed can contribute where it actually helps.</p>
 
-[![Release](https://img.shields.io/github/v/release/foryourhealth111-pixel/Vibe-Skills?display_name=tag&sort=semver)](https://github.com/foryourhealth111-pixel/Vibe-Skills/releases/latest)
-[![License](https://img.shields.io/github/license/foryourhealth111-pixel/Vibe-Skills)](./LICENSE)
-[![Stars](https://img.shields.io/github/stars/foryourhealth111-pixel/Vibe-Skills?style=flat)](https://github.com/foryourhealth111-pixel/Vibe-Skills/stargazers)
+<a href="https://github.com/foryourhealth111-pixel/Vibe-Skills/releases/latest">
+  <img src="https://img.shields.io/github/v/release/foryourhealth111-pixel/Vibe-Skills?display_name=tag&sort=semver&style=for-the-badge&color=14515B" alt="Latest release">
+</a>
+<img src="https://img.shields.io/badge/Public_Entry-vibe-45A1FF?style=for-the-badge" alt="Public entry vibe">
+<img src="https://img.shields.io/badge/Skill_Model-Module_Organized-F47D6B?style=for-the-badge" alt="Module-organized Skills">
+<img src="https://img.shields.io/badge/Delivery-Evidence_Checked-2E8B57?style=for-the-badge" alt="Evidence-checked delivery">
 
-## What It Changes
+<br><br>
 
-Complex agent work usually breaks down in predictable places: the request is
-still vague when execution begins, the plan grows without clear ownership,
-specialist tools are chosen too early, or completion is claimed without proof.
-VibeSkills puts those decisions into one inspectable workflow.
+<a href="./docs/install/README.en.md">
+  <img src="./docs/assets/install-cta-en.svg" width="327" height="56" alt="Install VibeSkills">
+</a>
 
-| The runtime helps you | What that means in practice |
+<br><br>
+
+<a href="./docs/quick-start.en.md">Quick start</a> ·
+<a href="https://github.com/foryourhealth111-pixel/Vibe-Skills/releases/tag/v4.0.0">v4.0.0 release</a> ·
+<a href="./docs/README.md">Documentation</a> ·
+<a href="https://github.com/foryourhealth111-pixel/Vibe-Skills/stargazers">Star the project</a>
+
+<br><br>
+
+<kbd>Task</kbd> &nbsp;→&nbsp;
+<kbd>Decompose</kbd> &nbsp;→&nbsp;
+<kbd>Match Skills</kbd> &nbsp;→&nbsp;
+<kbd>Execute Modules</kbd> &nbsp;→&nbsp;
+<kbd>Verify</kbd> &nbsp;→&nbsp;
+<kbd>Resume</kbd>
+
+</div>
+
+---
+
+## The Problem: Passive Skill Triggering Leaves Capability Idle
+
+> [!IMPORTANT]
+> A task can contain four meaningful modules while passive triggering brings in
+> Skills for only two. The remaining modules are handled generically, even when
+> better local Skills are already installed. VibeSkills makes Skill use part of
+> the work plan instead of leaving it to prompt wording and chance.
+
+| Passive Skill triggering | VibeSkills |
 |:---|:---|
-| Confirm the task before work begins | Requirements become a reviewable artifact instead of an assumption hidden in chat. |
-| Turn the task into bounded units | Each unit has an owner, output, dependency, and verification condition. |
-| Use local Skills where they actually fit | The Agent reads candidate Skill contracts after the work shape is clear. |
-| Keep delivery tied to evidence | Tests, checks, artifacts, or explicit review state support completion claims. |
-| Resume without reconstructing the whole conversation | Requirements, plans, decisions, and proof remain available in the workspace. |
+| Reacts to the most obvious words in the request | Builds a work map before execution begins |
+| Commonly activates one or two familiar Skills | Evaluates every bounded module for relevant Skill support |
+| Leaves the rest of the task to generic improvisation | Binds useful Skills to explicit modules with declared outputs |
+| Produces separate tool calls without a shared delivery model | Rejoins module results under one verification and continuation chain |
 
-## The Workflow
+This is the core job of VibeSkills: **turn a collection of local Skills into an
+organized working system**. It does not call every Skill for show. It gives each
+meaningful module a deliberate chance to use the right Skill, so useful
+capability is less likely to sit idle simply because passive triggering missed
+it.
+
+## Decompose First, Then Organize Skills
 
 ```mermaid
-flowchart LR
-    request["Request"] --> scope["Confirm scope"]
-    scope --> plan["Approve plan"]
-    plan --> work["Perform bounded work"]
-    skills["Installed local Skills"] --> work
-    work --> verify["Verify delivery"]
-    verify --> resume["Preserve context"]
+flowchart TB
+    task["One complex task"] --> map["VibeSkills builds the work map"]
+    map --> m1["01 · Scope / research"]
+    map --> m2["02 · Build / change"]
+    map --> m3["03 · Test / review"]
+    map --> m4["04 · Document / deliver"]
+
+    pool["Installed local Skill library"] --> match["Read contracts and match relevant Skills"]
+    match --> m1
+    match --> m2
+    match --> m3
+    match --> m4
+
+    m1 --> integrate["Integrated module delivery"]
+    m2 --> integrate
+    m3 --> integrate
+    m4 --> integrate
+    integrate --> proof["Verification evidence + resumable context"]
+
+    classDef task fill:#0F3D3E,stroke:#0F3D3E,color:#FFFFFF,stroke-width:2px
+    classDef map fill:#EDE9FE,stroke:#7C3AED,color:#2E1065,stroke-width:2px
+    classDef pool fill:#FFF7ED,stroke:#EA580C,color:#7C2D12,stroke-width:2px
+    classDef match fill:#FEF3C7,stroke:#CA8A04,color:#713F12,stroke-width:2px
+    classDef blue fill:#E0F2FE,stroke:#0284C7,color:#0C4A6E
+    classDef coral fill:#FFE4E6,stroke:#E11D48,color:#881337
+    classDef green fill:#DCFCE7,stroke:#16A34A,color:#14532D
+    classDef violet fill:#F3E8FF,stroke:#9333EA,color:#581C87
+    classDef finish fill:#ECFDF5,stroke:#059669,color:#064E3B,stroke-width:2px
+
+    class task task
+    class map map
+    class pool pool
+    class match match
+    class m1 blue
+    class m2 coral
+    class m3 green
+    class m4 violet
+    class integrate,proof finish
 ```
 
-1. **Scope**: clarify the goal, constraints, inputs, and expected delivery.
-2. **Plan**: split composite work into bounded modules and confirm the plan.
-3. **Work**: the current Agent performs the approved modules, using selected
-   local Skills where their contracts match the work.
-4. **Verify**: check the declared outputs and keep failed, blocked, or
-   incomplete work visible.
-5. **Resume**: retain the requirement, plan, decisions, and evidence needed for
-   the next session.
+The module map comes first. Skill selection follows that map. If four modules
+need four different kinds of help, all four can receive explicit Skill support.
+If a module does not need a specialist, it stays Agent-owned. The goal is useful
+coverage, not a larger call count.
 
-Approval boundaries are real stops. A requirement stop is not a completed
-plan, and a plan stop is not completed execution.
+## What The Runtime Organizes
 
-## Where Local Skills Fit
+| Work surface | What VibeSkills does |
+|:---|:---|
+| Requirement | Confirms the goal, constraints, inputs, and expected delivery before work begins |
+| Module map | Splits composite work into bounded units with ownership, dependencies, outputs, and checks |
+| Skill organization | Reads relevant local Skill contracts and decides which modules they can assist |
+| Execution | Hands the approved modules to the current Agent with the Skill organization kept explicit |
+| Delivery | Checks module results, keeps failed or blocked work visible, and preserves context for continuation |
+
+Approval boundaries are real stops. A requirement stop is not a completed plan,
+and a plan stop is not completed execution.
+
+## Skill Organization, Not Passive Discovery
 
 Installed local Skills are the only specialist reference surface in the public
 runtime. A candidate must come from a declared local root and have a readable `SKILL.md` before the Agent can select it.
@@ -73,6 +140,8 @@ runtime truth for the Skill bound to each approved module. Discovery results
 remain candidate evidence, not proof that a Skill ran.
 
 Host-declared roots can extend the available local Skills without a new central catalog. This is not a claim that the final architecture is complete; it is the current public boundary for v4.
+
+---
 
 ## Evidence You Can Inspect
 

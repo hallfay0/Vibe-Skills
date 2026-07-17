@@ -4,11 +4,11 @@ Settings-ready language for the public GitHub surface of `Vibe-Skills`.
 
 ## Positioning
 
-Lead with the workflow users receive, not with counts of Skills, policies, or
-upstream projects.
+Lead with the organization problem: passive triggering often uses only the
+most obvious Skills and leaves useful installed capability idle.
 
-> VibeSkills turns complex AI requests into confirmed scope, bounded work,
-> local-skill assistance, verification evidence, and resumable context.
+> VibeSkills makes local Skills work as a system. It decomposes a complex task
+> first, then organizes relevant Skills around each bounded module.
 
 The public product story is one governed runtime entry, `vibe`. Additional
 capability comes from installed local Skills with readable `SKILL.md` files;
@@ -23,18 +23,19 @@ local Skills, verify delivery, and preserve resumable context.
 
 ### Short
 
-A governed workflow for complex AI work.
+Make local Skills work as a system.
 
 ### Alternative
 
-Turn complex AI requests into bounded work, verified delivery, and context
-that can be resumed.
+Decompose complex AI tasks, organize relevant local Skills by module, and
+verify the combined delivery.
 
 ## Pinned Repository Blurb
 
-`VibeSkills` gives Skills-capable AI agents one governed path from request to
-delivery: confirm the scope, approve the plan, perform bounded work, verify the
-result, and preserve enough context to continue later.
+`VibeSkills` solves a common problem with Skill libraries: passive triggering
+often activates only the most obvious capabilities. It maps the whole task,
+evaluates each module for relevant Skill support, and rejoins the work under
+one verification and continuation chain.
 
 ## Topics
 
@@ -59,19 +60,20 @@ VibeSkills
 
 ### Subtitle
 
-A governed workflow for complex AI work.
+Make local Skills work as a system.
 
 ### Supporting Line
 
-Scope the request. Bound the work. Verify delivery. Resume with context.
+Decompose the task. Match Skills by module. Verify one delivery.
 
 Do not place Skill counts, policy counts, synthetic terminal output, fake
 product UI, or unverified benchmark claims in the social preview.
 
 ## Launch Copy
 
-`VibeSkills` is a governed workflow runtime for AI agents. It turns a complex
-request into confirmed scope, bounded modules, local-skill assistance,
-verification evidence, and workspace context that can be resumed. The public
-entry is `vibe`; the current release is distributed as a host-neutral ZIP and
-installs only Vibe-owned files under the selected Skills directory.
+`VibeSkills` organizes local Skills around the actual shape of a task. It first
+decomposes complex work into bounded modules, then reads relevant Skill
+contracts, assigns useful assistance, and rejoins the results under one
+verification and continuation chain. The public entry is `vibe`; the current
+release is distributed as a host-neutral ZIP and installs only Vibe-owned files
+under the selected Skills directory.

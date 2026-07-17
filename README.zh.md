@@ -2,62 +2,131 @@
   <a href="./README.md">English</a> | <strong>中文</strong>
 </div>
 
-<p align="center">
-  <img src="./docs/assets/vibeskills-octopus-mark.svg" width="112" alt="VibeSkills 标志">
-</p>
+<div align="center">
 
-# VibeSkills
+<img src="./logo.png" width="230" alt="VibeSkills Logo">
 
-**面向复杂 AI 工作的受控工作流。**
+<h1>VibeSkills</h1>
 
-VibeSkills 把一个难以直接完成的请求，整理成可确认的范围、有边界的
-工作计划、按需使用的本地 Skills、可核对的交付证据，以及下次还能接上的
-上下文。用户只需要从公开入口 `vibe` 开始，不必自己反复充当调度员。
+<h3>让本地 Skills 成体系地工作起来。</h3>
 
-[安装](#安装) · [快速开始](./docs/quick-start.md) ·
-[v4.0.0 发布页](https://github.com/foryourhealth111-pixel/Vibe-Skills/releases/tag/v4.0.0) ·
-[文档索引](./docs/README.md)
+<p><strong>复杂任务经常只触发最显眼的那几个 Skills。</strong><br>
+VibeSkills 先把整个任务拆开，再逐模块组织相关的本地 Skills，<br>
+让你已经安装的能力真正参与到适合它的工作里。</p>
 
-[![Release](https://img.shields.io/github/v/release/foryourhealth111-pixel/Vibe-Skills?display_name=tag&sort=semver)](https://github.com/foryourhealth111-pixel/Vibe-Skills/releases/latest)
-[![License](https://img.shields.io/github/license/foryourhealth111-pixel/Vibe-Skills)](./LICENSE)
-[![Stars](https://img.shields.io/github/stars/foryourhealth111-pixel/Vibe-Skills?style=flat)](https://github.com/foryourhealth111-pixel/Vibe-Skills/stargazers)
+<a href="https://github.com/foryourhealth111-pixel/Vibe-Skills/releases/latest">
+  <img src="https://img.shields.io/github/v/release/foryourhealth111-pixel/Vibe-Skills?display_name=tag&sort=semver&style=for-the-badge&color=14515B" alt="最新版本">
+</a>
+<img src="https://img.shields.io/badge/Public_Entry-vibe-45A1FF?style=for-the-badge" alt="公开入口 vibe">
+<img src="https://img.shields.io/badge/Skill_Model-Module_Organized-F47D6B?style=for-the-badge" alt="按模块组织 Skills">
+<img src="https://img.shields.io/badge/Delivery-Evidence_Checked-2E8B57?style=for-the-badge" alt="用证据检查交付">
 
-## 它解决什么问题
+<br><br>
 
-复杂任务出问题，通常不是因为模型一句话都不会写，而是因为执行开始得太早：
-需求还没确认，计划没有明确边界，Skills 选得过早，最后又缺少能支撑“完成”
-的证据。VibeSkills 把这些关键决定放进同一条可检查的工作流里。
+<a href="./docs/install/README.md">
+  <img src="./docs/assets/install-cta-cn.svg" width="327" height="56" alt="安装 VibeSkills">
+</a>
 
-| 它帮你处理 | 实际影响 |
+<br><br>
+
+<a href="./docs/quick-start.md">快速开始</a> ·
+<a href="https://github.com/foryourhealth111-pixel/Vibe-Skills/releases/tag/v4.0.0">v4.0.0 发布页</a> ·
+<a href="./docs/README.md">文档索引</a> ·
+<a href="https://github.com/foryourhealth111-pixel/Vibe-Skills/stargazers">Star 项目</a>
+
+<br><br>
+
+<kbd>接收任务</kbd> &nbsp;→&nbsp;
+<kbd>拆分模块</kbd> &nbsp;→&nbsp;
+<kbd>匹配 Skills</kbd> &nbsp;→&nbsp;
+<kbd>执行模块</kbd> &nbsp;→&nbsp;
+<kbd>验证交付</kbd> &nbsp;→&nbsp;
+<kbd>保存上下文</kbd>
+
+</div>
+
+---
+
+## 核心问题：Skills 只靠被动触发，能力很容易闲置
+
+> [!IMPORTANT]
+> 一个任务明明有四个独立模块，Agent 却可能只给其中两个模块调用 Skills。
+> 剩下两块继续用通用能力硬做，即使本地已经装着更合适的 Skill。VibeSkills
+> 把 Skill 的使用放进工作计划，不再只靠提示词碰巧触发。
+
+| 只靠被动触发 | 使用 VibeSkills |
 |:---|:---|
-| 开工前先确认任务 | 需求会成为可审阅的材料，不再只是聊天里的默认假设。 |
-| 把大任务拆成有边界的工作单元 | 每个单元都有负责人、输出、依赖关系和验证条件。 |
-| 在合适的位置使用本地 Skills | Agent 先看清任务结构，再阅读候选 Skill 的真实合同。 |
-| 用证据约束交付结论 | 测试、检查、产物或明确的人工审阅状态支撑完成声明。 |
-| 中断后继续，而不是重讲一遍 | 需求、计划、决策和证据会保留在工作区里。 |
+| 根据请求里最显眼的词临时反应 | 开工前先画出完整的任务模块图 |
+| 往往只叫来一两个熟悉的 Skills | 逐个模块判断有没有相关 Skill 可以提供帮助 |
+| 其他模块继续由通用 Agent 临场处理 | 把有用的 Skills 绑定到明确模块和明确输出 |
+| 多次调用彼此分散，缺少统一交付关系 | 所有模块回到同一条验证和续接链路里 |
 
-## 工作流
+这就是 VibeSkills 的核心作用：**把一批本地 Skills 组织成真正能协作的工作
+系统**。它不会为了好看把所有 Skills 都叫一遍。它要解决的是另一件事：每个
+有实际意义的模块，都应该认真判断一次有没有合适的 Skill 可以参与，避免现成
+能力因为被动触发没命中而一直闲着。
+
+## 先拆任务，再组织 Skills
 
 ```mermaid
-flowchart LR
-    request["提出请求"] --> scope["确认范围"]
-    scope --> plan["批准计划"]
-    plan --> work["执行有边界的工作"]
-    skills["已安装的本地 Skills"] --> work
-    work --> verify["验证交付"]
-    verify --> resume["保留可续接上下文"]
+flowchart TB
+    task["一个复杂任务"] --> map["VibeSkills 先建立任务模块图"]
+    map --> m1["01 · 范围 / 调研"]
+    map --> m2["02 · 实现 / 修改"]
+    map --> m3["03 · 测试 / 审查"]
+    map --> m4["04 · 文档 / 交付"]
+
+    pool["已安装的本地 Skill 库"] --> match["读取合同，为各模块匹配相关 Skills"]
+    match --> m1
+    match --> m2
+    match --> m3
+    match --> m4
+
+    m1 --> integrate["整合模块结果"]
+    m2 --> integrate
+    m3 --> integrate
+    m4 --> integrate
+    integrate --> proof["验证证据 + 可续接上下文"]
+
+    classDef task fill:#0F3D3E,stroke:#0F3D3E,color:#FFFFFF,stroke-width:2px
+    classDef map fill:#EDE9FE,stroke:#7C3AED,color:#2E1065,stroke-width:2px
+    classDef pool fill:#FFF7ED,stroke:#EA580C,color:#7C2D12,stroke-width:2px
+    classDef match fill:#FEF3C7,stroke:#CA8A04,color:#713F12,stroke-width:2px
+    classDef blue fill:#E0F2FE,stroke:#0284C7,color:#0C4A6E
+    classDef coral fill:#FFE4E6,stroke:#E11D48,color:#881337
+    classDef green fill:#DCFCE7,stroke:#16A34A,color:#14532D
+    classDef violet fill:#F3E8FF,stroke:#9333EA,color:#581C87
+    classDef finish fill:#ECFDF5,stroke:#059669,color:#064E3B,stroke-width:2px
+
+    class task task
+    class map map
+    class pool pool
+    class match match
+    class m1 blue
+    class m2 coral
+    class m3 green
+    class m4 violet
+    class integrate,proof finish
 ```
 
-1. **确认范围**：把目标、约束、输入和预期交付讲清楚。
-2. **确认计划**：把复合任务拆成可负责、可检查的模块，再让用户批准。
-3. **执行工作**：当前 Agent 完成已批准模块，并在合同匹配时使用本地 Skill。
-4. **验证交付**：检查声明的输出，让失败、阻塞和未完成状态保持可见。
-5. **保留上下文**：留下下一次继续所需的需求、计划、决策和证据。
+先有模块图，再做 Skill 选择。四个模块如果需要四种不同的帮助，四块都可以得到
+明确的 Skill 支持；某个模块不需要专门 Skill，就继续由当前 Agent 负责。目标
+是把任务覆盖好，不是单纯把调用次数做大。
 
-这里的批准节点是真正的停点。只生成需求，不等于已经有执行计划；只确认计划，
-也不等于工作已经完成。
+## VibeSkills 具体组织什么
 
-## 本地 Skills 放在哪里
+| 工作面 | VibeSkills 的处理方式 |
+|:---|:---|
+| 需求 | 开工前确认目标、约束、输入和交付内容 |
+| 模块图 | 把复合任务拆成有负责人、有依赖、有输出、有检查条件的工作单元 |
+| Skills 组织 | 阅读相关本地 Skill 合同，判断它们分别能辅助哪些模块 |
+| 执行 | 把批准后的模块交给当前 Agent，同时保留明确的 Skills 组织关系 |
+| 交付 | 检查模块结果，让失败和阻塞保持可见，并保存下次继续所需的上下文 |
+
+批准节点是真正的停点。只生成需求，不等于已经有执行计划；只确认计划，也不
+等于工作已经完成。
+
+## Skills 组织，不靠碰运气触发
 
 公开运行时只把已安装的本地 skill 根目录当作唯一专家来源。候选项必须来自
 宿主声明的本地根目录，并且存在可读的 `SKILL.md`，Agent 才能选择它。
@@ -68,6 +137,8 @@ flowchart LR
 代替执行证据。
 
 宿主可以增加本地根目录，让能力扩展时不长出新的中心目录。这不是说最终架构已经完成，而是 v4 当前公开且可验证的边界。
+
+---
 
 ## 可以检查的证据
 
