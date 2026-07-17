@@ -111,7 +111,7 @@ and check the final result against the plan. The decisions about which Skills
 to use, where they help, and what they do all stay inside that process.
 
 <p align="center">
-  <img src="./docs/assets/vibeskills-harness-overview.svg" width="920" alt="VibeSkills confirms the requirement, chooses L or XL, organizes Skills, records the work, and checks the result; code work can enter a TDD loop">
+  <img src="./docs/assets/vibeskills-harness-overview-en.svg" width="920" alt="VibeSkills confirms the requirement, chooses L or XL, organizes Skills, records the work, and checks the result; code work can enter a TDD loop">
 </p>
 
 - **Confirms the requirement.** Before work begins, VibeSkills confirms the goal,
