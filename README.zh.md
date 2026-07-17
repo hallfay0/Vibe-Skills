@@ -496,15 +496,15 @@ _这一节用来帮助你快速判断：`vibe` 适合组织哪些类型的任务
 
 ## ⚙️ 安装与 Skills 管理
 
-公开安装从 [GitHub Releases 页面](https://github.com/foryourhealth111-pixel/Vibe-Skills/releases) 开始。下载公开 release 里的 zip，解压后再从这个目录运行安装脚本。
+公开安装应从已发布的 Release 开始，不要直接从仓库 checkout 安装。下载当前的 [vibe-skills-4.0.0-public.zip](https://github.com/foryourhealth111-pixel/Vibe-Skills/releases/download/v4.0.0/vibe-skills-4.0.0-public.zip)，解压到受管 Skills 目录之外，然后在解压目录中打开终端。
 
 默认目录是 `~/.agents/skills`。如果某个宿主或你自己的工作流需要别的 skills 目录，就显式传入那个路径。
 
 PowerShell：
 
 ```powershell
-.\install.ps1 -SkillsDir C:\Users\you\.agents\skills
-.\check.ps1 -SkillsDir C:\Users\you\.agents\skills
+pwsh -NoProfile -File .\install.ps1 -SkillsDir "$HOME\.agents\skills"
+pwsh -NoProfile -File .\check.ps1 -SkillsDir "$HOME\.agents\skills"
 ```
 
 Shell：
@@ -514,17 +514,26 @@ bash ./install.sh --skills-dir "$HOME/.agents/skills"
 bash ./check.sh --skills-dir "$HOME/.agents/skills"
 ```
 
-更新和卸载使用同一个边界：
+如果只给 Codex 安装，则显式使用 Codex 的 Skills 目录：
 
 ```powershell
-.\update.ps1 -SkillsDir C:\Users\you\.agents\skills
-.\uninstall.ps1 -SkillsDir C:\Users\you\.agents\skills
+pwsh -NoProfile -File .\install.ps1 -SkillsDir "$HOME\.codex\skills"
+pwsh -NoProfile -File .\check.ps1 -SkillsDir "$HOME\.codex\skills"
+```
+
+更新时，先下载并解压新版 Release，再从新的解压目录对原来的 `SkillsDir` 运行 `update` 和 `check`：
+
+```powershell
+pwsh -NoProfile -File .\update.ps1 -SkillsDir "$HOME\.agents\skills"
+pwsh -NoProfile -File .\check.ps1 -SkillsDir "$HOME\.agents\skills"
 ```
 
 ```bash
 bash ./update.sh --skills-dir "$HOME/.agents/skills"
-bash ./uninstall.sh --skills-dir "$HOME/.agents/skills"
+bash ./check.sh --skills-dir "$HOME/.agents/skills"
 ```
+
+卸载是单独操作：`pwsh -NoProfile -File .\uninstall.ps1 -SkillsDir "$HOME\.agents\skills"`。
 
 v4 公开发布物是 host-neutral、以 SkillsDir 为中心的 `vibe-skills-4.0.0-public.zip`。安装器只把 Vibe 自己拥有的文件写到 `<SkillsDir>/vibe`。公开发布包安装的是 `vibe` 运行时本体，不会额外安装一套内置 skill 目录。安装完成后，唯一公开运行时入口是 `vibe`；额外 Skills 则由共享 skills 目录和额外声明的本地根目录提供。
 

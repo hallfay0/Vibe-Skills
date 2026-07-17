@@ -499,30 +499,32 @@ The runtime core behind **VibeSkills** is **VCO**. It keeps workflow control in 
 
 ## ⚙️ Installation & Skills Management
 
-Public installation starts from the [GitHub Releases page](https://github.com/foryourhealth111-pixel/Vibe-Skills/releases). Download the release zip, extract it, and run the wrappers from that extracted directory.
+Public installation starts from a published release, not a repository checkout. Download the current [vibe-skills-4.0.0-public.zip](https://github.com/foryourhealth111-pixel/Vibe-Skills/releases/download/v4.0.0/vibe-skills-4.0.0-public.zip), extract it outside the managed Skills directory, and open a terminal in the extracted folder.
 
 The v4 public asset is the host-neutral, SkillsDir-centered bundle `vibe-skills-4.0.0-public.zip`. The installer writes Vibe-owned files under `<SkillsDir>/vibe`. The public release installs the `vibe` runtime itself. It does not add a separate built-in skill catalog. After install, the only public runtime entry is `vibe`, and additional Skills are discovered separately from that shared skills directory and any configured local skill roots.
 
-The default target is `~/.agents/skills`, so the shortest Windows install from a published release zip is:
+The default target is `~/.agents/skills`. Install and verify it with:
 
 ```powershell
-.\install.ps1
-.\check.ps1
+pwsh -NoProfile -File .\install.ps1 -SkillsDir "$HOME\.agents\skills"
+pwsh -NoProfile -File .\check.ps1 -SkillsDir "$HOME\.agents\skills"
 ```
 
-To install into a specific skills directory, pass it directly from the extracted release copy:
+For a Codex-only install, use Codex's Skills directory instead:
 
 ```powershell
-.\install.ps1 -SkillsDir C:\Users\you\.agents\skills
-.\check.ps1 -SkillsDir C:\Users\you\.agents\skills
+pwsh -NoProfile -File .\install.ps1 -SkillsDir "$HOME\.codex\skills"
+pwsh -NoProfile -File .\check.ps1 -SkillsDir "$HOME\.codex\skills"
 ```
 
-Update and uninstall use the same boundary. For updates, download the newer published release zip first, extract it, and then run `update` from that newer release copy against the same `SkillsDir`:
+To update, download and extract the newer release, then run `update` and `check` from that newer copy against the same `SkillsDir`:
 
 ```powershell
-.\update.ps1 -SkillsDir C:\Users\you\.agents\skills
-.\uninstall.ps1 -SkillsDir C:\Users\you\.agents\skills
+pwsh -NoProfile -File .\update.ps1 -SkillsDir "$HOME\.agents\skills"
+pwsh -NoProfile -File .\check.ps1 -SkillsDir "$HOME\.agents\skills"
 ```
+
+Uninstall is a separate operation: `pwsh -NoProfile -File .\uninstall.ps1 -SkillsDir "$HOME\.agents\skills"`.
 
 When upgrading from v3 to v4, keep the same `SkillsDir`, run the v4 `update` wrapper, then run `check`. Retired legacy entry names are not part of the v4 public runtime; use `vibe` for governed work.
 
