@@ -1,6 +1,6 @@
 # 简化安装
 
-公开安装应从已发布的 Release 开始，不要直接从仓库 checkout 安装。下载当前的 [vibe-skills-4.0.0-public.zip](https://github.com/foryourhealth111-pixel/Vibe-Skills/releases/download/v4.0.0/vibe-skills-4.0.0-public.zip)，解压到受管 Skills 目录之外，然后从解压目录运行脚本。
+公开安装应从发布版本 zip 开始，不要直接从仓库 checkout 安装。下载当前的 [vibe-skills-4.0.0-public.zip](https://github.com/foryourhealth111-pixel/Vibe-Skills/releases/download/v4.0.0/vibe-skills-4.0.0-public.zip)，解压到受管 Skills 目录之外，然后从解压目录运行脚本。
 
 已发布 ZIP 的 SHA-256 是 `0b16a5f615a485b8d082407d458cc5c4ffe2cee443c6211fc941cd6678987dc9`。
 

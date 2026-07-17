@@ -4,11 +4,13 @@
 
 第一次来到这个仓库，不需要先读完所有文档。
 
-你可以先把 VibeSkills 理解成一个给 AI Agent 用的 **工作内核入口**：
+你可以先把 VibeSkills 理解成一套帮助 AI 把复杂任务做完整的工作方式：
 
-> 你给目标，`vibe` 接管推进节奏：先弄清需求，再建立工作模型，只在有帮助的地方绑定合适的 Skills，推动测试和验证，并把关键上下文留下来。
+> 你只要给目标。`vibe` 会先把任务问清楚，拆成几部分，为每一部分找合适的
+> Skills，然后检查结果，并记住任务做到哪里。
 
-它不是一串让用户自己挑的工具菜单。它更像一个可移植的工作循环，让支持 Skills 的 AI Agent 更容易开始、更少失控、更适合做跨阶段任务。
+它不是一长串等你自己挑选的工具。它会把需要完成的工作安排好，让 AI 少跳步骤，
+也让长任务在换会话以后还能继续。
 
 ## 1. 三分钟知道它解决什么
 
@@ -16,15 +18,16 @@ VibeSkills 重点解决五件事：
 
 | 你遇到的问题 | VibeSkills 做什么 |
 |:---|:---|
-| Skills 太多，不知道该叫哪个 | kernel 会先把工作边界定清楚，再绑定真正有帮助的 Skills |
-| AI 容易跳过需求、计划或测试 | `vibe` 把任务推进成有边界的阶段 |
-| 用户总要手动提醒“先规划”“去验证” | 用户只给目标，流程控制交给 harness |
-| 长任务换会话后上下文丢失 | 需求、计划、决策和证据会结构化保存 |
-| 新领域 Skills 接入成本高 | 核心直接扫描已安装的本地 skill 根目录，所以新 skill 能接入同一套流程，而不用把产品再做成更大的中心目录 |
+| Skills 太多，不知道该用哪个 | 先把任务拆清楚，再为每一部分找真正有帮助的 Skills |
+| AI 容易跳过需求、计划或测试 | 在几个重要节点停下来，确认后再继续 |
+| 用户总要反复提醒“先规划”“去检查” | 你只需要说明目标，`vibe` 负责把步骤安排好 |
+| 长任务换会话后容易忘记进度 | 把需求、计划、重要决定和结果保存在任务记录里 |
+| 新 Skill 很难接进现有流程 | 把 Skill 放进指定的本地文件夹，就可以让 VibeSkills 在合适的任务中找到它 |
 
 如果你只记一句话：
 
-> **VibeSkills 的核心创新，是把“按工作绑定 Skills + 测试验证 + 跨会话记忆”封装成一个通用、好安装、好上手的工作内核入口。**
+> **VibeSkills 会先把任务拆清楚，再按需要使用 Skills，并把检查结果和任务进度
+> 保存下来。**
 
 ## 2. 最快开始使用
 
@@ -32,40 +35,40 @@ VibeSkills 重点解决五件事：
 
 - [`install/README.md`](./install/README.md)
 
-如果你想走最短路径，就从发布版本 zip 开始，不要从仓库 checkout 开始。若已经安装过 VibeSkills，就先下载更新版本的发布版本 zip，再对同一个 skills 目录执行 `update`。
+最省事的做法是从发布版本 zip 开始，不要直接从仓库源码安装。已经安装过
+VibeSkills 时，先下载新版本的 zip，再对原来的 Skills 文件夹运行 `update`。
 
-安装完成后，从宿主的 Skills 入口调用：
+安装完成后，从当前 AI 工具的 Skills 入口启动。Codex 里可以写 `$vibe`，
+Claude Code 里可以写 `/vibe`。这些只是不同工具的启动方式，不代表 VibeSkills
+只能用在这两个工具里。其他工具也可以接入，但在真正跑过测试之前，项目不会把
+它写成“已经完整支持”。
 
-| 宿主 | 常见调用方式 |
-|:---|:---|
-| Codex | 在请求里附上 `$vibe` |
-| Claude Code | 在请求里附上 `/vibe` |
-| OpenCode | 使用 `/vibe` 或宿主支持的 Skills 调用方式 |
-| Cursor / Windsurf / OpenClaw | 参考对应宿主的 Skills 入口说明 |
+各工具目前测试到了什么程度，见
+[支持情况说明](./universalization/host-capability-matrix.md)。
 
-更新时继续走同一条管理路径，但命令要从新的解压发布目录里运行：
+更新时，请从新版本解压后的文件夹中运行命令：
 
 - `update.ps1 -SkillsDir <skills-dir>`
 - `update.sh --skills-dir <skills-dir>`
 
-## 3. 当前公开入口
+## 3. 怎么启动
 
-当前公开、宿主可见的入口只有：
+你只需要记住一个入口：
 
 - `vibe`
 
-`vibe` 是主入口。它会在需求、计划和执行边界停下来，等到明确确认后再继续推进。
+`vibe` 会先确认需求和计划，在需要你决定的地方停下来，得到确认后再继续。
 
-已安装副本的升级走命令路径。请对同一个 skills 目录使用 `update`，而不是再暴露第二个公开运行时入口。
+升级时，对原来的 Skills 文件夹使用 `update`。不需要再记一个专门的升级入口。
 
-旧阶段专用入口和旧 CLI 入口已经退出公开的宿主可见入口，不应再宣传或安装。
+旧版本里按阶段区分的入口已经停用，不需要再安装或调用。
 
-如果你想提高执行强度，只使用公开的轻量覆盖：
+如果任务更复杂，可以使用：
 
 - `--l`
 - `--xl`
 
-旧的阶段 ID 可能仍保留在运行时元数据里，用于兼容和连续性；但它们不是用户应该调用的 commands / skills。
+旧名称有时仍会出现在内部记录里，但它们不是需要你调用的命令或 Skills。
 
 ## 4. 什么时候继续看更多文档
 
@@ -76,21 +79,23 @@ VibeSkills 重点解决五件事：
 | 想看项目完整介绍 | [`../README.zh.md`](../README.zh.md) |
 | 想安装或更新 | [`install/README.md`](./install/README.md) |
 | 想看完整命令参考 | [`install/README.md`](./install/README.md) |
-| 不确定宿主根目录 | [`cold-start-install-paths.md`](./cold-start-install-paths.md) |
+| 不确定 Skills 应该装到哪里 | [`cold-start-install-paths.md`](./cold-start-install-paths.md) |
 | 使用 OpenCode | [`cold-start-install-paths.md`](./cold-start-install-paths.md) |
 | 使用 OpenClaw | [`cold-start-install-paths.md`](./cold-start-install-paths.md) |
 | 想手动/离线安装 | [`install/README.md`](./install/README.md) |
-| 想看安装后的正常 skill 扩展路径 | [`install/README.md`](./install/README.md) |
-| 想添加或扫描更多本地 skill 根目录 | [`install/README.md`](./install/README.md) |
+| 想让 VibeSkills 找到更多本地 Skills | [`install/README.md`](./install/README.md) |
+| 想添加其他本地 Skill 文件夹 | [`install/README.md`](./install/README.md) |
 | 想理解项目为什么存在 | [`manifesto.md`](./manifesto.md) |
 
 ## 5. 几个容易混淆的点
 
-- `$vibe` 或 `/vibe` 只表示进入 governed runtime，不单独证明宿主插件、provider 或在线增强已经完成。
-- `check` 证明的是 `installed locally`。
-- `runtime coherent` 只会在一次真实的 `vibe` 运行返回 `session_root` 且运行时真相产物齐备之后成立。
-- `delivery accepted` 来自 `delivery-acceptance-report.json` / `.md`。
-- VibeSkills 是 Skills 格式运行时，不是让你在终端里直接运行的独立 CLI。
+- `$vibe` 或 `/vibe` 只表示启动 VibeSkills，不代表当前 AI 工具的所有扩展功能都
+  已经配置完成。
+- `check` 只检查安装器管理的文件是否都在，以及后来有没有被改动。
+- `session_root` 是一次任务的记录文件夹，里面保存输入、当前进度、重要决定和摘要。
+- `delivery-acceptance-report.json` 或 `.md` 保存最终检查结果，告诉你哪些项目通过、
+  失败或被卡住。
+- VibeSkills 需要从 AI 工具的 Skills 入口启动，不是一个单独的终端程序。
 
 ## 推荐阅读顺序
 
@@ -104,4 +109,5 @@ VibeSkills 重点解决五件事：
 
 > 帮我把这个需求先澄清并拆成计划 `$vibe`
 
-你会更快感受到它和普通 Skills 列表的区别：用户不用一直做调度员，AI 会在 harness 下更有节奏地推进任务。
+你会很快看到它和普通 Skills 列表的区别：你不用一直提醒下一步，AI 会按已经确认
+的安排继续完成任务。
