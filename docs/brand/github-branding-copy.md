@@ -14,12 +14,18 @@ The public product story is one governed runtime entry, `vibe`. Additional
 capability comes from installed local Skills with readable `SKILL.md` files;
 the v4 release does not publish a large built-in Skill catalog.
 
+The core is host-neutral and adapter-based. Ordinary local Skills can
+participate when they satisfy the Skill contract and match a module. New
+carriers can consume the runtime through compatible adapters, but marketing
+must not turn that portability into a claim that every host is already fully
+verified.
+
 ## About
 
 ### Primary
 
-Governed workflow runtime for AI agents: scope complex requests, coordinate
-local Skills, verify delivery, and preserve resumable context.
+Host-neutral runtime that decomposes complex AI tasks, organizes local Skills
+by module, verifies delivery, and preserves resumable context.
 
 ### Short
 

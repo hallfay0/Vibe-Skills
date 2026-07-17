@@ -34,14 +34,15 @@ Open the simple install guide:
 
 Use the default skills directory if you want the shortest path. Start from the published release zip, not from a repo checkout. If VibeSkills is already installed, download the newer published release zip and run `update` against the same skills directory.
 
-After install, invoke it through your host's Skills entry:
+After install, invoke it through your carrier's Skills entry. The core contract
+is host-neutral; exact syntax belongs to the adapter. `$vibe` in Codex and
+`/vibe` in Claude Code are examples, not a limit on which carriers can consume
+the runtime. A new carrier can integrate through a compatible adapter, while
+its support status remains unproven until the corresponding host evidence is
+recorded.
 
-| Host | Common invocation |
-|:---|:---|
-| Codex | Append `$vibe` to your request |
-| Claude Code | Append `/vibe` to your request |
-| OpenCode | Use `/vibe` or the host-supported Skills invocation |
-| Cursor / Windsurf / OpenClaw | Follow the host's Skills entry documentation |
+See the [host capability matrix](./universalization/host-capability-matrix.md)
+for current adapter evidence and support labels.
 
 For updates, keep the same management path from the newer extracted release copy:
 

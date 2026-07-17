@@ -4,23 +4,27 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_root_readme_uses_skills_dir_uninstall_commands() -> None:
+def test_root_readme_routes_lifecycle_commands_to_install_guide() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
 
     assert "The default target is `~/.agents/skills`" in readme
     assert "Some hosts may choose defaults such as" not in readme
-    assert "uninstall.ps1 -SkillsDir <skills-dir>" in readme
+    assert "./docs/install/README.en.md" in readme
+    assert "install.ps1 -SkillsDir" not in readme
+    assert "uninstall.ps1 -SkillsDir" not in readme
     assert "uninstall.ps1 -HostId <host>" not in readme
     assert "uninstall.sh --host <host>" not in readme
 
 
-def test_root_chinese_readme_uses_skills_dir_uninstall_commands() -> None:
+def test_root_chinese_readme_routes_lifecycle_commands_to_install_guide() -> None:
     readme = (REPO_ROOT / "README.zh.md").read_text(encoding="utf-8")
 
     assert "默认目录是 `~/.agents/skills`" in readme
     assert "你也可以显式安装到 `~/.codex/skills` 或 `~/.claude/skills`" not in readme
     assert "有些宿主可以选择 `~/.agents/skills`、`~/.codex/skills` 或 `~/.claude/skills` 作为默认值" not in readme
-    assert "uninstall.ps1 -SkillsDir <skills-dir>" in readme
+    assert "./docs/install/README.md" in readme
+    assert "install.ps1 -SkillsDir" not in readme
+    assert "uninstall.ps1 -SkillsDir" not in readme
     assert "uninstall.ps1 -HostId <host>" not in readme
     assert "uninstall.sh --host <host>" not in readme
 

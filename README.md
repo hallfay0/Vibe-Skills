@@ -19,6 +19,7 @@ so more of the capability you already installed can contribute where it actually
 </a>
 <img src="https://img.shields.io/badge/Public_Entry-vibe-45A1FF?style=for-the-badge" alt="Public entry vibe">
 <img src="https://img.shields.io/badge/Skill_Model-Module_Organized-F47D6B?style=for-the-badge" alt="Module-organized Skills">
+<img src="https://img.shields.io/badge/Core-Host_Neutral-7C3AED?style=for-the-badge" alt="Host-neutral core">
 <img src="https://img.shields.io/badge/Delivery-Evidence_Checked-2E8B57?style=for-the-badge" alt="Evidence-checked delivery">
 
 <br><br>
@@ -178,74 +179,45 @@ migration evidence used for publication.
 
 ## Install
 
-Public installation starts from a published release zip, not a repository
-checkout. Download the release zip, extract it outside the managed Skills
-directory, and run the wrappers from the extracted folder.
+Public installation starts from a published release zip. Download the release zip outside the managed `SkillsDir`. The default target is `~/.agents/skills`.
 
-[Download `vibe-skills-4.0.0-public.zip`](https://github.com/foryourhealth111-pixel/Vibe-Skills/releases/download/v4.0.0/vibe-skills-4.0.0-public.zip)
+All lifecycle commands now live in one place:
 
-The default target is `~/.agents/skills`.
+**[Open the install, update, check, uninstall, and migration guide](./docs/install/README.en.md)**
 
-### Windows
+Current asset:
+[vibe-skills-4.0.0-public.zip](https://github.com/foryourhealth111-pixel/Vibe-Skills/releases/download/v4.0.0/vibe-skills-4.0.0-public.zip)
 
-```powershell
-pwsh -NoProfile -File .\install.ps1 -SkillsDir "$HOME\.agents\skills"
-pwsh -NoProfile -File .\check.ps1 -SkillsDir "$HOME\.agents\skills"
-```
+## Portable Core, Adapter-Based Hosts
 
-For a Codex-only install, target its Skills directory explicitly:
+VibeSkills is not tied to Codex, Claude Code, Cursor, or any other single host.
+The runtime contract and public release bundle are host-neutral. A carrier can
+integrate VibeSkills when it can expose declared Skill roots, invoke the
+canonical `vibe` entry, preserve bounded stops, and return the required runtime
+artifacts.
 
-```powershell
-pwsh -NoProfile -File .\install.ps1 -SkillsDir "$HOME\.codex\skills"
-pwsh -NoProfile -File .\check.ps1 -SkillsDir "$HOME\.codex\skills"
-```
-
-### Linux and macOS
-
-```bash
-bash ./install.sh --skills-dir "$HOME/.agents/skills"
-bash ./check.sh --skills-dir "$HOME/.agents/skills"
-```
-
-`check` proves only `installed locally`; it does not prove `runtime coherent`
-or `delivery accepted`.
-
-### Update
-
-Download and extract the newer release, then run `update` and `check` from that
-newer copy against the same Skills directory:
-
-```powershell
-pwsh -NoProfile -File .\update.ps1 -SkillsDir "$HOME\.agents\skills"
-pwsh -NoProfile -File .\check.ps1 -SkillsDir "$HOME\.agents\skills"
-```
-
-Uninstall is a separate action. The generic Windows form is
-`uninstall.ps1 -SkillsDir <skills-dir>`; the shell equivalent is
-`uninstall.sh --skills-dir <skills-dir>`.
-
-See the [install guide](./docs/install/README.en.md) for the full Windows and
-shell commands, update behavior, receipt location, and v3-to-v4 migration.
-
-## Start A Run
-
-VibeSkills is invoked through a host's Skills entry, not as a standalone
-terminal application.
-
-| Host | Typical invocation |
+| Portable surface | Honest boundary |
 |:---|:---|
-| Codex | Append `$vibe` to the request. |
-| Claude Code | Append `/vibe` to the request. |
-| OpenCode | Use `/vibe` or the host-supported Skills invocation. |
-| Cursor, Windsurf, OpenClaw | Use the host's documented Skills entry. |
+| Ordinary local Skill | Any Skill can participate when it lives in a declared root, has a readable and valid `SKILL.md`, has an unambiguous ID, and matches a module's work. |
+| Host or carrier | A new host can integrate through an adapter or compatible canonical bridge; the core does not depend on one vendor's UI or command syntax. |
+| Support claim | Host-neutral design does not mean every host is already verified as plug-and-play. Each adapter keeps its own measured support status. |
 
-Codex and Claude Code are the clearest install-and-use paths today. Other
-Skills-compatible hosts retain host-specific setup and invocation details.
+<details>
+<summary><strong>Current adapter evidence</strong></summary>
 
-Try a bounded request first:
+The repository currently carries explicit adapters for Codex, Claude Code,
+Cursor, Windsurf, OpenClaw, and OpenCode. Codex and Claude Code are marked
+`supported-with-constraints`; the other named adapters are preview paths. The
+generic host contract is `advisory-only`, so a new carrier can consume the
+contract without being presented as fully verified.
 
-> Clarify this requirement, confirm the scope with me, and turn it into a plan
-> `$vibe`
+See the [host capability matrix](./docs/universalization/host-capability-matrix.md)
+for the exact support vocabulary.
+
+</details>
+
+Invocation syntax belongs to the host. `$vibe`, `/vibe`, and other Skills entry
+forms are adapter examples, not product boundaries.
 
 ## Public Boundaries
 

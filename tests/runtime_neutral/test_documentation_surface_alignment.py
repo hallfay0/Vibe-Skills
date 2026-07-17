@@ -256,6 +256,23 @@ def test_readmes_describe_local_installed_skill_story_without_repromoting_a_cent
     assert "本地 + starter Skills 仍然是默认产品面。" not in chinese
 
 
+def test_public_readmes_separate_host_neutral_design_from_verified_host_support() -> None:
+    english = _read("README.md")
+    chinese = _read("README.zh.md")
+
+    assert "The runtime contract and public release bundle are host-neutral" in english
+    assert "Any Skill can participate" in english
+    assert "unambiguous ID" in english
+    assert "Host-neutral design does not mean every host is already verified" in english
+    assert "generic host contract is `advisory-only`" in english.lower()
+
+    assert "运行合同和公开" in chinese and "发布包本身是宿主中立的" in chinese
+    assert "任意 Skill" in chinese
+    assert "没有歧义的 ID" in chinese
+    assert "宿主中立不等于所有载体都已经完成即插即用验证" in chinese
+    assert "Generic Host 合同仍是 `advisory-only`" in chinese
+
+
 def test_quick_start_does_not_advertise_disabled_stage_labels() -> None:
     disabled_stage_labels = (
         "Vibe: What Do I Want?",

@@ -34,14 +34,13 @@ VibeSkills 重点解决五件事：
 
 如果你想走最短路径，就从发布版本 zip 开始，不要从仓库 checkout 开始。若已经安装过 VibeSkills，就先下载更新版本的发布版本 zip，再对同一个 skills 目录执行 `update`。
 
-安装完成后，从宿主的 Skills 入口调用：
+安装完成后，从载体自己的 Skills 入口调用。核心合同是宿主中立的，具体语法由
+适配器决定。Codex 里的 `$vibe`、Claude Code 里的 `/vibe` 只是示例，不是
+可接入载体的上限。新的载体可以通过兼容适配器接入，但在宿主证据补齐之前，
+不能把它写成已经完整支持。
 
-| 宿主 | 常见调用方式 |
-|:---|:---|
-| Codex | 在请求里附上 `$vibe` |
-| Claude Code | 在请求里附上 `/vibe` |
-| OpenCode | 使用 `/vibe` 或宿主支持的 Skills 调用方式 |
-| Cursor / Windsurf / OpenClaw | 参考对应宿主的 Skills 入口说明 |
+当前适配器证据和支持等级见
+[宿主能力矩阵](./universalization/host-capability-matrix.md)。
 
 更新时继续走同一条管理路径，但命令要从新的解压发布目录里运行：
 
