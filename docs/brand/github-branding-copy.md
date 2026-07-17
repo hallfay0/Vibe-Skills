@@ -1,128 +1,77 @@
 # GitHub Branding Copy
 
-This document collects settings-ready copy for the public GitHub surface of `Vibe-Skills`.
+Settings-ready language for the public GitHub surface of `Vibe-Skills`.
 
-## Recommended Direction
+## Positioning
 
-Use an ability-first positioning first.
+Lead with the workflow users receive, not with counts of Skills, policies, or
+upstream projects.
 
-Lead with what the repository already integrates: skills, MCP, agent workflows, and governed execution.
-After that, let the governance philosophy explain why the system is more stable than a loose skill collection.
+> VibeSkills turns complex AI requests into confirmed scope, bounded work,
+> local-skill assistance, verification evidence, and resumable context.
+
+The public product story is one governed runtime entry, `vibe`. Additional
+capability comes from installed local Skills with readable `SKILL.md` files;
+the v4 release does not publish a large built-in Skill catalog.
 
 ## About
 
-GitHub's repository description is short. These versions are written to fit that constraint.
-
 ### Primary
 
-An integrated AI capability stack with 340 skills, MCP entry points, agent workflows, and governed execution for planning, coding, research, and automation.
+Governed workflow runtime for AI agents: scope complex requests, coordinate
+local Skills, verify delivery, and preserve resumable context.
 
-### Alternative A
+### Short
 
-A governed AI capability stack that integrates 340 skills, MCP, and agent workflows into one runtime for engineering, research, and automation.
+A governed workflow for complex AI work.
 
-### Alternative B
+### Alternative
 
-Integrated skills, MCP, and agent workflows with governed execution for planning, coding, research, and long-running AI work.
+Turn complex AI requests into bounded work, verified delivery, and context
+that can be resumed.
 
-### Short Version
+## Pinned Repository Blurb
 
-340 skills, MCP, and agent workflows in one governed AI runtime.
-
-## Pinned Repo Blurb
-
-If you want a slightly longer one-liner for a pinned repository section, profile note, or showcase page, use one of these.
-
-### Primary
-
-`VibeSkills` is an integrated AI capability stack that combines hundreds of skills, MCP entry points, and governed agent workflows into one runtime for planning, engineering, research, and automation.
-
-### Alternative A
-
-Not just a skills list: `VibeSkills` turns skills, MCP, plugins, and agent workflows into a governed execution system that is easier to activate, verify, and maintain.
-
-### Alternative B
-
-A capability-first AI runtime for people who want more than isolated prompts: integrated skills, MCP surfaces, agent workflows, and standardized execution.
+`VibeSkills` gives Skills-capable AI agents one governed path from request to
+delivery: confirm the scope, approve the plan, perform bounded work, verify the
+result, and preserve enough context to continue later.
 
 ## Topics
-
-GitHub topics work best when they are short, searchable, and familiar. The list below favors discoverability over novelty.
-
-### Recommended Set
 
 - `ai-agents`
 - `agentic-ai`
 - `ai-workflow`
 - `agent-orchestration`
-- `mcp`
-- `model-context-protocol`
 - `skills`
 - `developer-tools`
-- `automation`
-- `prompt-engineering`
+- `workflow-engine`
+- `reproducible-workflows`
 - `codex`
-- `ai-engineering`
-- `machine-learning`
-- `research-tools`
-- `bioinformatics`
-- `governed-runtime`
+- `claude-code`
+- `python`
+- `powershell`
 
-### Conservative Set
+## Social Preview
 
-Use this if you want fewer, broader topics.
+### Title
 
-- `ai-agents`
-- `agentic-ai`
-- `ai-workflow`
-- `mcp`
-- `model-context-protocol`
-- `skills`
-- `developer-tools`
-- `automation`
-- `codex`
-- `prompt-engineering`
+VibeSkills
 
-## Social Preview Copy
+### Subtitle
 
-GitHub social preview is primarily visual, but the text below is useful for any preview image, repo card, launch post, or banner that needs a short positioning line.
+A governed workflow for complex AI work.
 
-### Primary Title
+### Supporting Line
 
-340 Skills. One Governed Runtime.
+Scope the request. Bound the work. Verify delivery. Resume with context.
 
-### Primary Subtitle
+Do not place Skill counts, policy counts, synthetic terminal output, fake
+product UI, or unverified benchmark claims in the social preview.
 
-Integrated skills, MCP, and agent workflows for planning, coding, research, and automation.
+## Launch Copy
 
-### Alternative Title A
-
-An AI Capability Stack, Not Just a Skills List
-
-### Alternative Subtitle A
-
-Bringing hundreds of skills, MCP entry points, and governed execution into one runtime.
-
-### Alternative Title B
-
-Integrated Skills. MCP. Agent Workflows.
-
-### Alternative Subtitle B
-
-A capability-first runtime designed to make AI work easier to activate, verify, and maintain.
-
-## Social Banner Copy
-
-Use these when you need slightly longer launch or preview text.
-
-### Primary
-
-`VibeSkills` integrates 340 skills, MCP entry points, and governed agent workflows into one runtime so AI work can move from request to delivery with more structure and less drift.
-
-### Alternative A
-
-More than a prompt collection, `VibeSkills` turns skills, MCP, and agent workflows into a governed AI execution surface for planning, coding, research, and automation.
-
-### Alternative B
-
-Built for people who want AI systems with real operating discipline: integrated capability surfaces, stronger routing, explicit verification, and standardized execution.
+`VibeSkills` is a governed workflow runtime for AI agents. It turns a complex
+request into confirmed scope, bounded modules, local-skill assistance,
+verification evidence, and workspace context that can be resumed. The public
+entry is `vibe`; the current release is distributed as a host-neutral ZIP and
+installs only Vibe-owned files under the selected Skills directory.
