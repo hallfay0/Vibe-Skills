@@ -46,17 +46,17 @@ def test_runtime_authority_docs_describe_current_python_and_powershell_roles() -
             assert claim not in content
 
 
-def test_chinese_readme_describes_current_python_and_powershell_roles() -> None:
+def test_chinese_readme_routes_internal_runtime_roles_to_the_architecture_docs() -> None:
     content = (REPO_ROOT / "README.zh.md").read_text(encoding="utf-8")
 
-    required_claims = (
-        "Python 负责 canonical validation",
-        "从 `agent_skill_organization` 到 `module-work-plan.json`",
+    assert "[架构说明](./docs/architecture/local-agent-kernel-v2.md)" in content
+    assert "Python 和 PowerShell 分别负责什么" in content
+
+    internal_phrases = (
         "canonical validation",
-        "PowerShell 负责阶段编排",
-        "批准后的模块工作由当前 Agent 真正完成",
-        "不要再把新的任务语义或任务执行加到 PowerShell",
-        "现有 PowerShell 阶段脚本只是迁移期编排面",
+        "真相链",
+        "阶段编排",
+        "迁移期编排面",
     )
-    for claim in required_claims:
-        assert claim in content
+    for phrase in internal_phrases:
+        assert phrase not in content

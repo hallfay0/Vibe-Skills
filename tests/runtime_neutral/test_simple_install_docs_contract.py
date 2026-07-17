@@ -83,14 +83,19 @@ def test_public_readmes_keep_other_environments_as_one_auxiliary_install_note() 
     assert "OpenCode 宿主说明" not in chinese
 
 
-def test_quick_start_keeps_three_proof_layers_and_drops_legacy_install_status_terms() -> None:
+def test_quick_start_explains_install_run_and_delivery_records_without_legacy_status_terms() -> None:
     english = (REPO_ROOT / "docs" / "quick-start.en.md").read_text(encoding="utf-8")
     chinese = (REPO_ROOT / "docs" / "quick-start.md").read_text(encoding="utf-8")
 
+    assert "`installed locally`" in english
+    assert "`runtime coherent`" in english
+    assert "`delivery accepted`" in english
+
+    assert "`check` 只检查安装器管理的文件是否都在" in chinese
+    assert "`session_root` 是一次任务的记录文件夹" in chinese
+    assert "`delivery-acceptance-report.json` 或 `.md` 保存最终检查结果" in chinese
+
     for content in (english, chinese):
-        assert "`installed locally`" in content
-        assert "`runtime coherent`" in content
-        assert "`delivery accepted`" in content
         assert "vibe host-ready" not in content
         assert "online-ready" not in content
 

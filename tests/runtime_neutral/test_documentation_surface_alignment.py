@@ -244,19 +244,19 @@ def test_readmes_describe_local_installed_skill_story_without_repromoting_a_cent
     assert "not a claim" in english_lower and "final architecture" in english_lower
     assert "Local + starter Skills stay the product surface." not in english
 
-    assert "已安装的本地 skill 根目录" in chinese
-    assert "唯一专家来源" in chinese or "唯一 specialist 参考面" in chinese
+    assert "指定的本地 Skill 文件夹" in chinese
     assert "SKILL.md" in chinese
+    assert "agent_skill_organization" in chinese
     assert "module_assignments" in chinese
-    assert "第一真相面" in chinese or "真相面" in chinese
-    assert "不长出新的中心目录" in chinese or "不是更大的中心技能目录" in chinese
+    assert "保存实际分配" in chinese
+    assert "不必等 VibeSkills 项目本身收录它" in chinese
+    assert "不会自动调用你安装的所有 Skills" in chinese
     assert "外部优先扩展" not in chinese
     assert "starter" not in chinese_lower
-    assert "不是" in chinese and "最终架构已经完成" in chinese
     assert "本地 + starter Skills 仍然是默认产品面。" not in chinese
 
 
-def test_public_readmes_separate_host_neutral_design_from_verified_host_support() -> None:
+def test_public_readmes_separate_open_integration_from_verified_tool_support() -> None:
     english = _read("README.md")
     chinese = _read("README.zh.md")
 
@@ -266,11 +266,11 @@ def test_public_readmes_separate_host_neutral_design_from_verified_host_support(
     assert "Host-neutral design does not mean every host is already verified" in english
     assert "generic host contract is `advisory-only`" in english.lower()
 
-    assert "运行合同和公开" in chinese and "发布包本身是宿主中立的" in chinese
-    assert "任意 Skill" in chinese
-    assert "没有歧义的 ID" in chinese
-    assert "宿主中立不等于所有载体都已经完成即插即用验证" in chinese
-    assert "Generic Host 合同仍是 `advisory-only`" in chinese
+    assert "不是只为 Codex、Claude Code 或 Cursor 写的" in chinese
+    assert "任意本地 Skill" in chinese
+    assert "名称不重复" in chinese
+    assert "能接入，不等于已经在每种工具上完整测试过" in chinese
+    assert "在实际测试之前不会写成“已经完整支持”" in chinese
 
 
 def test_quick_start_does_not_advertise_disabled_stage_labels() -> None:
@@ -296,7 +296,7 @@ def test_quick_start_points_normal_skill_extension_to_the_simple_install_docs() 
     assert "install/README.en.md" in english
 
     assert "本地优先" not in chinese
-    assert "已安装的本地 skill 根目录" in chinese
+    assert "把 Skill 放进指定的本地文件夹" in chinese
     assert "想接入自定义 Skills" not in chinese
     assert "custom-workflow-onboarding" not in chinese
     assert "install/README.md" in chinese
@@ -433,7 +433,7 @@ def test_kernel_docs_keep_external_first_story_narrow_and_do_not_overclaim() -> 
         interfaces,
     )
     assert "not a claim" in readme and "final architecture" in readme
-    assert "不是" in readme_zh and "最终架构已经完成" in readme_zh
+    assert "不会自动调用你安装的所有 Skills" in readme_zh
 
 
 def test_default_closure_docs_keep_small_proof_set_story() -> None:
@@ -459,17 +459,51 @@ def test_default_closure_docs_keep_small_proof_set_story() -> None:
     assert "default closure story should stay small" in architecture
 
 
-def test_public_readmes_keep_three_public_proof_layers_separate() -> None:
+def test_public_readmes_keep_install_run_and_delivery_records_separate() -> None:
     english = _read("README.md")
     chinese = _read("README.zh.md")
 
-    for content in (english, chinese):
-        assert "`installed locally`" in content
-        assert "`runtime coherent`" in content
-        assert "`delivery accepted`" in content
+    assert "`installed locally`" in english
+    assert "`runtime coherent`" in english
+    assert "`delivery accepted`" in english
+
+    for record in (
+        "`install-receipt.json`",
+        "`session_root`",
+        "`module-work-plan.json`",
+        "`module-execution.json`",
+        "`delivery-acceptance-report.json`",
+    ):
+        assert record in chinese
+    assert "安装成功，不代表任务已经跑完" in chinese
+    assert "有运行记录，也不代表" in chinese
+    assert "最终结果已经通过检查" in chinese
 
     assert "current verification surface" not in english.lower()
     assert "当前验证入口" not in chinese
+
+
+def test_chinese_public_docs_avoid_internal_runtime_language() -> None:
+    public_docs = (
+        _read("README.zh.md"),
+        _read("docs/quick-start.md"),
+    )
+    internal_phrases = (
+        "宿主中立",
+        "载体",
+        "适配器",
+        "公开边界",
+        "可以检查的证据",
+        "运行时真相",
+        "真相面",
+        "工作内核",
+        "governed runtime",
+        "harness",
+    )
+
+    for content in public_docs:
+        for phrase in internal_phrases:
+            assert phrase not in content
 
 
 def test_runtime_protocol_maps_public_proof_layers_without_reintroducing_install_host_ready_states() -> None:
