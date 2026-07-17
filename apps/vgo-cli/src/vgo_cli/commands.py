@@ -9,7 +9,6 @@ import sys
 
 from .core_bridge import run_canonical_entry_core, run_compatibility_exit_core, run_entry_locator_core, run_inspect_run_core, run_local_kernel_core, run_router_core, run_skill_index_core
 from .errors import CliError
-from .hosts import normalize_host_id
 from .output import print_json_payload
 from .process import print_process_output, run_powershell_file, run_subprocess
 from .repo import get_installed_runtime_config, get_local_release_metadata
@@ -277,19 +276,22 @@ def route_command(args: argparse.Namespace) -> int:
 
 def canonical_entry_command(args: argparse.Namespace) -> int:
     repo_root = Path(args.repo_root).resolve()
-    host_id = normalize_host_id(args.host_id)
     command = [
         '--repo-root', str(repo_root),
-        '--host-id', host_id,
-        '--entry-id', args.entry_id,
         '--prompt', args.prompt,
     ]
+    if getattr(args, 'host_id', None):
+        command.extend(['--host-id', args.host_id])
+    if getattr(args, 'entry_id', None):
+        command.extend(['--entry-id', args.entry_id])
     if args.requested_stage_stop:
         command.extend(['--requested-stage-stop', args.requested_stage_stop])
     if args.requested_grade_floor:
         command.extend(['--requested-grade-floor', args.requested_grade_floor])
     if args.run_id:
         command.extend(['--run-id', args.run_id])
+    if getattr(args, 'workspace_root', None):
+        command.extend(['--workspace-root', args.workspace_root])
     if args.artifact_root:
         command.extend(['--artifact-root', args.artifact_root])
     if getattr(args, 'local_agent_root', None):
@@ -298,6 +300,8 @@ def canonical_entry_command(args: argparse.Namespace) -> int:
         command.extend(['--continue-from-run-id', args.continue_from_run_id])
     if getattr(args, 'bounded_reentry_token', None):
         command.extend(['--bounded-reentry-token', args.bounded_reentry_token])
+    if getattr(args, 'module_execution_json_file', None):
+        command.extend(['--module-execution-json-file', args.module_execution_json_file])
     if getattr(args, 'host_decision_json', None):
         command.extend(['--host-decision-json', args.host_decision_json])
     if getattr(args, 'host_decision_json_file', None):
