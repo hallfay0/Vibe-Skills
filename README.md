@@ -499,9 +499,9 @@ The runtime core behind **VibeSkills** is **VCO**. It keeps workflow control in 
 
 ## ⚙️ Installation & Skills Management
 
-Public installation starts from a published release zip. Download the release zip, extract it, and run the wrappers from that extracted directory.
+Public installation starts from the [GitHub Releases page](https://github.com/foryourhealth111-pixel/Vibe-Skills/releases). Download the release zip, extract it, and run the wrappers from that extracted directory.
 
-The public release asset is a host-neutral, SkillsDir-centered bundle such as `vibe-skills-3.2.0-public.zip`. The installer writes Vibe-owned files under `<SkillsDir>/vibe`. The public release installs the `vibe` runtime itself. It does not add a separate built-in skill catalog. After install, the public entry is `vibe`, and additional Skills are discovered separately from that shared skills directory and any configured local skill roots.
+The v4 public asset is the host-neutral, SkillsDir-centered bundle `vibe-skills-4.0.0-public.zip`. The installer writes Vibe-owned files under `<SkillsDir>/vibe`. The public release installs the `vibe` runtime itself. It does not add a separate built-in skill catalog. After install, the only public runtime entry is `vibe`, and additional Skills are discovered separately from that shared skills directory and any configured local skill roots.
 
 The default target is `~/.agents/skills`, so the shortest Windows install from a published release zip is:
 
@@ -523,6 +523,8 @@ Update and uninstall use the same boundary. For updates, download the newer publ
 .\update.ps1 -SkillsDir C:\Users\you\.agents\skills
 .\uninstall.ps1 -SkillsDir C:\Users\you\.agents\skills
 ```
+
+When upgrading from v3 to v4, keep the same `SkillsDir`, run the v4 `update` wrapper, then run `check`. Legacy `vibe-what-do-i-want`, `vibe-how-do-we-do`, `vibe-do-it`, and `vibe-upgrade` entry names are retired; use `vibe` for the governed runtime.
 
 The installer writes only Vibe-owned files under `<SkillsDir>/vibe`. It does not edit Codex, Claude, Agents, host settings, command wrappers, or global prompt files. Re-running install or update preserves user-added files and refuses unowned path conflicts instead of deleting the directory.
 

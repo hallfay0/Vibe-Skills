@@ -6,9 +6,9 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-EXPECTED_VERSION = "3.2.0"
-EXPECTED_UPDATED = "2026-07-08"
-EXPECTED_BASE_COMMIT = "7c6ac63"
+EXPECTED_VERSION = "4.0.0"
+EXPECTED_UPDATED = "2026-07-17"
+EXPECTED_BASE_COMMIT = "c1665ba7"
 EXPECTED_ACTOR = "羽裳"
 
 
@@ -16,7 +16,7 @@ def load_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8-sig"))
 
 
-class ReleaseV320SurfaceTests(unittest.TestCase):
+class ReleaseV400SurfaceTests(unittest.TestCase):
     def test_authoritative_release_surface_is_aligned(self) -> None:
         governance = load_json(REPO_ROOT / "config/version-governance.json")
         self.assertEqual(governance["release"]["version"], EXPECTED_VERSION)
@@ -74,7 +74,7 @@ class ReleaseV320SurfaceTests(unittest.TestCase):
             ],
         )
 
-    def test_dist_release_manifests_point_at_v320(self) -> None:
+    def test_dist_release_manifests_point_at_v400(self) -> None:
         source_config = load_json(REPO_ROOT / "config/distribution-manifest-sources.json")
         manifest_paths = [
             REPO_ROOT / item["output_path"]
