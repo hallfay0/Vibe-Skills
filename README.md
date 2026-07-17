@@ -242,6 +242,14 @@ including Superpowers, Get Shit Done, OpenSpec, spec-kit, mem0, Scrapling, and
 Serena; attribution details live in [NOTICE](./NOTICE) and
 [third-party licenses](./THIRD_PARTY_LICENSES.md).
 
+VibeSkills discussions and community practice can also continue on
+[LINUX DO](https://linux.do/). It is a place to exchange technical questions,
+AI practice, and experience. Thank you to the LINUX DO community for supporting
+this project.
+
+The [VibeSkills 3.1.0 community practice cases](https://linux.do/t/topic/2061161)
+collect several examples that were shared with the community.
+
 Community contributors include
 [xiaozhongyaonvli](https://github.com/xiaozhongyaonvli) and
 [ruirui2345](https://github.com/ruirui2345).

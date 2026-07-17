@@ -227,6 +227,13 @@ VibeSkills 会把安装情况、任务过程和最终检查分别保存下来。
 spec-kit、mem0、Scrapling、Serena 等开源项目的思路；归属说明见
 [NOTICE](./NOTICE) 与 [第三方许可证](./THIRD_PARTY_LICENSES.md)。
 
+VibeSkills 的使用讨论和社区实践也可以在 [LINUX DO](https://linux.do/) 继续交流。
+那里有技术讨论、AI 实践和使用经验分享。感谢 LINUX DO 社区一直以来对这个项目
+的支持。
+
+想看已经公开分享过的实践，可以从
+[VibeSkills 3.1.0 社区实践案例](https://linux.do/t/topic/2061161) 开始。
+
 社区贡献者包括
 [xiaozhongyaonvli](https://github.com/xiaozhongyaonvli) 和
 [ruirui2345](https://github.com/ruirui2345)。
