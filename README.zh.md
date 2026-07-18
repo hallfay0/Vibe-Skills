@@ -200,3 +200,15 @@ VibeSkills 的使用讨论和社区实践也可以在 [LINUX DO](https://linux.d
 社区贡献者包括
 [xiaozhongyaonvli](https://github.com/xiaozhongyaonvli) 和
 [ruirui2345](https://github.com/ruirui2345)。
+
+## Star History
+
+<p align="center">
+  <a href="https://www.star-history.com/?repos=foryourhealth111-pixel%2FVibe-Skills&type=date&legend=top-left">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=foryourhealth111-pixel%2FVibe-Skills&type=date&theme=dark&legend=top-left">
+      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=foryourhealth111-pixel%2FVibe-Skills&type=date&legend=top-left">
+      <img src="https://api.star-history.com/chart?repos=foryourhealth111-pixel%2FVibe-Skills&type=date&legend=top-left" width="820" alt="VibeSkills Star History">
+    </picture>
+  </a>
+</p>
