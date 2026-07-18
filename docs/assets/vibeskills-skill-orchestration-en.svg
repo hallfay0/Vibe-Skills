@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="500" viewBox="0 0 1200 500" role="img" aria-labelledby="title desc">
+  <title id="title">How VibeSkills organizes Skills</title>
+  <desc id="desc">VibeSkills splits a complex task, selects relevant local Skills for each work module, then combines and checks the results.</desc>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#0F4C4E"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="500" fill="#FAFBF7"/>
+
+  <g fill="none" stroke="#0F4C4E" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)">
+    <path d="M200 220 H242"/>
+    <path d="M422 220 H458"/>
+    <path d="M804 220 H842"/>
+    <path d="M980 220 H1016"/>
+    <path d="M420 412 H474"/>
+    <path d="M650 412 V350 H630 V316"/>
+  </g>
+
+  <g transform="translate(40 170)">
+    <rect width="160" height="100" rx="8" fill="#0F4C4E"/>
+    <path d="M31 31 H62 L74 43 V71 H31 Z" fill="none" stroke="#A7EEF0" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M62 31 V43 H74" fill="none" stroke="#A7EEF0" stroke-width="3"/>
+    <path d="M40 52 H64 M40 62 H57" fill="none" stroke="#A7EEF0" stroke-width="3" stroke-linecap="round"/>
+    <text x="118" y="34" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" text-anchor="middle">One</text>
+    <text x="118" y="53" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" text-anchor="middle">complex</text>
+    <text x="118" y="72" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" text-anchor="middle">task</text>
+  </g>
+
+  <g transform="translate(242 170)">
+    <rect width="180" height="100" rx="8" fill="#FFFFFF" stroke="#0F4C4E" stroke-width="3"/>
+    <circle cx="44" cy="50" r="9" fill="#0F4C4E"/>
+    <path d="M53 50 H72 M72 50 V30 H92 M72 50 V70 H92" fill="none" stroke="#0F4C4E" stroke-width="3" stroke-linecap="round"/>
+    <text x="132" y="34" fill="#0F4C4E" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" text-anchor="middle">Split into</text>
+    <text x="132" y="53" fill="#0F4C4E" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" text-anchor="middle">work</text>
+    <text x="132" y="72" fill="#0F4C4E" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" text-anchor="middle">modules</text>
+  </g>
+
+  <text x="630" y="71" fill="#0F4C4E" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" text-anchor="middle">Give each module the right help</text>
+
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="700" text-anchor="middle" fill="#0F4C4E">
+    <g transform="translate(468 96)">
+      <rect width="150" height="82" rx="8" fill="#A7EEF0" stroke="#0F4C4E" stroke-width="2"/>
+      <text x="75" y="49">Scope / research</text>
+    </g>
+    <g transform="translate(642 96)">
+      <rect width="150" height="82" rx="8" fill="#E88E7D" stroke="#0F4C4E" stroke-width="2"/>
+      <text x="75" y="49">Build / change</text>
+    </g>
+    <g transform="translate(468 234)">
+      <rect width="150" height="82" rx="8" fill="#75B89B" stroke="#0F4C4E" stroke-width="2"/>
+      <text x="75" y="49">Test / review</text>
+    </g>
+    <g transform="translate(642 234)">
+      <rect width="150" height="82" rx="8" fill="#F0C86A" stroke="#0F4C4E" stroke-width="2"/>
+      <text x="75" y="49">Document / deliver</text>
+    </g>
+  </g>
+
+  <path d="M458 220 H446 V137 H468 M446 220 V275 H468 M446 220 H630 V137 H642 M630 220 V275 H642" fill="none" stroke="#0F4C4E" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M618 137 V86 H820 V220 H842 M792 137 H820 M618 275 V326 H820 V220 M792 275 H820" fill="none" stroke="#0F4C4E" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <g transform="translate(842 170)">
+    <rect width="138" height="100" rx="8" fill="#FFFFFF" stroke="#0F4C4E" stroke-width="3"/>
+    <rect x="25" y="28" width="43" height="34" rx="5" fill="#A7EEF0" stroke="#0F4C4E" stroke-width="2"/>
+    <rect x="38" y="40" width="43" height="34" rx="5" fill="#75B89B" stroke="#0F4C4E" stroke-width="2"/>
+    <text x="111" y="45" fill="#0F4C4E" font-family="Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="700" text-anchor="middle">Combine</text>
+    <text x="111" y="65" fill="#0F4C4E" font-family="Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="700" text-anchor="middle">results</text>
+  </g>
+
+  <g transform="translate(1016 170)">
+    <rect width="144" height="100" rx="8" fill="#E6F5EC" stroke="#0F4C4E" stroke-width="3"/>
+    <circle cx="41" cy="50" r="23" fill="#75B89B"/>
+    <path d="M29 50 L38 59 L54 40" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="102" y="44" fill="#0F4C4E" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" text-anchor="middle">Check</text>
+    <text x="102" y="66" fill="#0F4C4E" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" text-anchor="middle">completion</text>
+  </g>
+
+  <g transform="translate(242 374)">
+    <rect width="178" height="76" rx="8" fill="#FFFFFF" stroke="#0F4C4E" stroke-width="3"/>
+    <rect x="18" y="19" width="30" height="30" rx="5" fill="#A7EEF0" stroke="#0F4C4E" stroke-width="2"/>
+    <rect x="54" y="19" width="30" height="30" rx="5" fill="#E88E7D" stroke="#0F4C4E" stroke-width="2"/>
+    <rect x="90" y="19" width="30" height="30" rx="5" fill="#75B89B" stroke="#0F4C4E" stroke-width="2"/>
+    <text x="148" y="39" fill="#0F4C4E" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" text-anchor="middle">Local</text>
+    <text x="148" y="58" fill="#0F4C4E" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" text-anchor="middle">Skills</text>
+  </g>
+
+  <g transform="translate(474 374)">
+    <rect width="176" height="76" rx="8" fill="#FFF7DB" stroke="#0F4C4E" stroke-width="3"/>
+    <path d="M25 38 H61 M49 27 L61 38 L49 49" fill="none" stroke="#0F4C4E" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="119" y="45" fill="#0F4C4E" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="700" text-anchor="middle">Choose by need</text>
+  </g>
+</svg>

@@ -56,46 +56,9 @@ does not need a dedicated Skill stays with the current AI.
 
 ## Decompose first, then organize Skills
 
-```mermaid
-flowchart TB
-    task["One complex task"] --> map["VibeSkills splits the task first"]
-    map --> m1["01 · Scope / research"]
-    map --> m2["02 · Build / change"]
-    map --> m3["03 · Test / review"]
-    map --> m4["04 · Document / deliver"]
-
-    pool["Your installed local Skills"] --> match["Read each Skill description and choose by need"]
-    match --> m1
-    match --> m2
-    match --> m3
-    match --> m4
-
-    m1 --> integrate["Bring the results together"]
-    m2 --> integrate
-    m3 --> integrate
-    m4 --> integrate
-    integrate --> proof["Check the result and save the progress"]
-
-    classDef task fill:#0F3D3E,stroke:#0F3D3E,color:#FFFFFF,stroke-width:2px
-    classDef map fill:#EDE9FE,stroke:#7C3AED,color:#2E1065,stroke-width:2px
-    classDef pool fill:#FFF7ED,stroke:#EA580C,color:#7C2D12,stroke-width:2px
-    classDef match fill:#FEF3C7,stroke:#CA8A04,color:#713F12,stroke-width:2px
-    classDef blue fill:#E0F2FE,stroke:#0284C7,color:#0C4A6E
-    classDef coral fill:#FFE4E6,stroke:#E11D48,color:#881337
-    classDef green fill:#DCFCE7,stroke:#16A34A,color:#14532D
-    classDef violet fill:#F3E8FF,stroke:#9333EA,color:#581C87
-    classDef finish fill:#ECFDF5,stroke:#059669,color:#064E3B,stroke-width:2px
-
-    class task task
-    class map map
-    class pool pool
-    class match match
-    class m1 blue
-    class m2 coral
-    class m3 green
-    class m4 violet
-    class integrate,proof finish
-```
+<p align="center">
+  <img src="./docs/assets/vibeskills-skill-orchestration-en.svg" width="920" alt="VibeSkills splits a complex task, selects relevant local Skills for each work module, then combines and checks the results">
+</p>
 
 The task is split before Skills are chosen. If four parts need four different
 kinds of help, each part can use a different Skill. Work that does not need a
@@ -257,11 +220,9 @@ Community contributors include
 ## Star history
 
 <p align="center">
-  <a href="https://www.star-history.com/?repos=foryourhealth111-pixel%2FVibe-Skills&type=date&legend=top-left">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=foryourhealth111-pixel/Vibe-Skills&type=date&theme=dark&legend=top-left">
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=foryourhealth111-pixel/Vibe-Skills&type=date&legend=top-left">
-      <img alt="VibeSkills star history" src="https://api.star-history.com/image?repos=foryourhealth111-pixel/Vibe-Skills&type=date&legend=top-left">
-    </picture>
+  <a href="https://www.star-history.com/#foryourhealth111-pixel/Vibe-Skills&Date">
+    <img src="./docs/assets/star-history.svg" width="820" alt="VibeSkills star history snapshot through 2026-07-18">
   </a>
 </p>
+
+<p align="center"><sub>Static snapshot updated on 2026-07-18. Select the chart for live Star History.</sub></p>
