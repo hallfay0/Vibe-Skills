@@ -75,18 +75,21 @@ on the task.
 > report, and a 7-slide group-meeting deck.
 
 ```mermaid
-flowchart LR
+flowchart TB
     A["Configured Skill folders<br/>100+ Skills"] --> B["Shortlist candidates<br/>Read SKILL.md"]
     B --> S(["Run status<br/>7 Skills selected<br/>10 / 10 completed"])
-    S --> C["5 work groups<br/>Data audit · Model replay<br/>Scientific review · Figures and report · Slides and acceptance"]
-    C --> D["Real outputs<br/>4 figures · Scientific report · 7-slide deck"]
-    D --> E(["Final acceptance<br/>17 / 17 checks passed · PASS"])
+    S --> W["5 work groups · 10 work units<br/><br/>1. Environment and data: environment setup, data audit<br/>2. Modeling and reproduction: baseline experiment<br/>3. Statistics and scientific review: statistical analysis, scientific review<br/>4. Figures and report: result figures, report draft, report review<br/>5. Slides and acceptance: group-meeting slides, case package and consistency"]
+    W --> D["Real outputs<br/>4 figures · Scientific report · 7-slide deck"]
+    D --> C["17 cross-artifact checks<br/><br/>1. required-files · 2. module-output-patterns<br/>3. runtime-plan-binding · 4. environment-contract<br/>5. dataset-contract · 6. split-and-model-contract<br/>7. baseline-results · 8. exact-reproduction<br/>9. uncertainty-consistency · 10. statistics-write-protection<br/>11. figure-traceability · 12. report-consistency<br/>13. slides-consistency · 14. bilingual-summary-consistency<br/>15. visual-material-guidance · 16. manifest-boundary<br/>17. artifact-path-boundary"]
+    C --> E(["Final acceptance<br/>17 / 17 checks passed · PASS"])
 
     classDef work fill:#EAF4F8,stroke:#1479A8,color:#182026;
     classDef status fill:#FFF3E2,stroke:#D97706,color:#182026,stroke-width:2px;
+    classDef checks fill:#F1F4F6,stroke:#52606A,color:#182026;
     classDef result fill:#EAF5EE,stroke:#237A45,color:#182026,stroke-width:2px;
-    class A,B,C,D work;
+    class A,B,W,D work;
     class S status;
+    class C checks;
     class E result;
 ```
 

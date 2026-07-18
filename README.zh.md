@@ -71,18 +71,21 @@ Skills，也可能只需要其中一部分。调用哪些 Skills 由任务本身
 > 科学报告和 7 页组会 Slides。
 
 ```mermaid
-flowchart LR
+flowchart TB
     A["本地 Skill 目录<br/>100+ Skills"] --> B["筛选候选<br/>读取 SKILL.md"]
     B --> S(["运行状态<br/>已选择 7 个 Skills<br/>10 / 10 已完成"])
-    S --> C["5 个工作组<br/>数据审计 · 建模复现<br/>统计复核 · 图表报告 · Slides 验收"]
-    C --> D["实际产物<br/>4 张图 · 科学报告 · 7 页 Slides"]
-    D --> E(["最终验收<br/>17 / 17 检查通过 · PASS"])
+    S --> W["5 个工作组 · 10 个工作单元<br/><br/>1. 环境与数据：环境准备、数据审计<br/>2. 建模与复现：基线实验<br/>3. 统计与科学复核：统计分析、科学复核<br/>4. 图表与报告：结果图、报告初稿、报告复核<br/>5. Slides 与验收：组会 Slides、案例打包与一致性检查"]
+    W --> D["实际产物<br/>4 张图 · 科学报告 · 7 页 Slides"]
+    D --> C["17 项跨产物一致性检查<br/><br/>1. 必需文件 · 2. 模块输出匹配<br/>3. 运行与计划绑定 · 4. 环境合同<br/>5. 数据集合同 · 6. 数据拆分与模型合同<br/>7. 基线结果 · 8. 精确复现<br/>9. 不确定性一致性 · 10. 统计文件写入保护<br/>11. 图表可追溯性 · 12. 报告一致性<br/>13. Slides 一致性 · 14. 中英文摘要一致性<br/>15. 可视材料指引 · 16. Manifest 边界<br/>17. 产物路径边界"]
+    C --> E(["最终验收<br/>17 / 17 检查通过 · PASS"])
 
     classDef work fill:#EAF4F8,stroke:#1479A8,color:#182026;
     classDef status fill:#FFF3E2,stroke:#D97706,color:#182026,stroke-width:2px;
+    classDef checks fill:#F1F4F6,stroke:#52606A,color:#182026;
     classDef result fill:#EAF5EE,stroke:#237A45,color:#182026,stroke-width:2px;
-    class A,B,C,D work;
+    class A,B,W,D work;
     class S status;
+    class C checks;
     class E result;
 ```
 

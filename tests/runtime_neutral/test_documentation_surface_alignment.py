@@ -652,10 +652,43 @@ def test_root_readmes_present_the_verified_ml_case_with_source_materials() -> No
 
     assert "Real case: completing a machine-learning experiment" in english
     assert "实际案例：完成一项机器学习实验" in chinese
-    assert "```mermaid" in english and "flowchart LR" in english
-    assert "```mermaid" in chinese and "flowchart LR" in chinese
+    assert "```mermaid" in english and "flowchart TB" in english
+    assert "```mermaid" in chinese and "flowchart TB" in chinese
     assert "Run status<br/>7 Skills selected<br/>10 / 10 completed" in english
     assert "运行状态<br/>已选择 7 个 Skills<br/>10 / 10 已完成" in chinese
+    for unit in (
+        "environment setup",
+        "data audit",
+        "baseline experiment",
+        "statistical analysis",
+        "scientific review",
+        "result figures",
+        "report draft",
+        "report review",
+        "group-meeting slides",
+        "case package and consistency",
+    ):
+        assert unit in english
+    for check_id in (
+        "required-files",
+        "module-output-patterns",
+        "runtime-plan-binding",
+        "environment-contract",
+        "dataset-contract",
+        "split-and-model-contract",
+        "baseline-results",
+        "exact-reproduction",
+        "uncertainty-consistency",
+        "statistics-write-protection",
+        "figure-traceability",
+        "report-consistency",
+        "slides-consistency",
+        "bilingual-summary-consistency",
+        "visual-material-guidance",
+        "manifest-boundary",
+        "artifact-path-boundary",
+    ):
+        assert check_id in english
     assert "From requirement to final checks" in english
     assert "从需求确认到最终检查" in chinese
     assert "What else VibeSkills does" not in english
