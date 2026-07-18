@@ -8,11 +8,12 @@
 
 <h1>VibeSkills</h1>
 
-<h3>Make local Skills work as a system.</h3>
+<h3>Organize the right local Skills and carry complex tasks through to delivery.</h3>
 
-<p><strong>Complex tasks often trigger only the most obvious Skills.</strong><br>
-VibeSkills maps the whole task first, then organizes relevant local Skills around each module,<br>
-so more of the capability you already installed can contribute where it actually helps.</p>
+<p>VibeSkills is a task-delivery harness for AI agents.<br>
+Local Skills capture reusable tools, processes, and ways of working; VibeSkills starts with the whole task,<br>
+chooses the Skills that fit each part, assigns them to concrete work, and carries the task through<br>
+requirement confirmation, planning, execution, and final checks.</p>
 
 <a href="https://github.com/foryourhealth111-pixel/Vibe-Skills/releases/latest">
   <img src="https://img.shields.io/github/v/release/foryourhealth111-pixel/Vibe-Skills?display_name=tag&sort=semver&style=for-the-badge&color=14515B" alt="Latest release">
@@ -35,44 +36,34 @@ so more of the capability you already installed can contribute where it actually
 
 ---
 
-## Why VibeSkills exists
+> **You can start with the task without deciding which Skills to combine first.**
+>
+> VibeSkills selects the relevant Skills from the local library, assigns them
+> to concrete work, and checks the results together at the end. The library can
+> keep growing without requiring you to memorize every Skill's name, purpose, or
+> how it might be combined with others.
 
-> [!IMPORTANT]
-> A complex task often contains several kinds of work. If it has four parts, the
-> AI may think to use a Skill for only two of them and handle the rest on the
-> spot, even when better local Skills are already installed. VibeSkills looks at
-> the whole task before deciding where a Skill can help.
-
-| Passive Skill triggering | With VibeSkills |
-|:---|:---|
-| The AI reacts to a few obvious words | It splits the whole task first |
-| The same familiar Skills are used repeatedly | Each part is checked for a better-fitting Skill |
-| Unmatched work is handled on the spot | A useful Skill is assigned to specific work with a stated result |
-| Separate calls are left disconnected | All results are brought together and checked at the end |
-
-VibeSkills first makes the task clear, then organizes the Skills that can help
-with each part. It keeps the work coordinated and brings the results back
-together. Only Skills that are useful for the task are selected.
-
-## How VibeSkills organizes the work
-
-<p align="center">
-  <img src="./docs/assets/vibeskills-skill-orchestration-en.png" width="920" alt="VibeSkills sits between task modules and local Skills, coordinating the work and selecting only the Skills each part needs">
-</p>
-
-The diagram puts VibeSkills between the task modules and local Skills. It splits
-the task, chooses Skills for the parts that need them, coordinates the work, and
-brings the results together. Four parts can use four different Skills, or the
-task may need only some of the available Skills. Which Skills are used depends
-on the task.
-
-## Real case: completing a machine-learning experiment
+## A real run: completing a machine-learning experiment
 
 > **Task**
 >
 > Use public data to complete a reproducible classification experiment and
 > deliver a data audit, statistical review, 4 result figures, a scientific
 > report, and a 7-slide group-meeting deck.
+
+The diagram shows what happened after the requirement and plan were approved:
+how the task was executed, what it produced, and how the result was checked.
+
+The task used the `L` workflow and proceeded in order. During publication
+preparation, the configured folders on the same host contained more than 100
+Skills. VibeSkills reviewed the candidates and their `SKILL.md` files, selected
+7 for this task, and arranged the work into 5 groups and 10 work units. Those
+units covered environment setup, data audit, modeling, statistical review,
+figures, the report, and the slide deck.
+
+After the work finished, VibeSkills ran 17 checks across the data, experiment
+results, figures, report, and slides. The task passed final acceptance after the
+required files, cross-deliverable consistency, and core reproduction all passed.
 
 ```mermaid
 %%{init: {"flowchart": {"curve": "linear", "nodeSpacing": 18, "rankSpacing": 36}}}%%
@@ -229,76 +220,86 @@ flowchart LR
     linkStyle default stroke:#8A98A5,stroke-width:1px;
 ```
 
-`U01` through `U10` are the 10 actual work units. `T01` through `T17` follow
-the order recorded in `consistency-check.json`; arrows between check nodes show
-reading order, not business dependencies.
-
-The run searched the configured local Skill folders. During publication
-preparation, those folders contained more than 100 Skills; VibeSkills read the
-shortlisted candidates' `SKILL.md` files and selected 7.
-
 **10 / 10 work units completed** · **0 failed** · **0 blocked** ·
 **17 / 17 cross-artifact checks passed**
 
-[View the complete case](./docs/cases/ml-experiment/README.md) ·
-[View the source materials](./docs/cases/ml-experiment/README.md#source-materials) ·
-[View final acceptance](./docs/cases/ml-experiment/evidence/delivery-acceptance-report.md)
+[View case execution](./docs/cases/ml-experiment/README.md#case-execution) ·
+[View final delivery](./docs/cases/ml-experiment/README.md#final-delivery)
 
-## From requirement to final checks
+## How VibeSkills carries a task through to delivery
 
-VibeSkills keeps requirement confirmation, task-level recommendation, Skill
-assignments, execution records, and final checks in one process. The task record
-shows which Skills were used, what they owned, and whether the planned work
-passed its checks.
+VibeSkills gives an Agent one process from receiving a task to checking the
+delivery. Each stage answers a concrete question: what needs to be done, how the
+work should proceed, which Skills should take part, what actually happened, and
+whether the result is ready to deliver.
 
 <p align="center">
   <img src="./docs/assets/vibeskills-harness-overview-en.svg" width="920" alt="VibeSkills confirms the requirement, chooses L or XL, organizes Skills, records the work, and checks the result; code work can enter a TDD loop">
 </p>
 
-- **Confirms the requirement.** Before work begins, VibeSkills confirms the goal,
-  constraints, available material, and expected delivery. It does not begin
-  execution while the requirement is still waiting for approval.
+- **Confirms the requirement.** Before work begins, it confirms the goal,
+  constraints, available material, and expected delivery. The process stops here
+  until the requirement is approved, giving the plan and final check a clear basis.
 
-- **Saves the task record.** The requirement, plan, progress, and final result are
-  saved with the run. A later session can continue from those records, and a
-  review can trace what was agreed and what was actually done.
+- **Recommends a level.** VibeSkills recommends `L` or `XL` from the task's scope,
+  steps, dependencies, and opportunities for parallel work. You then
+  confirms the level. Manageable work proceeds in order; larger work is split
+  more finely.
 
-- **Checks the final result.** VibeSkills compares every planned item with the
-  actual result. If required work is incomplete, failed, or blocked, the task is
-  not reported as complete.
+- **Organizes Skills.** VibeSkills reviews the local Skill folders, selects the
+  methods that fit each part, and states what each Skill owns, what it should
+  deliver, and how completion will be checked.
+
+- **Executes and records.** After plan approval, the current Agent completes the
+  work. Code tasks can use test-driven development (TDD) when appropriate: show
+  the problem with a failing test, make the change, and run the tests again.
+  Completed, failed, and blocked states are recorded so a later session can continue.
+
+- **Checks the result.** VibeSkills compares the actual result with every planned
+  item. Required work that is incomplete, failed, or blocked prevents final
+  acceptance.
 
 <details>
-<summary><strong>Task levels and code testing</strong></summary>
-
-- **Recommends a task level.** VibeSkills recommends `L` or `XL` from the task's
-  scope, steps, dependencies, and opportunities for parallel work. The user can
-  also choose.
+<summary><strong>When to use L or XL</strong></summary>
 
 | Level | Best for | How it works |
 |:---|:---|:---|
 | `L` | Multi-step work of manageable size | Splits the task, then works through the parts in order with less time and context overhead |
 | `XL` | Larger work with several relatively independent parts | Uses a more detailed breakdown and can run up to two non-conflicting parts at the same time, with additional coordination and result collection |
 
-- **Plans tests for code work.** When a task involves code, VibeSkills prefers
-  test-driven development when appropriate: demonstrate the problem with a
-  failing test, make the change, then run the tests again. Test results are saved
-  with the rest of the task record.
-
 </details>
 
-## How it finds the right Skill
+## How local Skills take part
 
-VibeSkills looks only in the local Skill folders you configure. A Skill needs a
-readable `SKILL.md`, a name that does not conflict with another Skill, and a
-clear fit for the current work before the AI can select it.
+Local Skills can store tool usage, working steps, decision rules, and checking
+methods. VibeSkills reviews the local Skill folders you configure, then
+shortlists the Skills that fit the work required by each part of the task.
 
-You can add more local folders in the configuration. This lets your own Skills
-and third-party Skills take part without waiting for the VibeSkills repository
-to include them. VibeSkills does not call every installed Skill automatically;
-it selects the ones that fit the task.
+<p align="center">
+  <img src="./docs/assets/vibeskills-skill-orchestration-en.png" width="920" alt="VibeSkills sits between task modules and local Skills, coordinating the work and selecting only the Skills each part needs">
+</p>
+
+The left side shows the different kinds of work in the task, VibeSkills makes
+the assignment in the middle, and the local Skill folders are on the right. A
+selected Skill is tied to concrete work, expected delivery, and a check. The
+current Agent then follows the shared plan.
+
+You can keep adding your own Skills, team Skills, and third-party Skills.
+VibeSkills does not call every installed Skill automatically; it selects the
+Skills that fit the current task. The size of the library defines the available
+choices, not a list that every task must use.
 
 <details>
-<summary><strong>For developers: where these choices are saved</strong></summary>
+<summary><strong>Local folders and selection records</strong></summary>
+
+Alongside the shared Skills directory, more local folders can be listed in
+`~/.vibeskills/skill-roots.json` or
+`<workspace>/.vibeskills/skill-roots.json`.
+
+A Skill needs a readable `SKILL.md`, a name that does not conflict with another
+Skill, and a clear fit for the current work before it can be selected. Adding a
+local folder makes those Skills available to later tasks without waiting for the
+VibeSkills repository to include them.
 
 During planning, `agent_skill_organization` stores which Skills are intended for
 each part of the task. During execution, `module_assignments` stores the actual
@@ -307,16 +308,16 @@ Skill has already taken part in the work.
 
 </details>
 
----
+## How a task can continue and be reviewed
 
-## What gets saved
-
-VibeSkills saves the installation state, task record, approved plan, actual
-result, and final check separately. These records answer different questions,
-so a screenshot or a sentence saying "done" is not enough on its own.
+VibeSkills keeps the approved requirement, plan, execution progress, and final
+check in the same task record. A later session can continue from the saved
+progress, and a review can compare the original plan with the actual result.
+Installation state is recorded separately so it is not confused with task
+completion.
 
 <details>
-<summary><strong>View the saved files</strong></summary>
+<summary><strong>View the record files</strong></summary>
 
 | File or directory | What it is for |
 |:---|:---|
@@ -326,15 +327,15 @@ so a screenshot or a sentence saying "done" is not enough on its own.
 | `module-execution.json` | Stores what each part actually produced and whether it completed, failed, or was blocked |
 | `delivery-acceptance-report.json` or `.md` | Stores the final check and shows which items passed |
 
-</details>
-
-A successful installation does not mean the task ran, and a task record does
-not mean the final result passed its checks. A public example should let readers
-follow the requirement, plan, actual result, and final check.
-
 Maintainers can use the
 [pre-release checklist](docs/status/non-regression-proof-bundle.md). Start with
 the checks in that list and run wider audits only when there is a reason.
+
+</details>
+
+A successful installation does not mean the task ran, and a task record does
+not mean the final result passed its checks. A public example lets readers
+follow the requirement, plan, actual result, and final check.
 
 ## Install
 
@@ -348,7 +349,7 @@ Install, update, check, uninstall, and migration commands are kept in one guide:
 Current asset:
 [vibe-skills-4.0.0-public.zip](https://github.com/foryourhealth111-pixel/Vibe-Skills/releases/download/v4.0.0/vibe-skills-4.0.0-public.zip)
 
-## What installation changes
+## After installation
 
 - You only need to remember one entry: `vibe`.
 - The installer manages VibeSkills files only under `<SkillsDir>/vibe`. It does
@@ -367,7 +368,7 @@ Current asset:
 For implementation details, including the roles of Python and PowerShell, see
 the [architecture guide](./docs/architecture/local-agent-kernel-v2.md).
 
-## Documentation
+## More documentation
 
 | Need | Start here |
 |:---|:---|
@@ -384,10 +385,7 @@ the [architecture guide](./docs/architecture/local-agent-kernel-v2.md).
 
 Questions, corrections, and well-scoped contributions are welcome through
 [GitHub Issues](https://github.com/foryourhealth111-pixel/Vibe-Skills/issues)
-and pull requests. The project reuses and adapts ideas from open-source work
-including Superpowers, Get Shit Done, OpenSpec, spec-kit, mem0, Scrapling, and
-Serena; attribution details live in [NOTICE](./NOTICE) and
-[third-party licenses](./THIRD_PARTY_LICENSES.md).
+and pull requests.
 
 VibeSkills discussions and community practice can also continue on
 [LINUX DO](https://linux.do/). It is a place to exchange technical questions,
@@ -400,6 +398,9 @@ collect several examples that were shared with the community.
 Community contributors include
 [xiaozhongyaonvli](https://github.com/xiaozhongyaonvli) and
 [ruirui2345](https://github.com/ruirui2345).
+
+Third-party software attribution and license information are listed in
+[NOTICE](./NOTICE) and [third-party licenses](./THIRD_PARTY_LICENSES.md).
 
 ## Star History
 

@@ -13,7 +13,12 @@ scientific report, and group-meeting slides. The run ID is
 This is a software-reproducibility case. It is not clinical validation and must
 not be used for diagnosis or patient decisions.
 
-## Result summary
+## Case execution
+
+After requirement approval, this task used the `L` workflow and proceeded in
+order. VibeSkills shortlisted relevant capabilities from the configured local
+Skill folders, arranged the work into 9 modules and 10 work units, and the
+current Agent completed and recorded the plan.
 
 | Item | Result |
 |:---|:---|
@@ -28,7 +33,7 @@ not be used for diagnosis or patient decisions.
 The root README groups the 9 modules into 5 work groups for a quicker overview.
 The original plan and execution records retain every module and work unit.
 
-## How the Skills took part
+### How the Skills took part
 
 VibeSkills searched the configured local Skill folders, read the shortlisted
 candidates' `SKILL.md` files, and checked their purposes and limits. The case
@@ -50,7 +55,18 @@ comes from [`skill-inventory-snapshot.json`](./evidence/skill-inventory-snapshot
 captured on the same host while preparing this public case. It is not a count
 emitted by the accepted runtime.
 
-## Delivered artifacts
+### Execution and checks
+
+All 10 work units completed with no failure or blocked state. The case then ran
+17 consistency checks across module outputs, plan binding, data and model
+contracts, statistics, figures, the report, slides, and publication boundaries.
+All 17 passed.
+
+## Final delivery
+
+The final delivery contains 4 result figures, a scientific report, and a
+7-slide group-meeting deck. Every item comes from the same accepted execution
+record.
 
 | Data and model results | Delivery checks |
 |:---:|:---:|
@@ -64,7 +80,10 @@ with the rendered montage below.
 
 ![Rendered overview of the seven-slide deck](./assets/slides-montage.png)
 
-## Source materials
+Final acceptance is `PASS` with readiness `fully_ready`. See the detailed result
+in [`delivery-acceptance-report.md`](./evidence/delivery-acceptance-report.md).
+
+## Execution records and reproduction materials
 
 These files preserve the path from the original request to final acceptance.
 Every number used on the root README can be traced to one of them.

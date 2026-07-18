@@ -271,12 +271,12 @@ def test_readmes_describe_local_installed_skill_story_without_repromoting_a_cent
     assert "local_first_skills" not in english_lower
     assert "Local + starter Skills stay the product surface." not in english
 
-    assert "指定的本地 Skill 文件夹" in chinese
+    assert "配置的本地 Skill 目录" in chinese
     assert "SKILL.md" in chinese
     assert "agent_skill_organization" in chinese
     assert "module_assignments" in chinese
     assert "保存实际分配" in chinese
-    assert "不必等 VibeSkills 项目本身收录它" in chinese
+    assert "不需要等待 VibeSkills 项目收录" in chinese
     assert "不会自动调用你安装的所有 Skills" in chinese
     assert "外部优先扩展" not in chinese
     assert "starter" not in chinese_lower
@@ -301,10 +301,10 @@ def test_public_readmes_describe_the_supporting_task_features() -> None:
 
     for phrase in (
         "Confirms the requirement",
-        "Saves the task record",
-        "Recommends a task level",
-        "Checks the final result",
-        "Plans tests for code work",
+        "Recommends a level",
+        "Organizes Skills",
+        "Executes and records",
+        "Checks the result",
         "up to two non-conflicting parts at the same time",
         "test-driven development",
     ):
@@ -312,19 +312,19 @@ def test_public_readmes_describe_the_supporting_task_features() -> None:
 
     for phrase in (
         "确认需求",
-        "保存任务记录",
-        "自动推荐任务级别",
-        "检查最终结果",
-        "安排测试",
+        "推荐级别",
+        "组织 Skills",
+        "执行并记录",
+        "检查结果",
         "最多同时推进两项工作",
         "测试驱动开发",
     ):
         assert phrase in chinese
 
     assert "需求没有确认时" in chinese
-    assert "不会直接开始执行" in chinese
-    assert "更换会话后，可以从已有记录继续" in chinese
-    assert "任务就不会被写成已经完成" in chinese
+    assert "流程会停在这里" in chinese
+    assert "中断后也可以从已有进度继续" in chinese
+    assert "任务不会通过最终检查" in chinese
 
 
 def test_quick_start_does_not_advertise_disabled_stage_labels() -> None:
@@ -645,6 +645,8 @@ def test_installation_rules_and_minimal_path_are_archived_not_active_install_gui
 def test_root_readmes_present_the_verified_ml_case_with_source_materials() -> None:
     english = _read("README.md")
     chinese = _read("README.zh.md")
+    english_case = _read("docs/cases/ml-experiment/README.md")
+    chinese_case = _read("docs/cases/ml-experiment/README.zh.md")
 
     english_blocks = re.findall(r"```mermaid\r?\n(.*?)\r?\n```", english, flags=re.DOTALL)
     chinese_blocks = re.findall(r"```mermaid\r?\n(.*?)\r?\n```", chinese, flags=re.DOTALL)
@@ -654,11 +656,30 @@ def test_root_readmes_present_the_verified_ml_case_with_source_materials() -> No
 
     for content in (english, chinese):
         assert "./docs/cases/ml-experiment/" in content
-        assert "./docs/cases/ml-experiment/evidence/delivery-acceptance-report.md" in content
         assert ".gif" not in content.casefold()
 
-    assert "Real case: completing a machine-learning experiment" in english
-    assert "实际案例：完成一项机器学习实验" in chinese
+    assert "Organize the right local Skills and carry complex tasks through to delivery." in english
+    assert "组织合适的本地 Skills，把复杂任务做完整。" in chinese
+    assert "You can start with the task without deciding which Skills to combine first." in english
+    assert "先说清楚任务，不必先想好该用哪些 Skills。" in chinese
+    assert "A real run: completing a machine-learning experiment" in english
+    assert "一次真实运行：完成一项机器学习实验" in chinese
+    assert "[View case execution](./docs/cases/ml-experiment/README.md#case-execution)" in english
+    assert "[View final delivery](./docs/cases/ml-experiment/README.md#final-delivery)" in english
+    assert "[查看案例执行过程](./docs/cases/ml-experiment/README.zh.md#案例执行过程)" in chinese
+    assert "[查看最终交付结果](./docs/cases/ml-experiment/README.zh.md#最终交付结果)" in chinese
+    assert "View the source materials" not in english
+    assert "查看原始材料" not in chinese
+    assert "View final acceptance" not in english
+    assert "查看最终验收" not in chinese
+    assert "## Case execution" in english_case
+    assert "## Final delivery" in english_case
+    assert "## Execution records and reproduction materials" in english_case
+    assert "## 案例执行过程" in chinese_case
+    assert "## 最终交付结果" in chinese_case
+    assert "## 执行记录与复现材料" in chinese_case
+    assert "./evidence/delivery-acceptance-report.md" in english_case
+    assert "./evidence/delivery-acceptance-report.md" in chinese_case
     for diagram in (english_diagram, chinese_diagram):
         assert "flowchart LR" in diagram
         assert "flowchart TB" not in diagram
@@ -783,8 +804,47 @@ def test_root_readmes_present_the_verified_ml_case_with_source_materials() -> No
         ("MID", "VERIFY"),
         ("VERIFY", "E"),
     } <= english_edges
-    assert "From requirement to final checks" in english
-    assert "从需求确认到最终检查" in chinese
+    assert "How VibeSkills carries a task through to delivery" in english
+    assert "VibeSkills 如何把任务推进到可交付" in chinese
+    for step in (
+        "Confirms the requirement.",
+        "Recommends a level.",
+        "Organizes Skills.",
+        "Executes and records.",
+        "Checks the result.",
+    ):
+        assert step in english
+    for step in (
+        "确认需求。",
+        "推荐级别。",
+        "组织 Skills。",
+        "执行并记录。",
+        "检查结果。",
+    ):
+        assert step in chinese
+    assert "How local Skills take part" in english
+    assert "本地 Skills 如何参与任务" in chinese
+    assert "How a task can continue and be reviewed" in english
+    assert "任务中断后怎样继续，完成后怎样复查" in chinese
+    assert "U01` through `U10`" not in english
+    assert "`U01` 到 `U10`" not in chinese
+    assert "From requirement to final checks" not in english
+    assert "从需求确认到最终检查" not in chinese
+    assert "How it finds the right Skill" not in english
+    assert "它怎样找到合适的 Skill" not in chinese
+    assert "What gets saved" not in english
+    assert "运行后会保存什么" not in chinese
+    for project_name in (
+        "Superpowers",
+        "Get Shit Done",
+        "OpenSpec",
+        "spec-kit",
+        "mem0",
+        "Scrapling",
+        "Serena",
+    ):
+        assert project_name not in english
+        assert project_name not in chinese
     assert "What else VibeSkills does" not in english
     assert "除了组织 Skills，它还会做这些事" not in chinese
 
