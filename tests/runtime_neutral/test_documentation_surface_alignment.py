@@ -642,6 +642,75 @@ def test_installation_rules_and_minimal_path_are_archived_not_active_install_gui
         assert (REPO_ROOT / "docs" / "archive" / "install-legacy" / "2026-07-02" / Path(path).name).exists()
 
 
+def test_root_readmes_present_the_verified_ml_case_with_source_materials() -> None:
+    english = _read("README.md")
+    chinese = _read("README.zh.md")
+
+    for content, language in ((english, "en"), (chinese, "cn")):
+        assert f"./docs/assets/vibeskills-case-flow-{language}.gif" in content
+        assert "./docs/cases/ml-experiment/" in content
+        assert "./docs/cases/ml-experiment/evidence/delivery-acceptance-report.md" in content
+
+    assert "Real case: completing a machine-learning experiment" in english
+    assert "实际案例：完成一项机器学习实验" in chinese
+    assert "From requirement to final checks" in english
+    assert "从需求确认到最终检查" in chinese
+    assert "What else VibeSkills does" not in english
+    assert "除了组织 Skills，它还会做这些事" not in chinese
+
+
+def test_public_ml_case_claims_match_its_published_evidence() -> None:
+    case_root = REPO_ROOT / "docs" / "cases" / "ml-experiment"
+    selected = json.loads((case_root / "evidence" / "selected-skills.json").read_text(encoding="utf-8"))
+    inventory = json.loads((case_root / "evidence" / "skill-inventory-snapshot.json").read_text(encoding="utf-8"))
+    work_plan = json.loads((case_root / "evidence" / "module-work-plan.json").read_text(encoding="utf-8"))
+    execution = json.loads((case_root / "evidence" / "module-execution.json").read_text(encoding="utf-8"))
+    consistency = json.loads((case_root / "evidence" / "consistency-check.json").read_text(encoding="utf-8"))
+    acceptance = json.loads((case_root / "evidence" / "delivery-acceptance-report.json").read_text(encoding="utf-8"))
+
+    assert selected["source_run_id"] == "20260718T041559Z-51996499"
+    assert selected["selected_count"] == len(selected["skills"]) == 7
+    assert inventory["totals"]["unique_names"] > 100
+    assert inventory["totals"]["selected_for_case"] == 7
+    assert len(work_plan["modules"]) == 9
+    assert len(work_plan["work_units"]) == 10
+    assert len(execution["units"]) == 10
+    assert all(unit["state"] == "completed" for unit in execution["units"])
+    assert sum(len(module["criterion_results"]) for module in execution["modules"]) == 18
+    assert all(
+        criterion["state"] == "passing"
+        for module in execution["modules"]
+        for criterion in module["criterion_results"]
+    )
+    assert consistency["passing_check_count"] == 17
+    assert consistency["failing_check_count"] == 0
+    assert acceptance["summary"]["gate_result"] == "PASS"
+    assert acceptance["summary"]["runtime_status"] == "completed"
+    assert acceptance["summary"]["readiness_state"] == "fully_ready"
+    assert acceptance["execution_context"]["completed_unit_count"] == 10
+    assert acceptance["execution_context"]["failed_unit_count"] == 0
+    assert acceptance["execution_context"]["blocked_unit_count"] == 0
+
+
+def test_public_ml_case_keeps_private_paths_out_and_overview_assets_bounded() -> None:
+    case_root = REPO_ROOT / "docs" / "cases" / "ml-experiment"
+    for path in case_root.rglob("*"):
+        if path.suffix.lower() not in {".json", ".md", ".ps1", ".py", ".txt", ".lock"}:
+            continue
+        content = path.read_text(encoding="utf-8")
+        assert "D:\\Documents\\vibeskills" not in content
+        assert "C:\\Users\\" not in content
+        assert re.search(r"work[\\/]+readme-cases", content, flags=re.IGNORECASE) is None
+
+    for language in ("cn", "en"):
+        gif = REPO_ROOT / "docs" / "assets" / f"vibeskills-case-flow-{language}.gif"
+        gif_data = gif.read_bytes()
+
+        assert gif_data[:6] in {b"GIF87a", b"GIF89a"}
+        assert (int.from_bytes(gif_data[6:8], "little"), int.from_bytes(gif_data[8:10], "little")) == (1200, 150)
+        assert gif.stat().st_size < 100_000
+
+
 def test_recommended_full_and_enterprise_reference_pages_are_archived_not_active_install_guidance() -> None:
     for path in (
         "docs/install/recommended-full-path.en.md",

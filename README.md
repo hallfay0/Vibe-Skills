@@ -63,16 +63,46 @@ together. Only Skills that are useful for the task are selected.
 The diagram puts VibeSkills between the task modules and local Skills. It splits
 the task, chooses Skills for the parts that need them, coordinates the work, and
 brings the results together. Four parts can use four different Skills, or the
-task may need only some of the available Skills. The goal is to complete the
-task, not to increase the number of calls.
+task may need only some of the available Skills. Which Skills are used depends
+on the task.
 
-## What else VibeSkills does
+## Real case: completing a machine-learning experiment
 
-VibeSkills applies a basic harness-engineering idea to the way Skills are
-organized and used. In plain terms, the task follows one clear process from
-start to finish: confirm the requirement, organize the work, save the record,
-and check the final result against the plan. The decisions about which Skills
-to use, where they help, and what they do all stay inside that process.
+> **Task**
+>
+> Use public data to complete a reproducible classification experiment and
+> deliver a data audit, statistical review, 4 result figures, a scientific
+> report, and a 7-slide group-meeting deck.
+
+| Configured local Skills | Selected | Work groups | Delivered | Final acceptance |
+|:---:|:---:|:---:|:---:|:---:|
+| **100+** | **7** | **5** | **Figures · report · slides** | **`PASS`** |
+
+<p align="center">
+  <img src="./docs/assets/vibeskills-case-flow-en.gif" width="920" alt="A lightweight animation moves through local Skills, 7 selected Skills, 5 work groups, real outputs, and final PASS">
+</p>
+
+The run searched the configured local Skill folders. During publication
+preparation, those folders contained more than 100 Skills; VibeSkills read the
+shortlisted candidates' `SKILL.md` files and selected 7.
+
+**Five work groups:** `data audit` → `modeling and replay` →
+`statistical and scientific review` → `figures and report` →
+`slides and acceptance`
+
+**10 / 10 work units completed** · **0 failed** · **0 blocked** ·
+**17 / 17 cross-artifact checks passed**
+
+[View the complete case](./docs/cases/ml-experiment/README.md) ·
+[View the source materials](./docs/cases/ml-experiment/README.md#source-materials) ·
+[View final acceptance](./docs/cases/ml-experiment/evidence/delivery-acceptance-report.md)
+
+## From requirement to final checks
+
+VibeSkills keeps requirement confirmation, task-level recommendation, Skill
+assignments, execution records, and final checks in one process. The task record
+shows which Skills were used, what they owned, and whether the planned work
+passed its checks.
 
 <p align="center">
   <img src="./docs/assets/vibeskills-harness-overview-en.svg" width="920" alt="VibeSkills confirms the requirement, chooses L or XL, organizes Skills, records the work, and checks the result; code work can enter a TDD loop">
@@ -86,6 +116,13 @@ to use, where they help, and what they do all stay inside that process.
   saved with the run. A later session can continue from those records, and a
   review can trace what was agreed and what was actually done.
 
+- **Checks the final result.** VibeSkills compares every planned item with the
+  actual result. If required work is incomplete, failed, or blocked, the task is
+  not reported as complete.
+
+<details>
+<summary><strong>Task levels and code testing</strong></summary>
+
 - **Recommends a task level.** VibeSkills recommends `L` or `XL` from the task's
   scope, steps, dependencies, and opportunities for parallel work. The user can
   also choose.
@@ -95,14 +132,12 @@ to use, where they help, and what they do all stay inside that process.
 | `L` | Multi-step work of manageable size | Splits the task, then works through the parts in order with less time and context overhead |
 | `XL` | Larger work with several relatively independent parts | Uses a more detailed breakdown and can run up to two non-conflicting parts at the same time, with additional coordination and result collection |
 
-- **Checks the final result.** VibeSkills compares every planned item with the
-  actual result. If required work is incomplete, failed, or blocked, the task is
-  not reported as complete.
-
 - **Plans tests for code work.** When a task involves code, VibeSkills prefers
   test-driven development when appropriate: demonstrate the problem with a
   failing test, make the change, then run the tests again. Test results are saved
   with the rest of the task record.
+
+</details>
 
 ## How it finds the right Skill
 
@@ -189,6 +224,7 @@ the [architecture guide](./docs/architecture/local-agent-kernel-v2.md).
 
 | Need | Start here |
 |:---|:---|
+| See a complete real run | [Machine-learning experiment case](./docs/cases/ml-experiment/README.md) |
 | Install, update, uninstall | [Simple install](./docs/install/README.en.md) |
 | First use | [Quick start](./docs/quick-start.en.md) |
 | Current release | [v4.0.0 notes](./docs/releases/v4.0.0.md) |
