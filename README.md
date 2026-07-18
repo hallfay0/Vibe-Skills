@@ -50,20 +50,21 @@ so more of the capability you already installed can contribute where it actually
 | Unmatched work is handled on the spot | A useful Skill is assigned to specific work with a stated result |
 | Separate calls are left disconnected | All results are brought together and checked at the end |
 
-VibeSkills first makes the task clear, then lets the right Skills help with the
-right parts. It selects only the Skills that are useful for the task. Work that
-does not need a dedicated Skill stays with the current AI.
+VibeSkills first makes the task clear, then organizes the Skills that can help
+with each part. It keeps the work coordinated and brings the results back
+together. Only Skills that are useful for the task are selected.
 
-## Decompose first, then organize Skills
+## How VibeSkills organizes the work
 
 <p align="center">
-  <img src="./docs/assets/vibeskills-skill-orchestration-en.png" width="920" alt="VibeSkills matches each part of a task with local Skills that help, while the current AI handles work that does not need a dedicated Skill">
+  <img src="./docs/assets/vibeskills-skill-orchestration-en.png" width="920" alt="VibeSkills sits between task modules and local Skills, coordinating the work and selecting only the Skills each part needs">
 </p>
 
-The task is split before Skills are chosen. If four parts need four different
-kinds of help, each part can use a different Skill. Work that does not need a
-dedicated Skill stays with the current AI. The goal is to complete the task, not
-to increase the number of calls.
+The diagram puts VibeSkills between the task modules and local Skills. It splits
+the task, chooses Skills for the parts that need them, coordinates the work, and
+brings the results together. Four parts can use four different Skills, or the
+task may need only some of the available Skills. The goal is to complete the
+task, not to increase the number of calls.
 
 ## What else VibeSkills does
 
