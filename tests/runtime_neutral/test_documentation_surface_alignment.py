@@ -646,16 +646,49 @@ def test_root_readmes_present_the_verified_ml_case_with_source_materials() -> No
     english = _read("README.md")
     chinese = _read("README.zh.md")
 
+    english_blocks = re.findall(r"```mermaid\r?\n(.*?)\r?\n```", english, flags=re.DOTALL)
+    chinese_blocks = re.findall(r"```mermaid\r?\n(.*?)\r?\n```", chinese, flags=re.DOTALL)
+    assert len(english_blocks) == len(chinese_blocks) == 1
+    english_diagram = english_blocks[0]
+    chinese_diagram = chinese_blocks[0]
+
     for content in (english, chinese):
         assert "./docs/cases/ml-experiment/" in content
         assert "./docs/cases/ml-experiment/evidence/delivery-acceptance-report.md" in content
+        assert ".gif" not in content.casefold()
 
     assert "Real case: completing a machine-learning experiment" in english
     assert "实际案例：完成一项机器学习实验" in chinese
-    assert "```mermaid" in english and "flowchart TB" in english
-    assert "```mermaid" in chinese and "flowchart TB" in chinese
-    assert "Run status<br/>7 Skills selected<br/>10 / 10 completed" in english
-    assert "运行状态<br/>已选择 7 个 Skills<br/>10 / 10 已完成" in chinese
+    for diagram in (english_diagram, chinese_diagram):
+        assert "flowchart LR" in diagram
+        assert "flowchart TB" not in diagram
+        for index in range(1, 11):
+            assert len(re.findall(rf"\bU{index:02d}\b", diagram)) == 1
+        for index in range(1, 18):
+            assert len(re.findall(rf"\bT{index:02d}\b", diagram)) == 1
+
+    assert "Run status<br/>10 / 10 completed<br/>0 failed · 0 blocked" in english_diagram
+    assert "运行状态<br/>10 / 10 完成<br/>0 失败 · 0 阻塞" in chinese_diagram
+    assert "Final acceptance<br/>17 / 17 checks passed<br/>PASS" in english_diagram
+    assert "最终验收<br/>17 / 17 检查通过<br/>PASS" in chinese_diagram
+
+    for group in (
+        "G1 · 01 Environment and data",
+        "G2 · 02 Modeling and reproduction",
+        "G3 · 03 Statistics and scientific review",
+        "G4 · 04 Figures and report",
+        "G5 · 05 Slides and acceptance",
+    ):
+        assert group in english_diagram
+    for group in (
+        "G1 · 01 环境与数据",
+        "G2 · 02 建模与复现",
+        "G3 · 03 统计与科学复核",
+        "G4 · 04 图表与报告",
+        "G5 · 05 Slides 与验收",
+    ):
+        assert group in chinese_diagram
+
     for unit in (
         "environment setup",
         "data audit",
@@ -668,7 +701,9 @@ def test_root_readmes_present_the_verified_ml_case_with_source_materials() -> No
         "group-meeting slides",
         "case package and consistency",
     ):
-        assert unit in english
+        assert unit in english_diagram.casefold()
+
+    english_checks = english_diagram.replace("<br/>", "")
     for check_id in (
         "required-files",
         "module-output-patterns",
@@ -688,7 +723,66 @@ def test_root_readmes_present_the_verified_ml_case_with_source_materials() -> No
         "manifest-boundary",
         "artifact-path-boundary",
     ):
-        assert check_id in english
+        assert check_id in english_checks
+
+    for check_label in (
+        "必需文件",
+        "模块输出匹配",
+        "运行与计划绑定",
+        "环境合同",
+        "数据集合同",
+        "数据拆分与模型合同",
+        "基线结果",
+        "精确复现",
+        "不确定性一致性",
+        "统计文件写入保护",
+        "图表可追溯性",
+        "报告一致性",
+        "Slides 一致性",
+        "中英文摘要一致性",
+        "可视材料指引",
+        "Manifest 边界",
+        "产物路径边界",
+    ):
+        assert check_label in chinese_diagram
+
+    def mermaid_ids(diagram: str) -> set[str]:
+        subgraph_ids = re.findall(
+            r"^\s*subgraph\s+([A-Za-z][A-Za-z0-9_]*)",
+            diagram,
+            flags=re.MULTILINE,
+        )
+        node_ids = re.findall(
+            r"^\s*([A-Za-z][A-Za-z0-9_]*)\s*(?:\[|\()",
+            diagram,
+            flags=re.MULTILINE,
+        )
+        return set(subgraph_ids) | set(node_ids)
+
+    def mermaid_edges(diagram: str) -> set[tuple[str, str]]:
+        return set(
+            re.findall(
+                r"^\s*([A-Za-z][A-Za-z0-9_]*)\s*-->\s*"
+                r"([A-Za-z][A-Za-z0-9_]*)\s*$",
+                diagram,
+                flags=re.MULTILINE,
+            )
+        )
+
+    english_ids = mermaid_ids(english_diagram)
+    chinese_ids = mermaid_ids(chinese_diagram)
+    english_edges = mermaid_edges(english_diagram)
+    chinese_edges = mermaid_edges(chinese_diagram)
+    assert english_ids == chinese_ids
+    assert english_edges == chinese_edges
+    assert {f"u{index:02d}" for index in range(1, 11)} <= english_ids
+    assert {f"t{index:02d}" for index in range(1, 18)} <= english_ids
+    assert {
+        ("DISC", "EXEC"),
+        ("EXEC", "MID"),
+        ("MID", "VERIFY"),
+        ("VERIFY", "E"),
+    } <= english_edges
     assert "From requirement to final checks" in english
     assert "从需求确认到最终检查" in chinese
     assert "What else VibeSkills does" not in english

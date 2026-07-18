@@ -75,23 +75,163 @@ on the task.
 > report, and a 7-slide group-meeting deck.
 
 ```mermaid
-flowchart TB
-    A["Configured Skill folders<br/>100+ Skills"] --> B["Shortlist candidates<br/>Read SKILL.md"]
-    B --> S(["Run status<br/>7 Skills selected<br/>10 / 10 completed"])
-    S --> W["5 work groups · 10 work units<br/><br/>1. Environment and data: environment setup, data audit<br/>2. Modeling and reproduction: baseline experiment<br/>3. Statistics and scientific review: statistical analysis, scientific review<br/>4. Figures and report: result figures, report draft, report review<br/>5. Slides and acceptance: group-meeting slides, case package and consistency"]
-    W --> D["Real outputs<br/>4 figures · Scientific report · 7-slide deck"]
-    D --> C["17 cross-artifact checks<br/><br/>1. required-files · 2. module-output-patterns<br/>3. runtime-plan-binding · 4. environment-contract<br/>5. dataset-contract · 6. split-and-model-contract<br/>7. baseline-results · 8. exact-reproduction<br/>9. uncertainty-consistency · 10. statistics-write-protection<br/>11. figure-traceability · 12. report-consistency<br/>13. slides-consistency · 14. bilingual-summary-consistency<br/>15. visual-material-guidance · 16. manifest-boundary<br/>17. artifact-path-boundary"]
-    C --> E(["Final acceptance<br/>17 / 17 checks passed · PASS"])
+%%{init: {"flowchart": {"curve": "linear", "nodeSpacing": 18, "rankSpacing": 36}}}%%
+flowchart LR
+    subgraph DISC["Skill discovery"]
+        direction TB
+        A["Configured Skill folders<br/>100+ Skills"]
+        B["Shortlist candidates<br/>Read SKILL.md"]
+        SEL["Skill selection<br/>7 Skills assigned"]
+        A --> B
+        B --> SEL
+    end
 
-    classDef work fill:#EAF4F8,stroke:#1479A8,color:#182026;
+    subgraph EXEC["Execution · 5 work groups · 10 work units"]
+        direction TB
+
+        subgraph G1["G1 · 01 Environment and data"]
+            direction LR
+            u01["U01<br/>Environment setup"]
+            u02["U02<br/>Data audit"]
+            u01 --> u02
+        end
+
+        subgraph G2["G2 · 02 Modeling and reproduction"]
+            direction LR
+            u03["U03<br/>Baseline experiment"]
+        end
+
+        subgraph G3["G3 · 03 Statistics and scientific review"]
+            direction LR
+            u04["U04<br/>Statistical analysis"]
+            u05["U05<br/>Scientific review"]
+            u04 --> u05
+        end
+
+        subgraph G4["G4 · 04 Figures and report"]
+            direction LR
+            u06["U06<br/>Result figures"]
+            u07["U07<br/>Report draft"]
+            u08["U08<br/>Report review"]
+            u06 --> u07
+            u07 --> u08
+        end
+
+        subgraph G5["G5 · 05 Slides and acceptance"]
+            direction LR
+            u09["U09<br/>Group-meeting slides"]
+            u10["U10<br/>Case package and consistency"]
+            u09 --> u10
+        end
+
+        G1 --> G2
+        G2 --> G3
+        G3 --> G4
+        G4 --> G5
+    end
+
+    subgraph MID["Run and outputs"]
+        direction TB
+        S(["Run status<br/>10 / 10 completed<br/>0 failed · 0 blocked"])
+        D["Real outputs<br/>4 figures · Scientific report<br/>7-slide deck"]
+        S --> D
+    end
+
+    subgraph VERIFY["Verification · 17 checks"]
+        direction TB
+
+        subgraph V1["V1 · Foundation and plan"]
+            direction LR
+            t01["T01<br/>required-files"]
+            t02["T02 module-output-<br/>patterns"]
+            t03["T03 runtime-plan-<br/>binding"]
+            t04["T04 environment-<br/>contract"]
+            t01 --> t02
+            t02 --> t03
+            t03 --> t04
+        end
+
+        subgraph V2["V2 · Data, model, and reproduction"]
+            direction LR
+            t05["T05<br/>dataset-contract"]
+            t06["T06 split-and-model-<br/>contract"]
+            t07["T07<br/>baseline-results"]
+            t08["T08 exact-<br/>reproduction"]
+            t05 --> t06
+            t06 --> t07
+            t07 --> t08
+        end
+
+        subgraph V3["V3 · Statistics and deliverables"]
+            direction LR
+            t09["T09 uncertainty-<br/>consistency"]
+            t10["T10 statistics-write-<br/>protection"]
+            t11["T11 figure-<br/>traceability"]
+            t12["T12 report-<br/>consistency"]
+            t13["T13 slides-<br/>consistency"]
+            t09 --> t10
+            t10 --> t11
+            t11 --> t12
+            t12 --> t13
+        end
+
+        subgraph V4["V4 · Publication and boundaries"]
+            direction LR
+            t14["T14 bilingual-summary-<br/>consistency"]
+            t15["T15 visual-material-<br/>guidance"]
+            t16["T16 manifest-<br/>boundary"]
+            t17["T17 artifact-path-<br/>boundary"]
+            t14 --> t15
+            t15 --> t16
+            t16 --> t17
+        end
+
+        V1 --> V2
+        V2 --> V3
+        V3 --> V4
+    end
+
+    E(["Final acceptance<br/>17 / 17 checks passed<br/>PASS"])
+
+    DISC --> EXEC
+    EXEC --> MID
+    MID --> VERIFY
+    VERIFY --> E
+
+    classDef source fill:#EAF4F8,stroke:#1479A8,color:#182026;
+    classDef selected fill:#E6F4F1,stroke:#167C70,color:#182026;
+    classDef unit fill:#FFFFFF,stroke:#3A7CA5,color:#182026;
     classDef status fill:#FFF3E2,stroke:#D97706,color:#182026,stroke-width:2px;
-    classDef checks fill:#F1F4F6,stroke:#52606A,color:#182026;
+    classDef output fill:#EAF5F3,stroke:#2D7F75,color:#182026;
+    classDef check fill:#FFFFFF,stroke:#8A9AA7,color:#182026;
     classDef result fill:#EAF5EE,stroke:#237A45,color:#182026,stroke-width:2px;
-    class A,B,W,D work;
+    class A,B source;
+    class SEL selected;
+    class u01,u02,u03,u04,u05,u06,u07,u08,u09,u10 unit;
     class S status;
-    class C checks;
+    class D output;
+    class t01,t02,t03,t04,t05,t06,t07,t08,t09,t10,t11,t12,t13,t14,t15,t16,t17 check;
     class E result;
+
+    style DISC fill:transparent,stroke:#AAB7C4,stroke-width:1px,stroke-dasharray:4 3;
+    style EXEC fill:transparent,stroke:#AAB7C4,stroke-width:1px,stroke-dasharray:4 3;
+    style MID fill:transparent,stroke:#AAB7C4,stroke-width:1px,stroke-dasharray:4 3;
+    style VERIFY fill:transparent,stroke:#AAB7C4,stroke-width:1px,stroke-dasharray:4 3;
+    style G1 fill:#FFFFFF,stroke:#DCE4EA,stroke-width:1px;
+    style G2 fill:#FFFFFF,stroke:#DCE4EA,stroke-width:1px;
+    style G3 fill:#FFFFFF,stroke:#DCE4EA,stroke-width:1px;
+    style G4 fill:#FFFFFF,stroke:#DCE4EA,stroke-width:1px;
+    style G5 fill:#FFFFFF,stroke:#DCE4EA,stroke-width:1px;
+    style V1 fill:#FFFFFF,stroke:#DCE4EA,stroke-width:1px;
+    style V2 fill:#FFFFFF,stroke:#DCE4EA,stroke-width:1px;
+    style V3 fill:#FFFFFF,stroke:#DCE4EA,stroke-width:1px;
+    style V4 fill:#FFFFFF,stroke:#DCE4EA,stroke-width:1px;
+    linkStyle default stroke:#8A98A5,stroke-width:1px;
 ```
+
+`U01` through `U10` are the 10 actual work units. `T01` through `T17` follow
+the order recorded in `consistency-check.json`; arrows between check nodes show
+reading order, not business dependencies.
 
 The run searched the configured local Skill folders. During publication
 preparation, those folders contained more than 100 Skills; VibeSkills read the

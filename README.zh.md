@@ -71,23 +71,163 @@ Skills，也可能只需要其中一部分。调用哪些 Skills 由任务本身
 > 科学报告和 7 页组会 Slides。
 
 ```mermaid
-flowchart TB
-    A["本地 Skill 目录<br/>100+ Skills"] --> B["筛选候选<br/>读取 SKILL.md"]
-    B --> S(["运行状态<br/>已选择 7 个 Skills<br/>10 / 10 已完成"])
-    S --> W["5 个工作组 · 10 个工作单元<br/><br/>1. 环境与数据：环境准备、数据审计<br/>2. 建模与复现：基线实验<br/>3. 统计与科学复核：统计分析、科学复核<br/>4. 图表与报告：结果图、报告初稿、报告复核<br/>5. Slides 与验收：组会 Slides、案例打包与一致性检查"]
-    W --> D["实际产物<br/>4 张图 · 科学报告 · 7 页 Slides"]
-    D --> C["17 项跨产物一致性检查<br/><br/>1. 必需文件 · 2. 模块输出匹配<br/>3. 运行与计划绑定 · 4. 环境合同<br/>5. 数据集合同 · 6. 数据拆分与模型合同<br/>7. 基线结果 · 8. 精确复现<br/>9. 不确定性一致性 · 10. 统计文件写入保护<br/>11. 图表可追溯性 · 12. 报告一致性<br/>13. Slides 一致性 · 14. 中英文摘要一致性<br/>15. 可视材料指引 · 16. Manifest 边界<br/>17. 产物路径边界"]
-    C --> E(["最终验收<br/>17 / 17 检查通过 · PASS"])
+%%{init: {"flowchart": {"curve": "linear", "nodeSpacing": 18, "rankSpacing": 36}}}%%
+flowchart LR
+    subgraph DISC["Skill 发现"]
+        direction TB
+        A["本地 Skill 目录<br/>100+ Skills"]
+        B["筛选候选<br/>读取 SKILL.md"]
+        SEL["Skill 选择<br/>7 个 Skills 已分配"]
+        A --> B
+        B --> SEL
+    end
 
-    classDef work fill:#EAF4F8,stroke:#1479A8,color:#182026;
+    subgraph EXEC["执行 · 5 个工作组 · 10 个工作单元"]
+        direction TB
+
+        subgraph G1["G1 · 01 环境与数据"]
+            direction LR
+            u01["U01<br/>环境准备"]
+            u02["U02<br/>数据审计"]
+            u01 --> u02
+        end
+
+        subgraph G2["G2 · 02 建模与复现"]
+            direction LR
+            u03["U03<br/>基线实验"]
+        end
+
+        subgraph G3["G3 · 03 统计与科学复核"]
+            direction LR
+            u04["U04<br/>统计分析"]
+            u05["U05<br/>科学复核"]
+            u04 --> u05
+        end
+
+        subgraph G4["G4 · 04 图表与报告"]
+            direction LR
+            u06["U06<br/>结果图"]
+            u07["U07<br/>报告初稿"]
+            u08["U08<br/>报告复核"]
+            u06 --> u07
+            u07 --> u08
+        end
+
+        subgraph G5["G5 · 05 Slides 与验收"]
+            direction LR
+            u09["U09<br/>组会 Slides"]
+            u10["U10<br/>案例打包与一致性检查"]
+            u09 --> u10
+        end
+
+        G1 --> G2
+        G2 --> G3
+        G3 --> G4
+        G4 --> G5
+    end
+
+    subgraph MID["运行与产物"]
+        direction TB
+        S(["运行状态<br/>10 / 10 完成<br/>0 失败 · 0 阻塞"])
+        D["实际产物<br/>4 张图 · 科学报告<br/>7 页 Slides"]
+        S --> D
+    end
+
+    subgraph VERIFY["验证 · 17 项检查"]
+        direction TB
+
+        subgraph V1["V1 · 基础与计划"]
+            direction LR
+            t01["T01<br/>必需文件"]
+            t02["T02<br/>模块输出匹配"]
+            t03["T03<br/>运行与计划绑定"]
+            t04["T04<br/>环境合同"]
+            t01 --> t02
+            t02 --> t03
+            t03 --> t04
+        end
+
+        subgraph V2["V2 · 数据、模型与复现"]
+            direction LR
+            t05["T05<br/>数据集合同"]
+            t06["T06<br/>数据拆分与模型合同"]
+            t07["T07<br/>基线结果"]
+            t08["T08<br/>精确复现"]
+            t05 --> t06
+            t06 --> t07
+            t07 --> t08
+        end
+
+        subgraph V3["V3 · 统计与交付物"]
+            direction LR
+            t09["T09<br/>不确定性一致性"]
+            t10["T10<br/>统计文件写入保护"]
+            t11["T11<br/>图表可追溯性"]
+            t12["T12<br/>报告一致性"]
+            t13["T13<br/>Slides 一致性"]
+            t09 --> t10
+            t10 --> t11
+            t11 --> t12
+            t12 --> t13
+        end
+
+        subgraph V4["V4 · 发布与边界"]
+            direction LR
+            t14["T14<br/>中英文摘要一致性"]
+            t15["T15<br/>可视材料指引"]
+            t16["T16<br/>Manifest 边界"]
+            t17["T17<br/>产物路径边界"]
+            t14 --> t15
+            t15 --> t16
+            t16 --> t17
+        end
+
+        V1 --> V2
+        V2 --> V3
+        V3 --> V4
+    end
+
+    E(["最终验收<br/>17 / 17 检查通过<br/>PASS"])
+
+    DISC --> EXEC
+    EXEC --> MID
+    MID --> VERIFY
+    VERIFY --> E
+
+    classDef source fill:#EAF4F8,stroke:#1479A8,color:#182026;
+    classDef selected fill:#E6F4F1,stroke:#167C70,color:#182026;
+    classDef unit fill:#FFFFFF,stroke:#3A7CA5,color:#182026;
     classDef status fill:#FFF3E2,stroke:#D97706,color:#182026,stroke-width:2px;
-    classDef checks fill:#F1F4F6,stroke:#52606A,color:#182026;
+    classDef output fill:#EAF5F3,stroke:#2D7F75,color:#182026;
+    classDef check fill:#FFFFFF,stroke:#8A9AA7,color:#182026;
     classDef result fill:#EAF5EE,stroke:#237A45,color:#182026,stroke-width:2px;
-    class A,B,W,D work;
+    class A,B source;
+    class SEL selected;
+    class u01,u02,u03,u04,u05,u06,u07,u08,u09,u10 unit;
     class S status;
-    class C checks;
+    class D output;
+    class t01,t02,t03,t04,t05,t06,t07,t08,t09,t10,t11,t12,t13,t14,t15,t16,t17 check;
     class E result;
+
+    style DISC fill:transparent,stroke:#AAB7C4,stroke-width:1px,stroke-dasharray:4 3;
+    style EXEC fill:transparent,stroke:#AAB7C4,stroke-width:1px,stroke-dasharray:4 3;
+    style MID fill:transparent,stroke:#AAB7C4,stroke-width:1px,stroke-dasharray:4 3;
+    style VERIFY fill:transparent,stroke:#AAB7C4,stroke-width:1px,stroke-dasharray:4 3;
+    style G1 fill:#FFFFFF,stroke:#DCE4EA,stroke-width:1px;
+    style G2 fill:#FFFFFF,stroke:#DCE4EA,stroke-width:1px;
+    style G3 fill:#FFFFFF,stroke:#DCE4EA,stroke-width:1px;
+    style G4 fill:#FFFFFF,stroke:#DCE4EA,stroke-width:1px;
+    style G5 fill:#FFFFFF,stroke:#DCE4EA,stroke-width:1px;
+    style V1 fill:#FFFFFF,stroke:#DCE4EA,stroke-width:1px;
+    style V2 fill:#FFFFFF,stroke:#DCE4EA,stroke-width:1px;
+    style V3 fill:#FFFFFF,stroke:#DCE4EA,stroke-width:1px;
+    style V4 fill:#FFFFFF,stroke:#DCE4EA,stroke-width:1px;
+    linkStyle default stroke:#8A98A5,stroke-width:1px;
 ```
+
+图中的 `U01` 到 `U10` 是 10 个实际工作单元；`T01` 到 `T17` 按
+`consistency-check.json` 的记录顺序排列。检查节点之间的箭头只表示阅读顺序，
+不表示业务依赖。
 
 本次运行从已配置的本地 Skill 目录查找候选。发布准备时，这些目录中统计到
 100 多个 Skills；VibeSkills 阅读筛选后的候选 `SKILL.md`，最后选择并使用了 7 个。
