@@ -427,7 +427,7 @@ VibeSkills 会扫描 Skills 安装目录，以及你配置的其他本地 Skill 
 <a id="more-documentation"></a>
 <h2 align="center">更多文档</h2>
 
-<table>
+<table align="center" width="90%">
   <thead>
     <tr>
       <th width="50%" align="center">你想做什么</th>

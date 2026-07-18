@@ -451,7 +451,7 @@ It selects suitable Skills for the task, assigns them to the relevant work, and 
 <a id="more-documentation"></a>
 <h2 align="center">More Documentation</h2>
 
-<table>
+<table align="center" width="90%">
   <thead>
     <tr>
       <th width="50%" align="center">Need</th>
