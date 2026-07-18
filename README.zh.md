@@ -70,9 +70,21 @@ Skills，也可能只需要其中一部分。调用哪些 Skills 由任务本身
 > 使用公开数据完成一个可复现的分类实验，并交付数据审计、统计复核、4 张结果图、
 > 科学报告和 7 页组会 Slides。
 
-| 已配置的本地 Skills | 本次选择 | 工作分组 | 交付内容 | 最终验收 |
-|:---:|:---:|:---:|:---:|:---:|
-| **100+** | **7** | **5** | **图表 · 报告 · Slides** | **`PASS`** |
+```mermaid
+flowchart LR
+    A["本地 Skill 目录<br/>100+ Skills"] --> B["筛选候选<br/>读取 SKILL.md"]
+    B --> S(["运行状态<br/>已选择 7 个 Skills<br/>10 / 10 已完成"])
+    S --> C["5 个工作组<br/>数据审计 · 建模复现<br/>统计复核 · 图表报告 · Slides 验收"]
+    C --> D["实际产物<br/>4 张图 · 科学报告 · 7 页 Slides"]
+    D --> E(["最终验收<br/>17 / 17 检查通过 · PASS"])
+
+    classDef work fill:#EAF4F8,stroke:#1479A8,color:#182026;
+    classDef status fill:#FFF3E2,stroke:#D97706,color:#182026,stroke-width:2px;
+    classDef result fill:#EAF5EE,stroke:#237A45,color:#182026,stroke-width:2px;
+    class A,B,C,D work;
+    class S status;
+    class E result;
+```
 
 <p align="center">
   <img src="./docs/assets/vibeskills-case-flow-cn.gif" width="920" alt="轻量动画依次标出本地 Skills、选择 7 个、5 个工作组、实际产物和最终 PASS">
@@ -80,9 +92,6 @@ Skills，也可能只需要其中一部分。调用哪些 Skills 由任务本身
 
 本次运行从已配置的本地 Skill 目录查找候选。发布准备时，这些目录中统计到
 100 多个 Skills；VibeSkills 阅读筛选后的候选 `SKILL.md`，最后选择并使用了 7 个。
-
-**5 个工作组：** `数据审计` → `建模与复现` → `统计与科学复核` → `图表与报告` →
-`Slides 与验收`
 
 **10 / 10 个工作单元完成** · **0 个失败** · **0 个阻塞** ·
 **17 / 17 项跨产物检查通过**

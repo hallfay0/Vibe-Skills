@@ -74,9 +74,21 @@ on the task.
 > deliver a data audit, statistical review, 4 result figures, a scientific
 > report, and a 7-slide group-meeting deck.
 
-| Configured local Skills | Selected | Work groups | Delivered | Final acceptance |
-|:---:|:---:|:---:|:---:|:---:|
-| **100+** | **7** | **5** | **Figures · report · slides** | **`PASS`** |
+```mermaid
+flowchart LR
+    A["Configured Skill folders<br/>100+ Skills"] --> B["Shortlist candidates<br/>Read SKILL.md"]
+    B --> S(["Run status<br/>7 Skills selected<br/>10 / 10 completed"])
+    S --> C["5 work groups<br/>Data audit · Model replay<br/>Scientific review · Figures and report · Slides and acceptance"]
+    C --> D["Real outputs<br/>4 figures · Scientific report · 7-slide deck"]
+    D --> E(["Final acceptance<br/>17 / 17 checks passed · PASS"])
+
+    classDef work fill:#EAF4F8,stroke:#1479A8,color:#182026;
+    classDef status fill:#FFF3E2,stroke:#D97706,color:#182026,stroke-width:2px;
+    classDef result fill:#EAF5EE,stroke:#237A45,color:#182026,stroke-width:2px;
+    class A,B,C,D work;
+    class S status;
+    class E result;
+```
 
 <p align="center">
   <img src="./docs/assets/vibeskills-case-flow-en.gif" width="920" alt="A lightweight animation moves through local Skills, 7 selected Skills, 5 work groups, real outputs, and final PASS">
@@ -85,10 +97,6 @@ on the task.
 The run searched the configured local Skill folders. During publication
 preparation, those folders contained more than 100 Skills; VibeSkills read the
 shortlisted candidates' `SKILL.md` files and selected 7.
-
-**Five work groups:** `data audit` → `modeling and replay` →
-`statistical and scientific review` → `figures and report` →
-`slides and acceptance`
 
 **10 / 10 work units completed** · **0 failed** · **0 blocked** ·
 **17 / 17 cross-artifact checks passed**
