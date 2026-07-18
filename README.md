@@ -4,18 +4,18 @@
 
 <div align="center">
 
-<img src="./logo.png" width="142" alt="VibeSkills logo">
+<img src="./logo.png" width="124" alt="VibeSkills logo">
 
 <h1 align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-wordmark-dark.svg">
-    <img src="./docs/assets/readme-wordmark-light.svg" width="560" alt="VibeSkills">
+    <img src="./docs/assets/readme-wordmark-light.svg" width="500" alt="VibeSkills">
   </picture>
 </h1>
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-tagline-en-dark.svg">
-  <img src="./docs/assets/readme-tagline-en-light.svg" width="620" alt="Organize the right local Skills and carry complex tasks through to delivery.">
+  <img src="./docs/assets/readme-tagline-en-light.svg" width="560" alt="Organize the right local Skills and carry complex tasks through to delivery.">
 </picture>
 
 <br>
@@ -53,7 +53,7 @@
 <h2 align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-chapter-01-en-dark.svg">
-    <img src="./docs/assets/readme-chapter-01-en-light.svg" width="780" alt="VibeSkills Practice Case: Completing a Machine-Learning Experiment">
+    <img src="./docs/assets/readme-chapter-01-en-light.svg" width="720" alt="VibeSkills Practice Case: Completing a Machine-Learning Experiment">
   </picture>
 </h2>
 
@@ -241,7 +241,7 @@ flowchart LR
 <h2 align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-chapter-02-en-dark.svg">
-    <img src="./docs/assets/readme-chapter-02-en-light.svg" width="780" alt="How VibeSkills Carries a Task Through to Delivery">
+    <img src="./docs/assets/readme-chapter-02-en-light.svg" width="720" alt="How VibeSkills Carries a Task Through to Delivery">
   </picture>
 </h2>
 
@@ -255,30 +255,13 @@ whether the result is ready to deliver.
   <img src="./docs/assets/vibeskills-harness-overview-en.svg" width="860" alt="VibeSkills confirms the requirement, chooses L or XL, organizes Skills, records the work, and checks the result; code work can enter a TDD loop">
 </p>
 
-<table align="center" width="96%">
-  <tbody>
-    <tr>
-      <td width="9%" align="center" valign="top"><strong>Ⅰ</strong></td>
-      <td><strong>Confirms the requirement.</strong> Before work begins, it confirms the goal, constraints, available material, and expected delivery. The process stops here until the requirement is approved, giving the plan and final check a clear basis.</td>
-    </tr>
-    <tr>
-      <td align="center" valign="top"><strong>Ⅱ</strong></td>
-      <td><strong>Recommends a level.</strong> VibeSkills recommends <code>L</code> or <code>XL</code> from the task's scope, steps, dependencies, and opportunities for parallel work. You then confirm the level. Manageable work proceeds in order; larger work is split more finely.</td>
-    </tr>
-    <tr>
-      <td align="center" valign="top"><strong>Ⅲ</strong></td>
-      <td><strong>Organizes Skills.</strong> VibeSkills reviews the local Skill folders, selects the methods that fit each part, and states what each Skill owns, what it should deliver, and how completion will be checked.</td>
-    </tr>
-    <tr>
-      <td align="center" valign="top"><strong>Ⅳ</strong></td>
-      <td><strong>Executes and records.</strong> After plan approval, the current Agent completes the work. Code tasks can use test-driven development (TDD) when appropriate: show the problem with a failing test, make the change, and run the tests again. Completed, failed, and blocked states are recorded so a later session can continue.</td>
-    </tr>
-    <tr>
-      <td align="center" valign="top"><strong>Ⅴ</strong></td>
-      <td><strong>Checks the result.</strong> VibeSkills compares the actual result with every planned item. Required work that is incomplete, failed, or blocked prevents final acceptance.</td>
-    </tr>
-  </tbody>
-</table>
+<ol type="I">
+  <li><strong>Confirms the requirement.</strong> Before work begins, it confirms the goal, constraints, available material, and expected delivery. The process stops here until the requirement is approved, giving the plan and final check a clear basis.</li>
+  <li><strong>Recommends a level.</strong> VibeSkills recommends <code>L</code> or <code>XL</code> from the task's scope, steps, dependencies, and opportunities for parallel work. You then confirm the level. Manageable work proceeds in order; larger work is split more finely.</li>
+  <li><strong>Organizes Skills.</strong> VibeSkills reviews the local Skill folders, selects the methods that fit each part, and states what each Skill owns, what it should deliver, and how completion will be checked.</li>
+  <li><strong>Executes and records.</strong> After plan approval, the current Agent completes the work. Code tasks can use test-driven development (TDD) when appropriate: show the problem with a failing test, make the change, and run the tests again. Completed, failed, and blocked states are recorded so a later session can continue.</li>
+  <li><strong>Checks the result.</strong> VibeSkills compares the actual result with every planned item. Required work that is incomplete, failed, or blocked prevents final acceptance.</li>
+</ol>
 
 <details>
 <summary><strong>When to use L or XL</strong></summary>
@@ -294,7 +277,7 @@ whether the result is ready to deliver.
 <h2 align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-chapter-03-en-dark.svg">
-    <img src="./docs/assets/readme-chapter-03-en-light.svg" width="780" alt="How Local Skills Take Part">
+    <img src="./docs/assets/readme-chapter-03-en-light.svg" width="720" alt="How Local Skills Take Part">
   </picture>
 </h2>
 
@@ -394,7 +377,7 @@ Skill has already taken part in the work.
 <h2 align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-chapter-04-en-dark.svg">
-    <img src="./docs/assets/readme-chapter-04-en-light.svg" width="780" alt="How a Task Can Continue and Be Reviewed">
+    <img src="./docs/assets/readme-chapter-04-en-light.svg" width="720" alt="How a Task Can Continue and Be Reviewed">
   </picture>
 </h2>
 
@@ -430,31 +413,20 @@ not mean the final result passed its checks.
 <h2 align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-chapter-05-en-dark.svg">
-    <img src="./docs/assets/readme-chapter-05-en-light.svg" width="780" alt="Use VibeSkills">
+    <img src="./docs/assets/readme-chapter-05-en-light.svg" width="720" alt="Use VibeSkills">
   </picture>
 </h2>
 
-<table align="center" width="86%">
-  <tbody>
-    <tr>
-      <td width="11%" align="center" valign="top"><strong>Ⅰ</strong></td>
-      <td><strong>Invoke.</strong> Use VibeSkills the same way you invoke any other Skill. Depending on your AI tool, enter <code>$vibe</code> or <code>/vibe</code>.</td>
-    </tr>
-    <tr>
-      <td align="center" valign="top"><strong>Ⅱ</strong></td>
-      <td><strong>Discover.</strong> VibeSkills scans the Skills installation directory and any additional local Skill folders you configure to find the Skills currently available.</td>
-    </tr>
-    <tr>
-      <td align="center" valign="top"><strong>Ⅲ</strong></td>
-      <td><strong>Organize.</strong> It selects suitable Skills for the task, assigns them to the relevant work, and coordinates the result. You do not need to remember which Skill should be used when.</td>
-    </tr>
-  </tbody>
-</table>
+<ol type="I">
+  <li><strong>Invoke.</strong> Use VibeSkills the same way you invoke any other Skill. Depending on your AI tool, enter <code>$vibe</code> or <code>/vibe</code>.</li>
+  <li><strong>Discover.</strong> VibeSkills scans the Skills installation directory and any additional local Skill folders you configure to find the Skills currently available.</li>
+  <li><strong>Organize.</strong> It selects suitable Skills for the task, assigns them to the relevant work, and coordinates the result. You do not need to remember which Skill should be used when.</li>
+</ol>
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-wave-divider-dark.svg">
-    <img src="./docs/assets/readme-wave-divider-light.svg" width="260" alt="">
+    <img src="./docs/assets/readme-wave-divider-light.svg" width="240" alt="">
   </picture>
 </p>
 
@@ -483,7 +455,7 @@ not mean the final result passed its checks.
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-wave-divider-dark.svg">
-    <img src="./docs/assets/readme-wave-divider-light.svg" width="260" alt="">
+    <img src="./docs/assets/readme-wave-divider-light.svg" width="240" alt="">
   </picture>
 </p>
 
@@ -512,7 +484,7 @@ Third-party software attribution and license information are listed in
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-wave-divider-dark.svg">
-    <img src="./docs/assets/readme-wave-divider-light.svg" width="260" alt="">
+    <img src="./docs/assets/readme-wave-divider-light.svg" width="240" alt="">
   </picture>
 </p>
 
