@@ -4,17 +4,16 @@
 
 <div align="center">
 
-<img src="./logo.png" width="230" alt="VibeSkills logo">
+<img src="./logo.png" width="190" alt="VibeSkills logo">
 
 <h1>VibeSkills</h1>
 
-<h3>Organize the right local Skills and carry complex tasks through to delivery.</h3>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-tagline-en-dark.svg">
+  <img src="./docs/assets/readme-tagline-en-light.svg" width="680" alt="Organize the right local Skills and carry complex tasks through to delivery.">
+</picture>
 
-<p>Skills preserve valuable, proven ways of working. As a task grows more complex, an agent often falls back on the few Skills that are easiest to trigger. The rest rarely make it into the plan, and when several Skills are involved, responsibilities and outputs can fail to connect.<br>
-VibeSkills aims to organize those existing local capabilities through a complete harness.<br>
-It draws on the engineering discipline of Superpowers and the phased planning approach of GSD-Lite. A fixed state machine connects requirement confirmation, execution planning, Skill organization, state-driven execution, testing and evaluation, and final acceptance.<br>
-This gives users an end-to-end delivery experience from the initial request to final acceptance, while lowering the cognitive overhead and barrier to entry of working with AI agents.<br>
-The Skill library can keep growing. Skills that are not needed today can stay available until the right task arrives, while the workflow selects and assigns what each task needs.</p>
+<br>
 
 <a href="https://github.com/foryourhealth111-pixel/Vibe-Skills/releases/latest">
   <img src="https://img.shields.io/github/v/release/foryourhealth111-pixel/Vibe-Skills?display_name=tag&sort=semver&style=for-the-badge&color=14515B" alt="Latest release">
@@ -23,7 +22,7 @@ The Skill library can keep growing. Skills that are not needed today can stay av
 <br>
 
 <a href="./docs/install/README.en.md">
-  <img src="./docs/assets/install-cta-en.svg" width="327" height="56" alt="Install VibeSkills">
+  <img src="./docs/assets/install-cta-en.svg" width="248" height="42" alt="Install VibeSkills">
 </a>
 
 <br>
@@ -35,15 +34,29 @@ The Skill library can keep growing. Skills that are not needed today can stay av
 
 </div>
 
----
+<p align="center">Skills are valuable working assets. But as a task becomes more complex, an agent often falls back on the few Skills that are easiest to trigger, while the rest rarely enter the plan. When several Skills take part, responsibilities and outputs can also fail to connect.</p>
 
-## A real run: completing a machine-learning experiment
+<p align="center">VibeSkills is designed to organize these resources through a structured harness.</p>
+
+<p align="center">It draws on the harness approaches of Superpowers and GSD-Lite, with a complete workflow and state machine that bring requirement confirmation, execution planning, Skill organization, harness-guided execution, testing, and evaluation together.</p>
+
+<p align="center"><em>The goal is to give users an end-to-end delivery experience for concrete tasks while lowering the cognitive burden and barrier to using AI.</em></p>
+
+<p align="center"><em>Users should not have to worry that less frequently used Skills will sit idle, or repeatedly remember which Skills should be used for which task.</em></p>
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-wave-divider-dark.svg">
+    <img src="./docs/assets/readme-wave-divider-light.svg" width="420" alt="">
+  </picture>
+</p>
+
+<a id="vibeskills-ml-practice-case"></a>
+<h2 align="center">VibeSkills Practice Case: Completing a Machine-Learning Experiment</h2>
 
 > **Task**
 >
-> Use public data to complete a reproducible classification experiment and
-> deliver a data audit, statistical review, 4 result figures, a scientific
-> report, and a 7-slide group-meeting deck.
+> *Use public data to complete a reproducible classification experiment and deliver a data audit, statistical review, 4 result figures, a scientific report, and a 7-slide group-meeting deck.*
 
 The diagram shows what happened after the requirement and plan were approved:
 how the task was executed, what it produced, and how the result was checked.
@@ -59,8 +72,10 @@ After the work finished, VibeSkills ran 17 checks across the data, experiment
 results, figures, report, and slides. The task passed final acceptance after the
 required files, cross-deliverable consistency, and core reproduction all passed.
 
+<p align="center"><strong>7 Skills selected · 5 work groups · 10 / 10 work units completed · 17 / 17 checks passed</strong></p>
+
 ```mermaid
-%%{init: {"flowchart": {"curve": "linear", "nodeSpacing": 18, "rankSpacing": 36}}}%%
+%%{init: {"flowchart": {"curve": "monotoneX", "nodeSpacing": 18, "rankSpacing": 36}}}%%
 flowchart LR
     subgraph DISC["Skill discovery"]
         direction TB
@@ -183,13 +198,13 @@ flowchart LR
     MID --> VERIFY
     VERIFY --> E
 
-    classDef source fill:#EAF4F8,stroke:#1479A8,color:#182026;
-    classDef selected fill:#E6F4F1,stroke:#167C70,color:#182026;
-    classDef unit fill:#FFFFFF,stroke:#3A7CA5,color:#182026;
-    classDef status fill:#FFF3E2,stroke:#D97706,color:#182026,stroke-width:2px;
-    classDef output fill:#EAF5F3,stroke:#2D7F75,color:#182026;
+    classDef source fill:#EAF3F3,stroke:#2B6F73,color:#182026;
+    classDef selected fill:#F5EBEE,stroke:#8A5363,color:#182026;
+    classDef unit fill:#FFFFFF,stroke:#5B7F83,color:#182026;
+    classDef status fill:#F7EEF1,stroke:#8A5363,color:#182026,stroke-width:2px;
+    classDef output fill:#E8F2F0,stroke:#2D7F75,color:#182026;
     classDef check fill:#FFFFFF,stroke:#8A9AA7,color:#182026;
-    classDef result fill:#EAF5EE,stroke:#237A45,color:#182026,stroke-width:2px;
+    classDef result fill:#EAF4EE,stroke:#2F7A4B,color:#182026,stroke-width:2px;
     class A,B source;
     class SEL selected;
     class u01,u02,u03,u04,u05,u06,u07,u08,u09,u10 unit;
@@ -211,24 +226,32 @@ flowchart LR
     style V2 fill:#FFFFFF,stroke:#DCE4EA,stroke-width:1px;
     style V3 fill:#FFFFFF,stroke:#DCE4EA,stroke-width:1px;
     style V4 fill:#FFFFFF,stroke:#DCE4EA,stroke-width:1px;
-    linkStyle default stroke:#8A98A5,stroke-width:1px;
+    linkStyle default stroke:#6D878B,stroke-width:1px;
 ```
 
-**10 / 10 work units completed** · **0 failed** · **0 blocked** ·
-**17 / 17 cross-artifact checks passed**
+<p align="center">
+  <a href="./docs/cases/ml-experiment/README.md#case-execution">View case execution</a> ·
+  <a href="./docs/cases/ml-experiment/README.md#final-delivery">View final delivery</a>
+</p>
 
-[View case execution](./docs/cases/ml-experiment/README.md#case-execution) ·
-[View final delivery](./docs/cases/ml-experiment/README.md#final-delivery)
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-wave-divider-dark.svg">
+    <img src="./docs/assets/readme-wave-divider-light.svg" width="420" alt="">
+  </picture>
+</p>
 
-## How VibeSkills carries a task through to delivery
+<a id="how-vibeskills-carries-a-task-through-to-delivery"></a>
+<h2 align="center">How VibeSkills Carries a Task Through to Delivery</h2>
 
-VibeSkills gives an Agent one process from receiving a task to checking the
-delivery. Each stage answers a concrete question: what needs to be done, how the
+*VibeSkills gives an Agent one process from receiving a task to checking the delivery.*
+
+Each stage answers a concrete question: what needs to be done, how the
 work should proceed, which Skills should take part, what actually happened, and
 whether the result is ready to deliver.
 
 <p align="center">
-  <img src="./docs/assets/vibeskills-harness-overview-en.svg" width="920" alt="VibeSkills confirms the requirement, chooses L or XL, organizes Skills, records the work, and checks the result; code work can enter a TDD loop">
+  <img src="./docs/assets/vibeskills-harness-overview-en.svg" width="860" alt="VibeSkills confirms the requirement, chooses L or XL, organizes Skills, records the work, and checks the result; code work can enter a TDD loop">
 </p>
 
 - **Confirms the requirement.** Before work begins, it confirms the goal,
@@ -263,14 +286,23 @@ whether the result is ready to deliver.
 
 </details>
 
-## How local Skills take part
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-wave-divider-dark.svg">
+    <img src="./docs/assets/readme-wave-divider-light.svg" width="420" alt="">
+  </picture>
+</p>
 
-Local Skills can store tool usage, working steps, decision rules, and checking
-methods. VibeSkills reviews the local Skill folders you configure, then
+<a id="how-local-skills-take-part"></a>
+<h2 align="center">How Local Skills Take Part</h2>
+
+*Local Skills can store tool usage, working steps, decision rules, and checking methods.*
+
+VibeSkills reviews the local Skill folders you configure, then
 shortlists the Skills that fit the work required by each part of the task.
 
 <p align="center">
-  <img src="./docs/assets/vibeskills-skill-orchestration-en.png" width="920" alt="VibeSkills sits between task modules and local Skills, coordinating the work and selecting only the Skills each part needs">
+  <img src="./docs/assets/vibeskills-skill-orchestration-en.png" width="860" alt="VibeSkills sits between task modules and local Skills, coordinating the work and selecting only the Skills each part needs">
 </p>
 
 The left side shows the different kinds of work in the task, VibeSkills makes
@@ -278,12 +310,32 @@ the assignment in the middle, and the local Skill folders are on the right. A
 selected Skill is tied to concrete work, expected delivery, and a check. The
 current Agent then follows the shared plan.
 
-| Passive Skill triggering | With VibeSkills |
-|:---|:---|
-| The AI reacts to a few obvious words | It splits the whole task first |
-| The same familiar Skills are used repeatedly | Each part is checked for a better-fitting Skill |
-| Unmatched work is handled on the spot | A useful Skill is assigned to specific work with a stated result |
-| Separate calls are left disconnected | All results are brought together and checked at the end |
+<table>
+  <thead>
+    <tr>
+      <th width="50%" align="center">Passive Skill triggering</th>
+      <th width="50%" align="center">With VibeSkills</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>The AI reacts to a few obvious words</td>
+      <td><strong>It splits the whole task first</strong></td>
+    </tr>
+    <tr>
+      <td>The same familiar Skills are used repeatedly</td>
+      <td><strong>Each part is checked for a better-fitting Skill</strong></td>
+    </tr>
+    <tr>
+      <td>Unmatched work is handled on the spot</td>
+      <td><strong>A useful Skill is assigned to specific work with a stated result</strong></td>
+    </tr>
+    <tr>
+      <td>Separate calls are left disconnected</td>
+      <td><strong>All results are brought together and checked at the end</strong></td>
+    </tr>
+  </tbody>
+</table>
 
 VibeSkills does something straightforward: **it first makes the whole task
 clear, then assigns the right Skills to the relevant parts**. It coordinates
@@ -336,7 +388,15 @@ Skill has already taken part in the work.
 
 </details>
 
-## How a task can continue and be reviewed
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-wave-divider-dark.svg">
+    <img src="./docs/assets/readme-wave-divider-light.svg" width="420" alt="">
+  </picture>
+</p>
+
+<a id="how-a-task-can-continue-and-be-reviewed"></a>
+<h2 align="center">How a Task Can Continue and Be Reviewed</h2>
 
 VibeSkills keeps the approved requirement, plan, execution progress, and final
 check in the same task record. A later session can continue from the saved
@@ -365,51 +425,60 @@ A successful installation does not mean the task ran, and a task record does
 not mean the final result passed its checks. A public example lets readers
 follow the requirement, plan, actual result, and final check.
 
-## Install
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-wave-divider-dark.svg">
+    <img src="./docs/assets/readme-wave-divider-light.svg" width="420" alt="">
+  </picture>
+</p>
 
-Download the published release zip and extract it outside the Skills folder you
-plan to use. The default target is `~/.agents/skills`.
+<a id="use-vibeskills"></a>
+<h2 align="center">Use VibeSkills</h2>
 
-Install, update, check, uninstall, and migration commands are kept in one guide:
+Use VibeSkills the same way you invoke any other Skill. Depending on your AI tool, enter `$vibe` or `/vibe`.
 
-**[Open the complete installation guide](./docs/install/README.en.md)**
+VibeSkills scans the Skills installation directory and any additional local Skill folders you configure to find the Skills currently available.
 
-Current asset:
-[vibe-skills-4.0.0-public.zip](https://github.com/foryourhealth111-pixel/Vibe-Skills/releases/download/v4.0.0/vibe-skills-4.0.0-public.zip)
+It selects suitable Skills for the task, assigns them to the relevant work, and coordinates the result. You do not need to remember which Skill should be used when.
 
-## After installation
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-wave-divider-dark.svg">
+    <img src="./docs/assets/readme-wave-divider-light.svg" width="420" alt="">
+  </picture>
+</p>
 
-- You only need to remember one entry: `vibe`.
-- The installer manages VibeSkills files only under `<SkillsDir>/vibe`. It does
-  not install a separate built-in collection of Skills.
-- Your other Skills stay where they are. VibeSkills finds them in the shared
-  Skills directory or in local folders listed in
-  `~/.vibeskills/skill-roots.json` and
-  `<workspace>/.vibeskills/skill-roots.json`.
-- The installer does not change AI tool settings, system prompts, or commands,
-  and it does not configure MCP servers automatically.
-- After you approve the plan, the current AI completes the work. VibeSkills
-  records which parts completed, failed, or were blocked.
-- Requirements, plans, source files, and Git history remain the main project
-  records. Workspace memory helps continue the task but does not replace them.
+<a id="more-documentation"></a>
+<h2 align="center">More Documentation</h2>
 
-For implementation details, including the roles of Python and PowerShell, see
-the [architecture guide](./docs/architecture/local-agent-kernel-v2.md).
+<table>
+  <thead>
+    <tr>
+      <th width="50%" align="center">Need</th>
+      <th width="50%" align="center">Start here</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td align="center">See a complete real run</td><td align="center"><strong><a href="./docs/cases/ml-experiment/README.md">Machine-learning experiment case</a></strong></td></tr>
+    <tr><td align="center">Install, update, uninstall</td><td align="center"><strong><a href="./docs/install/README.en.md">Simple install</a></strong></td></tr>
+    <tr><td align="center">First use</td><td align="center"><strong><a href="./docs/quick-start.en.md">Quick start</a></strong></td></tr>
+    <tr><td align="center">Current release</td><td align="center"><strong><a href="./docs/releases/v4.0.0.md">v4.0.0 notes</a></strong></td></tr>
+    <tr><td align="center">See which AI tools have been tested</td><td align="center"><strong><a href="./docs/universalization/host-capability-matrix.md">Support status</a></strong></td></tr>
+    <tr><td align="center">How it works</td><td align="center"><strong><a href="./docs/README.md">Documentation index</a></strong></td></tr>
+    <tr><td align="center">Troubleshooting</td><td align="center"><strong><a href="./docs/troubleshooting.md">Troubleshooting guide</a></strong></td></tr>
+    <tr><td align="center">Contributing</td><td align="center"><strong><a href="./CONTRIBUTING.md">Contribution guide</a></strong></td></tr>
+  </tbody>
+</table>
 
-## More documentation
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-wave-divider-dark.svg">
+    <img src="./docs/assets/readme-wave-divider-light.svg" width="420" alt="">
+  </picture>
+</p>
 
-| Need | Start here |
-|:---|:---|
-| See a complete real run | [Machine-learning experiment case](./docs/cases/ml-experiment/README.md) |
-| Install, update, uninstall | [Simple install](./docs/install/README.en.md) |
-| First use | [Quick start](./docs/quick-start.en.md) |
-| Current release | [v4.0.0 notes](./docs/releases/v4.0.0.md) |
-| See which AI tools have been tested | [Support status](./docs/universalization/host-capability-matrix.md) |
-| How it works | [Documentation index](./docs/README.md) |
-| Troubleshooting | [Troubleshooting guide](./docs/troubleshooting.md) |
-| Contributing | [Contribution guide](./CONTRIBUTING.md) |
-
-## Community and credits
+<a id="community-and-credits"></a>
+<h2 align="center">Community and Credits</h2>
 
 Questions, corrections, and well-scoped contributions are welcome through
 [GitHub Issues](https://github.com/foryourhealth111-pixel/Vibe-Skills/issues)
@@ -430,7 +499,15 @@ Community contributors include
 Third-party software attribution and license information are listed in
 [NOTICE](./NOTICE) and [third-party licenses](./THIRD_PARTY_LICENSES.md).
 
-## Star History
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-wave-divider-dark.svg">
+    <img src="./docs/assets/readme-wave-divider-light.svg" width="420" alt="">
+  </picture>
+</p>
+
+<a id="star-history"></a>
+<h2 align="center">Star History</h2>
 
 <p align="center">
   <a href="https://www.star-history.com/?repos=foryourhealth111-pixel%2FVibe-Skills&type=date&legend=top-left">
