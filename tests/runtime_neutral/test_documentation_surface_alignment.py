@@ -271,12 +271,12 @@ def test_readmes_describe_local_installed_skill_story_without_repromoting_a_cent
     assert "local_first_skills" not in english_lower
     assert "Local + starter Skills stay the product surface." not in english
 
-    assert "指定的本地 Skill 文件夹" in chinese
+    assert "配置的本地 Skill 目录" in chinese
     assert "SKILL.md" in chinese
     assert "agent_skill_organization" in chinese
     assert "module_assignments" in chinese
     assert "保存实际分配" in chinese
-    assert "不必等 VibeSkills 项目本身收录它" in chinese
+    assert "不需要等待 VibeSkills 项目收录" in chinese
     assert "不会自动调用你安装的所有 Skills" in chinese
     assert "外部优先扩展" not in chinese
     assert "starter" not in chinese_lower
@@ -301,10 +301,10 @@ def test_public_readmes_describe_the_supporting_task_features() -> None:
 
     for phrase in (
         "Confirms the requirement",
-        "Saves the task record",
-        "Recommends a task level",
-        "Checks the final result",
-        "Plans tests for code work",
+        "Recommends a level",
+        "Organizes Skills",
+        "Executes and records",
+        "Checks the result",
         "up to two non-conflicting parts at the same time",
         "test-driven development",
     ):
@@ -312,19 +312,51 @@ def test_public_readmes_describe_the_supporting_task_features() -> None:
 
     for phrase in (
         "确认需求",
-        "保存任务记录",
-        "自动推荐任务级别",
-        "检查最终结果",
-        "安排测试",
+        "推荐级别",
+        "组织 Skills",
+        "执行并记录",
+        "检查结果",
         "最多同时推进两项工作",
         "测试驱动开发",
     ):
         assert phrase in chinese
 
     assert "需求没有确认时" in chinese
-    assert "不会直接开始执行" in chinese
-    assert "更换会话后，可以从已有记录继续" in chinese
-    assert "任务就不会被写成已经完成" in chinese
+    assert "流程会停在这里" in chinese
+    assert "中断后也可以从已有进度继续" in chinese
+    assert "任务不会通过最终检查" in chinese
+
+
+def test_public_readmes_explain_passive_triggering_and_bounded_skill_context_cost() -> None:
+    english = _read("README.md")
+    chinese = _read("README.zh.md")
+
+    for phrase in (
+        "Passive Skill triggering",
+        "With VibeSkills",
+        "The AI reacts to a few obvious words",
+        "All results are brought together and checked at the end",
+        "Will a large Skill library use a lot of tokens?",
+        "Discovery and index generation happen locally",
+        "Only retained candidates are then read as complete `SKILL.md` files",
+        "This overhead is not zero",
+    ):
+        assert phrase in english
+
+    for phrase in (
+        "只靠被动触发",
+        "使用 VibeSkills",
+        "AI 临时根据几个关键词决定用什么",
+        "最后把所有结果汇总起来一起检查",
+        "Skill 很多时，会不会消耗很多 token？",
+        "目录发现和索引生成在本机完成",
+        "只有保留下来的候选才会由 Agent 继续阅读完整的 `SKILL.md`",
+        "这部分开销仍然存在",
+    ):
+        assert phrase in chinese
+
+    assert "Skill 再多也不增加 token" not in chinese
+    assert "zero token overhead" not in english.casefold()
 
 
 def test_quick_start_does_not_advertise_disabled_stage_labels() -> None:
@@ -641,6 +673,257 @@ def test_installation_rules_and_minimal_path_are_archived_not_active_install_gui
         assert not (REPO_ROOT / path).exists()
         assert (REPO_ROOT / "docs" / "archive" / "install-legacy" / "2026-07-02" / Path(path).name).exists()
 
+
+def test_root_readmes_present_the_verified_ml_case_with_source_materials() -> None:
+    english = _read("README.md")
+    chinese = _read("README.zh.md")
+    english_case = _read("docs/cases/ml-experiment/README.md")
+    chinese_case = _read("docs/cases/ml-experiment/README.zh.md")
+
+    english_blocks = re.findall(r"```mermaid\r?\n(.*?)\r?\n```", english, flags=re.DOTALL)
+    chinese_blocks = re.findall(r"```mermaid\r?\n(.*?)\r?\n```", chinese, flags=re.DOTALL)
+    assert len(english_blocks) == len(chinese_blocks) == 1
+    english_diagram = english_blocks[0]
+    chinese_diagram = chinese_blocks[0]
+
+    for content in (english, chinese):
+        assert "./docs/cases/ml-experiment/" in content
+        assert ".gif" not in content.casefold()
+
+    assert "Organize the right local Skills and carry complex tasks through to delivery." in english
+    assert "组织合适的本地 Skills，把复杂任务做完整。" in chinese
+    assert "Skills preserve valuable, proven ways of working." in english
+    assert "Skills 是优秀的实践资产。" in chinese
+    assert "engineering discipline of Superpowers and the phased planning approach of GSD-Lite" in english
+    assert "Superpowers 的工程纪律和 GSD-Lite 的分阶段规划方式" in chinese
+    assert "A real run: completing a machine-learning experiment" in english
+    assert "一次真实运行：完成一项机器学习实验" in chinese
+    assert "[View case execution](./docs/cases/ml-experiment/README.md#case-execution)" in english
+    assert "[View final delivery](./docs/cases/ml-experiment/README.md#final-delivery)" in english
+    assert "[查看案例执行过程](./docs/cases/ml-experiment/README.zh.md#案例执行过程)" in chinese
+    assert "[查看最终交付结果](./docs/cases/ml-experiment/README.zh.md#最终交付结果)" in chinese
+    assert "View the source materials" not in english
+    assert "查看原始材料" not in chinese
+    assert "View final acceptance" not in english
+    assert "查看最终验收" not in chinese
+    assert "## Case execution" in english_case
+    assert "## Final delivery" in english_case
+    assert "## Execution records and reproduction materials" in english_case
+    assert "## 案例执行过程" in chinese_case
+    assert "## 最终交付结果" in chinese_case
+    assert "## 执行记录与复现材料" in chinese_case
+    assert "./evidence/delivery-acceptance-report.md" in english_case
+    assert "./evidence/delivery-acceptance-report.md" in chinese_case
+    for diagram in (english_diagram, chinese_diagram):
+        assert "flowchart LR" in diagram
+        assert "flowchart TB" not in diagram
+        for index in range(1, 11):
+            assert len(re.findall(rf"\bU{index:02d}\b", diagram)) == 1
+        for index in range(1, 18):
+            assert len(re.findall(rf"\bT{index:02d}\b", diagram)) == 1
+
+    assert "Run status<br/>10 / 10 completed<br/>0 failed · 0 blocked" in english_diagram
+    assert "运行状态<br/>10 / 10 完成<br/>0 失败 · 0 阻塞" in chinese_diagram
+    assert "Final acceptance<br/>17 / 17 checks passed<br/>PASS" in english_diagram
+    assert "最终验收<br/>17 / 17 检查通过<br/>PASS" in chinese_diagram
+
+    for group in (
+        "G1 · 01 Environment and data",
+        "G2 · 02 Modeling and reproduction",
+        "G3 · 03 Statistics and scientific review",
+        "G4 · 04 Figures and report",
+        "G5 · 05 Slides and acceptance",
+    ):
+        assert group in english_diagram
+    for group in (
+        "G1 · 01 环境与数据",
+        "G2 · 02 建模与复现",
+        "G3 · 03 统计与科学复核",
+        "G4 · 04 图表与报告",
+        "G5 · 05 Slides 与验收",
+    ):
+        assert group in chinese_diagram
+
+    for unit in (
+        "environment setup",
+        "data audit",
+        "baseline experiment",
+        "statistical analysis",
+        "scientific review",
+        "result figures",
+        "report draft",
+        "report review",
+        "group-meeting slides",
+        "case package and consistency",
+    ):
+        assert unit in english_diagram.casefold()
+
+    english_checks = english_diagram.replace("<br/>", "")
+    for check_id in (
+        "required-files",
+        "module-output-patterns",
+        "runtime-plan-binding",
+        "environment-contract",
+        "dataset-contract",
+        "split-and-model-contract",
+        "baseline-results",
+        "exact-reproduction",
+        "uncertainty-consistency",
+        "statistics-write-protection",
+        "figure-traceability",
+        "report-consistency",
+        "slides-consistency",
+        "bilingual-summary-consistency",
+        "visual-material-guidance",
+        "manifest-boundary",
+        "artifact-path-boundary",
+    ):
+        assert check_id in english_checks
+
+    for check_label in (
+        "必需文件",
+        "模块输出匹配",
+        "运行与计划绑定",
+        "环境合同",
+        "数据集合同",
+        "数据拆分与模型合同",
+        "基线结果",
+        "精确复现",
+        "不确定性一致性",
+        "统计文件写入保护",
+        "图表可追溯性",
+        "报告一致性",
+        "Slides 一致性",
+        "中英文摘要一致性",
+        "可视材料指引",
+        "Manifest 边界",
+        "产物路径边界",
+    ):
+        assert check_label in chinese_diagram
+
+    def mermaid_ids(diagram: str) -> set[str]:
+        subgraph_ids = re.findall(
+            r"^\s*subgraph\s+([A-Za-z][A-Za-z0-9_]*)",
+            diagram,
+            flags=re.MULTILINE,
+        )
+        node_ids = re.findall(
+            r"^\s*([A-Za-z][A-Za-z0-9_]*)\s*(?:\[|\()",
+            diagram,
+            flags=re.MULTILINE,
+        )
+        return set(subgraph_ids) | set(node_ids)
+
+    def mermaid_edges(diagram: str) -> set[tuple[str, str]]:
+        return set(
+            re.findall(
+                r"^\s*([A-Za-z][A-Za-z0-9_]*)\s*-->\s*"
+                r"([A-Za-z][A-Za-z0-9_]*)\s*$",
+                diagram,
+                flags=re.MULTILINE,
+            )
+        )
+
+    english_ids = mermaid_ids(english_diagram)
+    chinese_ids = mermaid_ids(chinese_diagram)
+    english_edges = mermaid_edges(english_diagram)
+    chinese_edges = mermaid_edges(chinese_diagram)
+    assert english_ids == chinese_ids
+    assert english_edges == chinese_edges
+    assert {f"u{index:02d}" for index in range(1, 11)} <= english_ids
+    assert {f"t{index:02d}" for index in range(1, 18)} <= english_ids
+    assert {
+        ("DISC", "EXEC"),
+        ("EXEC", "MID"),
+        ("MID", "VERIFY"),
+        ("VERIFY", "E"),
+    } <= english_edges
+    assert "How VibeSkills carries a task through to delivery" in english
+    assert "VibeSkills 如何把任务推进到可交付" in chinese
+    for step in (
+        "Confirms the requirement.",
+        "Recommends a level.",
+        "Organizes Skills.",
+        "Executes and records.",
+        "Checks the result.",
+    ):
+        assert step in english
+    for step in (
+        "确认需求。",
+        "推荐级别。",
+        "组织 Skills。",
+        "执行并记录。",
+        "检查结果。",
+    ):
+        assert step in chinese
+    assert "How local Skills take part" in english
+    assert "本地 Skills 如何参与任务" in chinese
+    assert "How a task can continue and be reviewed" in english
+    assert "任务中断后怎样继续，完成后怎样复查" in chinese
+    assert "U01` through `U10`" not in english
+    assert "`U01` 到 `U10`" not in chinese
+    assert "From requirement to final checks" not in english
+    assert "从需求确认到最终检查" not in chinese
+    assert "How it finds the right Skill" not in english
+    assert "它怎样找到合适的 Skill" not in chinese
+    assert "What gets saved" not in english
+    assert "运行后会保存什么" not in chinese
+    for project_name in (
+        "Get Shit Done",
+        "OpenSpec",
+        "spec-kit",
+        "mem0",
+        "Scrapling",
+        "Serena",
+    ):
+        assert project_name not in english
+        assert project_name not in chinese
+    assert "What else VibeSkills does" not in english
+    assert "除了组织 Skills，它还会做这些事" not in chinese
+
+
+def test_public_ml_case_claims_match_its_published_evidence() -> None:
+    case_root = REPO_ROOT / "docs" / "cases" / "ml-experiment"
+    selected = json.loads((case_root / "evidence" / "selected-skills.json").read_text(encoding="utf-8"))
+    inventory = json.loads((case_root / "evidence" / "skill-inventory-snapshot.json").read_text(encoding="utf-8"))
+    work_plan = json.loads((case_root / "evidence" / "module-work-plan.json").read_text(encoding="utf-8"))
+    execution = json.loads((case_root / "evidence" / "module-execution.json").read_text(encoding="utf-8"))
+    consistency = json.loads((case_root / "evidence" / "consistency-check.json").read_text(encoding="utf-8"))
+    acceptance = json.loads((case_root / "evidence" / "delivery-acceptance-report.json").read_text(encoding="utf-8"))
+
+    assert selected["source_run_id"] == "20260718T041559Z-51996499"
+    assert selected["selected_count"] == len(selected["skills"]) == 7
+    assert inventory["totals"]["unique_names"] > 100
+    assert inventory["totals"]["selected_for_case"] == 7
+    assert len(work_plan["modules"]) == 9
+    assert len(work_plan["work_units"]) == 10
+    assert len(execution["units"]) == 10
+    assert all(unit["state"] == "completed" for unit in execution["units"])
+    assert sum(len(module["criterion_results"]) for module in execution["modules"]) == 18
+    assert all(
+        criterion["state"] == "passing"
+        for module in execution["modules"]
+        for criterion in module["criterion_results"]
+    )
+    assert consistency["passing_check_count"] == 17
+    assert consistency["failing_check_count"] == 0
+    assert acceptance["summary"]["gate_result"] == "PASS"
+    assert acceptance["summary"]["runtime_status"] == "completed"
+    assert acceptance["summary"]["readiness_state"] == "fully_ready"
+    assert acceptance["execution_context"]["completed_unit_count"] == 10
+    assert acceptance["execution_context"]["failed_unit_count"] == 0
+    assert acceptance["execution_context"]["blocked_unit_count"] == 0
+
+
+def test_public_ml_case_keeps_private_paths_out() -> None:
+    case_root = REPO_ROOT / "docs" / "cases" / "ml-experiment"
+    for path in case_root.rglob("*"):
+        if path.suffix.lower() not in {".json", ".md", ".ps1", ".py", ".txt", ".lock"}:
+            continue
+        content = path.read_text(encoding="utf-8")
+        assert "D:\\Documents\\vibeskills" not in content
+        assert "C:\\Users\\" not in content
+        assert re.search(r"work[\\/]+readme-cases", content, flags=re.IGNORECASE) is None
 
 def test_recommended_full_and_enterprise_reference_pages_are_archived_not_active_install_guidance() -> None:
     for path in (
