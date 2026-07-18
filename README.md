@@ -284,10 +284,44 @@ the assignment in the middle, and the local Skill folders are on the right. A
 selected Skill is tied to concrete work, expected delivery, and a check. The
 current Agent then follows the shared plan.
 
+| Passive Skill triggering | With VibeSkills |
+|:---|:---|
+| The AI reacts to a few obvious words | It splits the whole task first |
+| The same familiar Skills are used repeatedly | Each part is checked for a better-fitting Skill |
+| Unmatched work is handled on the spot | A useful Skill is assigned to specific work with a stated result |
+| Separate calls are left disconnected | All results are brought together and checked at the end |
+
+VibeSkills does something straightforward: **it first makes the whole task
+clear, then assigns the right Skills to the relevant parts**. It coordinates
+the work and checks the combined result at the end. The task uses the Skills it
+needs; the rest of the local library stays available without entering the plan.
+
 You can keep adding your own Skills, team Skills, and third-party Skills.
 VibeSkills does not call every installed Skill automatically; it selects the
 Skills that fit the current task. The size of the library defines the available
 choices, not a list that every task must use.
+
+<details>
+<summary><strong>Will a large Skill library use a lot of tokens?</strong></summary>
+
+VibeSkills checks the Skill folders you configure, but finding files locally
+and placing their full contents in the model context are different operations.
+
+Discovery and index generation happen locally. VibeSkills first extracts compact
+information such as each Skill's name, description, intended use, and boundaries,
+then uses that information to shortlist candidates for each part of the task.
+
+Only retained candidates are then read as complete `SKILL.md` files. Execution
+uses only the Skills written into the plan. Token usage therefore depends mainly
+on how many candidates the task retains, how long those documents are, and how
+complex the task is. It is not the same as reading the full local Skill library
+into the model context.
+
+This overhead is not zero. More candidates, longer Skill documents, or a more
+finely divided task will use more context. The current design bounds that cost
+with a local index, candidate shortlisting, and on-demand reading.
+
+</details>
 
 <details>
 <summary><strong>Local folders and selection records</strong></summary>

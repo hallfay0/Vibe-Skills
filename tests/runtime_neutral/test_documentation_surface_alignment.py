@@ -327,6 +327,38 @@ def test_public_readmes_describe_the_supporting_task_features() -> None:
     assert "任务不会通过最终检查" in chinese
 
 
+def test_public_readmes_explain_passive_triggering_and_bounded_skill_context_cost() -> None:
+    english = _read("README.md")
+    chinese = _read("README.zh.md")
+
+    for phrase in (
+        "Passive Skill triggering",
+        "With VibeSkills",
+        "The AI reacts to a few obvious words",
+        "All results are brought together and checked at the end",
+        "Will a large Skill library use a lot of tokens?",
+        "Discovery and index generation happen locally",
+        "Only retained candidates are then read as complete `SKILL.md` files",
+        "This overhead is not zero",
+    ):
+        assert phrase in english
+
+    for phrase in (
+        "只靠被动触发",
+        "使用 VibeSkills",
+        "AI 临时根据几个关键词决定用什么",
+        "最后把所有结果汇总起来一起检查",
+        "Skill 很多时，会不会消耗很多 token？",
+        "目录发现和索引生成在本机完成",
+        "只有保留下来的候选才会由 Agent 继续阅读完整的 `SKILL.md`",
+        "这部分开销仍然存在",
+    ):
+        assert phrase in chinese
+
+    assert "Skill 再多也不增加 token" not in chinese
+    assert "zero token overhead" not in english.casefold()
+
+
 def test_quick_start_does_not_advertise_disabled_stage_labels() -> None:
     disabled_stage_labels = (
         "Vibe: What Do I Want?",
