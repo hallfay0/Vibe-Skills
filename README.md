@@ -22,7 +22,7 @@
 <br>
 
 <a href="./docs/install/README.en.md">
-  <img src="./docs/assets/install-cta-en.svg" width="292" height="50" alt="Install VibeSkills">
+  <img src="./docs/assets/install-cta-en.svg" width="248" height="42" alt="Install VibeSkills">
 </a>
 
 <br>
@@ -34,14 +34,20 @@
 
 </div>
 
-Skills are valuable working assets. But as a task becomes more complex, an agent often falls back on the few Skills that are easiest to trigger, while the rest rarely enter the plan. When several Skills take part, responsibilities and outputs can also fail to connect. VibeSkills is designed to **organize and coordinate these existing resources through a structured harness**.
+<p align="center">Skills are valuable working assets. But as a task becomes more complex, an agent often falls back on the few Skills that are easiest to trigger, while the rest rarely enter the plan. When several Skills take part, responsibilities and outputs can also fail to connect.</p>
 
-It draws on the harness approaches of Superpowers and GSD-Lite, bringing a **complete workflow and state machine** together across requirement confirmation, execution planning, Skill organization, harness-guided execution, testing, and evaluation. The goal is to give users an **end-to-end delivery experience for concrete tasks**, while lowering the cognitive burden and barrier to using AI. Users should not have to worry that less frequently used Skills will sit idle, or have to repeatedly remember **which Skills should be used for which task**.
+<p align="center">VibeSkills is designed to organize these resources through a structured harness.</p>
+
+<p align="center">It draws on the harness approaches of Superpowers and GSD-Lite, with a complete workflow and state machine that bring requirement confirmation, execution planning, Skill organization, harness-guided execution, testing, and evaluation together.</p>
+
+<p align="center"><em>The goal is to give users an end-to-end delivery experience for concrete tasks while lowering the cognitive burden and barrier to using AI.</em></p>
+
+<p align="center"><em>Users should not have to worry that less frequently used Skills will sit idle, or repeatedly remember which Skills should be used for which task.</em></p>
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-wave-divider-dark.svg">
-    <img src="./docs/assets/readme-wave-divider-light.svg" width="520" alt="">
+    <img src="./docs/assets/readme-wave-divider-light.svg" width="420" alt="">
   </picture>
 </p>
 
@@ -228,7 +234,15 @@ flowchart LR
   <a href="./docs/cases/ml-experiment/README.md#final-delivery">View final delivery</a>
 </p>
 
-## How VibeSkills carries a task through to delivery
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-wave-divider-dark.svg">
+    <img src="./docs/assets/readme-wave-divider-light.svg" width="420" alt="">
+  </picture>
+</p>
+
+<a id="how-vibeskills-carries-a-task-through-to-delivery"></a>
+<h2 align="center">How VibeSkills Carries a Task Through to Delivery</h2>
 
 *VibeSkills gives an Agent one process from receiving a task to checking the delivery.*
 
@@ -272,7 +286,15 @@ whether the result is ready to deliver.
 
 </details>
 
-## How local Skills take part
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-wave-divider-dark.svg">
+    <img src="./docs/assets/readme-wave-divider-light.svg" width="420" alt="">
+  </picture>
+</p>
+
+<a id="how-local-skills-take-part"></a>
+<h2 align="center">How Local Skills Take Part</h2>
 
 *Local Skills can store tool usage, working steps, decision rules, and checking methods.*
 
@@ -320,13 +342,6 @@ clear, then assigns the right Skills to the relevant parts**. It coordinates
 the work and checks the combined result at the end. The task uses the Skills it
 needs; the rest of the local library stays available without entering the plan.
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-wave-divider-dark.svg">
-    <img src="./docs/assets/readme-wave-divider-light.svg" width="420" alt="">
-  </picture>
-</p>
-
 You can keep adding your own Skills, team Skills, and third-party Skills.
 VibeSkills does not call every installed Skill automatically; it selects the
 Skills that fit the current task. The size of the library defines the available
@@ -373,7 +388,15 @@ Skill has already taken part in the work.
 
 </details>
 
-## How a task can continue and be reviewed
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-wave-divider-dark.svg">
+    <img src="./docs/assets/readme-wave-divider-light.svg" width="420" alt="">
+  </picture>
+</p>
+
+<a id="how-a-task-can-continue-and-be-reviewed"></a>
+<h2 align="center">How a Task Can Continue and Be Reviewed</h2>
 
 VibeSkills keeps the approved requirement, plan, execution progress, and final
 check in the same task record. A later session can continue from the saved
@@ -402,51 +425,60 @@ A successful installation does not mean the task ran, and a task record does
 not mean the final result passed its checks. A public example lets readers
 follow the requirement, plan, actual result, and final check.
 
-## Install
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-wave-divider-dark.svg">
+    <img src="./docs/assets/readme-wave-divider-light.svg" width="420" alt="">
+  </picture>
+</p>
 
-Download the published release zip and extract it outside the Skills folder you
-plan to use. The default target is `~/.agents/skills`.
+<a id="use-vibeskills"></a>
+<h2 align="center">Use VibeSkills</h2>
 
-Install, update, check, uninstall, and migration commands are kept in one guide:
+Use VibeSkills the same way you invoke any other Skill. Depending on your AI tool, enter `$vibe` or `/vibe`.
 
-<p align="center"><strong><a href="./docs/install/README.en.md">Open the complete installation guide</a></strong></p>
+VibeSkills scans the Skills installation directory and any additional local Skill folders you configure to find the Skills currently available.
 
-Current asset:
-[vibe-skills-4.0.0-public.zip](https://github.com/foryourhealth111-pixel/Vibe-Skills/releases/download/v4.0.0/vibe-skills-4.0.0-public.zip)
+It selects suitable Skills for the task, assigns them to the relevant work, and coordinates the result. You do not need to remember which Skill should be used when.
 
-## After installation
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-wave-divider-dark.svg">
+    <img src="./docs/assets/readme-wave-divider-light.svg" width="420" alt="">
+  </picture>
+</p>
 
-- You only need to remember one entry: `vibe`.
-- The installer manages VibeSkills files only under `<SkillsDir>/vibe`. It does
-  not install a separate built-in collection of Skills.
-- Your other Skills stay where they are. VibeSkills finds them in the shared
-  Skills directory or in local folders listed in
-  `~/.vibeskills/skill-roots.json` and
-  `<workspace>/.vibeskills/skill-roots.json`.
-- The installer does not change AI tool settings, system prompts, or commands,
-  and it does not configure MCP servers automatically.
-- After you approve the plan, the current AI completes the work. VibeSkills
-  records which parts completed, failed, or were blocked.
-- Requirements, plans, source files, and Git history remain the main project
-  records. Workspace memory helps continue the task but does not replace them.
+<a id="more-documentation"></a>
+<h2 align="center">More Documentation</h2>
 
-For implementation details, including the roles of Python and PowerShell, see
-the [architecture guide](./docs/architecture/local-agent-kernel-v2.md).
+<table>
+  <thead>
+    <tr>
+      <th width="50%" align="center">Need</th>
+      <th width="50%" align="center">Start here</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td align="center">See a complete real run</td><td align="center"><strong><a href="./docs/cases/ml-experiment/README.md">Machine-learning experiment case</a></strong></td></tr>
+    <tr><td align="center">Install, update, uninstall</td><td align="center"><strong><a href="./docs/install/README.en.md">Simple install</a></strong></td></tr>
+    <tr><td align="center">First use</td><td align="center"><strong><a href="./docs/quick-start.en.md">Quick start</a></strong></td></tr>
+    <tr><td align="center">Current release</td><td align="center"><strong><a href="./docs/releases/v4.0.0.md">v4.0.0 notes</a></strong></td></tr>
+    <tr><td align="center">See which AI tools have been tested</td><td align="center"><strong><a href="./docs/universalization/host-capability-matrix.md">Support status</a></strong></td></tr>
+    <tr><td align="center">How it works</td><td align="center"><strong><a href="./docs/README.md">Documentation index</a></strong></td></tr>
+    <tr><td align="center">Troubleshooting</td><td align="center"><strong><a href="./docs/troubleshooting.md">Troubleshooting guide</a></strong></td></tr>
+    <tr><td align="center">Contributing</td><td align="center"><strong><a href="./CONTRIBUTING.md">Contribution guide</a></strong></td></tr>
+  </tbody>
+</table>
 
-## More documentation
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-wave-divider-dark.svg">
+    <img src="./docs/assets/readme-wave-divider-light.svg" width="420" alt="">
+  </picture>
+</p>
 
-| Need | Start here |
-|:---|:---|
-| See a complete real run | [Machine-learning experiment case](./docs/cases/ml-experiment/README.md) |
-| Install, update, uninstall | [Simple install](./docs/install/README.en.md) |
-| First use | [Quick start](./docs/quick-start.en.md) |
-| Current release | [v4.0.0 notes](./docs/releases/v4.0.0.md) |
-| See which AI tools have been tested | [Support status](./docs/universalization/host-capability-matrix.md) |
-| How it works | [Documentation index](./docs/README.md) |
-| Troubleshooting | [Troubleshooting guide](./docs/troubleshooting.md) |
-| Contributing | [Contribution guide](./CONTRIBUTING.md) |
-
-## Community and credits
+<a id="community-and-credits"></a>
+<h2 align="center">Community and Credits</h2>
 
 Questions, corrections, and well-scoped contributions are welcome through
 [GitHub Issues](https://github.com/foryourhealth111-pixel/Vibe-Skills/issues)
@@ -467,7 +499,15 @@ Community contributors include
 Third-party software attribution and license information are listed in
 [NOTICE](./NOTICE) and [third-party licenses](./THIRD_PARTY_LICENSES.md).
 
-## Star History
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-wave-divider-dark.svg">
+    <img src="./docs/assets/readme-wave-divider-light.svg" width="420" alt="">
+  </picture>
+</p>
+
+<a id="star-history"></a>
+<h2 align="center">Star History</h2>
 
 <p align="center">
   <a href="https://www.star-history.com/?repos=foryourhealth111-pixel%2FVibe-Skills&type=date&legend=top-left">
