@@ -37,7 +37,7 @@ The Skill library can keep growing. Skills that are not needed today can stay av
 
 ---
 
-## A real run: completing a machine-learning experiment
+## VibeSkills Practice Case: Completing a Machine-Learning Experiment
 
 > **Task**
 >
