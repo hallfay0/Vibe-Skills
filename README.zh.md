@@ -10,10 +10,11 @@
 
 <h3>组织合适的本地 Skills，把复杂任务做完整。</h3>
 
-<p>VibeSkills 是一套面向 AI Agent 的任务交付框架（harness）。<br>
-本地 Skills 保存了可以重复使用的工具、流程和工作方法；VibeSkills 从完整任务出发，<br>
-选择适合各部分工作的 Skills，安排到具体工作，再通过需求确认、计划、执行和检查<br>
-把任务推进到交付。</p>
+<p>Skills 是优秀的实践资产。任务一复杂，Agent 往往反复调用最容易触发的几个，其余 Skills 很少被安排进计划；多个 Skills 一起参与时，分工和结果也容易接不上。<br>
+VibeSkills 想做的，就是用一套完整的 harness，把这些已经存在于本地的能力组织起来。<br>
+它参考了 Superpowers 的工程纪律和 GSD-Lite 的分阶段规划方式，通过固定状态机，把需求确认、执行规划、Skills 组织、按状态推进、测试评估和最终验收连接起来。<br>
+这让一项任务可以沿着同一套流程，从需求确认一直走到最终验收，也降低了使用 AI Agent 时的认知负担和上手门槛。<br>
+Skill 库可以继续扩充。暂时用不到的 Skills 留在库里，合适的任务出现时再参与；每次任务需要哪些 Skills，由流程重新选择和安排。</p>
 
 <a href="https://github.com/foryourhealth111-pixel/Vibe-Skills/releases/latest">
   <img src="https://img.shields.io/github/v/release/foryourhealth111-pixel/Vibe-Skills?display_name=tag&sort=semver&style=for-the-badge&color=14515B" alt="最新版本">
@@ -35,12 +36,6 @@
 </div>
 
 ---
-
-> **先说清楚任务，不必先想好该用哪些 Skills。**
->
-> VibeSkills 会从已配置的本地 Skill 库中选择合适的部分，安排它们负责的工作，
-> 并在最后一起检查结果。Skill 库可以继续积累，你不需要同时记住每个
-> Skill 的名称、用途和组合方式。
 
 ## 一次真实运行：完成一项机器学习实验
 

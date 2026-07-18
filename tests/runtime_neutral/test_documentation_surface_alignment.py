@@ -692,8 +692,10 @@ def test_root_readmes_present_the_verified_ml_case_with_source_materials() -> No
 
     assert "Organize the right local Skills and carry complex tasks through to delivery." in english
     assert "组织合适的本地 Skills，把复杂任务做完整。" in chinese
-    assert "You can start with the task without deciding which Skills to combine first." in english
-    assert "先说清楚任务，不必先想好该用哪些 Skills。" in chinese
+    assert "Skills preserve valuable, proven ways of working." in english
+    assert "Skills 是优秀的实践资产。" in chinese
+    assert "engineering discipline of Superpowers and the phased planning approach of GSD-Lite" in english
+    assert "Superpowers 的工程纪律和 GSD-Lite 的分阶段规划方式" in chinese
     assert "A real run: completing a machine-learning experiment" in english
     assert "一次真实运行：完成一项机器学习实验" in chinese
     assert "[View case execution](./docs/cases/ml-experiment/README.md#case-execution)" in english
@@ -867,7 +869,6 @@ def test_root_readmes_present_the_verified_ml_case_with_source_materials() -> No
     assert "What gets saved" not in english
     assert "运行后会保存什么" not in chinese
     for project_name in (
-        "Superpowers",
         "Get Shit Done",
         "OpenSpec",
         "spec-kit",

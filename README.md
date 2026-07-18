@@ -10,10 +10,11 @@
 
 <h3>Organize the right local Skills and carry complex tasks through to delivery.</h3>
 
-<p>VibeSkills is a task-delivery harness for AI agents.<br>
-Local Skills capture reusable tools, processes, and ways of working; VibeSkills starts with the whole task,<br>
-chooses the Skills that fit each part, assigns them to concrete work, and carries the task through<br>
-requirement confirmation, planning, execution, and final checks.</p>
+<p>Skills preserve valuable, proven ways of working. As a task grows more complex, an agent often falls back on the few Skills that are easiest to trigger. The rest rarely make it into the plan, and when several Skills are involved, responsibilities and outputs can fail to connect.<br>
+VibeSkills aims to organize those existing local capabilities through a complete harness.<br>
+It draws on the engineering discipline of Superpowers and the phased planning approach of GSD-Lite. A fixed state machine connects requirement confirmation, execution planning, Skill organization, state-driven execution, testing and evaluation, and final acceptance.<br>
+This gives users an end-to-end delivery experience from the initial request to final acceptance, while lowering the cognitive overhead and barrier to entry of working with AI agents.<br>
+The Skill library can keep growing. Skills that are not needed today can stay available until the right task arrives, while the workflow selects and assigns what each task needs.</p>
 
 <a href="https://github.com/foryourhealth111-pixel/Vibe-Skills/releases/latest">
   <img src="https://img.shields.io/github/v/release/foryourhealth111-pixel/Vibe-Skills?display_name=tag&sort=semver&style=for-the-badge&color=14515B" alt="Latest release">
@@ -35,13 +36,6 @@ requirement confirmation, planning, execution, and final checks.</p>
 </div>
 
 ---
-
-> **You can start with the task without deciding which Skills to combine first.**
->
-> VibeSkills selects the relevant Skills from the local library, assigns them
-> to concrete work, and checks the results together at the end. The library can
-> keep growing without requiring you to memorize every Skill's name, purpose, or
-> how it might be combined with others.
 
 ## A real run: completing a machine-learning experiment
 
