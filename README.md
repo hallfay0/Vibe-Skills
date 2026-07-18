@@ -57,7 +57,7 @@ does not need a dedicated Skill stays with the current AI.
 ## Decompose first, then organize Skills
 
 <p align="center">
-  <img src="./docs/assets/vibeskills-skill-orchestration-en.svg" width="920" alt="VibeSkills splits a complex task, selects relevant local Skills for each work module, then combines and checks the results">
+  <img src="./docs/assets/vibeskills-skill-orchestration-en.svg" width="920" alt="VibeSkills matches each part of a task with local Skills that help, while the current AI handles work that does not need a dedicated Skill">
 </p>
 
 The task is split before Skills are chosen. If four parts need four different
@@ -216,13 +216,3 @@ collect several examples that were shared with the community.
 Community contributors include
 [xiaozhongyaonvli](https://github.com/xiaozhongyaonvli) and
 [ruirui2345](https://github.com/ruirui2345).
-
-## Star history
-
-<p align="center">
-  <a href="https://www.star-history.com/#foryourhealth111-pixel/Vibe-Skills&Date">
-    <img src="./docs/assets/star-history.svg" width="820" alt="VibeSkills star history snapshot through 2026-07-18">
-  </a>
-</p>
-
-<p align="center"><sub>Static snapshot updated on 2026-07-18. Select the chart for live Star History.</sub></p>

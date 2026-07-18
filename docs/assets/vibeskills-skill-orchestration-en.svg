@@ -1,95 +1,87 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="500" viewBox="0 0 1200 500" role="img" aria-labelledby="title desc">
-  <title id="title">How VibeSkills organizes Skills</title>
-  <desc id="desc">VibeSkills splits a complex task, selects relevant local Skills for each work module, then combines and checks the results.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="540" viewBox="0 0 1200 540" role="img" aria-labelledby="title desc">
+  <title id="title">Matching task modules with local Skills</title>
+  <desc id="desc">VibeSkills examines the parts of a task and connects only the local Skills that help; work that does not need a dedicated Skill stays with the current AI.</desc>
 
-  <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0 0 L10 5 L0 10 Z" fill="#0F4C4E"/>
-    </marker>
-  </defs>
+  <rect width="1200" height="540" fill="#FAFBF7"/>
 
-  <rect width="1200" height="500" fill="#FAFBF7"/>
-
-  <g fill="none" stroke="#0F4C4E" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)">
-    <path d="M200 220 H242"/>
-    <path d="M422 220 H458"/>
-    <path d="M804 220 H842"/>
-    <path d="M980 220 H1016"/>
-    <path d="M420 412 H474"/>
-    <path d="M650 412 V350 H630 V316"/>
+  <g font-family="Segoe UI, Arial, sans-serif" text-anchor="middle" fill="#0F4C4E">
+    <text x="200" y="61" font-size="19" font-weight="700">Parts of the task</text>
+    <text x="600" y="61" font-size="19" font-weight="700">Match by actual need</text>
+    <text x="1000" y="61" font-size="19" font-weight="700">Your local Skills</text>
+    <text x="1000" y="84" font-size="12" fill="#557979">Actual names come from your local Skill folders</text>
   </g>
 
-  <g transform="translate(40 170)">
-    <rect width="160" height="100" rx="8" fill="#0F4C4E"/>
-    <path d="M31 31 H62 L74 43 V71 H31 Z" fill="none" stroke="#A7EEF0" stroke-width="3" stroke-linejoin="round"/>
-    <path d="M62 31 V43 H74" fill="none" stroke="#A7EEF0" stroke-width="3"/>
-    <path d="M40 52 H64 M40 62 H57" fill="none" stroke="#A7EEF0" stroke-width="3" stroke-linecap="round"/>
-    <text x="118" y="34" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" text-anchor="middle">One</text>
-    <text x="118" y="53" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" text-anchor="middle">complex</text>
-    <text x="118" y="72" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" text-anchor="middle">task</text>
-  </g>
-
-  <g transform="translate(242 170)">
-    <rect width="180" height="100" rx="8" fill="#FFFFFF" stroke="#0F4C4E" stroke-width="3"/>
-    <circle cx="44" cy="50" r="9" fill="#0F4C4E"/>
-    <path d="M53 50 H72 M72 50 V30 H92 M72 50 V70 H92" fill="none" stroke="#0F4C4E" stroke-width="3" stroke-linecap="round"/>
-    <text x="132" y="34" fill="#0F4C4E" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" text-anchor="middle">Split into</text>
-    <text x="132" y="53" fill="#0F4C4E" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" text-anchor="middle">work</text>
-    <text x="132" y="72" fill="#0F4C4E" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" text-anchor="middle">modules</text>
-  </g>
-
-  <text x="630" y="71" fill="#0F4C4E" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" text-anchor="middle">Give each module the right help</text>
-
-  <g font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="700" text-anchor="middle" fill="#0F4C4E">
-    <g transform="translate(468 96)">
-      <rect width="150" height="82" rx="8" fill="#A7EEF0" stroke="#0F4C4E" stroke-width="2"/>
-      <text x="75" y="49">Scope / research</text>
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700" text-anchor="middle" fill="#0F4C4E">
+    <g transform="translate(70 105)">
+      <rect width="260" height="62" rx="8" fill="#DDF8F8" stroke="#0F4C4E" stroke-width="2.5"/>
+      <circle cx="28" cy="31" r="10" fill="#52C9CE" stroke="none"/>
+      <text x="145" y="38">Scope / research</text>
     </g>
-    <g transform="translate(642 96)">
-      <rect width="150" height="82" rx="8" fill="#E88E7D" stroke="#0F4C4E" stroke-width="2"/>
-      <text x="75" y="49">Build / change</text>
+    <g transform="translate(70 190)">
+      <rect width="260" height="62" rx="8" fill="#FBE5E1" stroke="#0F4C4E" stroke-width="2.5"/>
+      <circle cx="28" cy="31" r="10" fill="#E88E7D" stroke="none"/>
+      <text x="145" y="38">Build / change</text>
     </g>
-    <g transform="translate(468 234)">
-      <rect width="150" height="82" rx="8" fill="#75B89B" stroke="#0F4C4E" stroke-width="2"/>
-      <text x="75" y="49">Test / review</text>
+    <g transform="translate(70 275)">
+      <rect width="260" height="62" rx="8" fill="#E5F3EB" stroke="#0F4C4E" stroke-width="2.5"/>
+      <circle cx="28" cy="31" r="10" fill="#75B89B" stroke="none"/>
+      <text x="145" y="38">Test / review</text>
     </g>
-    <g transform="translate(642 234)">
-      <rect width="150" height="82" rx="8" fill="#F0C86A" stroke="#0F4C4E" stroke-width="2"/>
-      <text x="75" y="49">Document / deliver</text>
+    <g transform="translate(70 360)">
+      <rect width="260" height="62" rx="8" fill="#FFF3D5" stroke="#0F4C4E" stroke-width="2.5"/>
+      <circle cx="28" cy="31" r="10" fill="#E7B94F" stroke="none"/>
+      <text x="145" y="38">Document / deliver</text>
     </g>
   </g>
 
-  <path d="M458 220 H446 V137 H468 M446 220 V275 H468 M446 220 H630 V137 H642 M630 220 V275 H642" fill="none" stroke="#0F4C4E" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M618 137 V86 H820 V220 H842 M792 137 H820 M618 275 V326 H820 V220 M792 275 H820" fill="none" stroke="#0F4C4E" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-
-  <g transform="translate(842 170)">
-    <rect width="138" height="100" rx="8" fill="#FFFFFF" stroke="#0F4C4E" stroke-width="3"/>
-    <rect x="25" y="28" width="43" height="34" rx="5" fill="#A7EEF0" stroke="#0F4C4E" stroke-width="2"/>
-    <rect x="38" y="40" width="43" height="34" rx="5" fill="#75B89B" stroke="#0F4C4E" stroke-width="2"/>
-    <text x="111" y="45" fill="#0F4C4E" font-family="Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="700" text-anchor="middle">Combine</text>
-    <text x="111" y="65" fill="#0F4C4E" font-family="Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="700" text-anchor="middle">results</text>
+  <g fill="none" stroke-width="4" stroke-linecap="round">
+    <path d="M330 136 C500 136 700 134 880 134" stroke="#52C9CE"/>
+    <path d="M330 221 C500 221 700 284 880 284" stroke="#E88E7D"/>
+    <path d="M330 306 C500 306 700 209 880 209" stroke="#75B89B"/>
+    <path d="M330 391 C415 391 452 411 520 411" stroke="#D2A233" stroke-dasharray="9 8"/>
   </g>
 
-  <g transform="translate(1016 170)">
-    <rect width="144" height="100" rx="8" fill="#E6F5EC" stroke="#0F4C4E" stroke-width="3"/>
-    <circle cx="41" cy="50" r="23" fill="#75B89B"/>
-    <path d="M29 50 L38 59 L54 40" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-    <text x="102" y="44" fill="#0F4C4E" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" text-anchor="middle">Check</text>
-    <text x="102" y="66" fill="#0F4C4E" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" text-anchor="middle">completion</text>
+  <g fill="#FAFBF7" stroke-width="3">
+    <circle cx="330" cy="136" r="6" stroke="#52C9CE"/>
+    <circle cx="880" cy="134" r="6" stroke="#52C9CE"/>
+    <circle cx="330" cy="221" r="6" stroke="#E88E7D"/>
+    <circle cx="880" cy="284" r="6" stroke="#E88E7D"/>
+    <circle cx="330" cy="306" r="6" stroke="#75B89B"/>
+    <circle cx="880" cy="209" r="6" stroke="#75B89B"/>
+    <circle cx="330" cy="391" r="6" stroke="#D2A233"/>
+    <circle cx="520" cy="411" r="6" stroke="#D2A233"/>
   </g>
 
-  <g transform="translate(242 374)">
-    <rect width="178" height="76" rx="8" fill="#FFFFFF" stroke="#0F4C4E" stroke-width="3"/>
-    <rect x="18" y="19" width="30" height="30" rx="5" fill="#A7EEF0" stroke="#0F4C4E" stroke-width="2"/>
-    <rect x="54" y="19" width="30" height="30" rx="5" fill="#E88E7D" stroke="#0F4C4E" stroke-width="2"/>
-    <rect x="90" y="19" width="30" height="30" rx="5" fill="#75B89B" stroke="#0F4C4E" stroke-width="2"/>
-    <text x="148" y="39" fill="#0F4C4E" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" text-anchor="middle">Local</text>
-    <text x="148" y="58" fill="#0F4C4E" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" text-anchor="middle">Skills</text>
+  <g font-family="Segoe UI, Arial, sans-serif" text-anchor="middle" fill="#0F4C4E">
+    <g transform="translate(880 105)">
+      <rect width="240" height="58" rx="8" fill="#A7EEF0" stroke="#0F4C4E" stroke-width="2.5"/>
+      <text x="120" y="36" font-size="16" font-weight="700">Research Skill</text>
+    </g>
+    <g transform="translate(880 180)">
+      <rect width="240" height="58" rx="8" fill="#B9DEC9" stroke="#0F4C4E" stroke-width="2.5"/>
+      <text x="120" y="36" font-size="16" font-weight="700">Testing Skill</text>
+    </g>
+    <g transform="translate(880 255)">
+      <rect width="240" height="58" rx="8" fill="#F2B2A5" stroke="#0F4C4E" stroke-width="2.5"/>
+      <text x="120" y="36" font-size="16" font-weight="700">Build Skill</text>
+    </g>
+    <g transform="translate(880 330)">
+      <rect width="240" height="58" rx="8" fill="#FFFFFF" stroke="#AFC3C0" stroke-width="2.5" stroke-dasharray="7 6"/>
+      <text x="120" y="26" font-size="15" font-weight="700" fill="#557979">Writing Skill</text>
+      <text x="120" y="45" font-size="12" fill="#789393">not used for this task</text>
+    </g>
+    <g transform="translate(880 405)">
+      <rect width="240" height="58" rx="8" fill="#FFFFFF" stroke="#AFC3C0" stroke-width="2.5" stroke-dasharray="7 6"/>
+      <text x="120" y="26" font-size="15" font-weight="700" fill="#557979">Other local Skill</text>
+      <text x="120" y="45" font-size="12" fill="#789393">not used for this task</text>
+    </g>
   </g>
 
-  <g transform="translate(474 374)">
-    <rect width="176" height="76" rx="8" fill="#FFF7DB" stroke="#0F4C4E" stroke-width="3"/>
-    <path d="M25 38 H61 M49 27 L61 38 L49 49" fill="none" stroke="#0F4C4E" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-    <text x="119" y="45" fill="#0F4C4E" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="700" text-anchor="middle">Choose by need</text>
+  <g transform="translate(520 380)">
+    <rect width="160" height="62" rx="8" fill="#FFF7DB" stroke="#D2A233" stroke-width="2.5"/>
+    <text x="80" y="29" fill="#0F4C4E" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700" text-anchor="middle">Current AI</text>
+    <text x="80" y="49" fill="#6B7F74" font-family="Segoe UI, Arial, sans-serif" font-size="12" text-anchor="middle">handles this part</text>
   </g>
+
+  <text x="600" y="506" fill="#0F4C4E" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="600" text-anchor="middle">Select only the Skills that help; the current AI handles the rest.</text>
 </svg>
