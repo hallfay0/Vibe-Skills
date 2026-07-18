@@ -57,7 +57,7 @@ does not need a dedicated Skill stays with the current AI.
 ## Decompose first, then organize Skills
 
 <p align="center">
-  <img src="./docs/assets/vibeskills-skill-orchestration-en.svg" width="920" alt="VibeSkills matches each part of a task with local Skills that help, while the current AI handles work that does not need a dedicated Skill">
+  <img src="./docs/assets/vibeskills-skill-orchestration-en.png" width="920" alt="VibeSkills matches each part of a task with local Skills that help, while the current AI handles work that does not need a dedicated Skill">
 </p>
 
 The task is split before Skills are chosen. If four parts need four different
