@@ -90,10 +90,6 @@ flowchart LR
     class E result;
 ```
 
-<p align="center">
-  <img src="./docs/assets/vibeskills-case-flow-en.gif" width="920" alt="A lightweight animation moves through local Skills, 7 selected Skills, 5 work groups, real outputs, and final PASS">
-</p>
-
 The run searched the configured local Skill folders. During publication
 preparation, those folders contained more than 100 Skills; VibeSkills read the
 shortlisted candidates' `SKILL.md` files and selected 7.

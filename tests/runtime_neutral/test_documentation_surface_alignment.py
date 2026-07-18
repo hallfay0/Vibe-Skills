@@ -646,8 +646,7 @@ def test_root_readmes_present_the_verified_ml_case_with_source_materials() -> No
     english = _read("README.md")
     chinese = _read("README.zh.md")
 
-    for content, language in ((english, "en"), (chinese, "cn")):
-        assert f"./docs/assets/vibeskills-case-flow-{language}.gif" in content
+    for content in (english, chinese):
         assert "./docs/cases/ml-experiment/" in content
         assert "./docs/cases/ml-experiment/evidence/delivery-acceptance-report.md" in content
 
@@ -696,7 +695,7 @@ def test_public_ml_case_claims_match_its_published_evidence() -> None:
     assert acceptance["execution_context"]["blocked_unit_count"] == 0
 
 
-def test_public_ml_case_keeps_private_paths_out_and_overview_assets_bounded() -> None:
+def test_public_ml_case_keeps_private_paths_out() -> None:
     case_root = REPO_ROOT / "docs" / "cases" / "ml-experiment"
     for path in case_root.rglob("*"):
         if path.suffix.lower() not in {".json", ".md", ".ps1", ".py", ".txt", ".lock"}:
@@ -705,15 +704,6 @@ def test_public_ml_case_keeps_private_paths_out_and_overview_assets_bounded() ->
         assert "D:\\Documents\\vibeskills" not in content
         assert "C:\\Users\\" not in content
         assert re.search(r"work[\\/]+readme-cases", content, flags=re.IGNORECASE) is None
-
-    for language in ("cn", "en"):
-        gif = REPO_ROOT / "docs" / "assets" / f"vibeskills-case-flow-{language}.gif"
-        gif_data = gif.read_bytes()
-
-        assert gif_data[:6] in {b"GIF87a", b"GIF89a"}
-        assert (int.from_bytes(gif_data[6:8], "little"), int.from_bytes(gif_data[8:10], "little")) == (1200, 150)
-        assert gif.stat().st_size < 100_000
-
 
 def test_recommended_full_and_enterprise_reference_pages_are_archived_not_active_install_guidance() -> None:
     for path in (

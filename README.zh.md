@@ -86,10 +86,6 @@ flowchart LR
     class E result;
 ```
 
-<p align="center">
-  <img src="./docs/assets/vibeskills-case-flow-cn.gif" width="920" alt="轻量动画依次标出本地 Skills、选择 7 个、5 个工作组、实际产物和最终 PASS">
-</p>
-
 本次运行从已配置的本地 Skill 目录查找候选。发布准备时，这些目录中统计到
 100 多个 Skills；VibeSkills 阅读筛选后的候选 `SKILL.md`，最后选择并使用了 7 个。
 
