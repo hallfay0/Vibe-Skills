@@ -4,6 +4,18 @@ The public install path starts from a published release zip, not a repository ch
 
 The published ZIP SHA-256 is `0b16a5f615a485b8d082407d458cc5c4ffe2cee443c6211fc941cd6678987dc9`.
 
+## One Installation Model
+
+VibeSkills uses the same package and directory layout in every AI application:
+
+1. Choose a `SkillsDir` that the application scans.
+2. Run `install` against that directory.
+3. Invoke `vibe` through the application's Skills entry.
+
+The installer always writes the same runtime to `<SkillsDir>/vibe`. The
+application changes only the `SkillsDir` path and the invocation syntax; it
+does not select a different VibeSkills package or runtime.
+
 The default directory is `~/.agents/skills`. If a host or your own workflow needs a different skills directory, pass it explicitly, for example `~/.codex/skills` or `~/.claude/skills`.
 
 ## Install
@@ -13,17 +25,13 @@ pwsh -NoProfile -File .\install.ps1 -SkillsDir "$HOME\.agents\skills"
 pwsh -NoProfile -File .\check.ps1 -SkillsDir "$HOME\.agents\skills"
 ```
 
-For a Codex-only install, target the Codex skills directory explicitly:
-
-```powershell
-pwsh -NoProfile -File .\install.ps1 -SkillsDir "$HOME\.codex\skills"
-pwsh -NoProfile -File .\check.ps1 -SkillsDir "$HOME\.codex\skills"
-```
-
 ```bash
 bash ./install.sh --skills-dir "$HOME/.agents/skills"
 bash ./check.sh --skills-dir "$HOME/.agents/skills"
 ```
+
+To use another Skills directory, replace only the `SkillsDir` value. The
+installed files and runtime remain identical.
 
 After installation, the managed directory is `<SkillsDir>/vibe`. The install receipt lives at `<SkillsDir>/vibe/.vibeskills/install-receipt.json`.
 

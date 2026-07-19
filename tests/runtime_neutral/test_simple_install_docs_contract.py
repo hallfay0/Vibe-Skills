@@ -48,6 +48,22 @@ def test_active_install_docs_only_describe_simple_skills_dir_install() -> None:
             assert term not in text
 
 
+def test_internal_docs_define_one_installation_model() -> None:
+    english_install = (INSTALL_DOCS / "README.en.md").read_text(encoding="utf-8")
+    chinese_install = (INSTALL_DOCS / "README.md").read_text(encoding="utf-8")
+    english_paths = (REPO_ROOT / "docs" / "cold-start-install-paths.en.md").read_text(encoding="utf-8")
+    chinese_paths = (REPO_ROOT / "docs" / "cold-start-install-paths.md").read_text(encoding="utf-8")
+    english_paths_compact = " ".join(english_paths.split())
+
+    assert "## One Installation Model" in english_install
+    assert "same runtime to `<SkillsDir>/vibe`" in english_install
+    assert "does not select a host-specific package" in english_paths_compact
+
+    assert "## 一种安装模型" in chinese_install
+    assert "同一份运行时写入 `<SkillsDir>/vibe`" in chinese_install
+    assert "不会选择宿主专用的安装包" in chinese_paths
+
+
 def test_public_readmes_do_not_advertise_missing_cli_commands() -> None:
     for path in PUBLIC_READMES:
         text = path.read_text(encoding="utf-8")

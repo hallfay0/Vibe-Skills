@@ -38,13 +38,19 @@ The simplest path starts from the published release zip, not a repository
 checkout. If VibeSkills is already installed, download the newer zip and run
 `update` against the same Skills folder.
 
-After installation, start it from the Skills entry in your current AI tool.
-Codex can use `$vibe`, while Claude Code can use `/vibe`. These are the start
-commands used by those tools. Other tools can also connect, but the project
-describes them as fully supported only after their workflow has been tested.
+After installation, start VibeSkills from the Skills entry in your current AI
+application. Its host-neutral core works with any application that supports
+local Skills; use `$vibe`, `/vibe`, or the invocation syntax provided by that
+application.
 
-See the [support status](./universalization/host-capability-matrix.md) for the
-current details.
+The installation model is the same in every application:
+
+1. Choose a Skills directory scanned by the application.
+2. Install the same package to `<SkillsDir>/vibe`.
+3. Invoke `vibe` through the application's Skills entry.
+
+See [Choose A Skills Directory](./cold-start-install-paths.en.md) when the
+application uses a different Skills path.
 
 For an update, run the command from the newly extracted release folder:
 

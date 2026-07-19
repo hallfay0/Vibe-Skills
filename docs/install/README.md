@@ -4,6 +4,17 @@
 
 已发布 ZIP 的 SHA-256 是 `0b16a5f615a485b8d082407d458cc5c4ffe2cee443c6211fc941cd6678987dc9`。
 
+## 一种安装模型
+
+VibeSkills 在所有 AI 应用中都使用同一份安装包和同一种目录结构：
+
+1. 选择当前应用能够扫描的 `SkillsDir`。
+2. 对这个目录运行 `install`。
+3. 通过当前应用的 Skills 入口调用 `vibe`。
+
+安装器始终把同一份运行时写入 `<SkillsDir>/vibe`。不同应用只会改变
+`SkillsDir` 的路径和调用语法，不会选择另一份 VibeSkills 安装包或运行时。
+
 默认目录是 `~/.agents/skills`。如果某个宿主或你自己的工作流需要别的 skills 目录，也可以显式传入，例如 `~/.codex/skills` 或 `~/.claude/skills`。
 
 ## 安装
@@ -13,17 +24,12 @@ pwsh -NoProfile -File .\install.ps1 -SkillsDir "$HOME\.agents\skills"
 pwsh -NoProfile -File .\check.ps1 -SkillsDir "$HOME\.agents\skills"
 ```
 
-只在 Codex 中使用时，可以显式安装到 Codex 的 skills 目录：
-
-```powershell
-pwsh -NoProfile -File .\install.ps1 -SkillsDir "$HOME\.codex\skills"
-pwsh -NoProfile -File .\check.ps1 -SkillsDir "$HOME\.codex\skills"
-```
-
 ```bash
 bash ./install.sh --skills-dir "$HOME/.agents/skills"
 bash ./check.sh --skills-dir "$HOME/.agents/skills"
 ```
+
+使用其他 Skills 目录时，只替换 `SkillsDir` 的值。安装内容和运行时保持完全一致。
 
 安装后，受管目录是 `<SkillsDir>/vibe`。安装收据位于 `<SkillsDir>/vibe/.vibeskills/install-receipt.json`。
 
