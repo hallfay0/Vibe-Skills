@@ -9,21 +9,21 @@ PREFACES = {
     "en": {
         "readme": ROOT / "README.md",
         "paragraphs": (
-            "Skills are valuable working assets. But as a task becomes more complex, an agent often falls back on the few Skills that are easiest to trigger, while the rest rarely enter the plan. When several Skills take part, responsibilities and outputs can also fail to connect.",
-            "VibeSkills organizes these resources through a structured, host-neutral harness. It can be used in any AI application that supports local Skills.",
-            "It draws on the harness approaches of Superpowers and GSD-Lite, with a complete workflow and state machine that bring requirement confirmation, execution planning, Skill organization, harness-guided execution, testing, and evaluation together.",
-            "The goal is to give users an end-to-end delivery experience for concrete tasks while lowering the cognitive burden and barrier to using AI.",
-            "Users should not have to worry that less frequently used Skills will sit idle, or repeatedly remember which Skills should be used for which task.",
+            "Skills are excellent local assets of reusable experience. After downloading and installing many Skills, it is easy to sometimes forget which Skills have already been installed and not know which Skills to invoke.",
+            "Further, when a complex task involves the combined organization and invocation of multiple Skills from different domains, planning becomes complicated for people: they must explain to the AI in detail which Skills each module should use, while the AI may forget these designs during execution.",
+            "Many current harness frameworks do not actively plan how to make good use of local Skill resources, and may even fall into an either-or scheduling conflict between the harness framework and domain Skill resources.",
+            "The core of this project is to follow harness frameworks similar to Superpower and GSD. Based on modular decomposition by the planning state machine, it uses different Skills to assist different modules, fully schedules existing local resources, reduces users' planning and cognitive burden, and gives users an end-to-end delivery experience.",
+            "It is committed to becoming a handy steward for the Skill resources around you. When a complex task appears, it can help users slowly sort out which modules are needed and which good experiences can be reused, then deliver an excellent result.",
         ),
     },
     "cn": {
         "readme": ROOT / "README.zh.md",
         "paragraphs": (
-            "Skills 是优秀的实践资产，但是任务一复杂，Agent 往往反复调用最容易触发的几个，其余 Skills 很少被安排进计划；多个 Skills 一起参与时，分工和结果也容易接不上。",
-            "VibeSkills 会通过一套规范化、宿主中立的 harness 把这些资源组织起来，可用于所有支持本地 Skills 的 AI 应用。",
-            "它参考了 Superpowers 和 GSD-Lite 的 harness 方式，拥有完整的 harness 流程和状态机，把需求确认、执行规划、Skills 组织、框架化 harness 执行、测试与评估连接为一个整体。",
-            "最终想要给用户完成具体任务的端到端交付体验，降低 AI 使用时的认知负担和门槛。",
-            "让用户不再担心下载不常用的 Skills 而闲置，也不再担心不知道该用哪些 Skills 而需要反复记忆。",
+            "Skills是优秀的本地可复用经验资产。下载和安装了很多 skills 之后，很容易有些时候搞忘了已经安装了什么 skills，不知道该调用什么 skills。",
+            "进一步，在复杂任务的时候,会涉及到不同领域的多个 skills 的复合组织调用时，人类规划起来比较复杂,要详细跟AI阐明每个模块要用什么skills，同时AI 在执行过程中可能会遗忘这些设计。",
+            "而目前的 harness 框架很多并不会主动去规划好利用本地的skills资源，甚至有些时候陷入了harness框架和领域skills资源非此即彼的调度矛盾。",
+            "这个项目的核心就是效仿 superpower 和 GSD 类似的 harness 框架，基于负责规划的状态机模块拆分，在每个不同的模块中使用不一样的 skills 来辅助任务，充分调度本地的已有资源，减少用户的规划和认知负担，给用户端到端的交付体验。",
+            "致力于成为身边顺手的skills资源调度大管家，遇到复杂任务的时候，可以帮用户慢慢捋清楚要有哪些模块，有哪些好的经验可以复用，给用户最终交付一个优秀的结果。",
         ),
     },
 }
@@ -68,6 +68,8 @@ def test_preface_assets_are_path_only_and_accessible() -> None:
             assert f"{SVG_NS}style" not in tags
             assert len(root.findall(f".//{SVG_NS}path")) >= 6
             assert len(root.findall(f".//{SVG_NS}use")) >= 20
+            assert len(root.findall(f".//*[@data-role='emphasis']")) >= 5
+            assert len(root.findall(f".//*[@data-role='vision']")) >= 1
             assert description is not None
             assert all(
                 paragraph in (description.text or "")
