@@ -33,10 +33,10 @@ PREFACES = {
 
 def _asset_names(language: str) -> tuple[str, ...]:
     return (
-        f"readme-preface-{language}-light.svg",
-        f"readme-preface-{language}-dark.svg",
-        f"readme-preface-{language}-mobile-light.svg",
-        f"readme-preface-{language}-mobile-dark.svg",
+        f"readme-preface-v2-{language}-light.svg",
+        f"readme-preface-v2-{language}-dark.svg",
+        f"readme-preface-v2-{language}-mobile-light.svg",
+        f"readme-preface-v2-{language}-mobile-dark.svg",
     )
 
 
@@ -46,6 +46,8 @@ def test_readmes_use_responsive_unnumbered_preface_assets() -> None:
 
         for asset_name in _asset_names(language):
             assert f"./docs/assets/{asset_name}" in readme
+        assert f"./docs/assets/readme-preface-{language}-light.svg" not in readme
+        assert f"./docs/assets/readme-preface-{language}-dark.svg" not in readme
         for paragraph in contract["paragraphs"]:
             assert paragraph in readme
 
