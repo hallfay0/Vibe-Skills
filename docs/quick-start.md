@@ -35,8 +35,9 @@ VibeSkills 重点解决五件事：
 
 - [`install/README.md`](./install/README.md)
 
-最省事的做法是从发布版本 zip 开始，不要直接从仓库源码安装。已经安装过
-VibeSkills 时，先下载新版本的 zip，再对原来的 Skills 文件夹运行 `update`。
+最省事的做法是从发布版本 zip 开始，不要直接从仓库源码安装。正常更新时，
+下载新版本的 zip，再对原来的 Skills 文件夹运行 `update`。要重新安装时，
+直接删除原来的 `<SkillsDir>/vibe`，再安装当前版本。
 
 安装完成后，从当前 AI 应用的 Skills 入口启动。VibeSkills 的核心不绑定任何
 单一工具，凡是支持本地 Skills 的 AI 应用都可以使用；具体可输入 `$vibe`、

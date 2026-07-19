@@ -54,27 +54,13 @@ bash ./check.sh --skills-dir "$HOME/.agents/skills"
 
 Do not extract the new release inside the managed `<SkillsDir>/vibe` directory. `update` refuses to overwrite receipt-owned files when drift is detected.
 
-## Uninstall
+## Remove
 
-Uninstall is not part of the install or update sequence. Run it only when you intend to remove VibeSkills:
+To remove VibeSkills, delete `<SkillsDir>/vibe` from the installation location.
 
-```powershell
-pwsh -NoProfile -File .\uninstall.ps1 -SkillsDir "$HOME\.agents\skills"
-```
+## Replace An Older Version
 
-```bash
-bash ./uninstall.sh --skills-dir "$HOME/.agents/skills"
-```
-
-`uninstall` removes only files recorded in the receipt and keeps user-added files.
-
-## Upgrading From v3 To v4
-
-1. Record the `SkillsDir` used by the current install.
-2. Download and extract `vibe-skills-4.0.0-public.zip`.
-3. Run the v4 `update` wrapper against the existing `SkillsDir`.
-4. Run `check` and confirm that receipt-owned missing and drifted file counts are both `0`.
-5. Use `vibe` for subsequent governed runs. Retired legacy entry names are not part of the v4 public runtime.
+Delete the old `<SkillsDir>/vibe` folder, then install the current release with the commands above.
 
 v4 does not automatically install or recommend the `chrome`, `chrome-devtools`, `playwright`, `context7`, or `claude-flow` MCPs. The installer also does not modify their host configuration.
 
@@ -83,4 +69,4 @@ The installer does not edit Codex, Claude, or Agents settings. It also does not 
 - User level: `~/.vibeskills/skill-roots.json`
 - Workspace level: `<workspace>/.vibeskills/skill-roots.json`
 
-Repo checkout install is a developer/internal path now. The old multi-host install guides were moved to `docs/archive/install-legacy/2026-07-02/`.
+Repository checkout installation is for development only.

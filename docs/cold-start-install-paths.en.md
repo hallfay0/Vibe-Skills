@@ -1,7 +1,5 @@
 # Choose A Skills Directory
 
-This page used to describe the old multi-host one-shot bootstrap path. That path is retired.
-
 The current install contract has one interface for every AI application:
 
 ```text
