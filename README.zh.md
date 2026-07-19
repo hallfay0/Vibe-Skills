@@ -41,7 +41,7 @@
 
 <p align="center">Skills 是优秀的实践资产，但是任务一复杂，Agent 往往反复调用最容易触发的几个，其余 Skills 很少被安排进计划；多个 Skills 一起参与时，分工和结果也容易接不上。</p>
 
-<p align="center">VibeSkills 就是想在规范化的 harness 框架设计上，充分地把这些资源组织起来。</p>
+<p align="center">VibeSkills 会通过一套规范化、宿主中立的 harness 把这些资源组织起来，可用于所有支持本地 Skills 的 AI 应用。</p>
 
 <p align="center">它参考了 Superpowers 和 GSD-Lite 的 harness 方式，拥有完整的 harness 流程和状态机，把需求确认、执行规划、Skills 组织、框架化 harness 执行、测试与评估连接为一个整体。</p>
 
@@ -400,7 +400,7 @@ VibeSkills 会把确认过的需求、计划、执行进度和最终检查保存
 </h2>
 
 <ol type="I">
-  <li><strong>调用。</strong> 使用时，把 VibeSkills 当作普通 Skill 调用即可。根据你使用的 AI 工具，输入 <code>$vibe</code> 或 <code>/vibe</code>。</li>
+  <li><strong>调用。</strong> 在任何支持本地 Skills 的 AI 应用中，通过应用自己的 Skills 入口调用 VibeSkills，可使用 <code>$vibe</code>、<code>/vibe</code> 或该应用提供的入口语法。</li>
   <li><strong>发现。</strong> VibeSkills 会扫描 Skills 安装目录，以及你配置的其他本地 Skill 目录，找到当前可用的 Skills。</li>
   <li><strong>组织。</strong> 它会根据任务选择合适的 Skills，安排到对应工作中，再统一推进和检查结果。你不需要自己记住每个 Skill 应该在什么时候使用。</li>
 </ol>
@@ -427,7 +427,6 @@ VibeSkills 会把确认过的需求、计划、执行进度和最终检查保存
     <tr><td align="center">安装、更新、卸载</td><td align="center"><strong><a href="./docs/install/README.md">简明安装指南</a></strong></td></tr>
     <tr><td align="center">第一次使用</td><td align="center"><strong><a href="./docs/quick-start.md">快速开始</a></strong></td></tr>
     <tr><td align="center">当前发布版本</td><td align="center"><strong><a href="./docs/releases/v4.0.0.md">v4.0.0 发布说明</a></strong></td></tr>
-    <tr><td align="center">查看哪些 AI 工具已经测试过</td><td align="center"><strong><a href="./docs/universalization/host-capability-matrix.md">支持情况说明</a></strong></td></tr>
     <tr><td align="center">了解它怎么工作</td><td align="center"><strong><a href="./docs/README.md">文档索引</a></strong></td></tr>
     <tr><td align="center">排查问题</td><td align="center"><strong><a href="./docs/troubleshooting.md">故障排查</a></strong></td></tr>
     <tr><td align="center">参与贡献</td><td align="center"><strong><a href="./CONTRIBUTING.md">贡献指南</a></strong></td></tr>

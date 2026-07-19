@@ -38,13 +38,9 @@ VibeSkills 重点解决五件事：
 最省事的做法是从发布版本 zip 开始，不要直接从仓库源码安装。已经安装过
 VibeSkills 时，先下载新版本的 zip，再对原来的 Skills 文件夹运行 `update`。
 
-安装完成后，从当前 AI 工具的 Skills 入口启动。Codex 里可以写 `$vibe`，
-Claude Code 里可以写 `/vibe`。这些只是不同工具的启动方式，不代表 VibeSkills
-只能用在这两个工具里。其他工具也可以接入，但在真正跑过测试之前，项目不会把
-它写成“已经完整支持”。
-
-各工具目前测试到了什么程度，见
-[支持情况说明](./universalization/host-capability-matrix.md)。
+安装完成后，从当前 AI 应用的 Skills 入口启动。VibeSkills 的核心不绑定任何
+单一工具，凡是支持本地 Skills 的 AI 应用都可以使用；具体可输入 `$vibe`、
+`/vibe`，或使用该应用提供的 Skills 入口语法。
 
 更新时，请从新版本解压后的文件夹中运行命令：
 

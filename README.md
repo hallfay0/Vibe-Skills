@@ -41,7 +41,7 @@
 
 <p align="center">Skills are valuable working assets. But as a task becomes more complex, an agent often falls back on the few Skills that are easiest to trigger, while the rest rarely enter the plan. When several Skills take part, responsibilities and outputs can also fail to connect.</p>
 
-<p align="center">VibeSkills is designed to organize these resources through a structured harness.</p>
+<p align="center">VibeSkills organizes these resources through a structured, host-neutral harness. It can be used in any AI application that supports local Skills.</p>
 
 <p align="center">It draws on the harness approaches of Superpowers and GSD-Lite, with a complete workflow and state machine that bring requirement confirmation, execution planning, Skill organization, harness-guided execution, testing, and evaluation together.</p>
 
@@ -418,7 +418,7 @@ not mean the final result passed its checks.
 </h2>
 
 <ol type="I">
-  <li><strong>Invoke.</strong> Use VibeSkills the same way you invoke any other Skill. Depending on your AI tool, enter <code>$vibe</code> or <code>/vibe</code>.</li>
+  <li><strong>Invoke.</strong> In any AI application that supports local Skills, invoke VibeSkills through the application's Skills entry, using <code>$vibe</code>, <code>/vibe</code>, or the syntax it provides.</li>
   <li><strong>Discover.</strong> VibeSkills scans the Skills installation directory and any additional local Skill folders you configure to find the Skills currently available.</li>
   <li><strong>Organize.</strong> It selects suitable Skills for the task, assigns them to the relevant work, and coordinates the result. You do not need to remember which Skill should be used when.</li>
 </ol>
@@ -445,7 +445,6 @@ not mean the final result passed its checks.
     <tr><td align="center">Install, update, uninstall</td><td align="center"><strong><a href="./docs/install/README.en.md">Simple install</a></strong></td></tr>
     <tr><td align="center">First use</td><td align="center"><strong><a href="./docs/quick-start.en.md">Quick start</a></strong></td></tr>
     <tr><td align="center">Current release</td><td align="center"><strong><a href="./docs/releases/v4.0.0.md">v4.0.0 notes</a></strong></td></tr>
-    <tr><td align="center">See which AI tools have been tested</td><td align="center"><strong><a href="./docs/universalization/host-capability-matrix.md">Support status</a></strong></td></tr>
     <tr><td align="center">How it works</td><td align="center"><strong><a href="./docs/README.md">Documentation index</a></strong></td></tr>
     <tr><td align="center">Troubleshooting</td><td align="center"><strong><a href="./docs/troubleshooting.md">Troubleshooting guide</a></strong></td></tr>
     <tr><td align="center">Contributing</td><td align="center"><strong><a href="./CONTRIBUTING.md">Contribution guide</a></strong></td></tr>

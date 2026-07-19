@@ -13,6 +13,10 @@ This matrix freezes the difference between:
 
 It prevents the project from collapsing all hosts into a fake "one runtime fits all" story.
 
+This is an implementation matrix, not a ranking of which AI application
+VibeSkills is for. All Skills-capable applications can connect to the same
+host-neutral core through their Skills entry or a compatible adapter.
+
 ## Status Vocabulary
 
 | Status                       | Meaning                                                                                                |
@@ -26,7 +30,7 @@ It prevents the project from collapsing all hosts into a fake "one runtime fits 
 
 | Host         | Status                       | Runtime Role             | Settings Contract                                                                  | Plugin/MCP Contract         | Release Closure        | Notes                                                                      |
 | ------------ | ---------------------------- | ------------------------ | ---------------------------------------------------------------------------------- | --------------------------- | ---------------------- | -------------------------------------------------------------------------- |
-| Codex | `supported-with-constraints` | official-runtime-adapter | repo template + materialization exist | host-managed but documented | strongest current path | current reference lane |
+| Codex | `supported-with-constraints` | official-runtime-adapter | repo template + materialization exist | host-managed but documented | governed adapter | Codex integration |
 | Claude Code | `supported-with-constraints` | host-adapter-supported | repo writes managed settings surface | host-managed beyond the bounded Claude managed surface | managed-with-constraints | install/check can write and verify real Claude managed state, but not claim official-runtime parity |
 | Cursor | `preview` | host-adapter-preview | preview guidance only | mostly host-managed | preview-scaffold | shared entrypoints exist, but host-native closure is not claimed |
 | Windsurf | `preview` | official-runtime-adapter | runtime-core host-root install/check exists | host-managed beyond runtime-core payload | runtime-core-preview | documented host root with shared runtime-core payload only |
@@ -38,7 +42,7 @@ It prevents the project from collapsing all hosts into a fake "one runtime fits 
 
 ### Codex
 
-- Strongest current evidence for settings, install, health-check, and governed runtime payload.
+- Provides settings, install, health-check, and governed runtime payload integration.
 - Still depends on host-managed plugin provisioning and credential provisioning.
 
 ### Claude Code

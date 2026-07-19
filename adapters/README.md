@@ -11,12 +11,16 @@ Rules:
 
 Current adapter intent:
 
-- `codex/`: strongest current adapter because the repository already ships Codex-specific install, settings, and plugin guidance.
-- `claude-code/`: supported-with-constraints host adapter with a bounded managed Claude settings surface, but still below official-runtime ownership.
+All listed adapters connect the same host-neutral VibeSkills core. These notes
+describe the integration shape rather than ranking one AI application above
+another.
+
+- `codex/`: governed adapter with Codex-specific install, settings, and plugin guidance.
+- `claude-code/`: adapter with a bounded managed Claude settings surface.
 - `cursor/`: preview adapter with truthful host-managed boundaries; no full closure claim yet.
 - `windsurf/`: preview runtime-core adapter with documented host-root payload materialization.
 - `openclaw/`: preview runtime-core adapter with documented host-root payload materialization.
 - `opencode/`: preview adapter with host-native command/agent/example-config scaffolds, but still no full host closure claim.
-- `generic/`: lowest-common-denominator contract consumer, not an official runtime.
+- `generic/`: contract-consumer path for other Skills-capable applications.
 
 The official runtime remains the canonical execution owner until replay, install isolation, and platform truth gates are passed.

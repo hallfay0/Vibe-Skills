@@ -14,11 +14,10 @@ The public product story is one governed runtime entry, `vibe`. Additional
 capability comes from installed local Skills with readable `SKILL.md` files;
 the v4 release does not publish a large built-in Skill catalog.
 
-The core is host-neutral and adapter-based. Ordinary local Skills can
-participate when they satisfy the Skill contract and match a module. New
-carriers can consume the runtime through compatible adapters, but marketing
-must not turn that portability into a claim that every host is already fully
-verified.
+The core is host-neutral and adapter-based. Any AI application that supports
+local Skills can use VibeSkills through its Skills entry or a compatible
+adapter. Ordinary local Skills can participate when they satisfy the Skill
+contract and match a module.
 
 ## About
 
@@ -53,8 +52,8 @@ one verification and continuation chain.
 - `developer-tools`
 - `workflow-engine`
 - `reproducible-workflows`
-- `codex`
-- `claude-code`
+- `agent-runtime`
+- `ai-tools`
 - `python`
 - `powershell`
 
