@@ -15,6 +15,11 @@ All listed adapters connect the same host-neutral VibeSkills core. These notes
 describe the integration shape rather than ranking one AI application above
 another.
 
+The public install interface is always `install --skills-dir <SkillsDir>`, and
+the installed layout is always `<SkillsDir>/vibe`. An adapter may map a native
+Skills directory, invocation syntax, or optional command, agent, and workflow
+projection. It does not define a separate VibeSkills package or runtime.
+
 - `codex/`: governed adapter with Codex-specific install, settings, and plugin guidance.
 - `claude-code/`: adapter with a bounded managed Claude settings surface.
 - `cursor/`: preview adapter with truthful host-managed boundaries; no full closure claim yet.

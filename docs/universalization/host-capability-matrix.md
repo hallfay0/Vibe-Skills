@@ -17,6 +17,19 @@ This is an implementation matrix, not a ranking of which AI application
 VibeSkills is for. All Skills-capable applications can connect to the same
 host-neutral core through their Skills entry or a compatible adapter.
 
+## Common Installation Contract
+
+Every adapter uses the same public installation interface:
+
+```text
+install --skills-dir <SkillsDir>
+```
+
+The installer always writes the same package to `<SkillsDir>/vibe`. An adapter
+may map an application's Skills directory, invocation syntax, or optional
+command, agent, and workflow projections. It must not select a different
+VibeSkills package, runtime, or state machine.
+
 ## Status Vocabulary
 
 | Status                       | Meaning                                                                                                |

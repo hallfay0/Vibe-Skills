@@ -42,6 +42,14 @@ VibeSkills 时，先下载新版本的 zip，再对原来的 Skills 文件夹运
 单一工具，凡是支持本地 Skills 的 AI 应用都可以使用；具体可输入 `$vibe`、
 `/vibe`，或使用该应用提供的 Skills 入口语法。
 
+所有应用都使用同一种安装模型：
+
+1. 选择当前应用能够扫描的 Skills 目录。
+2. 把同一份安装包安装到 `<SkillsDir>/vibe`。
+3. 通过当前应用的 Skills 入口调用 `vibe`。
+
+应用使用其他 Skills 路径时，查看[选择 Skills 目录](./cold-start-install-paths.md)。
+
 更新时，请从新版本解压后的文件夹中运行命令：
 
 - `update.ps1 -SkillsDir <skills-dir>`

@@ -43,6 +43,15 @@ application. Its host-neutral core works with any application that supports
 local Skills; use `$vibe`, `/vibe`, or the invocation syntax provided by that
 application.
 
+The installation model is the same in every application:
+
+1. Choose a Skills directory scanned by the application.
+2. Install the same package to `<SkillsDir>/vibe`.
+3. Invoke `vibe` through the application's Skills entry.
+
+See [Choose A Skills Directory](./cold-start-install-paths.en.md) when the
+application uses a different Skills path.
+
 For an update, run the command from the newly extracted release folder:
 
 - `update.ps1 -SkillsDir <skills-dir>`
