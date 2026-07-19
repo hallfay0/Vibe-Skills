@@ -474,9 +474,11 @@ VibeSkills 的使用讨论和社区实践也可以在 [LINUX DO](https://linux.d
 <p align="center">
   <a href="https://www.star-history.com/?repos=foryourhealth111-pixel%2FVibe-Skills&type=date&legend=top-left">
     <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=foryourhealth111-pixel%2FVibe-Skills&type=date&theme=dark&legend=top-left">
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=foryourhealth111-pixel%2FVibe-Skills&type=date&legend=top-left">
-      <img src="https://api.star-history.com/chart?repos=foryourhealth111-pixel%2FVibe-Skills&type=date&legend=top-left" width="820" alt="VibeSkills Star History">
+      <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/star-history-dark.svg">
+      <source media="(prefers-color-scheme: light)" srcset="./docs/assets/star-history-light.svg">
+      <img src="./docs/assets/star-history-light.svg" width="820" alt="VibeSkills Star History 静态快照，更新至 2026-07-19">
     </picture>
   </a>
 </p>
+
+<p align="center"><sub>静态快照更新于 2026-07-19，数据来自 GitHub Stargazer 时间戳。点击图表查看实时 Star History 页面。</sub></p>
