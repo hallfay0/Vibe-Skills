@@ -8,6 +8,7 @@ SVG_NS = "{http://www.w3.org/2000/svg}"
 PREFACES = {
     "en": {
         "readme": ROOT / "README.md",
+        "mobile_width": 360,
         "paragraphs": (
             "Skills are excellent local assets of reusable experience. After downloading and installing many Skills, it is easy to sometimes forget which Skills have already been installed and not know which Skills to invoke.",
             "Further, when a complex task involves the combined organization and invocation of multiple Skills from different domains, planning becomes complicated for people: they must explain to the AI in detail which Skills each module should use, while the AI may forget these designs during execution.",
@@ -18,6 +19,7 @@ PREFACES = {
     },
     "cn": {
         "readme": ROOT / "README.zh.md",
+        "mobile_width": 320,
         "paragraphs": (
             "Skills是优秀的本地可复用经验资产。下载和安装了很多 skills 之后，很容易有些时候搞忘了已经安装了什么 skills，不知道该调用什么 skills。",
             "进一步，在复杂任务的时候,会涉及到不同领域的多个 skills 的复合组织调用时，人类规划起来比较复杂,要详细跟AI阐明每个模块要用什么skills，同时AI 在执行过程中可能会遗忘这些设计。",
@@ -48,6 +50,7 @@ def test_readmes_use_responsive_unnumbered_preface_assets() -> None:
             assert paragraph in readme
 
         assert readme.count("(max-width: 600px)") >= 2
+        assert 'width="760"' in readme
         assert "readme-preface" in readme
         assert "Ⅰ" not in readme
         assert "Ⅱ" not in readme
@@ -77,6 +80,6 @@ def test_preface_assets_are_path_only_and_accessible() -> None:
             )
 
             if "-mobile-" in asset_name:
-                assert view_box[2] == 360
+                assert view_box[2] == contract["mobile_width"]
             else:
-                assert view_box[2] == 960
+                assert view_box[2] == 800
