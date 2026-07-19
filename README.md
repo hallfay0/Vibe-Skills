@@ -27,7 +27,11 @@
 <br>
 
 <a href="./docs/install/README.en.md">
-  <img src="./docs/assets/install-cta-en.svg" width="218" height="37" alt="Install VibeSkills">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/install-cta-en-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="./docs/assets/install-cta-en-light.svg">
+    <img src="./docs/assets/install-cta-en-light.svg" width="210" height="38" alt="Install VibeSkills">
+  </picture>
 </a>
 
 <br>
@@ -45,7 +49,7 @@
     <source media="(prefers-color-scheme: light) and (max-width: 600px)" srcset="./docs/assets/readme-preface-en-mobile-light.svg">
     <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-preface-en-dark.svg">
     <source media="(prefers-color-scheme: light)" srcset="./docs/assets/readme-preface-en-light.svg">
-    <img src="./docs/assets/readme-preface-en-light.svg" width="880" alt="Skills are valuable working assets. But as a task becomes more complex, an agent often falls back on the few Skills that are easiest to trigger, while the rest rarely enter the plan. When several Skills take part, responsibilities and outputs can also fail to connect. VibeSkills organizes these resources through a structured, host-neutral harness. It can be used in any AI application that supports local Skills. It draws on the harness approaches of Superpowers and GSD-Lite, with a complete workflow and state machine that bring requirement confirmation, execution planning, Skill organization, harness-guided execution, testing, and evaluation together. The goal is to give users an end-to-end delivery experience for concrete tasks while lowering the cognitive burden and barrier to using AI. Users should not have to worry that less frequently used Skills will sit idle, or repeatedly remember which Skills should be used for which task.">
+    <img src="./docs/assets/readme-preface-en-light.svg" width="880" alt="Skills are excellent local assets of reusable experience. After downloading and installing many Skills, it is easy to sometimes forget which Skills have already been installed and not know which Skills to invoke. Further, when a complex task involves the combined organization and invocation of multiple Skills from different domains, planning becomes complicated for people: they must explain to the AI in detail which Skills each module should use, while the AI may forget these designs during execution. Many current harness frameworks do not actively plan how to make good use of local Skill resources, and may even fall into an either-or scheduling conflict between the harness framework and domain Skill resources. The core of this project is to follow harness frameworks similar to Superpower and GSD. Based on modular decomposition by the planning state machine, it uses different Skills to assist different modules, fully schedules existing local resources, reduces users' planning and cognitive burden, and gives users an end-to-end delivery experience. It is committed to becoming a handy steward for the Skill resources around you. When a complex task appears, it can help users slowly sort out which modules are needed and which good experiences can be reused, then deliver an excellent result.">
   </picture>
 </p>
 
