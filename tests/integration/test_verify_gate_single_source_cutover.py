@@ -34,9 +34,11 @@ def test_host_capability_schema_gate_prefers_discovered_profiles_and_registry() 
     assert "'codex/host-profile.json'" not in content
 
 
-def test_uninstall_coherence_gate_prefers_registry_driven_closure_paths() -> None:
+def test_uninstall_coherence_gate_checks_direct_folder_removal() -> None:
     content = (REPO_ROOT / 'scripts' / 'verify' / 'vibe-uninstall-coherence-gate.ps1').read_text(encoding='utf-8')
 
-    assert 'adapter-registry.json' in content
-    assert 'adapterClosures' in content
-    assert "'adapters', 'codex', 'closure.json'" not in content
+    assert '<SkillsDir>/vibe' in content
+    assert 'install_guide_en' in content
+    assert 'troubleshooting' in content
+    assert 'adapterClosures' not in content
+    assert 'ledger_first' not in content

@@ -52,27 +52,13 @@ bash ./check.sh --skills-dir "$HOME/.agents/skills"
 
 不要把新版本解压到受管目录 `<SkillsDir>/vibe` 里面。`update` 发现收据登记文件被修改时会拒绝覆盖。
 
-## 卸载
+## 移除
 
-卸载不属于安装或更新步骤。只在你确实要移除 VibeSkills 时运行：
+要移除 VibeSkills，直接删除安装位置中的 `<SkillsDir>/vibe` 文件夹。
 
-```powershell
-pwsh -NoProfile -File .\uninstall.ps1 -SkillsDir "$HOME\.agents\skills"
-```
+## 替换旧版本
 
-```bash
-bash ./uninstall.sh --skills-dir "$HOME/.agents/skills"
-```
-
-`uninstall` 只删除收据登记的文件，保留用户额外添加的文件。
-
-## 从 v3 升级到 v4
-
-1. 记录当前安装使用的 `SkillsDir`。
-2. 下载并解压 `vibe-skills-4.0.0-public.zip`。
-3. 从 v4 解压目录对原来的 `SkillsDir` 运行 `update`。
-4. 运行 `check`，确认收据登记文件缺失为 `0`、漂移为 `0`。
-5. 后续统一调用 `vibe`。已退役的旧入口不再属于 v4 公开运行时。
+删除原来的 `<SkillsDir>/vibe` 文件夹，再按上面的安装命令安装当前版本。
 
 v4 不会自动安装或推荐 `chrome`、`chrome-devtools`、`playwright`、`context7` 或 `claude-flow` MCP。安装器也不会替用户修改这些 MCP 的主机配置。
 
@@ -81,4 +67,4 @@ v4 不会自动安装或推荐 `chrome`、`chrome-devtools`、`playwright`、`co
 - 用户级：`~/.vibeskills/skill-roots.json`
 - 项目级：`<workspace>/.vibeskills/skill-roots.json`
 
-仓库 checkout 安装现在只属于 developer/internal 路径。旧的多宿主安装说明已经移到 `docs/archive/install-legacy/2026-07-02/`。
+仓库 checkout 安装只用于开发。

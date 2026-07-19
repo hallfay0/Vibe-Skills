@@ -28,6 +28,10 @@ REMOVED_PUBLIC_INSTALL_TERMS = (
     "--profile",
     "--target-root",
     "--deep",
+    "-Deep",
+    "-StrictOffline",
+    "uninstall.ps1",
+    "uninstall.sh",
     "vibe-upgrade",
 )
 

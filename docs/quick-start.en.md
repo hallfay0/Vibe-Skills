@@ -35,8 +35,9 @@ Open the installation guide:
 - [`install/README.en.md`](./install/README.en.md)
 
 The simplest path starts from the published release zip, not a repository
-checkout. If VibeSkills is already installed, download the newer zip and run
-`update` against the same Skills folder.
+checkout. For a normal update, download the newer zip and run `update` against
+the same Skills folder. For a clean reinstall, delete `<SkillsDir>/vibe` and
+install the current release.
 
 After installation, start VibeSkills from the Skills entry in your current AI
 application. Its host-neutral core works with any application that supports

@@ -19,7 +19,7 @@
 
 ## 按需再看
 
-- [`cold-start-install-paths.md`](./cold-start-install-paths.md)：其他环境与旧宿主说明；当前安装仍以 install README 为准
+- [`cold-start-install-paths.md`](./cold-start-install-paths.md)：选择 SkillsDir 的简短说明
 
 ## Current Runtime
 
@@ -56,7 +56,7 @@
 ## Rules
 
 - 根目录 `docs/*.md` 只放长期文档，不把 dated plans 或 batch reports 升格为长期合同。
-- 安装口径以 [`install/README.md`](./install/README.md) 为主；[`cold-start-install-paths.md`](./cold-start-install-paths.md) 只保留其他环境和旧宿主说明，不再充当当前安装主入口。
+- 安装说明以 [`install/README.md`](./install/README.md) 为主。
 - specialized governance、design、external-tooling 叶子页优先放入对应 family 目录，而不是继续堆回 `docs/*.md` 根层。
 - 当前状态以 [`status/current-state.md`](./status/current-state.md) 和 `outputs/verify/**` 为准，不在索引页手工维护状态表。
 - 更低层的脚本 operator surface 仍在 [`../scripts/README.md`](../scripts/README.md)，但它不是 `docs/` 根索引的公开第一跳入口。
