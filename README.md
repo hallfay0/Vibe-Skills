@@ -493,11 +493,9 @@ Third-party software attribution and license information are listed in
 <p align="center">
   <a href="https://www.star-history.com/?repos=foryourhealth111-pixel%2FVibe-Skills&type=date&legend=top-left">
     <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/star-history-dark.svg">
-      <source media="(prefers-color-scheme: light)" srcset="./docs/assets/star-history-light.svg">
-      <img src="./docs/assets/star-history-light.svg" width="820" alt="VibeSkills Star History snapshot through 2026-07-19">
+      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=foryourhealth111-pixel/Vibe-Skills&type=date&theme=dark&legend=top-left&sealed_token=w0EqeLTm9wszGWgyHu06UcCcyQfiKZ7ok_801GPc3z6UHK3z6fsOGq9IfgXQYFpeGcDW9tJHUt4_60YrIc-4SYwecEzSccTbp4CTOESt9m6zQUu4Z4FGmFDSSwSX1m_N0QO7EaWdF9pNSNWvxLxLhOmZ8QdEZEsVK1MmLGm1SpggAS3tk9gWfYCFBb1A">
+      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=foryourhealth111-pixel/Vibe-Skills&type=date&legend=top-left&sealed_token=w0EqeLTm9wszGWgyHu06UcCcyQfiKZ7ok_801GPc3z6UHK3z6fsOGq9IfgXQYFpeGcDW9tJHUt4_60YrIc-4SYwecEzSccTbp4CTOESt9m6zQUu4Z4FGmFDSSwSX1m_N0QO7EaWdF9pNSNWvxLxLhOmZ8QdEZEsVK1MmLGm1SpggAS3tk9gWfYCFBb1A">
+      <img src="https://api.star-history.com/chart?repos=foryourhealth111-pixel/Vibe-Skills&type=date&legend=top-left&sealed_token=w0EqeLTm9wszGWgyHu06UcCcyQfiKZ7ok_801GPc3z6UHK3z6fsOGq9IfgXQYFpeGcDW9tJHUt4_60YrIc-4SYwecEzSccTbp4CTOESt9m6zQUu4Z4FGmFDSSwSX1m_N0QO7EaWdF9pNSNWvxLxLhOmZ8QdEZEsVK1MmLGm1SpggAS3tk9gWfYCFBb1A" width="820" alt="VibeSkills Star History chart">
     </picture>
   </a>
 </p>
-
-<p align="center"><sub>Static snapshot updated on 2026-07-19 from GitHub stargazer timestamps. Select the chart for the live Star History page.</sub></p>
