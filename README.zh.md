@@ -15,7 +15,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-tagline-cn-dark.svg">
-  <img src="./docs/assets/readme-tagline-cn-light.svg" width="560" alt="组织合适的本地 Skills，把复杂任务做完整。">
+  <img src="./docs/assets/readme-tagline-cn-light.svg" width="560" alt="VibeSkills是一个自动路由本地skills，智能harness调度的通用skills。">
 </picture>
 
 <br>
