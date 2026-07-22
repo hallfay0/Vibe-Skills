@@ -15,7 +15,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme-tagline-en-dark.svg">
-  <img src="./docs/assets/readme-tagline-en-light.svg" width="560" alt="Organize the right local Skills and carry complex tasks through to delivery.">
+  <img src="./docs/assets/readme-tagline-en-light.svg" width="560" alt="VibeSkills is a general-purpose Skill that automatically routes local Skills and intelligently orchestrates harness workflows.">
 </picture>
 
 <br>
